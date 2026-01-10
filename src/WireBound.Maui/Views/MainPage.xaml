@@ -1,0 +1,141 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             xmlns:views="clr-namespace:WireBound.Maui.Views"
+             x:Class="WireBound.Maui.Views.MainPage"
+             BackgroundColor="#1A1A2E">
+    
+    <Grid ColumnDefinitions="220, *">
+        
+        <!-- Left Navigation Sidebar -->
+        <Border Grid.Column="0" 
+                BackgroundColor="#0F0F1A"
+                StrokeThickness="0">
+            <Grid RowDefinitions="Auto, *, Auto">
+                
+                <!-- App Header -->
+                <VerticalStackLayout Grid.Row="0" Padding="20" Spacing="8">
+                    <HorizontalStackLayout Spacing="12">
+                        <Border BackgroundColor="#00d4ff"
+                                StrokeShape="RoundRectangle 8"
+                                Stroke="Transparent"
+                                WidthRequest="44"
+                                HeightRequest="44">
+                            <Label Text="🌐"
+                                   FontSize="22"
+                                   HorizontalOptions="Center"
+                                   VerticalOptions="Center" />
+                        </Border>
+                        <VerticalStackLayout VerticalOptions="Center">
+                            <Label Text="WireBound"
+                                   FontSize="18"
+                                   FontAttributes="Bold"
+                                   TextColor="White" />
+                            <Label Text="Network Monitor"
+                                   FontSize="11"
+                                   TextColor="#666680" />
+                        </VerticalStackLayout>
+                    </HorizontalStackLayout>
+                    
+                    <!-- Divider -->
+                    <BoxView HeightRequest="1" 
+                             Color="#2A2A4E" 
+                             Margin="0,12,0,0" />
+                </VerticalStackLayout>
+                
+                <!-- Navigation Items -->
+                <VerticalStackLayout Grid.Row="1" Spacing="4" Padding="12,0">
+                    
+                    <!-- Dashboard -->
+                    <Border x:Name="DashboardNav"
+                            BackgroundColor="#00d4ff"
+                            StrokeShape="RoundRectangle 8"
+                            Stroke="Transparent"
+                            Padding="12,14">
+                        <Border.GestureRecognizers>
+                            <TapGestureRecognizer Tapped="OnDashboardTapped" />
+                        </Border.GestureRecognizers>
+                        <HorizontalStackLayout Spacing="12">
+                            <Label Text="📊" FontSize="18" VerticalOptions="Center" />
+                            <Label Text="Dashboard" 
+                                   FontSize="15" 
+                                   TextColor="#1A1A2E"
+                                   FontAttributes="Bold"
+                                   VerticalOptions="Center" />
+                        </HorizontalStackLayout>
+                    </Border>
+                    
+                    <!-- History -->
+                    <Border x:Name="HistoryNav"
+                            BackgroundColor="Transparent"
+                            StrokeShape="RoundRectangle 8"
+                            Stroke="Transparent"
+                            Padding="12,14">
+                        <Border.GestureRecognizers>
+                            <TapGestureRecognizer Tapped="OnHistoryTapped" />
+                        </Border.GestureRecognizers>
+                        <HorizontalStackLayout Spacing="12">
+                            <Label Text="📈" FontSize="18" VerticalOptions="Center" />
+                            <Label x:Name="HistoryLabel"
+                                   Text="History" 
+                                   FontSize="15" 
+                                   TextColor="#999999"
+                                   VerticalOptions="Center" />
+                        </HorizontalStackLayout>
+                    </Border>
+                    
+                    <!-- Settings -->
+                    <Border x:Name="SettingsNav"
+                            BackgroundColor="Transparent"
+                            StrokeShape="RoundRectangle 8"
+                            Stroke="Transparent"
+                            Padding="12,14">
+                        <Border.GestureRecognizers>
+                            <TapGestureRecognizer Tapped="OnSettingsTapped" />
+                        </Border.GestureRecognizers>
+                        <HorizontalStackLayout Spacing="12">
+                            <Label Text="⚙️" FontSize="18" VerticalOptions="Center" />
+                            <Label x:Name="SettingsLabel"
+                                   Text="Settings" 
+                                   FontSize="15" 
+                                   TextColor="#999999"
+                                   VerticalOptions="Center" />
+                        </HorizontalStackLayout>
+                    </Border>
+                    
+                </VerticalStackLayout>
+                
+                <!-- Footer / Status -->
+                <VerticalStackLayout Grid.Row="2" Padding="16" Spacing="8">
+                    <BoxView HeightRequest="1" Color="#2A2A4E" />
+                    
+                    <!-- Monitoring Status -->
+                    <HorizontalStackLayout Spacing="8" Margin="0,8,0,0">
+                        <Ellipse WidthRequest="8" 
+                                 HeightRequest="8" 
+                                 Fill="#32CD32"
+                                 VerticalOptions="Center" />
+                        <Label Text="Monitoring Active"
+                               FontSize="12"
+                               TextColor="#32CD32"
+                               VerticalOptions="Center" />
+                    </HorizontalStackLayout>
+                    
+                    <!-- Version -->
+                    <Label Text="v1.0.0"
+                           FontSize="11"
+                           TextColor="#444466"
+                           HorizontalOptions="Start" />
+                </VerticalStackLayout>
+            </Grid>
+        </Border>
+        
+        <!-- Main Content Area -->
+        <Border Grid.Column="1" 
+                BackgroundColor="#1A1A2E"
+                StrokeThickness="0">
+            <ContentView x:Name="ContentArea" />
+        </Border>
+        
+    </Grid>
+</ContentPage>

@@ -1,0 +1,10 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/WireBound/WireBound.csproj" />
+    <Project Path="src/WireBound.Maui/WireBound.Maui.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/WireBound.Tests/WireBound.Tests.csproj" />
+    <Project Path="tests/WireBound.Maui.Tests/WireBound.Maui.Tests.csproj" />
+  </Folder>
+</Solution>

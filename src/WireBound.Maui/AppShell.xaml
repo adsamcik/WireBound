@@ -1,0 +1,130 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<Shell xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+       xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+       xmlns:views="clr-namespace:WireBound.Maui.Views"
+       x:Class="WireBound.Maui.AppShell"
+       Title="WireBound"
+       Shell.FlyoutBehavior="Flyout"
+       FlyoutBackgroundColor="#1a1a2e"
+       FlyoutWidth="280">
+
+    <Shell.Resources>
+        <ResourceDictionary>
+            <!-- Shell styling -->
+            <Style x:Key="ShellStyle" TargetType="Element">
+                <Setter Property="Shell.BackgroundColor" Value="#1a1a2e" />
+                <Setter Property="Shell.ForegroundColor" Value="White" />
+                <Setter Property="Shell.TitleColor" Value="White" />
+                <Setter Property="Shell.DisabledColor" Value="#666680" />
+                <Setter Property="Shell.UnselectedColor" Value="#999999" />
+                <Setter Property="Shell.TabBarBackgroundColor" Value="#1a1a2e" />
+                <Setter Property="Shell.TabBarForegroundColor" Value="#00d4ff" />
+                <Setter Property="Shell.TabBarUnselectedColor" Value="#999999" />
+                <Setter Property="Shell.TabBarTitleColor" Value="#00d4ff" />
+            </Style>
+            
+            <!-- Flyout item style -->
+            <Style TargetType="FlyoutItem" ApplyToDerivedTypes="True">
+                <Setter Property="Shell.BackgroundColor" Value="#1a1a2e" />
+                <Setter Property="Shell.ForegroundColor" Value="White" />
+            </Style>
+            
+            <!-- Shell tab bar style -->
+            <Style TargetType="TabBar">
+                <Setter Property="Shell.BackgroundColor" Value="#1a1a2e" />
+                <Setter Property="Shell.ForegroundColor" Value="#00d4ff" />
+            </Style>
+        </ResourceDictionary>
+    </Shell.Resources>
+
+    <!-- Shell Styling -->
+    <Shell.FlyoutHeaderTemplate>
+        <DataTemplate>
+            <Grid BackgroundColor="#1a1a2e" HeightRequest="160" Padding="20">
+                <VerticalStackLayout VerticalOptions="Center" Spacing="8">
+                    <Border BackgroundColor="#00d4ff"
+                            StrokeShape="RoundRectangle 30"
+                            Stroke="Transparent"
+                            WidthRequest="60"
+                            HeightRequest="60"
+                            HorizontalOptions="Start">
+                        <Label Text="🌐"
+                               FontSize="30"
+                               HorizontalOptions="Center"
+                               VerticalOptions="Center" />
+                    </Border>
+                    <Label Text="WireBound"
+                           FontSize="24"
+                           FontAttributes="Bold"
+                           TextColor="White" />
+                    <Label Text="Network Traffic Monitor"
+                           FontSize="12"
+                           TextColor="#999999" />
+                </VerticalStackLayout>
+            </Grid>
+        </DataTemplate>
+    </Shell.FlyoutHeaderTemplate>
+
+    <Shell.ItemTemplate>
+        <DataTemplate>
+            <Grid ColumnDefinitions="Auto, *" 
+                  Padding="16,12" 
+                  ColumnSpacing="16"
+                  BackgroundColor="#1a1a2e">
+                <Image Source="{Binding FlyoutIcon}"
+                       WidthRequest="24"
+                       HeightRequest="24"
+                       VerticalOptions="Center" />
+                <Label Grid.Column="1"
+                       Text="{Binding Title}"
+                       FontSize="16"
+                       TextColor="White"
+                       VerticalOptions="Center" />
+            </Grid>
+        </DataTemplate>
+    </Shell.ItemTemplate>
+
+    <!-- Dashboard (Default/Home) -->
+    <FlyoutItem Title="Dashboard" 
+                Route="dashboard"
+                FlyoutDisplayOptions="AsMultipleItems">
+        <ShellContent Title="Dashboard" 
+                      ContentTemplate="{DataTemplate views:DashboardPage}"
+                      Route="dashboard">
+            <ShellContent.Icon>
+                <FontImageSource Glyph="📊" 
+                                 Color="#00d4ff"
+                                 Size="24" />
+            </ShellContent.Icon>
+        </ShellContent>
+    </FlyoutItem>
+
+    <!-- History -->
+    <FlyoutItem Title="History"
+                Route="history">
+        <ShellContent Title="History"
+                      ContentTemplate="{DataTemplate views:HistoryPage}"
+                      Route="history">
+            <ShellContent.Icon>
+                <FontImageSource Glyph="📈"
+                                 Color="#00d4ff"
+                                 Size="24" />
+            </ShellContent.Icon>
+        </ShellContent>
+    </FlyoutItem>
+
+    <!-- Settings -->
+    <FlyoutItem Title="Settings"
+                Route="settings">
+        <ShellContent Title="Settings"
+                      ContentTemplate="{DataTemplate views:SettingsPage}"
+                      Route="settings">
+            <ShellContent.Icon>
+                <FontImageSource Glyph="⚙️"
+                                 Color="#00d4ff"
+                                 Size="24" />
+            </ShellContent.Icon>
+        </ShellContent>
+    </FlyoutItem>
+
+</Shell>

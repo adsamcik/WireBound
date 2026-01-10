@@ -1,0 +1,165 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<ContentView xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             xmlns:vm="clr-namespace:WireBound.Maui.ViewModels"
+             x:Class="WireBound.Maui.Views.DashboardView"
+             x:DataType="vm:DashboardViewModel">
+
+    <ScrollView Padding="24">
+        <VerticalStackLayout Spacing="24">
+            
+            <!-- Page Header -->
+            <VerticalStackLayout Spacing="4">
+                <Label Text="Dashboard" 
+                       FontSize="32" 
+                       FontAttributes="Bold"
+                       TextColor="{StaticResource PrimaryTextColor}" />
+                <Label Text="Real-time network monitoring"
+                       FontSize="14"
+                       TextColor="{StaticResource SecondaryTextColor}" />
+            </VerticalStackLayout>
+
+            <!-- Selected Adapter Display -->
+            <Border BackgroundColor="{StaticResource CardColor}"
+                    StrokeShape="RoundRectangle 12"
+                    Stroke="Transparent"
+                    Padding="20">
+                <Grid ColumnDefinitions="Auto, *, Auto" ColumnSpacing="12">
+                    <Border BackgroundColor="{StaticResource PrimaryColor}"
+                            StrokeShape="RoundRectangle 8"
+                            Stroke="Transparent"
+                            WidthRequest="44"
+                            HeightRequest="44"
+                            VerticalOptions="Center">
+                        <Label Text="🌐"
+                               FontSize="22"
+                               HorizontalOptions="Center"
+                               VerticalOptions="Center" />
+                    </Border>
+                    <VerticalStackLayout Grid.Column="1" VerticalOptions="Center" Spacing="2">
+                        <Label Text="Active Adapter"
+                               FontSize="12"
+                               TextColor="{StaticResource SecondaryTextColor}" />
+                        <Label Text="{Binding SelectedAdapterName}"
+                               FontSize="16"
+                               FontAttributes="Bold"
+                               TextColor="{StaticResource PrimaryTextColor}" />
+                    </VerticalStackLayout>
+                    <Picker Grid.Column="2"
+                            ItemsSource="{Binding Adapters}"
+                            SelectedItem="{Binding SelectedAdapter}"
+                            ItemDisplayBinding="{Binding Name}"
+                            TextColor="{StaticResource PrimaryTextColor}"
+                            BackgroundColor="{StaticResource SidebarColor}"
+                            WidthRequest="200"
+                            VerticalOptions="Center" />
+                </Grid>
+            </Border>
+
+            <!-- Real-time Speed Section -->
+            <Label Text="Current Speed" 
+                   FontSize="18" 
+                   FontAttributes="Bold"
+                   TextColor="{StaticResource PrimaryTextColor}" />
+            
+            <Grid ColumnDefinitions="*, *" ColumnSpacing="16">
+                <!-- Download Speed Card -->
+                <Border BackgroundColor="{StaticResource CardColor}"
+                        StrokeShape="RoundRectangle 12"
+                        Stroke="Transparent"
+                        Padding="24">
+                    <VerticalStackLayout Spacing="8">
+                        <HorizontalStackLayout Spacing="8">
+                            <Label Text="↓" FontSize="24" TextColor="#1E90FF" />
+                            <Label Text="Download" 
+                                   FontSize="14"
+                                   TextColor="{StaticResource SecondaryTextColor}"
+                                   VerticalOptions="Center" />
+                        </HorizontalStackLayout>
+                        <Label Text="{Binding DownloadSpeed}"
+                               FontSize="36"
+                               FontAttributes="Bold"
+                               TextColor="#1E90FF" />
+                        <BoxView HeightRequest="4" 
+                                 Color="#1E90FF" 
+                                 CornerRadius="2"
+                                 HorizontalOptions="Fill" />
+                    </VerticalStackLayout>
+                </Border>
+
+                <!-- Upload Speed Card -->
+                <Border Grid.Column="1"
+                        BackgroundColor="{StaticResource CardColor}"
+                        StrokeShape="RoundRectangle 12"
+                        Stroke="Transparent"
+                        Padding="24">
+                    <VerticalStackLayout Spacing="8">
+                        <HorizontalStackLayout Spacing="8">
+                            <Label Text="↑" FontSize="24" TextColor="#32CD32" />
+                            <Label Text="Upload" 
+                                   FontSize="14"
+                                   TextColor="{StaticResource SecondaryTextColor}"
+                                   VerticalOptions="Center" />
+                        </HorizontalStackLayout>
+                        <Label Text="{Binding UploadSpeed}"
+                               FontSize="36"
+                               FontAttributes="Bold"
+                               TextColor="#32CD32" />
+                        <BoxView HeightRequest="4" 
+                                 Color="#32CD32" 
+                                 CornerRadius="2"
+                                 HorizontalOptions="Fill" />
+                    </VerticalStackLayout>
+                </Border>
+            </Grid>
+
+            <!-- Session Usage Section -->
+            <Label Text="Session Usage" 
+                   FontSize="18" 
+                   FontAttributes="Bold"
+                   TextColor="{StaticResource PrimaryTextColor}" />
+            
+            <Border BackgroundColor="{StaticResource CardColor}"
+                    StrokeShape="RoundRectangle 12"
+                    Stroke="Transparent"
+                    Padding="24">
+                <Grid ColumnDefinitions="*, Auto, *" ColumnSpacing="16">
+                    <VerticalStackLayout Spacing="4">
+                        <Label Text="Downloaded"
+                               FontSize="12"
+                               TextColor="{StaticResource SecondaryTextColor}" />
+                        <Label Text="{Binding SessionDownload}"
+                               FontSize="24"
+                               FontAttributes="Bold"
+                               TextColor="#1E90FF" />
+                    </VerticalStackLayout>
+                    
+                    <BoxView Grid.Column="1" 
+                             WidthRequest="1" 
+                             Color="{StaticResource SecondaryTextColor}" 
+                             VerticalOptions="Fill" />
+                    
+                    <VerticalStackLayout Grid.Column="2" Spacing="4">
+                        <Label Text="Uploaded"
+                               FontSize="12"
+                               TextColor="{StaticResource SecondaryTextColor}" />
+                        <Label Text="{Binding SessionUpload}"
+                               FontSize="24"
+                               FontAttributes="Bold"
+                               TextColor="#32CD32" />
+                    </VerticalStackLayout>
+                </Grid>
+            </Border>
+
+            <!-- Status -->
+            <HorizontalStackLayout Spacing="8" HorizontalOptions="Center">
+                <Ellipse WidthRequest="10" HeightRequest="10" Fill="#32CD32" VerticalOptions="Center" />
+                <Label Text="Monitoring Active" 
+                       FontSize="14"
+                       TextColor="#32CD32"
+                       VerticalOptions="Center" />
+            </HorizontalStackLayout>
+            
+        </VerticalStackLayout>
+    </ScrollView>
+</ContentView>

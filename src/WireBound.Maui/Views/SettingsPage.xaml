@@ -1,0 +1,280 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             xmlns:vm="clr-namespace:WireBound.Maui.ViewModels"
+             x:Class="WireBound.Maui.Views.SettingsPage"
+             x:DataType="vm:SettingsViewModel"
+             Title="Settings"
+             Shell.NavBarIsVisible="True"
+             BackgroundColor="{StaticResource BackgroundColor}">
+
+    <ScrollView Padding="24">
+        <VerticalStackLayout Spacing="24">
+            <!-- Page Header -->
+            <VerticalStackLayout Spacing="4">
+                <Label Text="Settings" 
+                       FontSize="32" 
+                       FontAttributes="Bold"
+                       TextColor="{StaticResource PrimaryTextColor}" />
+                <Label Text="Configure WireBound preferences"
+                       FontSize="14"
+                       TextColor="{StaticResource SecondaryTextColor}" />
+            </VerticalStackLayout>
+
+            <!-- Monitoring Settings -->
+            <Border Style="{StaticResource CardStyle}">
+                <VerticalStackLayout Spacing="16">
+                    <HorizontalStackLayout Spacing="10">
+                        <Label Text="⚙️" FontSize="20" VerticalOptions="Center" />
+                        <Label Text="Monitoring Settings"
+                               FontSize="18"
+                               FontAttributes="Bold"
+                               TextColor="{StaticResource PrimaryTextColor}"
+                               VerticalOptions="Center" />
+                    </HorizontalStackLayout>
+                    
+                    <BoxView HeightRequest="1" Color="{StaticResource BorderColor}" />
+
+                    <!-- Network Adapter -->
+                    <Grid ColumnDefinitions="*, Auto" RowSpacing="4">
+                        <VerticalStackLayout>
+                            <Label Text="Network Adapter"
+                                   FontSize="15"
+                                   FontAttributes="Bold"
+                                   TextColor="{StaticResource PrimaryTextColor}" />
+                            <Label Text="Select adapter to monitor (or all)"
+                                   FontSize="12"
+                                   TextColor="{StaticResource SecondaryTextColor}" />
+                        </VerticalStackLayout>
+                        <Border Grid.Column="1" 
+                                BackgroundColor="{StaticResource SidebarColor}"
+                                StrokeShape="RoundRectangle 6"
+                                Stroke="{StaticResource BorderColor}"
+                                Padding="4,0">
+                            <Picker ItemsSource="{Binding Adapters}"
+                                    SelectedItem="{Binding SelectedAdapter}"
+                                    ItemDisplayBinding="{Binding Name}"
+                                    TextColor="{StaticResource PrimaryTextColor}"
+                                    WidthRequest="200" />
+                        </Border>
+                    </Grid>
+
+                    <!-- Polling Interval -->
+                    <Grid ColumnDefinitions="*, Auto" RowSpacing="4">
+                        <VerticalStackLayout>
+                            <Label Text="Polling Interval (ms)"
+                                   FontSize="15"
+                                   FontAttributes="Bold"
+                                   TextColor="{StaticResource PrimaryTextColor}" />
+                            <Label Text="How often to check network stats"
+                                   FontSize="12"
+                                   TextColor="{StaticResource SecondaryTextColor}" />
+                        </VerticalStackLayout>
+                        <Border Grid.Column="1" 
+                                BackgroundColor="{StaticResource SidebarColor}"
+                                StrokeShape="RoundRectangle 6"
+                                Stroke="{StaticResource BorderColor}"
+                                Padding="4,0">
+                            <Picker ItemsSource="{Binding PollingIntervals}"
+                                    SelectedItem="{Binding PollingIntervalMs}"
+                                    TextColor="{StaticResource PrimaryTextColor}"
+                                    WidthRequest="120" />
+                        </Border>
+                    </Grid>
+
+                    <!-- Save Interval -->
+                    <Grid ColumnDefinitions="*, Auto" RowSpacing="4">
+                        <VerticalStackLayout>
+                            <Label Text="Save Interval (seconds)"
+                                   FontSize="15"
+                                   FontAttributes="Bold"
+                                   TextColor="{StaticResource PrimaryTextColor}" />
+                            <Label Text="How often to save data to database"
+                                   FontSize="12"
+                                   TextColor="{StaticResource SecondaryTextColor}" />
+                        </VerticalStackLayout>
+                        <Border Grid.Column="1" 
+                                BackgroundColor="{StaticResource SidebarColor}"
+                                StrokeShape="RoundRectangle 6"
+                                Stroke="{StaticResource BorderColor}"
+                                Padding="4,0">
+                            <Picker ItemsSource="{Binding SaveIntervals}"
+                                    SelectedItem="{Binding SaveIntervalSeconds}"
+                                    TextColor="{StaticResource PrimaryTextColor}"
+                                    WidthRequest="120" />
+                        </Border>
+                    </Grid>
+
+                    <!-- Use IP Helper API -->
+                    <Grid ColumnDefinitions="*, Auto" RowSpacing="4">
+                        <VerticalStackLayout>
+                            <Label Text="Use IP Helper API"
+                                   FontSize="15"
+                                   FontAttributes="Bold"
+                                   TextColor="{StaticResource PrimaryTextColor}" />
+                            <Label Text="Alternative method for network monitoring (try if inaccurate)"
+                                   FontSize="12"
+                                   TextColor="{StaticResource SecondaryTextColor}" />
+                        </VerticalStackLayout>
+                        <HorizontalStackLayout Grid.Column="1" Spacing="12" VerticalOptions="Center">
+                            <Switch IsToggled="{Binding UseIpHelperApi}"
+                                    OnColor="{StaticResource PrimaryColor}"
+                                    ThumbColor="{StaticResource PrimaryTextColor}" />
+                            <Button Text="Test"
+                                    Command="{Binding TestIpHelperApiCommand}"
+                                    Style="{StaticResource SecondaryButtonStyle}"
+                                    HeightRequest="36" />
+                        </HorizontalStackLayout>
+                    </Grid>
+                </VerticalStackLayout>
+            </Border>
+
+            <!-- Application Settings -->
+            <Border Style="{StaticResource CardStyle}">
+                <VerticalStackLayout Spacing="16">
+                    <HorizontalStackLayout Spacing="10">
+                        <Label Text="🖥️" FontSize="20" VerticalOptions="Center" />
+                        <Label Text="Application Settings"
+                               FontSize="18"
+                               FontAttributes="Bold"
+                               TextColor="{StaticResource PrimaryTextColor}"
+                               VerticalOptions="Center" />
+                    </HorizontalStackLayout>
+                    
+                    <BoxView HeightRequest="1" Color="{StaticResource BorderColor}" />
+
+                    <!-- Theme -->
+                    <Grid ColumnDefinitions="*, Auto" RowSpacing="4">
+                        <VerticalStackLayout>
+                            <Label Text="Theme"
+                                   FontSize="15"
+                                   FontAttributes="Bold"
+                                   TextColor="{StaticResource PrimaryTextColor}" />
+                            <Label Text="Application appearance"
+                                   FontSize="12"
+                                   TextColor="{StaticResource SecondaryTextColor}" />
+                        </VerticalStackLayout>
+                        <Border Grid.Column="1" 
+                                BackgroundColor="{StaticResource SidebarColor}"
+                                StrokeShape="RoundRectangle 6"
+                                Stroke="{StaticResource BorderColor}"
+                                Padding="4,0">
+                            <Picker ItemsSource="{Binding Themes}"
+                                    SelectedItem="{Binding SelectedTheme}"
+                                    TextColor="{StaticResource PrimaryTextColor}"
+                                    WidthRequest="120" />
+                        </Border>
+                    </Grid>
+
+                    <!-- Start with Windows -->
+                    <Grid ColumnDefinitions="*, Auto" RowSpacing="4">
+                        <VerticalStackLayout>
+                            <Label Text="Start with Windows"
+                                   FontSize="15"
+                                   FontAttributes="Bold"
+                                   TextColor="{StaticResource PrimaryTextColor}" />
+                            <Label Text="Launch WireBound when Windows starts"
+                                   FontSize="12"
+                                   TextColor="{StaticResource SecondaryTextColor}" />
+                        </VerticalStackLayout>
+                        <Switch Grid.Column="1" 
+                                IsToggled="{Binding StartWithWindows}"
+                                OnColor="{StaticResource PrimaryColor}"
+                                ThumbColor="{StaticResource PrimaryTextColor}"
+                                VerticalOptions="Center" />
+                    </Grid>
+
+                    <!-- Minimize to Tray -->
+                    <Grid ColumnDefinitions="*, Auto" RowSpacing="4">
+                        <VerticalStackLayout>
+                            <Label Text="Minimize to System Tray"
+                                   FontSize="15"
+                                   FontAttributes="Bold"
+                                   TextColor="{StaticResource PrimaryTextColor}" />
+                            <Label Text="Keep running in background when minimized"
+                                   FontSize="12"
+                                   TextColor="{StaticResource SecondaryTextColor}" />
+                        </VerticalStackLayout>
+                        <Switch Grid.Column="1" 
+                                IsToggled="{Binding MinimizeToTray}"
+                                OnColor="{StaticResource PrimaryColor}"
+                                ThumbColor="{StaticResource PrimaryTextColor}"
+                                VerticalOptions="Center" />
+                    </Grid>
+                </VerticalStackLayout>
+            </Border>
+
+            <!-- Data Management -->
+            <Border Style="{StaticResource CardStyle}">
+                <VerticalStackLayout Spacing="16">
+                    <HorizontalStackLayout Spacing="10">
+                        <Label Text="📊" FontSize="20" VerticalOptions="Center" />
+                        <Label Text="Data Management"
+                               FontSize="18"
+                               FontAttributes="Bold"
+                               TextColor="{StaticResource PrimaryTextColor}"
+                               VerticalOptions="Center" />
+                    </HorizontalStackLayout>
+                    
+                    <BoxView HeightRequest="1" Color="{StaticResource BorderColor}" />
+
+                    <!-- Data Retention -->
+                    <Grid ColumnDefinitions="*, Auto" RowSpacing="4">
+                        <VerticalStackLayout>
+                            <Label Text="Data Retention (days)"
+                                   FontSize="15"
+                                   FontAttributes="Bold"
+                                   TextColor="{StaticResource PrimaryTextColor}" />
+                            <Label Text="How long to keep historical data"
+                                   FontSize="12"
+                                   TextColor="{StaticResource SecondaryTextColor}" />
+                        </VerticalStackLayout>
+                        <Border Grid.Column="1" 
+                                BackgroundColor="{StaticResource SidebarColor}"
+                                StrokeShape="RoundRectangle 6"
+                                Stroke="{StaticResource BorderColor}"
+                                Padding="8,4">
+                            <Entry Text="{Binding DataRetentionDays}"
+                                   Keyboard="Numeric"
+                                   TextColor="{StaticResource PrimaryTextColor}"
+                                   BackgroundColor="Transparent"
+                                   WidthRequest="80"
+                                   HorizontalTextAlignment="Center" />
+                        </Border>
+                    </Grid>
+
+                    <!-- Cleanup Button -->
+                    <Button Text="🗑️ Cleanup Old Data"
+                            Command="{Binding CleanupDataCommand}"
+                            Style="{StaticResource SecondaryButtonStyle}"
+                            HorizontalOptions="Start" />
+                </VerticalStackLayout>
+            </Border>
+
+            <!-- Status and Save -->
+            <Border Style="{StaticResource CardStyle}">
+                <VerticalStackLayout Spacing="12">
+                    <!-- Status Message -->
+                    <Border BackgroundColor="{StaticResource SidebarColor}"
+                            StrokeShape="RoundRectangle 6"
+                            Stroke="{StaticResource SuccessColor}"
+                            Padding="12,8"
+                            IsVisible="{Binding StatusMessage, Converter={StaticResource StringToBoolConverter}}">
+                        <Label Text="{Binding StatusMessage}"
+                               TextColor="{StaticResource SuccessColor}"
+                               FontSize="14" />
+                    </Border>
+                    
+                    <Button Text="💾 Save Settings"
+                            Command="{Binding SaveSettingsCommand}"
+                            Style="{StaticResource PrimaryButtonStyle}"
+                            HorizontalOptions="Start"
+                            WidthRequest="180" />
+                </VerticalStackLayout>
+            </Border>
+            
+            <!-- Bottom spacing -->
+            <BoxView HeightRequest="20" Color="Transparent" />
+        </VerticalStackLayout>
+    </ScrollView>
+</ContentPage>

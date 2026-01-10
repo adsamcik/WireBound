@@ -1,0 +1,148 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             xmlns:vm="clr-namespace:WireBound.Maui.ViewModels"
+             xmlns:models="clr-namespace:WireBound.Maui.Models"
+             xmlns:lvc="clr-namespace:LiveChartsCore.SkiaSharpView.Maui;assembly=LiveChartsCore.SkiaSharpView.Maui"
+             x:Class="WireBound.Maui.Views.HistoryPage"
+             x:DataType="vm:HistoryViewModel"
+             Title="History"
+             Shell.NavBarIsVisible="True"
+             BackgroundColor="{StaticResource BackgroundColor}">
+
+    <ScrollView Padding="24">
+        <VerticalStackLayout Spacing="20">
+            <!-- Page Header -->
+            <Label Text="History" 
+                   FontSize="28" 
+                   FontAttributes="Bold"
+                   TextColor="{StaticResource PrimaryTextColor}" />
+
+            <!-- Quick Date Range Buttons -->
+            <Border Style="{StaticResource CardStyle}">
+                <HorizontalStackLayout Spacing="10">
+                    <Button Text="Last 7 Days"
+                            Command="{Binding LoadLast7DaysCommand}"
+                            Style="{StaticResource SecondaryButtonStyle}" />
+                    <Button Text="Last 30 Days"
+                            Command="{Binding LoadLast30DaysCommand}"
+                            Style="{StaticResource SecondaryButtonStyle}" />
+                    <Button Text="This Month"
+                            Command="{Binding LoadThisMonthCommand}"
+                            Style="{StaticResource SecondaryButtonStyle}" />
+                    <Button Text="🔄 Refresh"
+                            Command="{Binding RefreshCommand}"
+                            Style="{StaticResource SecondaryButtonStyle}" />
+                </HorizontalStackLayout>
+            </Border>
+
+            <!-- Statistics Summary -->
+            <Grid ColumnDefinitions="*, *, *, *" ColumnSpacing="15">
+                <!-- Total Downloaded -->
+                <Border Grid.Column="0" Style="{StaticResource CardStyle}">
+                    <VerticalStackLayout Spacing="5">
+                        <Label Text="Total Downloaded"
+                               FontSize="12"
+                               TextColor="{StaticResource SecondaryTextColor}" />
+                        <Label Text="{Binding TotalReceived}"
+                               FontSize="20"
+                               FontAttributes="Bold"
+                               TextColor="{StaticResource DownloadColor}" />
+                    </VerticalStackLayout>
+                </Border>
+
+                <!-- Total Uploaded -->
+                <Border Grid.Column="1" Style="{StaticResource CardStyle}">
+                    <VerticalStackLayout Spacing="5">
+                        <Label Text="Total Uploaded"
+                               FontSize="12"
+                               TextColor="{StaticResource SecondaryTextColor}" />
+                        <Label Text="{Binding TotalSent}"
+                               FontSize="20"
+                               FontAttributes="Bold"
+                               TextColor="{StaticResource UploadColor}" />
+                    </VerticalStackLayout>
+                </Border>
+
+                <!-- Period Downloaded -->
+                <Border Grid.Column="2" Style="{StaticResource CardStyle}">
+                    <VerticalStackLayout Spacing="5">
+                        <Label Text="Period Downloaded"
+                               FontSize="12"
+                               TextColor="{StaticResource SecondaryTextColor}" />
+                        <Label Text="{Binding PeriodReceived}"
+                               FontSize="20"
+                               FontAttributes="Bold"
+                               TextColor="{StaticResource DownloadColor}" />
+                    </VerticalStackLayout>
+                </Border>
+
+                <!-- Period Uploaded -->
+                <Border Grid.Column="3" Style="{StaticResource CardStyle}">
+                    <VerticalStackLayout Spacing="5">
+                        <Label Text="Period Uploaded"
+                               FontSize="12"
+                               TextColor="{StaticResource SecondaryTextColor}" />
+                        <Label Text="{Binding PeriodSent}"
+                               FontSize="20"
+                               FontAttributes="Bold"
+                               TextColor="{StaticResource UploadColor}" />
+                    </VerticalStackLayout>
+                </Border>
+            </Grid>
+
+            <!-- Daily Usage Chart -->
+            <Border Style="{StaticResource CardStyle}" HeightRequest="350">
+                <Grid RowDefinitions="Auto, *">
+                    <Label Text="Daily Usage"
+                           FontSize="16"
+                           FontAttributes="Bold"
+                           TextColor="{StaticResource PrimaryTextColor}"
+                           Margin="0,0,0,10" />
+                    
+                    <lvc:CartesianChart Grid.Row="1"
+                                        Series="{Binding DailySeries}"
+                                        XAxes="{Binding XAxes}"
+                                        YAxes="{Binding YAxes}"
+                                        TooltipPosition="Top" />
+                </Grid>
+            </Border>
+
+            <!-- Daily Usage Data Grid -->
+            <Border Style="{StaticResource CardStyle}">
+                <Grid RowDefinitions="Auto, *">
+                    <Label Text="Daily Breakdown"
+                           FontSize="16"
+                           FontAttributes="Bold"
+                           TextColor="{StaticResource PrimaryTextColor}"
+                           Margin="0,0,0,10" />
+                    
+                    <CollectionView Grid.Row="1"
+                                    ItemsSource="{Binding DailyUsages}"
+                                    SelectionMode="None">
+                        <CollectionView.Header>
+                            <Grid ColumnDefinitions="*, *, *, *" 
+                                  Padding="10,5"
+                                  BackgroundColor="{StaticResource SidebarColor}">
+                                <Label Grid.Column="0" Text="Date" FontAttributes="Bold" TextColor="{StaticResource PrimaryTextColor}" />
+                                <Label Grid.Column="1" Text="Downloaded" FontAttributes="Bold" TextColor="{StaticResource PrimaryTextColor}" />
+                                <Label Grid.Column="2" Text="Uploaded" FontAttributes="Bold" TextColor="{StaticResource PrimaryTextColor}" />
+                                <Label Grid.Column="3" Text="Total" FontAttributes="Bold" TextColor="{StaticResource PrimaryTextColor}" />
+                            </Grid>
+                        </CollectionView.Header>
+                        <CollectionView.ItemTemplate>
+                            <DataTemplate x:DataType="models:DailyUsage">
+                                <Grid ColumnDefinitions="*, *, *, *" Padding="10,8">
+                                    <Label Grid.Column="0" Text="{Binding Date, StringFormat='{0:MM/dd/yyyy}'}" TextColor="{StaticResource PrimaryTextColor}" />
+                                    <Label Grid.Column="1" Text="{Binding BytesReceived, Converter={StaticResource BytesToStringConverter}}" TextColor="{StaticResource DownloadColor}" />
+                                    <Label Grid.Column="2" Text="{Binding BytesSent, Converter={StaticResource BytesToStringConverter}}" TextColor="{StaticResource UploadColor}" />
+                                    <Label Grid.Column="3" Text="{Binding TotalBytes, Converter={StaticResource BytesToStringConverter}}" TextColor="{StaticResource PrimaryTextColor}" />
+                                </Grid>
+                            </DataTemplate>
+                        </CollectionView.ItemTemplate>
+                    </CollectionView>
+                </Grid>
+            </Border>
+        </VerticalStackLayout>
+    </ScrollView>
+</ContentPage>

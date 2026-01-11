@@ -1,23 +1,23 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.Logging;
 using WireBound.Data;
 using WireBound.Models;
 
 namespace WireBound.Services;
 
-public class DataPersistenceService : IDataPersistenceService
+/// <summary>
+/// Service for persisting network statistics to the database.
+/// </summary>
+public sealed class DataPersistenceService : IDataPersistenceService
 {
     private readonly IServiceProvider _serviceProvider;
-    private readonly ILogger<DataPersistenceService> _logger;
     private readonly object _statsLock = new();
     private long _lastSavedReceived = 0;
     private long _lastSavedSent = 0;
 
-    public DataPersistenceService(IServiceProvider serviceProvider, ILogger<DataPersistenceService> logger)
+    public DataPersistenceService(IServiceProvider serviceProvider)
     {
         _serviceProvider = serviceProvider;
-        _logger = logger;
     }
 
     public async Task SaveStatsAsync(NetworkStats stats)
@@ -46,7 +46,8 @@ public class DataPersistenceService : IDataPersistenceService
 
         // Update or create hourly record
         var hourlyRecord = await db.HourlyUsages
-            .FirstOrDefaultAsync(h => h.Hour == currentHour && h.AdapterId == stats.AdapterId);
+            .FirstOrDefaultAsync(h => h.Hour == currentHour && h.AdapterId == stats.AdapterId)
+            .ConfigureAwait(false);
 
         if (hourlyRecord == null)
         {
@@ -73,7 +74,8 @@ public class DataPersistenceService : IDataPersistenceService
 
         // Update or create daily record
         var dailyRecord = await db.DailyUsages
-            .FirstOrDefaultAsync(d => d.Date == today && d.AdapterId == stats.AdapterId);
+            .FirstOrDefaultAsync(d => d.Date == today && d.AdapterId == stats.AdapterId)
+            .ConfigureAwait(false);
 
         if (dailyRecord == null)
         {
@@ -98,7 +100,7 @@ public class DataPersistenceService : IDataPersistenceService
             dailyRecord.LastUpdated = now;
         }
 
-        await db.SaveChangesAsync();
+        await db.SaveChangesAsync().ConfigureAwait(false);
     }
 
     public async Task<List<DailyUsage>> GetDailyUsageAsync(DateOnly startDate, DateOnly endDate)
@@ -109,7 +111,8 @@ public class DataPersistenceService : IDataPersistenceService
         return await db.DailyUsages
             .Where(d => d.Date >= startDate && d.Date <= endDate)
             .OrderBy(d => d.Date)
-            .ToListAsync();
+            .ToListAsync()
+            .ConfigureAwait(false);
     }
 
     public async Task<List<HourlyUsage>> GetHourlyUsageAsync(DateOnly date)
@@ -123,32 +126,8 @@ public class DataPersistenceService : IDataPersistenceService
         return await db.HourlyUsages
             .Where(h => h.Hour >= startOfDay && h.Hour <= endOfDay)
             .OrderBy(h => h.Hour)
-            .ToListAsync();
-    }
-
-    public async Task<List<HourlyUsage>> GetHourlyUsageRangeAsync(DateOnly startDate, DateOnly endDate)
-    {
-        using var scope = _serviceProvider.CreateScope();
-        var db = scope.ServiceProvider.GetRequiredService<WireBoundDbContext>();
-
-        var startDateTime = startDate.ToDateTime(TimeOnly.MinValue);
-        var endDateTime = endDate.ToDateTime(TimeOnly.MaxValue);
-
-        return await db.HourlyUsages
-            .Where(h => h.Hour >= startDateTime && h.Hour <= endDateTime)
-            .OrderBy(h => h.Hour)
-            .ToListAsync();
-    }
-
-    public async Task<List<WeeklyUsage>> GetWeeklyUsageAsync(DateOnly startDate, DateOnly endDate)
-    {
-        using var scope = _serviceProvider.CreateScope();
-        var db = scope.ServiceProvider.GetRequiredService<WireBoundDbContext>();
-
-        return await db.WeeklyUsages
-            .Where(w => w.WeekStart >= startDate && w.WeekStart <= endDate)
-            .OrderBy(w => w.WeekStart)
-            .ToListAsync();
+            .ToListAsync()
+            .ConfigureAwait(false);
     }
 
     public async Task<(long totalReceived, long totalSent)> GetTotalUsageAsync()
@@ -163,65 +142,8 @@ public class DataPersistenceService : IDataPersistenceService
                 TotalReceived = g.Sum(d => d.BytesReceived),
                 TotalSent = g.Sum(d => d.BytesSent)
             })
-            .FirstOrDefaultAsync();
-
-        return (totals?.TotalReceived ?? 0, totals?.TotalSent ?? 0);
-    }
-
-    public async Task<(long received, long sent)> GetTodayUsageAsync()
-    {
-        using var scope = _serviceProvider.CreateScope();
-        var db = scope.ServiceProvider.GetRequiredService<WireBoundDbContext>();
-
-        var today = DateOnly.FromDateTime(DateTime.Today);
-        var usage = await db.DailyUsages
-            .Where(d => d.Date == today)
-            .FirstOrDefaultAsync();
-
-        return (usage?.BytesReceived ?? 0, usage?.BytesSent ?? 0);
-    }
-
-    public async Task<(long received, long sent)> GetThisWeekUsageAsync()
-    {
-        using var scope = _serviceProvider.CreateScope();
-        var db = scope.ServiceProvider.GetRequiredService<WireBoundDbContext>();
-
-        var today = DateTime.Today;
-        var daysSinceMonday = ((int)today.DayOfWeek - 1 + 7) % 7;
-        var monday = DateOnly.FromDateTime(today.AddDays(-daysSinceMonday));
-        var todayDate = DateOnly.FromDateTime(today);
-
-        var totals = await db.DailyUsages
-            .Where(d => d.Date >= monday && d.Date <= todayDate)
-            .GroupBy(_ => 1)
-            .Select(g => new
-            {
-                TotalReceived = g.Sum(d => d.BytesReceived),
-                TotalSent = g.Sum(d => d.BytesSent)
-            })
-            .FirstOrDefaultAsync();
-
-        return (totals?.TotalReceived ?? 0, totals?.TotalSent ?? 0);
-    }
-
-    public async Task<(long received, long sent)> GetThisMonthUsageAsync()
-    {
-        using var scope = _serviceProvider.CreateScope();
-        var db = scope.ServiceProvider.GetRequiredService<WireBoundDbContext>();
-
-        var today = DateTime.Today;
-        var firstOfMonth = new DateOnly(today.Year, today.Month, 1);
-        var todayDate = DateOnly.FromDateTime(today);
-
-        var totals = await db.DailyUsages
-            .Where(d => d.Date >= firstOfMonth && d.Date <= todayDate)
-            .GroupBy(_ => 1)
-            .Select(g => new
-            {
-                TotalReceived = g.Sum(d => d.BytesReceived),
-                TotalSent = g.Sum(d => d.BytesSent)
-            })
-            .FirstOrDefaultAsync();
+            .FirstOrDefaultAsync()
+            .ConfigureAwait(false);
 
         return (totals?.TotalReceived ?? 0, totals?.TotalSent ?? 0);
     }
@@ -234,12 +156,8 @@ public class DataPersistenceService : IDataPersistenceService
         var cutoffDate = DateOnly.FromDateTime(DateTime.Now.AddDays(-retentionDays));
         var cutoffDateTime = cutoffDate.ToDateTime(TimeOnly.MinValue);
 
-        var deletedDaily = await db.DailyUsages.Where(d => d.Date < cutoffDate).ExecuteDeleteAsync();
-        var deletedHourly = await db.HourlyUsages.Where(h => h.Hour < cutoffDateTime).ExecuteDeleteAsync();
-        var deletedWeekly = await db.WeeklyUsages.Where(w => w.WeekStart < cutoffDate).ExecuteDeleteAsync();
-
-        _logger.LogInformation("Cleanup completed: {Daily} daily, {Hourly} hourly, {Weekly} weekly records deleted", 
-            deletedDaily, deletedHourly, deletedWeekly);
+        await db.DailyUsages.Where(d => d.Date < cutoffDate).ExecuteDeleteAsync().ConfigureAwait(false);
+        await db.HourlyUsages.Where(h => h.Hour < cutoffDateTime).ExecuteDeleteAsync().ConfigureAwait(false);
     }
 
     public async Task<AppSettings> GetSettingsAsync()
@@ -247,7 +165,7 @@ public class DataPersistenceService : IDataPersistenceService
         using var scope = _serviceProvider.CreateScope();
         var db = scope.ServiceProvider.GetRequiredService<WireBoundDbContext>();
 
-        var settings = await db.Settings.FirstOrDefaultAsync();
+        var settings = await db.Settings.FirstOrDefaultAsync().ConfigureAwait(false);
         return settings ?? new AppSettings();
     }
 
@@ -256,7 +174,7 @@ public class DataPersistenceService : IDataPersistenceService
         using var scope = _serviceProvider.CreateScope();
         var db = scope.ServiceProvider.GetRequiredService<WireBoundDbContext>();
 
-        var existing = await db.Settings.FirstOrDefaultAsync();
+        var existing = await db.Settings.FirstOrDefaultAsync().ConfigureAwait(false);
         if (existing == null)
         {
             settings.Id = 1;
@@ -267,7 +185,7 @@ public class DataPersistenceService : IDataPersistenceService
             db.Entry(existing).CurrentValues.SetValues(settings);
         }
 
-        await db.SaveChangesAsync();
+        await db.SaveChangesAsync().ConfigureAwait(false);
     }
 
     // === Per-App Network Tracking Methods ===
@@ -290,7 +208,8 @@ public class DataPersistenceService : IDataPersistenceService
                 .FirstOrDefaultAsync(a => 
                     a.Timestamp == currentHour && 
                     a.AppIdentifier == stat.AppIdentifier && 
-                    a.Granularity == UsageGranularity.Hourly);
+                    a.Granularity == UsageGranularity.Hourly)
+                .ConfigureAwait(false);
 
             if (record == null)
             {
@@ -312,8 +231,6 @@ public class DataPersistenceService : IDataPersistenceService
             }
             else
             {
-                // Update existing record with current values
-                // Note: SessionBytes are cumulative, so we track the max seen
                 record.BytesReceived = Math.Max(record.BytesReceived, stat.SessionBytesReceived);
                 record.BytesSent = Math.Max(record.BytesSent, stat.SessionBytesSent);
                 record.PeakDownloadSpeed = Math.Max(record.PeakDownloadSpeed, stat.DownloadSpeedBps);
@@ -322,7 +239,7 @@ public class DataPersistenceService : IDataPersistenceService
             }
         }
 
-        await db.SaveChangesAsync();
+        await db.SaveChangesAsync().ConfigureAwait(false);
     }
 
     public async Task<List<AppUsageRecord>> GetTopAppsAsync(int count, DateOnly startDate, DateOnly endDate)
@@ -333,7 +250,6 @@ public class DataPersistenceService : IDataPersistenceService
         var startDateTime = startDate.ToDateTime(TimeOnly.MinValue);
         var endDateTime = endDate.ToDateTime(TimeOnly.MaxValue);
 
-        // Group by app identifier and sum the bytes
         var topApps = await db.AppUsageRecords
             .Where(a => a.Timestamp >= startDateTime && a.Timestamp <= endDateTime)
             .GroupBy(a => a.AppIdentifier)
@@ -350,7 +266,8 @@ public class DataPersistenceService : IDataPersistenceService
             })
             .OrderByDescending(a => a.TotalBytesReceived + a.TotalBytesSent)
             .Take(count)
-            .ToListAsync();
+            .ToListAsync()
+            .ConfigureAwait(false);
 
         return topApps.Select(a => new AppUsageRecord
         {
@@ -387,7 +304,8 @@ public class DataPersistenceService : IDataPersistenceService
 
         return await query
             .OrderBy(a => a.Timestamp)
-            .ToListAsync();
+            .ToListAsync()
+            .ConfigureAwait(false);
     }
 
     public async Task<List<AppUsageRecord>> GetAllAppUsageAsync(DateOnly startDate, DateOnly endDate, UsageGranularity? granularity = null)
@@ -408,7 +326,8 @@ public class DataPersistenceService : IDataPersistenceService
 
         return await query
             .OrderByDescending(a => a.BytesReceived + a.BytesSent)
-            .ToListAsync();
+            .ToListAsync()
+            .ConfigureAwait(false);
     }
 
     public async Task AggregateAppDataAsync(int aggregateAfterDays)
@@ -418,18 +337,14 @@ public class DataPersistenceService : IDataPersistenceService
 
         var cutoffDate = DateTime.Now.AddDays(-aggregateAfterDays);
         
-        // Get all hourly records older than cutoff
         var hourlyRecords = await db.AppUsageRecords
             .Where(a => a.Granularity == UsageGranularity.Hourly && a.Timestamp < cutoffDate)
-            .ToListAsync();
+            .ToListAsync()
+            .ConfigureAwait(false);
 
         if (!hourlyRecords.Any())
-        {
-            _logger.LogDebug("No hourly app records to aggregate");
             return;
-        }
 
-        // Group by app and date
         var groupedByDay = hourlyRecords
             .GroupBy(a => new { a.AppIdentifier, Date = DateOnly.FromDateTime(a.Timestamp) });
 
@@ -437,12 +352,12 @@ public class DataPersistenceService : IDataPersistenceService
         {
             var dailyTimestamp = group.Key.Date.ToDateTime(TimeOnly.MinValue);
             
-            // Check if daily record already exists
             var existingDaily = await db.AppUsageRecords
                 .FirstOrDefaultAsync(a => 
                     a.AppIdentifier == group.Key.AppIdentifier && 
                     a.Timestamp == dailyTimestamp && 
-                    a.Granularity == UsageGranularity.Daily);
+                    a.Granularity == UsageGranularity.Daily)
+                .ConfigureAwait(false);
 
             var first = group.First();
             var totalReceived = group.Sum(a => a.BytesReceived);
@@ -452,7 +367,6 @@ public class DataPersistenceService : IDataPersistenceService
 
             if (existingDaily == null)
             {
-                // Create new daily record
                 db.AppUsageRecords.Add(new AppUsageRecord
                 {
                     AppIdentifier = group.Key.AppIdentifier,
@@ -470,7 +384,6 @@ public class DataPersistenceService : IDataPersistenceService
             }
             else
             {
-                // Update existing daily record
                 existingDaily.BytesReceived += totalReceived;
                 existingDaily.BytesSent += totalSent;
                 existingDaily.PeakDownloadSpeed = Math.Max(existingDaily.PeakDownloadSpeed, peakDown);
@@ -479,31 +392,19 @@ public class DataPersistenceService : IDataPersistenceService
             }
         }
 
-        // Delete the aggregated hourly records
         db.AppUsageRecords.RemoveRange(hourlyRecords);
-        
-        await db.SaveChangesAsync();
-        
-        _logger.LogInformation("Aggregated {Count} hourly app records into daily records", hourlyRecords.Count);
+        await db.SaveChangesAsync().ConfigureAwait(false);
     }
 
     public async Task CleanupOldAppDataAsync(int retentionDays)
     {
         if (retentionDays <= 0)
-        {
-            _logger.LogDebug("App data retention is set to indefinite, skipping cleanup");
             return;
-        }
 
         using var scope = _serviceProvider.CreateScope();
         var db = scope.ServiceProvider.GetRequiredService<WireBoundDbContext>();
 
         var cutoffDate = DateTime.Now.AddDays(-retentionDays);
-        
-        var deleted = await db.AppUsageRecords
-            .Where(a => a.Timestamp < cutoffDate)
-            .ExecuteDeleteAsync();
-
-        _logger.LogInformation("Cleaned up {Count} old app usage records", deleted);
+        await db.AppUsageRecords.Where(a => a.Timestamp < cutoffDate).ExecuteDeleteAsync().ConfigureAwait(false);
     }
 }

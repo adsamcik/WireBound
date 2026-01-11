@@ -4,7 +4,7 @@ namespace WireBound.Services;
 
 /// <summary>
 /// Service for monitoring per-process network statistics.
-/// This is an optional feature that requires elevated privileges.
+/// This is an optional feature that requires elevated privileges on Windows.
 /// </summary>
 public interface IProcessNetworkService : IDisposable
 {
@@ -14,13 +14,18 @@ public interface IProcessNetworkService : IDisposable
     bool IsRunning { get; }
     
     /// <summary>
-    /// Whether the current process has the required privileges for ETW tracing
+    /// Whether the current process has the required privileges for network tracing
     /// </summary>
     bool HasRequiredPrivileges { get; }
     
     /// <summary>
+    /// Whether per-app tracking is supported on this platform
+    /// </summary>
+    bool IsPlatformSupported { get; }
+    
+    /// <summary>
     /// Start collecting per-process network statistics.
-    /// May trigger UAC prompt if elevation is required.
+    /// May trigger UAC prompt on Windows if elevation is required.
     /// </summary>
     /// <returns>True if started successfully, false otherwise</returns>
     Task<bool> StartAsync();

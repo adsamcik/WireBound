@@ -8,7 +8,7 @@ namespace WireBound.Services;
 /// <summary>
 /// Network monitoring service using System.Net.NetworkInformation with IP Helper API fallback
 /// </summary>
-public class NetworkMonitorService : INetworkMonitorService
+public sealed class NetworkMonitorService : INetworkMonitorService
 {
     private readonly object _lock = new();
     private readonly Dictionary<string, AdapterState> _adapterStates = new();
@@ -320,65 +320,72 @@ public class NetworkMonitorService : INetworkMonitorService
 }
 
 /// <summary>
-/// P/Invoke wrapper for IP Helper API (GetIfTable2)
+/// P/Invoke wrapper for IP Helper API (GetIfTable2).
+/// Uses modern LibraryImport source generators for NativeAOT compatibility.
+/// Note: Complex structs with ByValTStr require manual marshalling for full AOT support.
 /// </summary>
-internal static class IpHelperApi
+internal static partial class IpHelperApi
 {
-    [DllImport("iphlpapi.dll", SetLastError = true)]
-    private static extern int GetIfTable2(out IntPtr table);
+    [LibraryImport("iphlpapi.dll", SetLastError = true)]
+    private static partial int GetIfTable2(out IntPtr table);
 
-    [DllImport("iphlpapi.dll", SetLastError = true)]
-    private static extern void FreeMibTable(IntPtr table);
+    [LibraryImport("iphlpapi.dll", SetLastError = true)]
+    private static partial void FreeMibTable(IntPtr table);
 
+    // MIB_IF_ROW2 is 1352 bytes on x64. We must match exactly to avoid memory corruption.
     [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Unicode)]
     public struct MIB_IF_ROW2
     {
-        public long InterfaceLuid;
-        public uint InterfaceIndex;
-        public Guid InterfaceGuid;
+        public long InterfaceLuid;                              // 8 bytes
+        public uint InterfaceIndex;                             // 4 bytes
+        public Guid InterfaceGuid;                              // 16 bytes
         [MarshalAs(UnmanagedType.ByValTStr, SizeConst = 257)]
-        public string Alias;
+        public string Alias;                                    // 514 bytes (257 * 2)
         [MarshalAs(UnmanagedType.ByValTStr, SizeConst = 257)]
-        public string Description;
-        public uint PhysicalAddressLength;
+        public string Description;                              // 514 bytes (257 * 2)
+        public uint PhysicalAddressLength;                      // 4 bytes
         [MarshalAs(UnmanagedType.ByValArray, SizeConst = 32)]
-        public byte[] PhysicalAddress;
+        public byte[] PhysicalAddress;                          // 32 bytes
         [MarshalAs(UnmanagedType.ByValArray, SizeConst = 32)]
-        public byte[] PermanentPhysicalAddress;
-        public uint Mtu;
-        public uint Type;
-        public uint TunnelType;
-        public uint MediaType;
-        public uint PhysicalMediumType;
-        public uint AccessType;
-        public uint DirectionType;
-        public uint InterfaceAndOperStatusFlags;
-        public uint OperStatus;
-        public uint AdminStatus;
-        public uint MediaConnectState;
-        public Guid NetworkGuid;
-        public uint ConnectionType;
-        public ulong TransmitLinkSpeed;
-        public ulong ReceiveLinkSpeed;
-        public ulong InOctets;
-        public ulong InUcastPkts;
-        public ulong InNUcastPkts;
-        public ulong InDiscards;
-        public ulong InErrors;
-        public ulong InUnknownProtos;
-        public ulong InUcastOctets;
-        public ulong InMulticastOctets;
-        public ulong InBroadcastOctets;
-        public ulong OutOctets;
-        public ulong OutUcastPkts;
-        public ulong OutNUcastPkts;
-        public ulong OutDiscards;
-        public ulong OutErrors;
-        public ulong OutUcastOctets;
-        public ulong OutMulticastOctets;
-        public ulong OutBroadcastOctets;
-        public ulong OutQLen;
+        public byte[] PermanentPhysicalAddress;                 // 32 bytes
+        public uint Mtu;                                        // 4 bytes
+        public uint Type;                                       // 4 bytes
+        public uint TunnelType;                                 // 4 bytes
+        public uint MediaType;                                  // 4 bytes
+        public uint PhysicalMediumType;                         // 4 bytes
+        public uint AccessType;                                 // 4 bytes
+        public uint DirectionType;                              // 4 bytes
+        public uint InterfaceAndOperStatusFlags;                // 4 bytes
+        public uint OperStatus;                                 // 4 bytes
+        public uint AdminStatus;                                // 4 bytes
+        public uint MediaConnectState;                          // 4 bytes
+        public Guid NetworkGuid;                                // 16 bytes
+        public uint ConnectionType;                             // 4 bytes
+        private uint _padding;                                  // 4 bytes padding for 8-byte alignment
+        public ulong TransmitLinkSpeed;                         // 8 bytes
+        public ulong ReceiveLinkSpeed;                          // 8 bytes
+        public ulong InOctets;                                  // 8 bytes
+        public ulong InUcastPkts;                               // 8 bytes
+        public ulong InNUcastPkts;                              // 8 bytes
+        public ulong InDiscards;                                // 8 bytes
+        public ulong InErrors;                                  // 8 bytes
+        public ulong InUnknownProtos;                           // 8 bytes
+        public ulong InUcastOctets;                             // 8 bytes
+        public ulong InMulticastOctets;                         // 8 bytes
+        public ulong InBroadcastOctets;                         // 8 bytes
+        public ulong OutOctets;                                 // 8 bytes
+        public ulong OutUcastPkts;                              // 8 bytes
+        public ulong OutNUcastPkts;                             // 8 bytes
+        public ulong OutDiscards;                               // 8 bytes
+        public ulong OutErrors;                                 // 8 bytes
+        public ulong OutUcastOctets;                            // 8 bytes
+        public ulong OutMulticastOctets;                        // 8 bytes
+        public ulong OutBroadcastOctets;                        // 8 bytes
+        public ulong OutQLen;                                   // 8 bytes
     }
+
+    // Real structure size: 1352 bytes
+    private const int MIB_IF_ROW2_SIZE = 1352;
 
     public static List<MIB_IF_ROW2> GetIfTable2()
     {
@@ -393,12 +400,14 @@ internal static class IpHelperApi
 
             // First DWORD is the count
             int count = Marshal.ReadInt32(tablePtr);
-            IntPtr rowPtr = tablePtr + IntPtr.Size; // Skip the count
+            
+            // Skip the count (8 bytes on x64 due to alignment before first MIB_IF_ROW2)
+            IntPtr rowPtr = tablePtr + 8;
 
-            int rowSize = Marshal.SizeOf<MIB_IF_ROW2>();
+            // Use the real Windows structure size, not Marshal.SizeOf which may differ
             for (int i = 0; i < count; i++)
             {
-                var row = Marshal.PtrToStructure<MIB_IF_ROW2>(rowPtr + (i * rowSize));
+                var row = Marshal.PtrToStructure<MIB_IF_ROW2>(rowPtr + (i * MIB_IF_ROW2_SIZE));
                 result.Add(row);
             }
         }

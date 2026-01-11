@@ -1,0 +1,89 @@
+name: Nightly Build
+
+on:
+  schedule:
+    # Run at 2 AM UTC every day
+    - cron: '0 2 * * *'
+  workflow_dispatch:
+
+env:
+  DOTNET_VERSION: '10.0.x'
+  DOTNET_SKIP_FIRST_TIME_EXPERIENCE: true
+  DOTNET_NOLOGO: true
+  PROJECT_PATH: src/WireBound/WireBound.csproj
+
+jobs:
+  nightly:
+    runs-on: windows-latest
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Generate nightly version
+        id: version
+        shell: pwsh
+        run: |
+          $date = Get-Date -Format "yyyy.MMdd"
+          $shortSha = "${{ github.sha }}".Substring(0, 7)
+          $version = "$date-nightly+$shortSha"
+          echo "VERSION=$version" >> $env:GITHUB_OUTPUT
+          echo "Nightly version: $version"
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: ${{ env.DOTNET_VERSION }}
+
+      - name: Install MAUI workload
+        run: dotnet workload install maui-windows
+
+      - name: Restore dependencies
+        run: dotnet restore ${{ env.PROJECT_PATH }}
+
+      - name: Publish portable build
+        run: |
+          dotnet publish ${{ env.PROJECT_PATH }} `
+            --configuration Release `
+            --runtime win-x64 `
+            --self-contained true `
+            --output ./publish/portable `
+            -p:WindowsPackageType=None `
+            -p:PublishReadyToRun=true
+
+      - name: Create archive
+        shell: pwsh
+        run: |
+          $version = "${{ steps.version.outputs.VERSION }}"
+          Compress-Archive -Path ./publish/portable/* -DestinationPath "./WireBound-nightly-win-x64.zip"
+
+      - name: Upload nightly artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: WireBound-nightly-${{ steps.version.outputs.VERSION }}
+          path: ./WireBound-nightly-win-x64.zip
+          retention-days: 7
+
+      - name: Update nightly release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: nightly
+          name: Nightly Build
+          body: |
+            ## 🌙 Nightly Build
+            
+            **Build:** ${{ steps.version.outputs.VERSION }}
+            **Commit:** ${{ github.sha }}
+            **Date:** $(date -u +"%Y-%m-%d %H:%M UTC")
+            
+            ⚠️ **Warning:** This is an automated nightly build and may be unstable.
+            
+            ### Download
+            - `WireBound-nightly-win-x64.zip` - Portable version (extract and run)
+          draft: false
+          prerelease: true
+          files: ./WireBound-nightly-win-x64.zip
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

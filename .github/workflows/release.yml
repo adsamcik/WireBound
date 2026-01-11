@@ -1,0 +1,157 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*.*.*'
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version number (e.g., 1.0.0)'
+        required: true
+        type: string
+      prerelease:
+        description: 'Is this a pre-release?'
+        required: false
+        type: boolean
+        default: false
+
+env:
+  DOTNET_VERSION: '10.0.x'
+  DOTNET_SKIP_FIRST_TIME_EXPERIENCE: true
+  DOTNET_NOLOGO: true
+  PROJECT_PATH: src/WireBound/WireBound.csproj
+
+permissions:
+  contents: write
+
+jobs:
+  build-and-release:
+    runs-on: windows-latest
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Determine version
+        id: version
+        shell: pwsh
+        run: |
+          if ("${{ github.event_name }}" -eq "workflow_dispatch") {
+            $version = "${{ inputs.version }}"
+          } else {
+            $version = "${{ github.ref_name }}".TrimStart('v')
+          }
+          echo "VERSION=$version" >> $env:GITHUB_OUTPUT
+          echo "Version: $version"
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: ${{ env.DOTNET_VERSION }}
+
+      - name: Install MAUI workload
+        run: dotnet workload install maui-windows
+
+      - name: Restore dependencies
+        run: dotnet restore ${{ env.PROJECT_PATH }}
+
+      - name: Update version in project
+        shell: pwsh
+        run: |
+          $version = "${{ steps.version.outputs.VERSION }}"
+          $versionParts = $version.Split('.')
+          $displayVersion = $version
+          $buildVersion = if ($versionParts.Length -ge 3) { $versionParts[2] } else { "0" }
+          
+          $csproj = Get-Content ${{ env.PROJECT_PATH }} -Raw
+          $csproj = $csproj -replace '<ApplicationDisplayVersion>.*</ApplicationDisplayVersion>', "<ApplicationDisplayVersion>$displayVersion</ApplicationDisplayVersion>"
+          $csproj = $csproj -replace '<ApplicationVersion>.*</ApplicationVersion>', "<ApplicationVersion>$buildVersion</ApplicationVersion>"
+          $csproj = $csproj -replace '<Version>.*</Version>', "<Version>$version</Version>"
+          Set-Content ${{ env.PROJECT_PATH }} $csproj
+          
+          Write-Host "Updated version to $version"
+
+      # Build unpackaged (portable) version
+      - name: Publish - Portable (Unpackaged)
+        run: |
+          dotnet publish ${{ env.PROJECT_PATH }} `
+            --configuration Release `
+            --runtime win-x64 `
+            --self-contained true `
+            --output ./publish/portable `
+            -p:WindowsPackageType=None `
+            -p:PublishReadyToRun=true `
+            -p:PublishTrimmed=false
+
+      # Build MSIX package (optional - requires certificate)
+      - name: Publish - MSIX Package
+        run: |
+          dotnet publish ${{ env.PROJECT_PATH }} `
+            --configuration Release `
+            --runtime win-x64 `
+            --output ./publish/msix `
+            -p:WindowsPackageType=MSIX `
+            -p:GenerateAppxPackageOnBuild=true `
+            -p:AppxPackageSigningEnabled=false
+        continue-on-error: true
+
+      - name: Create portable archive
+        shell: pwsh
+        run: |
+          $version = "${{ steps.version.outputs.VERSION }}"
+          Compress-Archive -Path ./publish/portable/* -DestinationPath "./WireBound-$version-win-x64-portable.zip"
+
+      - name: Generate release notes
+        id: changelog
+        shell: pwsh
+        run: |
+          $version = "${{ steps.version.outputs.VERSION }}"
+          $notes = @"
+          ## WireBound v$version
+          
+          ### Downloads
+          - **Portable Version**: Extract and run `WireBound.exe` - no installation required
+          - **MSIX Package**: Windows packaged app (if available)
+          
+          ### System Requirements
+          - Windows 10 version 1903 (19041) or later
+          - .NET 10 Runtime (included in portable version)
+          
+          ### What's New
+          See [CHANGELOG.md](CHANGELOG.md) for detailed changes.
+          "@
+          
+          $notes | Out-File -FilePath release-notes.md -Encoding utf8
+          echo "Generated release notes"
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: v${{ steps.version.outputs.VERSION }}
+          name: WireBound v${{ steps.version.outputs.VERSION }}
+          body_path: release-notes.md
+          draft: false
+          prerelease: ${{ inputs.prerelease || false }}
+          files: |
+            ./WireBound-*.zip
+            ./publish/msix/**/*.msix
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Upload portable artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: WireBound-${{ steps.version.outputs.VERSION }}-portable
+          path: ./publish/portable/
+          retention-days: 30
+
+      - name: Upload MSIX artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: WireBound-${{ steps.version.outputs.VERSION }}-msix
+          path: ./publish/msix/
+          retention-days: 30
+        continue-on-error: true

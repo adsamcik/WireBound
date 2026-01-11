@@ -1,16 +1,34 @@
 using System.Globalization;
-using System.Windows;
-using System.Windows.Data;
 using WireBound.Helpers;
 
 namespace WireBound.Converters;
 
 /// <summary>
-/// Converts bytes to human-readable string
+/// Converts an index to boolean for visibility based on the current navigation index
 /// </summary>
-public class BytesToStringConverter : IValueConverter
+public sealed class IndexToBoolConverter : IValueConverter
 {
-    public object Convert(object value, Type targetType, object parameter, CultureInfo culture)
+    public object? Convert(object? value, Type targetType, object? parameter, CultureInfo culture)
+    {
+        if (value is int currentIndex && parameter is string paramString && int.TryParse(paramString, out int targetIndex))
+        {
+            return currentIndex == targetIndex;
+        }
+        return false;
+    }
+
+    public object? ConvertBack(object? value, Type targetType, object? parameter, CultureInfo culture)
+    {
+        return Binding.DoNothing;
+    }
+}
+
+/// <summary>
+/// Converts bytes to a formatted string
+/// </summary>
+public sealed class BytesToStringConverter : IValueConverter
+{
+    public object? Convert(object? value, Type targetType, object? parameter, CultureInfo culture)
     {
         if (value is long bytes)
         {
@@ -19,176 +37,57 @@ public class BytesToStringConverter : IValueConverter
         return "0 B";
     }
 
-    public object ConvertBack(object value, Type targetType, object parameter, CultureInfo culture)
-    {
-        throw new NotImplementedException();
-    }
-}
-
-/// <summary>
-/// Converts navigation index to boolean for RadioButton binding
-/// </summary>
-public class IndexToBoolConverter : IValueConverter
-{
-    public object Convert(object value, Type targetType, object parameter, CultureInfo culture)
-    {
-        if (value is int index && parameter is string paramStr && int.TryParse(paramStr, out int param))
-        {
-            return index == param;
-        }
-        return false;
-    }
-
-    public object ConvertBack(object value, Type targetType, object parameter, CultureInfo culture)
-    {
-        if (value is bool isChecked && isChecked && parameter is string paramStr && int.TryParse(paramStr, out int param))
-        {
-            return param;
-        }
-        return Binding.DoNothing;
-    }
-}
-
-/// <summary>
-/// Compares a string value with a parameter and returns true if they match
-/// </summary>
-public class StringEqualsBoolConverter : IValueConverter
-{
-    public object Convert(object value, Type targetType, object parameter, CultureInfo culture)
-    {
-        if (value is string strValue && parameter is string paramStr)
-        {
-            return string.Equals(strValue, paramStr, StringComparison.OrdinalIgnoreCase);
-        }
-        return false;
-    }
-
-    public object ConvertBack(object value, Type targetType, object parameter, CultureInfo culture)
+    public object? ConvertBack(object? value, Type targetType, object? parameter, CultureInfo culture)
     {
         return Binding.DoNothing;
     }
 }
 
 /// <summary>
-/// Converts auto-scale enabled state to icon text
+/// Converts a string to boolean (true if not null or empty)
 /// </summary>
-public class AutoScaleIconConverter : IValueConverter
+public sealed class StringToBoolConverter : IValueConverter
 {
-    public object Convert(object value, Type targetType, object parameter, CultureInfo culture)
+    public object? Convert(object? value, Type targetType, object? parameter, CultureInfo culture)
     {
-        if (value is bool isEnabled)
-        {
-            return isEnabled ? "📐" : "🔒";
-        }
-        return "📐";
+        return !string.IsNullOrEmpty(value as string);
     }
 
-    public object ConvertBack(object value, Type targetType, object parameter, CultureInfo culture)
+    public object? ConvertBack(object? value, Type targetType, object? parameter, CultureInfo culture)
     {
-        throw new NotImplementedException();
-    }
-}
-
-/// <summary>
-/// Converts auto-scale enabled state to tooltip text
-/// </summary>
-public class AutoScaleTooltipConverter : IValueConverter
-{
-    public object Convert(object value, Type targetType, object parameter, CultureInfo culture)
-    {
-        if (value is bool isEnabled)
-        {
-            return isEnabled ? "Auto-scale enabled (click to lock)" : "Scale locked (click to enable auto-scale)";
-        }
-        return "Toggle auto-scale";
-    }
-
-    public object ConvertBack(object value, Type targetType, object parameter, CultureInfo culture)
-    {
-        throw new NotImplementedException();
-    }
-}
-
-/// <summary>
-/// Converts an integer to boolean based on parameter comparison (for RadioButton binding)
-/// </summary>
-public class IntToBoolConverter : IValueConverter
-{
-    public object Convert(object value, Type targetType, object parameter, CultureInfo culture)
-    {
-        if (value is int intValue && parameter is string paramStr && int.TryParse(paramStr, out int param))
-        {
-            return intValue == param;
-        }
-        return false;
-    }
-
-    public object ConvertBack(object value, Type targetType, object parameter, CultureInfo culture)
-    {
-        if (value is bool isChecked && isChecked && parameter is string paramStr && int.TryParse(paramStr, out int param))
-        {
-            return param;
-        }
         return Binding.DoNothing;
     }
 }
 
 /// <summary>
-/// Converts an integer to Visibility based on parameter comparison
+/// Inverts a boolean value
 /// </summary>
-public class IntToVisibilityConverter : IValueConverter
+public sealed class InverseBoolConverter : IValueConverter
 {
-    public object Convert(object value, Type targetType, object parameter, CultureInfo culture)
+    public object? Convert(object? value, Type targetType, object? parameter, CultureInfo culture)
     {
-        if (value is int intValue && parameter is string paramStr && int.TryParse(paramStr, out int param))
-        {
-            return intValue == param ? Visibility.Visible : Visibility.Collapsed;
-        }
-        return Visibility.Collapsed;
+        return value is bool b ? !b : true;
     }
 
-    public object ConvertBack(object value, Type targetType, object parameter, CultureInfo culture)
+    public object? ConvertBack(object? value, Type targetType, object? parameter, CultureInfo culture)
     {
-        throw new NotImplementedException();
+        return value is bool b ? !b : false;
     }
 }
 
 /// <summary>
-/// Converts bytes per second to human-readable speed string
+/// Converts a boolean to opacity (1.0 for true, 0.5 for false)
+/// Used for visually indicating disabled controls
 /// </summary>
-public class SpeedToStringConverter : IValueConverter
+public sealed class BoolToOpacityConverter : IValueConverter
 {
-    public object Convert(object value, Type targetType, object parameter, CultureInfo culture)
+    public object? Convert(object? value, Type targetType, object? parameter, CultureInfo culture)
     {
-        if (value is long bps)
-        {
-            return ByteFormatter.FormatSpeed(bps);
-        }
-        return "0 B/s";
+        return value is true ? 1.0 : 0.5;
     }
 
-    public object ConvertBack(object value, Type targetType, object parameter, CultureInfo culture)
+    public object? ConvertBack(object? value, Type targetType, object? parameter, CultureInfo culture)
     {
-        throw new NotImplementedException();
-    }
-}
-
-/// <summary>
-/// Converts boolean to Visibility
-/// </summary>
-public class BoolToVisibilityConverter : IValueConverter
-{
-    public object Convert(object value, Type targetType, object parameter, CultureInfo culture)
-    {
-        if (value is bool boolValue)
-        {
-            return boolValue ? Visibility.Visible : Visibility.Collapsed;
-        }
-        return Visibility.Collapsed;
-    }
-
-    public object ConvertBack(object value, Type targetType, object parameter, CultureInfo culture)
-    {
-        throw new NotImplementedException();
+        return Binding.DoNothing;
     }
 }

@@ -1,5 +1,3 @@
-using System.Windows.Media.Imaging;
-
 namespace WireBound.Models;
 
 /// <summary>
@@ -63,9 +61,9 @@ public class ProcessNetworkStats
     public DateTime LastSeen { get; set; } = DateTime.Now;
     
     /// <summary>
-    /// Application icon (cached, not persisted)
+    /// Application icon as base64 (for cross-platform)
     /// </summary>
-    public BitmapSource? Icon { get; set; }
+    public string? IconBase64 { get; set; }
     
     /// <summary>
     /// Combined current speed (download + upload)

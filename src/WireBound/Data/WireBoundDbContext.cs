@@ -1,15 +1,12 @@
-using System.IO;
 using Microsoft.EntityFrameworkCore;
 using WireBound.Models;
 
 namespace WireBound.Data;
 
-public class WireBoundDbContext : DbContext
+public sealed class WireBoundDbContext : DbContext
 {
     public DbSet<HourlyUsage> HourlyUsages { get; set; } = null!;
     public DbSet<DailyUsage> DailyUsages { get; set; } = null!;
-    public DbSet<WeeklyUsage> WeeklyUsages { get; set; } = null!;
-    public DbSet<TelemetryEvent> TelemetryEvents { get; set; } = null!;
     public DbSet<AppSettings> Settings { get; set; } = null!;
     public DbSet<AppUsageRecord> AppUsageRecords { get; set; } = null!;
 
@@ -45,27 +42,6 @@ public class WireBoundDbContext : DbContext
 
         modelBuilder.Entity<DailyUsage>()
             .HasIndex(d => d.Date);
-
-        // WeeklyUsage indexes
-        modelBuilder.Entity<WeeklyUsage>()
-            .HasIndex(w => new { w.WeekStart, w.AdapterId })
-            .IsUnique();
-
-        modelBuilder.Entity<WeeklyUsage>()
-            .HasIndex(w => w.WeekStart);
-
-        modelBuilder.Entity<WeeklyUsage>()
-            .HasIndex(w => new { w.Year, w.WeekNumber });
-
-        // TelemetryEvent indexes
-        modelBuilder.Entity<TelemetryEvent>()
-            .HasIndex(t => t.Timestamp);
-
-        modelBuilder.Entity<TelemetryEvent>()
-            .HasIndex(t => t.Category);
-
-        modelBuilder.Entity<TelemetryEvent>()
-            .HasIndex(t => new { t.Category, t.EventType });
 
         // AppUsageRecord indexes for per-app network tracking
         modelBuilder.Entity<AppUsageRecord>()

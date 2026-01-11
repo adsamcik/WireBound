@@ -1,110 +1,194 @@
-using System.IO;
-using System.Windows;
-using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Serilog;
-using WireBound.Data;
 using WireBound.Services;
 using WireBound.ViewModels;
-using WireBound.Views;
 
 namespace WireBound;
 
 public partial class App : Application
 {
+    private readonly IServiceProvider _serviceProvider;
     private IHost? _host;
+#if WINDOWS
+    private ITrayIconService? _trayIconService;
+    private bool _forceClose = false;
+#endif
+    
+    /// <summary>
+    /// Indicates whether background monitoring services are running.
+    /// </summary>
+    public bool IsMonitoringActive { get; private set; }
 
-    public static IServiceProvider Services { get; private set; } = null!;
-
-    private void Application_Startup(object sender, StartupEventArgs e)
+    public App(IServiceProvider serviceProvider)
     {
-        var logPath = Path.Combine(
-            Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
-            "WireBound", "logs", "wirebound-.log");
+        InitializeComponent();
+        _serviceProvider = serviceProvider;
+    }
 
-        Log.Logger = new LoggerConfiguration()
-            .MinimumLevel.Debug()
-            .WriteTo.Debug()
-            .WriteTo.File(logPath, rollingInterval: RollingInterval.Day)
-            .CreateLogger();
+#if WINDOWS
+    /// <summary>
+    /// Force closes the application, bypassing minimize to tray.
+    /// </summary>
+    public void ForceQuit()
+    {
+        _forceClose = true;
+        Quit();
+    }
+#endif
 
-        Log.Information("WireBound application starting...");
+    protected override Window CreateWindow(IActivationState? activationState)
+    {
+        Log.Information("Creating main window...");
 
+        // Start background services
+        StartBackgroundServices();
+        
+        // Initialize system tray icon
+        InitializeTrayIcon();
+
+        // Use MAUI Shell for proper flyout navigation
+        var shell = _serviceProvider.GetRequiredService<AppShell>();
+        
+        var window = new Window(shell)
+        {
+            Title = "WireBound - Network Traffic Monitor",
+            Width = 1200,
+            Height = 800,
+            MinimumWidth = 900,
+            MinimumHeight = 650
+        };
+
+        window.Destroying += OnWindowDestroying;
+        
+#if WINDOWS
+        // Hook into window lifecycle for minimize-to-tray functionality
+        window.HandlerChanged += (s, e) =>
+        {
+            if (window.Handler?.PlatformView is Microsoft.UI.Xaml.Window winUIWindow)
+            {
+                var hwnd = WinRT.Interop.WindowNative.GetWindowHandle(winUIWindow);
+                var windowId = Microsoft.UI.Win32Interop.GetWindowIdFromWindow(hwnd);
+                var appWindow = Microsoft.UI.Windowing.AppWindow.GetFromWindowId(windowId);
+                
+                appWindow.Closing += async (sender, args) =>
+                {
+                    if (!_forceClose)
+                    {
+                        // Check if minimize to tray is enabled
+                        var persistence = _serviceProvider.GetRequiredService<IDataPersistenceService>();
+                        var settings = await persistence.GetSettingsAsync();
+                        
+                        if (settings.MinimizeToTray)
+                        {
+                            args.Cancel = true;
+                            _trayIconService?.HideMainWindow();
+                            Log.Debug("Window hidden to system tray");
+                        }
+                    }
+                };
+            }
+        };
+#endif
+
+        Log.Information("Main window created successfully");
+        return window;
+    }
+
+    private void InitializeTrayIcon()
+    {
+#if WINDOWS
         try
         {
+            _trayIconService = _serviceProvider.GetRequiredService<ITrayIconService>();
+            Log.Information("System tray icon initialized");
+        }
+        catch (Exception ex)
+        {
+            Log.Error(ex, "Failed to initialize system tray icon");
+        }
+#endif
+    }
+
+    private void StartBackgroundServices()
+    {
+        try
+        {
+            // Get the singleton instance from MAUI container
+            var pollingService = _serviceProvider.GetRequiredService<NetworkPollingBackgroundService>();
+            
+            // Create and start a minimal host for background services
             _host = Host.CreateDefaultBuilder()
                 .UseSerilog()
                 .ConfigureServices((context, services) =>
                 {
-                    // Database
-                    services.AddDbContext<WireBoundDbContext>();
-
-                    // Services
-                    services.AddSingleton<INetworkMonitorService, NetworkMonitorService>();
-                    services.AddSingleton<IDataPersistenceService, DataPersistenceService>();
-                    services.AddSingleton<ITelemetryService, TelemetryService>();
-                    services.AddHostedService<NetworkPollingBackgroundService>();
-
-                    // ViewModels
-                    services.AddSingleton<DashboardViewModel>(sp => new DashboardViewModel(
-                        sp.GetRequiredService<INetworkMonitorService>(),
-                        sp.GetRequiredService<IDataPersistenceService>(),
-                        sp));
-                    services.AddSingleton<HistoryViewModel>();
-                    services.AddSingleton<SettingsViewModel>();
-                    services.AddSingleton<MainViewModel>();
-
-                    // MainWindow
-                    services.AddSingleton<MainWindow>();
+                    // Re-use the existing services from MAUI container
+                    var networkMonitor = _serviceProvider.GetRequiredService<INetworkMonitorService>();
+                    var persistence = _serviceProvider.GetRequiredService<IDataPersistenceService>();
+                    
+                    services.AddSingleton(networkMonitor);
+                    services.AddSingleton(persistence);
+                    // Use the same instance from MAUI container so settings updates work
+                    services.AddSingleton<IHostedService>(pollingService);
                 })
                 .Build();
 
-            Services = _host.Services;
-            Log.Information("Host built successfully");
-
-            // Ensure database is created
-            using var scope = Services.CreateScope();
-            var dbContext = scope.ServiceProvider.GetRequiredService<WireBoundDbContext>();
-            dbContext.Database.EnsureCreated();
-            Log.Information("Database initialized");
-
-            // Start background services
             _host.Start();
+            IsMonitoringActive = true;
             Log.Information("Background services started");
-
-            // Show main window
-            Log.Information("Creating MainWindow...");
-            var mainWindow = Services.GetRequiredService<MainWindow>();
-            Log.Information("MainWindow created, calling Show()...");
-            
-            mainWindow.Show();
-            Log.Information("Show() called, window should be visible");
-            
-            mainWindow.Activate();
-            mainWindow.Focus();
-            Log.Information("Window activated and focused");
         }
         catch (Exception ex)
         {
-            Log.Fatal(ex, "Fatal error during application startup");
-            MessageBox.Show($"Error starting WireBound:\n{ex.Message}\n\n{ex.StackTrace}", 
-                "Startup Error", MessageBoxButton.OK, MessageBoxImage.Error);
-            Shutdown(1);
+            IsMonitoringActive = false;
+            Log.Error(ex, "Failed to start background services");
+            
+            MainThread.BeginInvokeOnMainThread(async () =>
+            {
+                if (Application.Current?.Windows.Count > 0 && 
+                    Application.Current.Windows[0].Page is Page page)
+                {
+                    await page.DisplayAlertAsync(
+                        "Monitoring Error",
+                        "Failed to start network monitoring. Please restart the application.",
+                        "OK");
+                }
+            });
         }
     }
 
-    private async void Application_Exit(object sender, ExitEventArgs e)
+    private async void OnWindowDestroying(object? sender, EventArgs e)
     {
-        if (_host is not null)
+        try
         {
+            Log.Information("Application shutting down...");
+
+#if WINDOWS
+            // Dispose tray icon
+            _trayIconService?.Dispose();
+            Log.Debug("Tray icon disposed");
+#endif
+
             // Dispose ViewModels that have event subscriptions
-            var mainViewModel = Services.GetService<MainViewModel>();
-            mainViewModel?.Dispose();
+            if (_serviceProvider.GetService<MainViewModel>() is IDisposable mainVm)
+            {
+                mainVm.Dispose();
+                Log.Debug("MainViewModel disposed");
+            }
 
-            await _host.StopAsync();
-            _host.Dispose();
+            if (_host != null)
+            {
+                using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
+                await _host.StopAsync(cts.Token);
+                _host.Dispose();
+                Log.Debug("Background host stopped and disposed");
+            }
         }
-
-        await Log.CloseAndFlushAsync();
+        catch (Exception ex)
+        {
+            Log.Error(ex, "Error during application shutdown");
+        }
+        finally
+        {
+            await Log.CloseAndFlushAsync();
+        }
     }
 }

@@ -1,0 +1,351 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<?xaml-comp compile="true" ?>
+<ResourceDictionary 
+    xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+    xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+    xmlns:converters="clr-namespace:WireBound.Converters">
+
+    <!-- 
+    ═══════════════════════════════════════════════════════════════════════════
+    WireBound Design System v2.0 - Component Styles
+    ═══════════════════════════════════════════════════════════════════════════
+    Modern glassmorphism-inspired components for premium monitoring UI
+    -->
+
+    <!-- ═══════════════════════════════════════════════════════════════════ -->
+    <!-- CONVERTERS                                                           -->
+    <!-- ═══════════════════════════════════════════════════════════════════ -->
+    
+    <converters:IndexToBoolConverter x:Key="IndexToBoolConverter" />
+    <converters:BytesToStringConverter x:Key="BytesToStringConverter" />
+    <converters:StringToBoolConverter x:Key="StringToBoolConverter" />
+    <converters:BoolToOpacityConverter x:Key="BoolToOpacityConverter" />
+    <converters:InverseBoolConverter x:Key="InverseBoolConverter" />
+
+    <!-- ═══════════════════════════════════════════════════════════════════ -->
+    <!-- CARD STYLES - Glassmorphism Design                                   -->
+    <!-- ═══════════════════════════════════════════════════════════════════ -->
+
+    <!-- Standard Glass Card -->
+    <Style x:Key="CardStyle" TargetType="Border">
+        <Setter Property="BackgroundColor" Value="{DynamicResource CardColor}" />
+        <Setter Property="StrokeShape" Value="RoundRectangle 16" />
+        <Setter Property="Stroke" Value="{DynamicResource GlassBorder}" />
+        <Setter Property="StrokeThickness" Value="1" />
+        <Setter Property="Padding" Value="24" />
+        <Setter Property="Shadow">
+            <Setter.Value>
+                <Shadow Brush="{StaticResource ShadowColor}" 
+                        Offset="0,4" 
+                        Radius="20" 
+                        Opacity="0.3" />
+            </Setter.Value>
+        </Setter>
+    </Style>
+    
+    <!-- Elevated Glass Card (for prominent content) -->
+    <Style x:Key="ElevatedCardStyle" TargetType="Border">
+        <Setter Property="BackgroundColor" Value="{DynamicResource SurfaceColor}" />
+        <Setter Property="StrokeShape" Value="RoundRectangle 20" />
+        <Setter Property="Stroke" Value="{DynamicResource GlassBorder}" />
+        <Setter Property="StrokeThickness" Value="1" />
+        <Setter Property="Padding" Value="28" />
+        <Setter Property="Shadow">
+            <Setter.Value>
+                <Shadow Brush="{StaticResource ShadowDeepColor}" 
+                        Offset="0,8" 
+                        Radius="30" 
+                        Opacity="0.4" />
+            </Setter.Value>
+        </Setter>
+    </Style>
+    
+    <!-- Compact Card (for smaller widgets) -->
+    <Style x:Key="CompactCardStyle" TargetType="Border">
+        <Setter Property="BackgroundColor" Value="{DynamicResource CardColor}" />
+        <Setter Property="StrokeShape" Value="RoundRectangle 12" />
+        <Setter Property="Stroke" Value="{DynamicResource GlassBorder}" />
+        <Setter Property="StrokeThickness" Value="1" />
+        <Setter Property="Padding" Value="16" />
+        <Setter Property="Shadow">
+            <Setter.Value>
+                <Shadow Brush="{StaticResource ShadowColor}" 
+                        Offset="0,2" 
+                        Radius="12" 
+                        Opacity="0.25" />
+            </Setter.Value>
+        </Setter>
+    </Style>
+    
+    <!-- Accent Card (with glow effect) -->
+    <Style x:Key="AccentCardStyle" TargetType="Border">
+        <Setter Property="BackgroundColor" Value="{DynamicResource CardColor}" />
+        <Setter Property="StrokeShape" Value="RoundRectangle 16" />
+        <Setter Property="Stroke" Value="{DynamicResource PrimaryColor}" />
+        <Setter Property="StrokeThickness" Value="1" />
+        <Setter Property="Padding" Value="24" />
+        <Setter Property="Shadow">
+            <Setter.Value>
+                <Shadow Brush="{StaticResource GlowDownloadColor}" 
+                        Offset="0,0" 
+                        Radius="24" 
+                        Opacity="0.5" />
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <!-- ═══════════════════════════════════════════════════════════════════ -->
+    <!-- METRIC DISPLAY STYLES                                                -->
+    <!-- ═══════════════════════════════════════════════════════════════════ -->
+    
+    <!-- Hero Speed Number -->
+    <Style x:Key="HeroSpeedStyle" TargetType="Label">
+        <Setter Property="FontSize" Value="48" />
+        <Setter Property="FontAttributes" Value="Bold" />
+        <Setter Property="FontFamily" Value="Segoe UI Variable Display" />
+    </Style>
+    
+    <!-- Large Metric Number -->
+    <Style x:Key="LargeMetricStyle" TargetType="Label">
+        <Setter Property="FontSize" Value="36" />
+        <Setter Property="FontAttributes" Value="Bold" />
+        <Setter Property="TextColor" Value="{DynamicResource PrimaryTextColor}" />
+    </Style>
+    
+    <!-- Medium Metric Number -->
+    <Style x:Key="MediumMetricStyle" TargetType="Label">
+        <Setter Property="FontSize" Value="24" />
+        <Setter Property="FontAttributes" Value="Bold" />
+        <Setter Property="TextColor" Value="{DynamicResource PrimaryTextColor}" />
+    </Style>
+    
+    <!-- Metric Label -->
+    <Style x:Key="MetricLabelStyle" TargetType="Label">
+        <Setter Property="FontSize" Value="12" />
+        <Setter Property="TextColor" Value="{DynamicResource SecondaryTextColor}" />
+        <Setter Property="CharacterSpacing" Value="0.5" />
+    </Style>
+
+    <!-- ═══════════════════════════════════════════════════════════════════ -->
+    <!-- TYPOGRAPHY STYLES                                                    -->
+    <!-- ═══════════════════════════════════════════════════════════════════ -->
+    
+    <!-- Page Title -->
+    <Style x:Key="PageTitleStyle" TargetType="Label">
+        <Setter Property="FontSize" Value="32" />
+        <Setter Property="FontAttributes" Value="Bold" />
+        <Setter Property="TextColor" Value="{DynamicResource PrimaryTextColor}" />
+    </Style>
+    
+    <!-- Section Header -->
+    <Style x:Key="SectionHeaderStyle" TargetType="Label">
+        <Setter Property="FontSize" Value="18" />
+        <Setter Property="FontAttributes" Value="Bold" />
+        <Setter Property="TextColor" Value="{DynamicResource PrimaryTextColor}" />
+        <Setter Property="CharacterSpacing" Value="0.3" />
+    </Style>
+    
+    <!-- Card Title -->
+    <Style x:Key="CardTitleStyle" TargetType="Label">
+        <Setter Property="FontSize" Value="14" />
+        <Setter Property="FontAttributes" Value="Bold" />
+        <Setter Property="TextColor" Value="{DynamicResource PrimaryTextColor}" />
+    </Style>
+    
+    <!-- Subtitle/Description -->
+    <Style x:Key="SubtitleStyle" TargetType="Label">
+        <Setter Property="FontSize" Value="14" />
+        <Setter Property="TextColor" Value="{DynamicResource SecondaryTextColor}" />
+    </Style>
+    
+    <!-- Caption -->
+    <Style x:Key="CaptionStyle" TargetType="Label">
+        <Setter Property="FontSize" Value="12" />
+        <Setter Property="TextColor" Value="{DynamicResource MutedTextColor}" />
+    </Style>
+    
+    <!-- Default Label -->
+    <Style TargetType="Label">
+        <Setter Property="TextColor" Value="{DynamicResource PrimaryTextColor}" />
+        <Setter Property="FontSize" Value="14" />
+    </Style>
+
+    <!-- ═══════════════════════════════════════════════════════════════════ -->
+    <!-- BUTTON STYLES                                                        -->
+    <!-- ═══════════════════════════════════════════════════════════════════ -->
+
+    <!-- Primary Button -->
+    <Style x:Key="PrimaryButtonStyle" TargetType="Button">
+        <Setter Property="BackgroundColor" Value="{DynamicResource ButtonBackgroundColor}" />
+        <Setter Property="TextColor" Value="{DynamicResource ButtonTextColor}" />
+        <Setter Property="FontSize" Value="14" />
+        <Setter Property="FontAttributes" Value="Bold" />
+        <Setter Property="Padding" Value="24,14" />
+        <Setter Property="CornerRadius" Value="12" />
+        <Setter Property="Shadow">
+            <Setter.Value>
+                <Shadow Brush="{StaticResource GlowDownloadColor}" 
+                        Offset="0,2" 
+                        Radius="8" 
+                        Opacity="0.3" />
+            </Setter.Value>
+        </Setter>
+    </Style>
+    
+    <!-- Secondary Button -->
+    <Style x:Key="SecondaryButtonStyle" TargetType="Button">
+        <Setter Property="BackgroundColor" Value="{DynamicResource SecondaryButtonBackgroundColor}" />
+        <Setter Property="TextColor" Value="{DynamicResource PrimaryTextColor}" />
+        <Setter Property="FontSize" Value="13" />
+        <Setter Property="FontAttributes" Value="Bold" />
+        <Setter Property="Padding" Value="20,12" />
+        <Setter Property="CornerRadius" Value="10" />
+    </Style>
+    
+    <!-- Warning Button (for elevation/destructive actions) -->
+    <Style x:Key="WarningButtonStyle" TargetType="Button">
+        <Setter Property="BackgroundColor" Value="{DynamicResource WarningColor}" />
+        <Setter Property="TextColor" Value="{DynamicResource BackgroundColor}" />
+        <Setter Property="FontSize" Value="14" />
+        <Setter Property="FontAttributes" Value="Bold" />
+        <Setter Property="Padding" Value="20,12" />
+        <Setter Property="CornerRadius" Value="10" />
+        <Setter Property="Shadow">
+            <Setter.Value>
+                <Shadow Brush="{StaticResource WarningColor}" 
+                        Offset="0,2" 
+                        Radius="8" 
+                        Opacity="0.3" />
+            </Setter.Value>
+        </Setter>
+    </Style>
+    
+    <!-- Ghost Button (text only) -->
+    <Style x:Key="GhostButtonStyle" TargetType="Button">
+        <Setter Property="BackgroundColor" Value="Transparent" />
+        <Setter Property="TextColor" Value="{DynamicResource PrimaryColor}" />
+        <Setter Property="FontSize" Value="14" />
+        <Setter Property="FontAttributes" Value="Bold" />
+        <Setter Property="Padding" Value="16,10" />
+        <Setter Property="CornerRadius" Value="8" />
+    </Style>
+    
+    <!-- Icon Button -->
+    <Style x:Key="IconButtonStyle" TargetType="Button">
+        <Setter Property="BackgroundColor" Value="{DynamicResource SecondaryButtonBackgroundColor}" />
+        <Setter Property="TextColor" Value="{DynamicResource PrimaryTextColor}" />
+        <Setter Property="FontSize" Value="18" />
+        <Setter Property="WidthRequest" Value="44" />
+        <Setter Property="HeightRequest" Value="44" />
+        <Setter Property="CornerRadius" Value="10" />
+        <Setter Property="Padding" Value="0" />
+    </Style>
+
+    <!-- Navigation Button -->
+    <Style x:Key="NavButtonStyle" TargetType="Button">
+        <Setter Property="BackgroundColor" Value="Transparent" />
+        <Setter Property="TextColor" Value="{DynamicResource PrimaryTextColor}" />
+        <Setter Property="FontSize" Value="14" />
+        <Setter Property="Padding" Value="16,14" />
+        <Setter Property="HorizontalOptions" Value="Fill" />
+        <Setter Property="CornerRadius" Value="10" />
+    </Style>
+
+    <!-- ═══════════════════════════════════════════════════════════════════ -->
+    <!-- INPUT STYLES                                                         -->
+    <!-- ═══════════════════════════════════════════════════════════════════ -->
+
+    <!-- Entry -->
+    <Style TargetType="Entry">
+        <Setter Property="TextColor" Value="{DynamicResource PrimaryTextColor}" />
+        <Setter Property="BackgroundColor" Value="{DynamicResource SidebarColor}" />
+        <Setter Property="PlaceholderColor" Value="{DynamicResource MutedTextColor}" />
+        <Setter Property="FontSize" Value="14" />
+    </Style>
+
+    <!-- Picker -->
+    <Style TargetType="Picker">
+        <Setter Property="TextColor" Value="{DynamicResource PrimaryTextColor}" />
+        <Setter Property="BackgroundColor" Value="{DynamicResource SidebarColor}" />
+        <Setter Property="TitleColor" Value="{DynamicResource SecondaryTextColor}" />
+        <Setter Property="FontSize" Value="14" />
+    </Style>
+    
+    <!-- Modern Picker Style -->
+    <Style x:Key="ModernPickerStyle" TargetType="Picker">
+        <Setter Property="TextColor" Value="{DynamicResource PrimaryTextColor}" />
+        <Setter Property="BackgroundColor" Value="{DynamicResource SurfaceColor}" />
+        <Setter Property="TitleColor" Value="{DynamicResource SecondaryTextColor}" />
+        <Setter Property="FontSize" Value="14" />
+    </Style>
+
+    <!-- Switch -->
+    <Style TargetType="Switch">
+        <Setter Property="OnColor" Value="{StaticResource PrimaryColor}" />
+        <Setter Property="ThumbColor" Value="{DynamicResource PrimaryTextColor}" />
+    </Style>
+
+    <!-- ═══════════════════════════════════════════════════════════════════ -->
+    <!-- INDICATOR & STATUS STYLES                                            -->
+    <!-- ═══════════════════════════════════════════════════════════════════ -->
+    
+    <!-- Status Dot -->
+    <Style x:Key="StatusDotStyle" TargetType="Ellipse">
+        <Setter Property="WidthRequest" Value="10" />
+        <Setter Property="HeightRequest" Value="10" />
+        <Setter Property="Fill" Value="{DynamicResource SuccessColor}" />
+    </Style>
+    
+    <!-- Active Status Dot (with glow) -->
+    <Style x:Key="ActiveStatusDotStyle" TargetType="Border">
+        <Setter Property="WidthRequest" Value="12" />
+        <Setter Property="HeightRequest" Value="12" />
+        <Setter Property="StrokeShape" Value="Ellipse" />
+        <Setter Property="BackgroundColor" Value="{DynamicResource SuccessColor}" />
+        <Setter Property="Shadow">
+            <Setter.Value>
+                <Shadow Brush="{StaticResource GlowSuccessColor}" 
+                        Offset="0,0" 
+                        Radius="8" 
+                        Opacity="0.6" />
+            </Setter.Value>
+        </Setter>
+    </Style>
+    
+    <!-- Progress Bar Accent -->
+    <Style x:Key="AccentBarStyle" TargetType="BoxView">
+        <Setter Property="HeightRequest" Value="4" />
+        <Setter Property="CornerRadius" Value="2" />
+        <Setter Property="HorizontalOptions" Value="Fill" />
+    </Style>
+
+    <!-- ═══════════════════════════════════════════════════════════════════ -->
+    <!-- DIVIDER & SEPARATOR STYLES                                           -->
+    <!-- ═══════════════════════════════════════════════════════════════════ -->
+    
+    <!-- Horizontal Divider -->
+    <Style x:Key="DividerStyle" TargetType="BoxView">
+        <Setter Property="HeightRequest" Value="1" />
+        <Setter Property="Color" Value="{DynamicResource DividerColor}" />
+        <Setter Property="HorizontalOptions" Value="Fill" />
+    </Style>
+    
+    <!-- Vertical Divider -->
+    <Style x:Key="VerticalDividerStyle" TargetType="BoxView">
+        <Setter Property="WidthRequest" Value="1" />
+        <Setter Property="Color" Value="{DynamicResource DividerColor}" />
+        <Setter Property="VerticalOptions" Value="Fill" />
+    </Style>
+
+    <!-- ═══════════════════════════════════════════════════════════════════ -->
+    <!-- BADGE & TAG STYLES                                                   -->
+    <!-- ═══════════════════════════════════════════════════════════════════ -->
+    
+    <Style x:Key="BadgeStyle" TargetType="Border">
+        <Setter Property="BackgroundColor" Value="{DynamicResource PrimaryColor}" />
+        <Setter Property="StrokeShape" Value="RoundRectangle 6" />
+        <Setter Property="Stroke" Value="Transparent" />
+        <Setter Property="Padding" Value="8,4" />
+    </Style>
+
+</ResourceDictionary>

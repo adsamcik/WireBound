@@ -400,6 +400,14 @@ internal static partial class IpHelperApi
 
             // First DWORD is the count
             int count = Marshal.ReadInt32(tablePtr);
+
+            // Bounds validation: protect against corrupt or malicious data from native API
+            const int MaxReasonableInterfaces = 1000;
+            if (count < 0 || count > MaxReasonableInterfaces)
+            {
+                System.Diagnostics.Debug.WriteLine($"Warning: Invalid interface count {count} from IP Helper API, returning empty result");
+                return result;
+            }
             
             // Skip the count (8 bytes on x64 due to alignment before first MIB_IF_ROW2)
             IntPtr rowPtr = tablePtr + 8;

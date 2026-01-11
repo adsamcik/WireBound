@@ -140,12 +140,13 @@ public sealed partial class ApplicationsViewModel : ObservableObject, IDisposabl
 
             var apps = await _dataPersistence.GetAllAppUsageAsync(startDate, endDate);
 
-            // Apply search filter
+            // Apply search filter with length limit for security
             if (!string.IsNullOrWhiteSpace(SearchText))
             {
+                var sanitizedSearch = SearchText.Length > 256 ? SearchText[..256] : SearchText;
                 apps = apps
-                    .Where(a => a.AppName.Contains(SearchText, StringComparison.OrdinalIgnoreCase) ||
-                               a.ProcessName.Contains(SearchText, StringComparison.OrdinalIgnoreCase))
+                    .Where(a => a.AppName.Contains(sanitizedSearch, StringComparison.OrdinalIgnoreCase) ||
+                               a.ProcessName.Contains(sanitizedSearch, StringComparison.OrdinalIgnoreCase))
                     .ToList();
             }
 

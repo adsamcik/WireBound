@@ -103,10 +103,18 @@ public sealed class NetworkPollingBackgroundService : BackgroundService, INetwor
     /// <inheritdoc />
     public void UpdatePollingInterval(int milliseconds)
     {
-        if (milliseconds < 100)
+        const int MinPollingIntervalMs = 100;
+        const int MaxPollingIntervalMs = 60000;
+
+        if (milliseconds < MinPollingIntervalMs)
         {
-            _logger.LogWarning("Polling interval {Interval}ms is too low, using minimum of 100ms", milliseconds);
-            milliseconds = 100;
+            _logger.LogWarning("Polling interval {Interval}ms is too low, using minimum of {Min}ms", milliseconds, MinPollingIntervalMs);
+            milliseconds = MinPollingIntervalMs;
+        }
+        else if (milliseconds > MaxPollingIntervalMs)
+        {
+            _logger.LogWarning("Polling interval {Interval}ms exceeds maximum, clamping to {Max}ms", milliseconds, MaxPollingIntervalMs);
+            milliseconds = MaxPollingIntervalMs;
         }
 
         _pollIntervalMs = milliseconds;

@@ -46,6 +46,16 @@
     <Description>A privacy-focused network traffic monitoring application for Windows</Description>
     <Authors>WireBound</Authors>
     <Version>1.0.0</Version>
+    
+    <!-- Security & Code Analysis -->
+    <EnableNETAnalyzers>true</EnableNETAnalyzers>
+    <AnalysisLevel>latest</AnalysisLevel>
+    <EnforceCodeStyleInBuild>true</EnforceCodeStyleInBuild>
+  </PropertyGroup>
+
+  <PropertyGroup Condition="'$(Configuration)' == 'Release'">
+    <DebugType>none</DebugType>
+    <DebugSymbols>false</DebugSymbols>
   </PropertyGroup>
 
   <ItemGroup>

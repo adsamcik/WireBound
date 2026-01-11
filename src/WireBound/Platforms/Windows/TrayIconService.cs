@@ -3,30 +3,56 @@ using H.NotifyIcon.Core;
 using WireBound.Services;
 using WireBound.Models;
 using System.Drawing;
+using System.Drawing.Drawing2D;
 using Color = System.Drawing.Color;
+using Point = System.Drawing.Point;
+using LineCap = System.Drawing.Drawing2D.LineCap;
 using Application = Microsoft.Maui.Controls.Application;
 
 namespace WireBound.Platforms.Windows;
+
+/// <summary>
+/// Represents the current network activity state for icon display.
+/// </summary>
+[Flags]
+public enum NetworkActivityState
+{
+    Idle = 0,
+    Downloading = 1,
+    Uploading = 2,
+    Both = Downloading | Uploading
+}
 
 public class TrayIconService : ITrayIconService
 {
     private readonly TrayIconWithContextMenu _trayIcon;
     private readonly INetworkMonitorService _networkMonitor;
     private bool _disposed;
+    
+    // Activity threshold in bytes per second (1 KB/s minimum to show activity)
+    private const double ActivityThresholdBps = 1024;
+    
+    // Cache for icon handles to avoid recreating icons constantly
+    private readonly Dictionary<NetworkActivityState, IntPtr> _iconCache = new();
+    private NetworkActivityState _currentState = NetworkActivityState.Idle;
+    
+    // Colors for activity indicators
+    private static readonly Color PrimaryColor = Color.FromArgb(0, 212, 255);      // Cyan
+    private static readonly Color DownloadColor = Color.FromArgb(0, 255, 136);     // Green
+    private static readonly Color UploadColor = Color.FromArgb(255, 107, 107);     // Red
+    private static readonly Color BothColor = Color.FromArgb(255, 182, 39);        // Orange/Yellow
 
     public TrayIconService(INetworkMonitorService networkMonitor)
     {
         _networkMonitor = networkMonitor;
         
-        // Create icon using System.Drawing
-        using var bitmap = CreateIconBitmap();
-        var iconHandle = bitmap.GetHicon();
-        var icon = System.Drawing.Icon.FromHandle(iconHandle);
+        // Pre-create all icon states
+        CreateIconCache();
         
         _trayIcon = new TrayIconWithContextMenu
         {
             ToolTip = "WireBound - Network Monitor",
-            Icon = icon.Handle,
+            Icon = _iconCache[NetworkActivityState.Idle],
         };
         
         // Add context menu items
@@ -56,33 +82,145 @@ public class TrayIconService : ITrayIconService
         _networkMonitor.StatsUpdated += OnStatsUpdated;
     }
 
-    private Bitmap CreateIconBitmap()
+    /// <summary>
+    /// Pre-creates icons for all activity states to avoid GDI overhead during updates.
+    /// </summary>
+    private void CreateIconCache()
     {
-        // Create a simple 32x32 icon with network-like appearance
+        foreach (NetworkActivityState state in Enum.GetValues<NetworkActivityState>())
+        {
+            using var bitmap = CreateIconBitmap(state);
+            var iconHandle = bitmap.GetHicon();
+            _iconCache[state] = iconHandle;
+        }
+    }
+
+    /// <summary>
+    /// Creates an icon bitmap for the specified activity state.
+    /// </summary>
+    private Bitmap CreateIconBitmap(NetworkActivityState state)
+    {
         var bitmap = new Bitmap(32, 32);
         using var g = Graphics.FromImage(bitmap);
+        g.SmoothingMode = SmoothingMode.AntiAlias;
         
-        // Fill with app primary color (cyan)
-        using var brush = new SolidBrush(Color.FromArgb(0, 212, 255));
-        g.FillEllipse(brush, 2, 2, 28, 28);
+        // Determine the ring color based on activity state
+        var ringColor = state switch
+        {
+            NetworkActivityState.Both => BothColor,
+            NetworkActivityState.Downloading => DownloadColor,
+            NetworkActivityState.Uploading => UploadColor,
+            _ => PrimaryColor
+        };
         
-        // Draw network symbol (simplified globe/arrows)
-        using var pen = new Pen(Color.White, 2);
+        // Draw outer activity ring (thicker when active)
+        var ringThickness = state == NetworkActivityState.Idle ? 2f : 3f;
+        using var ringPen = new Pen(ringColor, ringThickness);
+        g.DrawEllipse(ringPen, 2, 2, 27, 27);
         
-        // Horizontal line
-        g.DrawLine(pen, 8, 16, 24, 16);
-        // Vertical line  
-        g.DrawLine(pen, 16, 8, 16, 24);
-        // Circle outline
-        g.DrawEllipse(pen, 6, 6, 20, 20);
+        // Draw center fill (slightly transparent)
+        using var centerBrush = new SolidBrush(Color.FromArgb(40, ringColor));
+        g.FillEllipse(centerBrush, 4, 4, 23, 23);
+        
+        // Draw activity arrows based on state
+        if (state.HasFlag(NetworkActivityState.Downloading))
+        {
+            DrawDownArrow(g, state == NetworkActivityState.Both ? 10 : 16);
+        }
+        
+        if (state.HasFlag(NetworkActivityState.Uploading))
+        {
+            DrawUpArrow(g, state == NetworkActivityState.Both ? 22 : 16);
+        }
+        
+        // If idle, draw a simple network icon
+        if (state == NetworkActivityState.Idle)
+        {
+            DrawIdleIcon(g);
+        }
         
         return bitmap;
+    }
+    
+    /// <summary>
+    /// Draws a downward arrow for download activity.
+    /// </summary>
+    private void DrawDownArrow(Graphics g, int centerX)
+    {
+        using var pen = new Pen(DownloadColor, 2f) { StartCap = LineCap.Round, EndCap = LineCap.Round };
+        using var brush = new SolidBrush(DownloadColor);
+        
+        // Vertical line
+        g.DrawLine(pen, centerX, 9, centerX, 20);
+        
+        // Arrow head
+        var arrowPoints = new Point[]
+        {
+            new(centerX - 4, 17),
+            new(centerX, 23),
+            new(centerX + 4, 17)
+        };
+        g.FillPolygon(brush, arrowPoints);
+    }
+    
+    /// <summary>
+    /// Draws an upward arrow for upload activity.
+    /// </summary>
+    private void DrawUpArrow(Graphics g, int centerX)
+    {
+        using var pen = new Pen(UploadColor, 2f) { StartCap = LineCap.Round, EndCap = LineCap.Round };
+        using var brush = new SolidBrush(UploadColor);
+        
+        // Vertical line
+        g.DrawLine(pen, centerX, 23, centerX, 12);
+        
+        // Arrow head
+        var arrowPoints = new Point[]
+        {
+            new(centerX - 4, 15),
+            new(centerX, 9),
+            new(centerX + 4, 15)
+        };
+        g.FillPolygon(brush, arrowPoints);
+    }
+    
+    /// <summary>
+    /// Draws a simple idle network icon.
+    /// </summary>
+    private void DrawIdleIcon(Graphics g)
+    {
+        using var pen = new Pen(Color.White, 1.5f);
+        
+        // Draw simplified network/globe pattern
+        // Horizontal line
+        g.DrawLine(pen, 10, 16, 22, 16);
+        // Vertical line
+        g.DrawLine(pen, 16, 10, 16, 22);
+        // Inner circle
+        g.DrawEllipse(pen, 11, 11, 10, 10);
     }
 
     private void OnStatsUpdated(object? sender, NetworkStats stats)
     {
         if (_disposed) return;
         
+        // Determine current activity state
+        var newState = NetworkActivityState.Idle;
+        
+        if (stats.DownloadSpeedBps >= ActivityThresholdBps)
+            newState |= NetworkActivityState.Downloading;
+        
+        if (stats.UploadSpeedBps >= ActivityThresholdBps)
+            newState |= NetworkActivityState.Uploading;
+        
+        // Update icon if state changed
+        if (newState != _currentState)
+        {
+            _currentState = newState;
+            _trayIcon.UpdateIcon(_iconCache[newState]);
+        }
+        
+        // Update tooltip with speeds
         var download = FormatSpeed(stats.DownloadSpeedBps);
         var upload = FormatSpeed(stats.UploadSpeedBps);
         _trayIcon.UpdateToolTip($"WireBound\n↓ {download}  ↑ {upload}");
@@ -163,6 +301,13 @@ public class TrayIconService : ITrayIconService
         
         _networkMonitor.StatsUpdated -= OnStatsUpdated;
         _trayIcon.Dispose();
+        
+        // Clean up cached icon handles
+        foreach (var iconHandle in _iconCache.Values)
+        {
+            PInvoke.DestroyIcon(iconHandle);
+        }
+        _iconCache.Clear();
     }
 }
 
@@ -182,4 +327,8 @@ internal static partial class PInvoke
     [System.Runtime.InteropServices.LibraryImport("user32.dll")]
     [return: System.Runtime.InteropServices.MarshalAs(System.Runtime.InteropServices.UnmanagedType.Bool)]
     public static partial bool SetForegroundWindow(IntPtr hWnd);
+    
+    [System.Runtime.InteropServices.LibraryImport("user32.dll")]
+    [return: System.Runtime.InteropServices.MarshalAs(System.Runtime.InteropServices.UnmanagedType.Bool)]
+    public static partial bool DestroyIcon(IntPtr hIcon);
 }

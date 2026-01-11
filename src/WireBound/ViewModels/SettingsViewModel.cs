@@ -225,7 +225,8 @@ public sealed partial class SettingsViewModel : ObservableObject, IDisposable
         }
         catch (Exception ex)
         {
-            StatusMessage = $"IP Helper API test failed: {ex.Message}";
+            System.Diagnostics.Debug.WriteLine($"IP Helper API test failed: {ex}");
+            StatusMessage = "IP Helper API test failed. Check your system configuration.";
         }
     }
 

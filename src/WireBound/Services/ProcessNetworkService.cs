@@ -20,6 +20,9 @@ public sealed partial class ProcessNetworkService : IProcessNetworkService
     private readonly ConcurrentDictionary<int, ProcessInfo> _processInfoCache = new();
     private readonly ConcurrentDictionary<int, DateTime> _closedProcesses = new();
     
+    private const int MaxCacheSize = 1000;
+    private const int MaxInterfaceEntries = 1000;
+    
     private PeriodicTimer? _pollingTimer;
     private CancellationTokenSource? _cancellationTokenSource;
     private Task? _pollingTask;
@@ -235,6 +238,7 @@ public sealed partial class ProcessNetworkService : IProcessNetworkService
                     }
                     
                     CleanupClosedProcesses();
+                    EnforceCacheLimits();
                     
                     // Raise event with updated stats
                     var currentStats = GetCurrentStats();
@@ -269,34 +273,69 @@ public sealed partial class ProcessNetworkService : IProcessNetworkService
         }
     }
     
+    /// <summary>
+    /// Enforces cache size limits using LRU eviction based on LastSeen timestamp.
+    /// Removes oldest entries when cache exceeds MaxCacheSize.
+    /// </summary>
+    private void EnforceCacheLimits()
+    {
+        if (_processStats.Count <= MaxCacheSize)
+        {
+            return;
+        }
+        
+        // Get entries sorted by LastSeen (oldest first) and remove excess
+        var entriesToRemove = _processStats
+            .OrderBy(kvp => kvp.Value.LastSeen)
+            .Take(_processStats.Count - MaxCacheSize)
+            .Select(kvp => kvp.Key)
+            .ToList();
+        
+        foreach (var pid in entriesToRemove)
+        {
+            _processStats.TryRemove(pid, out _);
+            _processInfoCache.TryRemove(pid, out _);
+            _closedProcesses.TryRemove(pid, out _);
+        }
+        
+        _logger.LogDebug("Evicted {Count} entries from process cache due to size limit", entriesToRemove.Count);
+    }
+    
     private ProcessInfo? GetOrCacheProcessInfo(int pid)
     {
-        return _processInfoCache.GetOrAdd(pid, id =>
+        // Use TryGetValue + TryAdd pattern to avoid caching null/failed lookups
+        if (_processInfoCache.TryGetValue(pid, out var cachedInfo))
         {
-            try
+            return cachedInfo;
+        }
+        
+        try
+        {
+            using var process = Process.GetProcessById(pid);
+            var path = GetProcessPath(process);
+            var name = process.ProcessName;
+            var displayName = GetDisplayName(process, path);
+            var appIdentifier = ComputeAppIdentifier(path);
+            var iconBase64 = ExtractIconBase64(path);
+            
+            var processInfo = new ProcessInfo
             {
-                using var process = Process.GetProcessById(id);
-                var path = GetProcessPath(process);
-                var name = process.ProcessName;
-                var displayName = GetDisplayName(process, path);
-                var appIdentifier = ComputeAppIdentifier(path);
-                var iconBase64 = ExtractIconBase64(path);
-                
-                return new ProcessInfo
-                {
-                    Name = name,
-                    Path = path,
-                    DisplayName = displayName,
-                    AppIdentifier = appIdentifier,
-                    IconBase64 = iconBase64
-                };
-            }
-            catch (Exception ex)
-            {
-                _logger.LogDebug(ex, "Failed to get process info for PID {Pid}", id);
-                return null!;
-            }
-        });
+                Name = name,
+                Path = path,
+                DisplayName = displayName,
+                AppIdentifier = appIdentifier,
+                IconBase64 = iconBase64
+            };
+            
+            // Only cache successful lookups - don't cache null values
+            _processInfoCache.TryAdd(pid, processInfo);
+            return processInfo;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogDebug(ex, "Failed to get process info for PID {Pid}", pid);
+            return null;
+        }
     }
     
     private static string GetProcessPath(Process process)
@@ -460,6 +499,14 @@ public sealed partial class ProcessNetworkService : IProcessNetworkService
             }
             
             var numEntries = Marshal.ReadInt32(buffer);
+            
+            // Validate entry count is within reasonable bounds to prevent buffer overruns
+            if (numEntries < 0 || numEntries > MaxInterfaceEntries)
+            {
+                _logger.LogWarning("GetExtendedTcpTable returned invalid entry count: {Count}", numEntries);
+                return;
+            }
+            
             var rowPtr = buffer + sizeof(int);
             var rowSize = Marshal.SizeOf<MIB_TCPROW_OWNER_PID>();
             
@@ -509,6 +556,14 @@ public sealed partial class ProcessNetworkService : IProcessNetworkService
             }
             
             var numEntries = Marshal.ReadInt32(buffer);
+            
+            // Validate entry count is within reasonable bounds to prevent buffer overruns
+            if (numEntries < 0 || numEntries > MaxInterfaceEntries)
+            {
+                _logger.LogWarning("GetExtendedUdpTable returned invalid entry count: {Count}", numEntries);
+                return;
+            }
+            
             var rowPtr = buffer + sizeof(int);
             var rowSize = Marshal.SizeOf<MIB_UDPROW_OWNER_PID>();
             

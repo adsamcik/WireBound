@@ -1,0 +1,235 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<Shell xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+       xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+       xmlns:views="clr-namespace:WireBound.Views"
+       xmlns:local="clr-namespace:WireBound"
+       x:Class="WireBound.AppShell"
+       x:DataType="local:AppShell"
+       Shell.FlyoutBehavior="Locked"
+       Shell.FlyoutWidth="240"
+       FlyoutBackgroundColor="{StaticResource RailBackgroundColor}"
+       Shell.NavBarIsVisible="False"
+       Shell.TabBarIsVisible="False">
+
+    <!-- 
+    ═══════════════════════════════════════════════════════════════════════════
+    WireBound Navigation Rail - "Wire Node" Visual Design
+    ═══════════════════════════════════════════════════════════════════════════
+    A modern navigation with visual connection metaphor representing data flow
+    -->
+
+    <Shell.FlyoutHeader>
+        <Grid BackgroundColor="{StaticResource RailBackgroundColor}" 
+              Padding="20,24,20,16" 
+              RowDefinitions="Auto,Auto"
+              RowSpacing="16">
+            
+            <!-- App Logo & Title -->
+            <HorizontalStackLayout Spacing="14">
+                <!-- Logo Container with Glow -->
+                <Border BackgroundColor="{StaticResource PrimaryColor}"
+                        StrokeShape="RoundRectangle 12"
+                        Stroke="{StaticResource GlassBorder}"
+                        StrokeThickness="1"
+                        WidthRequest="48"
+                        HeightRequest="48">
+                    <Border.Shadow>
+                        <Shadow Brush="{StaticResource GlowDownloadColor}" 
+                                Offset="0,0" 
+                                Radius="12" 
+                                Opacity="0.5" />
+                    </Border.Shadow>
+                    <Label Text="⚡"
+                           FontSize="24"
+                           HorizontalOptions="Center"
+                           VerticalOptions="Center" />
+                </Border>
+                
+                <VerticalStackLayout VerticalOptions="Center" Spacing="2">
+                    <Label Text="WireBound"
+                           FontSize="20"
+                           FontAttributes="Bold"
+                           TextColor="{StaticResource PrimaryTextColor}">
+                        <Label.Shadow>
+                            <Shadow Brush="{StaticResource GlowDownloadColor}" 
+                                    Offset="0,0" 
+                                    Radius="4" 
+                                    Opacity="0.3" />
+                        </Label.Shadow>
+                    </Label>
+                    <Label Text="Network Monitor"
+                           FontSize="12"
+                           TextColor="{StaticResource SecondaryTextColor}" />
+                </VerticalStackLayout>
+            </HorizontalStackLayout>
+            
+            <!-- Decorative Wire Divider -->
+            <Grid Grid.Row="1" ColumnDefinitions="Auto,*,Auto" HeightRequest="12">
+                <!-- Left Node -->
+                <Ellipse WidthRequest="6" 
+                         HeightRequest="6" 
+                         Fill="{StaticResource WireColor}"
+                         VerticalOptions="Center" />
+                <!-- Wire Line -->
+                <BoxView Grid.Column="1" 
+                         HeightRequest="2" 
+                         Color="{StaticResource WireColor}" 
+                         VerticalOptions="Center"
+                         Margin="4,0" />
+                <!-- Right Node -->
+                <Ellipse Grid.Column="2"
+                         WidthRequest="6" 
+                         HeightRequest="6" 
+                         Fill="{StaticResource WireColor}"
+                         VerticalOptions="Center" />
+            </Grid>
+        </Grid>
+    </Shell.FlyoutHeader>
+
+    <Shell.FlyoutFooter>
+        <Grid BackgroundColor="{StaticResource RailBackgroundColor}" 
+              Padding="20,12,20,20"
+              RowDefinitions="Auto,Auto,Auto"
+              RowSpacing="12">
+            
+            <!-- Wire Divider -->
+            <Grid ColumnDefinitions="Auto,*,Auto" HeightRequest="12">
+                <Ellipse WidthRequest="6" 
+                         HeightRequest="6" 
+                         Fill="{StaticResource WireColor}"
+                         VerticalOptions="Center" />
+                <BoxView Grid.Column="1" 
+                         HeightRequest="2" 
+                         Color="{StaticResource WireColor}" 
+                         VerticalOptions="Center"
+                         Margin="4,0" />
+                <Ellipse Grid.Column="2"
+                         WidthRequest="6" 
+                         HeightRequest="6" 
+                         Fill="{StaticResource WireColor}"
+                         VerticalOptions="Center" />
+            </Grid>
+            
+            <!-- Status Indicator -->
+            <HorizontalStackLayout Grid.Row="1" Spacing="10">
+                <!-- Pulsing Status Dot -->
+                <Border WidthRequest="10" 
+                        HeightRequest="10" 
+                        StrokeShape="Ellipse"
+                        BackgroundColor="{StaticResource SuccessColor}"
+                        VerticalOptions="Center">
+                    <Border.Shadow>
+                        <Shadow Brush="{StaticResource GlowSuccessColor}" 
+                                Offset="0,0" 
+                                Radius="6" 
+                                Opacity="0.7" />
+                    </Border.Shadow>
+                </Border>
+                <Label Text="Monitoring Active"
+                       FontSize="12"
+                       TextColor="{StaticResource SuccessColor}"
+                       VerticalOptions="Center" />
+            </HorizontalStackLayout>
+            
+            <!-- Version -->
+            <Label Grid.Row="2"
+                   Text="v2.0.0"
+                   FontSize="11"
+                   TextColor="{StaticResource MutedTextColor}"
+                   HorizontalOptions="Start" />
+        </Grid>
+    </Shell.FlyoutFooter>
+
+    <!-- Custom Item Template with Wire Node Design -->
+    <Shell.ItemTemplate>
+        <DataTemplate x:DataType="BaseShellItem">
+            <Grid ColumnDefinitions="4,12,*" 
+                  HeightRequest="52"
+                  Padding="0,4"
+                  BackgroundColor="Transparent">
+                
+                <!-- Active Selection Bar -->
+                <BoxView Grid.Column="0"
+                         BackgroundColor="{StaticResource PrimaryColor}"
+                         VerticalOptions="Fill"
+                         CornerRadius="0,2,2,0"
+                         Opacity="0" />
+                
+                <!-- Wire Node Circle -->
+                <Grid Grid.Column="1" VerticalOptions="Center" HorizontalOptions="Center">
+                    <!-- Outer glow ring (for active state - controlled via VisualState) -->
+                    <Ellipse WidthRequest="10"
+                             HeightRequest="10"
+                             Stroke="{StaticResource NodeColor}"
+                             StrokeThickness="2"
+                             Fill="Transparent" />
+                </Grid>
+                
+                <!-- Menu Item Content -->
+                <HorizontalStackLayout Grid.Column="2" 
+                                       Spacing="12" 
+                                       Padding="8,0,16,0"
+                                       VerticalOptions="Center">
+                    <Label Text="{Binding Title}"
+                           FontSize="14"
+                           TextColor="{StaticResource PrimaryTextColor}"
+                           VerticalOptions="Center" />
+                </HorizontalStackLayout>
+            </Grid>
+        </DataTemplate>
+    </Shell.ItemTemplate>
+    
+    <!-- Menu Item Template -->
+    <Shell.MenuItemTemplate>
+        <DataTemplate x:DataType="BaseShellItem">
+            <Grid ColumnDefinitions="4,12,*" 
+                  HeightRequest="52"
+                  Padding="0,4"
+                  BackgroundColor="Transparent">
+                
+                <Grid Grid.Column="1" VerticalOptions="Center" HorizontalOptions="Center">
+                    <Ellipse WidthRequest="10"
+                             HeightRequest="10"
+                             Stroke="{StaticResource NodeColor}"
+                             StrokeThickness="2"
+                             Fill="Transparent" />
+                </Grid>
+                
+                <HorizontalStackLayout Grid.Column="2" 
+                                       Spacing="12" 
+                                       Padding="8,0,16,0"
+                                       VerticalOptions="Center">
+                    <Label Text="{Binding Title}"
+                           FontSize="14"
+                           TextColor="{StaticResource PrimaryTextColor}"
+                           VerticalOptions="Center" />
+                </HorizontalStackLayout>
+            </Grid>
+        </DataTemplate>
+    </Shell.MenuItemTemplate>
+
+    <!-- ═══════════════════════════════════════════════════════════════════ -->
+    <!-- Navigation Items                                                     -->
+    <!-- ═══════════════════════════════════════════════════════════════════ -->
+    
+    <FlyoutItem Title="📊  Dashboard" Route="Dashboard">
+        <ShellContent ContentTemplate="{DataTemplate views:DashboardPage}" />
+    </FlyoutItem>
+    
+    <FlyoutItem Title="📈  Live Chart" Route="Charts">
+        <ShellContent ContentTemplate="{DataTemplate views:ChartsPage}" />
+    </FlyoutItem>
+    
+    <FlyoutItem Title="📱  Applications" Route="Applications">
+        <ShellContent ContentTemplate="{DataTemplate views:ApplicationsPage}" />
+    </FlyoutItem>
+    
+    <FlyoutItem Title="📜  History" Route="History">
+        <ShellContent ContentTemplate="{DataTemplate views:HistoryPage}" />
+    </FlyoutItem>
+    
+    <FlyoutItem Title="⚙️  Settings" Route="Settings">
+        <ShellContent ContentTemplate="{DataTemplate views:SettingsPage}" />
+    </FlyoutItem>
+
+</Shell>

@@ -7,111 +7,180 @@ using WireBound.Services;
 
 namespace WireBound.ViewModels;
 
-public partial class ApplicationsViewModel : ObservableObject, IDisposable
+public sealed partial class ApplicationsViewModel : ObservableObject, IDisposable
 {
-    private readonly IDataPersistenceService _persistence;
-    private readonly IProcessNetworkService? _processService;
+    private readonly IDataPersistenceService _dataPersistence;
+    private readonly IProcessNetworkService? _processNetworkService;
+    private readonly IElevationService _elevationService;
     private bool _disposed;
 
     [ObservableProperty]
-    private ObservableCollection<AppUsageRecord> _allApps = [];
+    public partial ObservableCollection<AppUsageRecord> AllApps { get; set; }
 
     [ObservableProperty]
-    private ObservableCollection<ProcessNetworkStats> _activeApps = [];
+    public partial ObservableCollection<ProcessNetworkStats> ActiveApps { get; set; }
 
     [ObservableProperty]
-    private DateOnly _startDate = DateOnly.FromDateTime(DateTime.Today.AddDays(-30));
+    public partial DateTime StartDate { get; set; }
 
     [ObservableProperty]
-    private DateOnly _endDate = DateOnly.FromDateTime(DateTime.Today);
+    public partial DateTime EndDate { get; set; }
 
     [ObservableProperty]
-    private string _searchText = string.Empty;
+    public partial string SearchText { get; set; }
 
     [ObservableProperty]
-    private string _selectedGroupBy = "Process Name";
+    public partial bool IsLoading { get; set; }
 
     [ObservableProperty]
-    private bool _isLoading;
+    public partial bool IsPlatformSupported { get; set; }
 
     [ObservableProperty]
-    private ObservableCollection<AppUsageRecord> _filteredApps = [];
+    public partial bool IsPerAppTrackingEnabled { get; set; }
 
     [ObservableProperty]
-    private string _totalDownload = "0 B";
+    public partial string TotalDownload { get; set; }
 
     [ObservableProperty]
-    private string _totalUpload = "0 B";
+    public partial string TotalUpload { get; set; }
 
     [ObservableProperty]
-    private int _appCount;
+    public partial int AppCount { get; set; }
 
-    public string[] GroupByOptions { get; } = ["Process Name", "Executable Path"];
+    [ObservableProperty]
+    public partial bool RequiresElevation { get; set; }
+
+    [ObservableProperty]
+    public partial bool IsElevated { get; set; }
+
+    [ObservableProperty]
+    public partial bool IsRequestingElevation { get; set; }
 
     public ApplicationsViewModel(
-        IDataPersistenceService persistence,
-        IProcessNetworkService? processService = null)
+        IDataPersistenceService dataPersistence,
+        IElevationService elevationService,
+        IProcessNetworkService? processNetworkService = null)
     {
-        _persistence = persistence;
-        _processService = processService;
+        _dataPersistence = dataPersistence;
+        _elevationService = elevationService;
+        _processNetworkService = processNetworkService;
 
-        if (_processService is not null)
+        AllApps = new ObservableCollection<AppUsageRecord>();
+        ActiveApps = new ObservableCollection<ProcessNetworkStats>();
+        SearchText = string.Empty;
+        TotalDownload = "0 B";
+        TotalUpload = "0 B";
+
+        // Default date range: last 7 days
+        EndDate = DateTime.Today;
+        StartDate = DateTime.Today.AddDays(-7);
+
+        IsPlatformSupported = _processNetworkService?.IsPlatformSupported ?? false;
+        IsElevated = _elevationService.IsElevated;
+        RequiresElevation = _elevationService.RequiresElevationFor(ElevatedFeature.PerProcessNetworkMonitoring);
+
+        InitializeAsync();
+    }
+
+    private async void InitializeAsync()
+    {
+        await LoadSettingsAsync();
+        await LoadDataAsync();
+        SubscribeToProcessEvents();
+    }
+
+    private async Task LoadSettingsAsync()
+    {
+        try
         {
-            _processService.StatsUpdated += OnProcessStatsUpdated;
+            var settings = await _dataPersistence.GetSettingsAsync();
+            IsPerAppTrackingEnabled = settings.IsPerAppTrackingEnabled;
         }
+        catch
+        {
+            IsPerAppTrackingEnabled = false;
+        }
+    }
 
-        // Load data on init
-        _ = LoadDataAsync();
+    private void SubscribeToProcessEvents()
+    {
+        if (_processNetworkService != null && IsPerAppTrackingEnabled)
+        {
+            _processNetworkService.StatsUpdated += OnProcessStatsUpdated;
+        }
     }
 
     private void OnProcessStatsUpdated(object? sender, ProcessStatsUpdatedEventArgs e)
     {
-        System.Windows.Application.Current?.Dispatcher.Invoke(() =>
+        MainThread.BeginInvokeOnMainThread(() =>
         {
             ActiveApps.Clear();
-            foreach (var stat in e.Stats.OrderByDescending(s => s.TotalSpeedBps).Take(20))
+            var topApps = e.Stats
+                .OrderByDescending(s => s.TotalSpeedBps)
+                .Take(10);
+            
+            foreach (var app in topApps)
             {
-                ActiveApps.Add(stat);
+                ActiveApps.Add(app);
             }
         });
     }
 
-    partial void OnStartDateChanged(DateOnly value) => _ = LoadDataAsync();
-
-    partial void OnEndDateChanged(DateOnly value) => _ = LoadDataAsync();
-
-    partial void OnSearchTextChanged(string value) => ApplyFilters();
-
-    partial void OnSelectedGroupByChanged(string value) => ApplyFilters();
-
     [RelayCommand]
     private async Task LoadDataAsync()
     {
+        if (IsLoading) return;
+
         try
         {
             IsLoading = true;
 
-            var records = await _persistence.GetAllAppUsageAsync(StartDate, EndDate, UsageGranularity.Daily);
-            
-            AllApps.Clear();
-            foreach (var record in records.OrderByDescending(r => r.TotalBytes))
+            var startDate = DateOnly.FromDateTime(StartDate);
+            var endDate = DateOnly.FromDateTime(EndDate);
+
+            var apps = await _dataPersistence.GetAllAppUsageAsync(startDate, endDate);
+
+            // Apply search filter
+            if (!string.IsNullOrWhiteSpace(SearchText))
             {
-                AllApps.Add(record);
+                apps = apps
+                    .Where(a => a.AppName.Contains(SearchText, StringComparison.OrdinalIgnoreCase) ||
+                               a.ProcessName.Contains(SearchText, StringComparison.OrdinalIgnoreCase))
+                    .ToList();
             }
 
-            ApplyFilters();
-            UpdateSummary();
-
-            // Load active apps if service is available
-            if (_processService?.IsRunning == true)
-            {
-                var activeStats = _processService.GetCurrentStats();
-                ActiveApps.Clear();
-                foreach (var stat in activeStats.OrderByDescending(s => s.TotalSpeedBps).Take(20))
+            // Group by app identifier and sum totals
+            var groupedApps = apps
+                .GroupBy(a => a.AppIdentifier)
+                .Select(g => new AppUsageRecord
                 {
-                    ActiveApps.Add(stat);
-                }
+                    AppIdentifier = g.Key,
+                    AppName = g.First().AppName,
+                    ProcessName = g.First().ProcessName,
+                    ExecutablePath = g.First().ExecutablePath,
+                    BytesReceived = g.Sum(a => a.BytesReceived),
+                    BytesSent = g.Sum(a => a.BytesSent),
+                    PeakDownloadSpeed = g.Max(a => a.PeakDownloadSpeed),
+                    PeakUploadSpeed = g.Max(a => a.PeakUploadSpeed),
+                    LastUpdated = g.Max(a => a.LastUpdated)
+                })
+                .OrderByDescending(a => a.TotalBytes)
+                .ToList();
+
+            AllApps.Clear();
+            foreach (var app in groupedApps)
+            {
+                AllApps.Add(app);
             }
+
+            // Update summary
+            AppCount = groupedApps.Count;
+            TotalDownload = ByteFormatter.FormatBytes(groupedApps.Sum(a => a.BytesReceived));
+            TotalUpload = ByteFormatter.FormatBytes(groupedApps.Sum(a => a.BytesSent));
+        }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine($"Error loading app data: {ex.Message}");
         }
         finally
         {
@@ -129,98 +198,62 @@ public partial class ApplicationsViewModel : ObservableObject, IDisposable
     private void ClearFilters()
     {
         SearchText = string.Empty;
-        StartDate = DateOnly.FromDateTime(DateTime.Today.AddDays(-30));
-        EndDate = DateOnly.FromDateTime(DateTime.Today);
-        SelectedGroupBy = "Process Name";
+        StartDate = DateTime.Today.AddDays(-7);
+        EndDate = DateTime.Today;
+        _ = LoadDataAsync();
     }
 
-    private void ApplyFilters()
+    [RelayCommand]
+    private async Task RequestElevationAsync()
     {
-        var filtered = AllApps.AsEnumerable();
-
-        // Apply search filter
-        if (!string.IsNullOrWhiteSpace(SearchText))
+        if (IsRequestingElevation || IsElevated)
         {
-            var search = SearchText.ToLowerInvariant();
-            filtered = filtered.Where(a => 
-                a.AppName.Contains(search, StringComparison.OrdinalIgnoreCase) ||
-                a.ProcessName.Contains(search, StringComparison.OrdinalIgnoreCase) ||
-                a.ExecutablePath.Contains(search, StringComparison.OrdinalIgnoreCase));
+            return;
         }
 
-        // Group by selected option
-        IEnumerable<AppUsageRecord> grouped;
-        if (SelectedGroupBy == "Executable Path")
+        try
         {
-            grouped = filtered
-                .GroupBy(a => a.ExecutablePath)
-                .Select(g => new AppUsageRecord
-                {
-                    AppName = g.First().AppName,
-                    ProcessName = g.First().ProcessName,
-                    ExecutablePath = g.Key,
-                    AppIdentifier = g.First().AppIdentifier,
-                    BytesReceived = g.Sum(x => x.BytesReceived),
-                    BytesSent = g.Sum(x => x.BytesSent),
-                    Timestamp = g.Max(x => x.Timestamp),
-                    Granularity = UsageGranularity.Daily
-                })
-                .OrderByDescending(a => a.TotalBytes);
+            IsRequestingElevation = true;
+            
+            // Request elevation - this will restart the app if successful
+            var elevated = await _elevationService.RequestElevationAsync();
+            
+            if (!elevated)
+            {
+                // User cancelled or elevation failed - update state to reflect we're still not elevated
+                RequiresElevation = _elevationService.RequiresElevationFor(ElevatedFeature.PerProcessNetworkMonitoring);
+            }
+            // If elevated is true, the app is restarting so we won't get here
         }
-        else
+        finally
         {
-            grouped = filtered
-                .GroupBy(a => a.ProcessName)
-                .Select(g => new AppUsageRecord
-                {
-                    AppName = g.First().AppName,
-                    ProcessName = g.Key,
-                    ExecutablePath = g.First().ExecutablePath,
-                    AppIdentifier = g.First().AppIdentifier,
-                    BytesReceived = g.Sum(x => x.BytesReceived),
-                    BytesSent = g.Sum(x => x.BytesSent),
-                    Timestamp = g.Max(x => x.Timestamp),
-                    Granularity = UsageGranularity.Daily
-                })
-                .OrderByDescending(a => a.TotalBytes);
+            IsRequestingElevation = false;
         }
-
-        FilteredApps.Clear();
-        foreach (var app in grouped)
-        {
-            FilteredApps.Add(app);
-        }
-
-        AppCount = FilteredApps.Count;
     }
 
-    private void UpdateSummary()
+    partial void OnSearchTextChanged(string value)
     {
-        var totalDown = AllApps.Sum(a => a.BytesReceived);
-        var totalUp = AllApps.Sum(a => a.BytesSent);
+        _ = LoadDataAsync();
+    }
 
-        TotalDownload = ByteFormatter.Format(totalDown);
-        TotalUpload = ByteFormatter.Format(totalUp);
+    partial void OnStartDateChanged(DateTime value)
+    {
+        _ = LoadDataAsync();
+    }
+
+    partial void OnEndDateChanged(DateTime value)
+    {
+        _ = LoadDataAsync();
     }
 
     public void Dispose()
     {
-        Dispose(true);
-        GC.SuppressFinalize(this);
-    }
-
-    protected virtual void Dispose(bool disposing)
-    {
         if (_disposed) return;
-
-        if (disposing)
-        {
-            if (_processService is not null)
-            {
-                _processService.StatsUpdated -= OnProcessStatsUpdated;
-            }
-        }
-
         _disposed = true;
+
+        if (_processNetworkService != null)
+        {
+            _processNetworkService.StatsUpdated -= OnProcessStatsUpdated;
+        }
     }
 }

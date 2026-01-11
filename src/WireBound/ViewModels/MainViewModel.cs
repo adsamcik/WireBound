@@ -3,18 +3,19 @@ using CommunityToolkit.Mvvm.Input;
 
 namespace WireBound.ViewModels;
 
-public partial class MainViewModel : ObservableObject, IDisposable
+public sealed partial class MainViewModel : ObservableObject, IDisposable
 {
     [ObservableProperty]
-    private ObservableObject? _currentView;
-
-    [ObservableProperty]
-    private int _selectedNavigationIndex = 0;
+    public partial int SelectedNavigationIndex { get; set; }
 
     private readonly DashboardViewModel _dashboardViewModel;
     private readonly HistoryViewModel _historyViewModel;
     private readonly SettingsViewModel _settingsViewModel;
     private bool _disposed;
+
+    public DashboardViewModel DashboardViewModel => _dashboardViewModel;
+    public HistoryViewModel HistoryViewModel => _historyViewModel;
+    public SettingsViewModel SettingsViewModel => _settingsViewModel;
 
     public MainViewModel(
         DashboardViewModel dashboardViewModel,
@@ -24,19 +25,6 @@ public partial class MainViewModel : ObservableObject, IDisposable
         _dashboardViewModel = dashboardViewModel;
         _historyViewModel = historyViewModel;
         _settingsViewModel = settingsViewModel;
-
-        CurrentView = _dashboardViewModel;
-    }
-
-    partial void OnSelectedNavigationIndexChanged(int value)
-    {
-        CurrentView = value switch
-        {
-            0 => _dashboardViewModel,
-            1 => _historyViewModel,
-            2 => _settingsViewModel,
-            _ => _dashboardViewModel
-        };
     }
 
     [RelayCommand]
@@ -50,19 +38,11 @@ public partial class MainViewModel : ObservableObject, IDisposable
 
     public void Dispose()
     {
-        Dispose(true);
-        GC.SuppressFinalize(this);
-    }
-
-    protected virtual void Dispose(bool disposing)
-    {
         if (_disposed) return;
-
-        if (disposing)
-        {
-            _dashboardViewModel.Dispose();
-        }
-
         _disposed = true;
+        
+        _dashboardViewModel.Dispose();
+        _historyViewModel.Dispose();
+        _settingsViewModel.Dispose();
     }
 }

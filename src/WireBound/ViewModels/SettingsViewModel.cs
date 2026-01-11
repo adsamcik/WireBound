@@ -6,77 +6,131 @@ using WireBound.Services;
 
 namespace WireBound.ViewModels;
 
-public partial class SettingsViewModel : ObservableObject
+public sealed partial class SettingsViewModel : ObservableObject, IDisposable
 {
     private readonly IDataPersistenceService _persistence;
     private readonly INetworkMonitorService _networkMonitor;
+    private readonly INetworkPollingBackgroundService _pollingService;
+    private readonly IElevationService _elevationService;
+    private CancellationTokenSource _statusCts = new();
+    private bool _disposed;
 
     [ObservableProperty]
-    private int _pollingIntervalMs = 1000;
+    public partial int PollingIntervalMs { get; set; }
 
     [ObservableProperty]
-    private int _saveIntervalSeconds = 60;
+    public partial int SaveIntervalSeconds { get; set; }
 
     [ObservableProperty]
-    private bool _startWithWindows = false;
+    public partial bool StartWithWindows { get; set; }
 
     [ObservableProperty]
-    private bool _minimizeToTray = true;
+    public partial bool MinimizeToTray { get; set; }
 
     [ObservableProperty]
-    private bool _useIpHelperApi = false;
+    public partial bool UseIpHelperApi { get; set; }
 
     [ObservableProperty]
-    private int _dataRetentionDays = 365;
+    public partial int DataRetentionDays { get; set; }
 
     [ObservableProperty]
-    private string _selectedTheme = "Dark";
+    public partial bool IsPerAppTrackingEnabled { get; set; }
 
     [ObservableProperty]
-    private bool _isPerAppTrackingEnabled = false;
+    public partial int AppDataRetentionDays { get; set; }
 
     [ObservableProperty]
-    private int _appDataRetentionDays = 90;
+    public partial int AppDataAggregateAfterDays { get; set; }
 
     [ObservableProperty]
-    private int _appDataAggregateAfterDays = 7;
+    public partial string SelectedTheme { get; set; }
 
     [ObservableProperty]
-    private ObservableCollection<NetworkAdapter> _adapters = new();
+    public partial bool IsElevated { get; set; }
 
     [ObservableProperty]
-    private NetworkAdapter? _selectedAdapter;
+    public partial bool RequiresElevation { get; set; }
 
     [ObservableProperty]
-    private string _statusMessage = string.Empty;
+    public partial bool IsRequestingElevation { get; set; }
+
+    [ObservableProperty]
+    public partial ObservableCollection<NetworkAdapter> Adapters { get; set; }
+
+    [ObservableProperty]
+    public partial NetworkAdapter? SelectedAdapter { get; set; }
+
+    [ObservableProperty]
+    public partial string StatusMessage { get; set; }
 
     public ObservableCollection<string> Themes { get; } = new() { "Light", "Dark", "System" };
     public ObservableCollection<int> PollingIntervals { get; } = new() { 500, 1000, 2000, 5000 };
     public ObservableCollection<int> SaveIntervals { get; } = new() { 30, 60, 120, 300 };
 
-    public SettingsViewModel(IDataPersistenceService persistence, INetworkMonitorService networkMonitor)
+    public SettingsViewModel(
+        IDataPersistenceService persistence, 
+        INetworkMonitorService networkMonitor,
+        INetworkPollingBackgroundService pollingService,
+        IElevationService elevationService)
     {
         _persistence = persistence;
         _networkMonitor = networkMonitor;
-        _ = LoadSettingsAsync();
+        _pollingService = pollingService;
+        _elevationService = elevationService;
+
+        // Initialize observable properties
+        PollingIntervalMs = 1000;
+        SaveIntervalSeconds = 60;
+        StartWithWindows = false;
+        MinimizeToTray = true;
+        UseIpHelperApi = false;
+        DataRetentionDays = 365;
+        IsPerAppTrackingEnabled = false;
+        AppDataRetentionDays = 0;
+        AppDataAggregateAfterDays = 7;
+        SelectedTheme = "Dark";
+        Adapters = [];
+        StatusMessage = string.Empty;
+
+        // Initialize elevation status
+        IsElevated = _elevationService.IsElevated;
+        RequiresElevation = _elevationService.RequiresElevationFor(ElevatedFeature.PerProcessNetworkMonitoring);
+
+        // Initialize settings loading
+        InitializeAsync();
+    }
+
+    private async void InitializeAsync()
+    {
+        try
+        {
+            await LoadSettingsAsync().ConfigureAwait(false);
+        }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine($"SettingsViewModel.LoadSettingsAsync failed: {ex.Message}");
+        }
     }
 
     private async Task LoadSettingsAsync()
     {
-        var settings = await _persistence.GetSettingsAsync();
+        var settings = await _persistence.GetSettingsAsync().ConfigureAwait(false);
 
-        PollingIntervalMs = settings.PollingIntervalMs;
-        SaveIntervalSeconds = settings.SaveIntervalSeconds;
-        StartWithWindows = settings.StartWithWindows;
-        MinimizeToTray = settings.MinimizeToTray;
-        UseIpHelperApi = settings.UseIpHelperApi;
-        DataRetentionDays = settings.DataRetentionDays;
-        SelectedTheme = settings.Theme;
-        IsPerAppTrackingEnabled = settings.IsPerAppTrackingEnabled;
-        AppDataRetentionDays = settings.AppDataRetentionDays;
-        AppDataAggregateAfterDays = settings.AppDataAggregateAfterDays;
+        MainThread.BeginInvokeOnMainThread(() =>
+        {
+            PollingIntervalMs = settings.PollingIntervalMs;
+            SaveIntervalSeconds = settings.SaveIntervalSeconds;
+            StartWithWindows = settings.StartWithWindows;
+            MinimizeToTray = settings.MinimizeToTray;
+            UseIpHelperApi = settings.UseIpHelperApi;
+            DataRetentionDays = settings.DataRetentionDays;
+            IsPerAppTrackingEnabled = settings.IsPerAppTrackingEnabled;
+            AppDataRetentionDays = settings.AppDataRetentionDays;
+            AppDataAggregateAfterDays = settings.AppDataAggregateAfterDays;
+            SelectedTheme = settings.Theme;
 
-        LoadAdapters(settings.SelectedAdapterId);
+            LoadAdapters(settings.SelectedAdapterId);
+        });
     }
 
     private void LoadAdapters(string selectedId)
@@ -104,37 +158,57 @@ public partial class SettingsViewModel : ObservableObject
             MinimizeToTray = MinimizeToTray,
             UseIpHelperApi = UseIpHelperApi,
             DataRetentionDays = DataRetentionDays,
-            Theme = SelectedTheme,
-            SelectedAdapterId = SelectedAdapter?.Id ?? string.Empty,
             IsPerAppTrackingEnabled = IsPerAppTrackingEnabled,
             AppDataRetentionDays = AppDataRetentionDays,
-            AppDataAggregateAfterDays = AppDataAggregateAfterDays
+            AppDataAggregateAfterDays = AppDataAggregateAfterDays,
+            Theme = SelectedTheme,
+            SelectedAdapterId = SelectedAdapter?.Id ?? string.Empty
         };
 
-        await _persistence.SaveSettingsAsync(settings);
+        await _persistence.SaveSettingsAsync(settings).ConfigureAwait(true);
 
-        // Apply changes
+        // Apply changes to running services
         _networkMonitor.SetUseIpHelperApi(UseIpHelperApi);
         if (SelectedAdapter != null)
         {
             _networkMonitor.SetAdapter(SelectedAdapter.Id);
         }
 
+        // Update polling intervals at runtime without requiring restart
+        _pollingService.UpdatePollingInterval(PollingIntervalMs);
+        _pollingService.UpdateSaveInterval(SaveIntervalSeconds);
+
         StatusMessage = "Settings saved successfully!";
 
-        // Clear status after delay
-        await Task.Delay(3000);
-        StatusMessage = string.Empty;
+        // Clear status after delay with cancellation support
+        await ClearStatusAfterDelayAsync();
+    }
+
+    private async Task ClearStatusAfterDelayAsync()
+    {
+        // Cancel any previous status clear task
+        await _statusCts.CancelAsync().ConfigureAwait(false);
+        _statusCts.Dispose();
+        _statusCts = new CancellationTokenSource();
+
+        try
+        {
+            await Task.Delay(3000, _statusCts.Token).ConfigureAwait(true);
+            StatusMessage = string.Empty;
+        }
+        catch (OperationCanceledException)
+        {
+            // Expected when cancelled, ignore
+        }
     }
 
     [RelayCommand]
     private async Task CleanupDataAsync()
     {
-        await _persistence.CleanupOldDataAsync(DataRetentionDays);
+        await _persistence.CleanupOldDataAsync(DataRetentionDays).ConfigureAwait(true);
         StatusMessage = $"Cleaned up data older than {DataRetentionDays} days.";
 
-        await Task.Delay(3000);
-        StatusMessage = string.Empty;
+        await ClearStatusAfterDelayAsync();
     }
 
     [RelayCommand]
@@ -153,5 +227,43 @@ public partial class SettingsViewModel : ObservableObject
         {
             StatusMessage = $"IP Helper API test failed: {ex.Message}";
         }
+    }
+
+    [RelayCommand]
+    private async Task RequestElevationAsync()
+    {
+        if (IsRequestingElevation || IsElevated)
+        {
+            return;
+        }
+
+        try
+        {
+            IsRequestingElevation = true;
+            StatusMessage = "Requesting administrator privileges...";
+            
+            var elevated = await _elevationService.RequestElevationAsync();
+            
+            if (!elevated)
+            {
+                StatusMessage = "Elevation cancelled or failed.";
+                RequiresElevation = _elevationService.RequiresElevationFor(ElevatedFeature.PerProcessNetworkMonitoring);
+                await ClearStatusAfterDelayAsync();
+            }
+            // If elevated is true, the app is restarting
+        }
+        finally
+        {
+            IsRequestingElevation = false;
+        }
+    }
+
+    public void Dispose()
+    {
+        if (_disposed) return;
+        _disposed = true;
+        
+        _statusCts.Cancel();
+        _statusCts.Dispose();
     }
 }

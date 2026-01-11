@@ -1,0 +1,159 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             xmlns:vm="clr-namespace:WireBound.ViewModels"
+             x:Class="WireBound.Views.HistoryPage"
+             x:DataType="vm:HistoryViewModel"
+             BackgroundColor="{StaticResource BackgroundColor}">
+
+    <!-- 
+    ═══════════════════════════════════════════════════════════════════════════
+    WireBound History v2.0 - Usage Analytics
+    ═══════════════════════════════════════════════════════════════════════════
+    -->
+
+    <Grid RowDefinitions="Auto, *" Padding="28" RowSpacing="24">
+        
+        <!-- Header -->
+        <VerticalStackLayout Spacing="4">
+            <Label Text="History" 
+                   Style="{StaticResource PageTitleStyle}">
+                <Label.Shadow>
+                    <Shadow Brush="{StaticResource GlowDownloadColor}" 
+                            Offset="0,0" 
+                            Radius="8" 
+                            Opacity="0.2" />
+                </Label.Shadow>
+            </Label>
+            <Label Text="Network usage over time"
+                   Style="{StaticResource SubtitleStyle}" />
+        </VerticalStackLayout>
+
+        <!-- Daily Usage Table -->
+        <Border Grid.Row="1"
+                Style="{StaticResource ElevatedCardStyle}">
+            <Grid RowDefinitions="Auto, Auto, *" RowSpacing="16">
+                
+                <!-- Section Header -->
+                <HorizontalStackLayout Spacing="12">
+                    <Border BackgroundColor="#15FFB627"
+                            StrokeShape="RoundRectangle 8"
+                            Stroke="Transparent"
+                            WidthRequest="40"
+                            HeightRequest="40">
+                        <Label Text="📅" 
+                               FontSize="20"
+                               HorizontalOptions="Center"
+                               VerticalOptions="Center" />
+                    </Border>
+                    <VerticalStackLayout VerticalOptions="Center">
+                        <Label Text="Daily Usage"
+                               Style="{StaticResource SectionHeaderStyle}" />
+                        <Label Text="Last 30 days of network activity"
+                               Style="{StaticResource CaptionStyle}" />
+                    </VerticalStackLayout>
+                </HorizontalStackLayout>
+                
+                <!-- Table Header -->
+                <Border Grid.Row="1"
+                        BackgroundColor="{StaticResource BorderSubtleColor}"
+                        StrokeShape="RoundRectangle 8"
+                        Padding="16,12">
+                    <Grid ColumnDefinitions="*, *, *, *">
+                        <Label Text="DATE" 
+                               Style="{StaticResource MetricLabelStyle}"
+                               FontAttributes="Bold" />
+                        <Label Grid.Column="1" 
+                               Text="DOWNLOADED" 
+                               Style="{StaticResource MetricLabelStyle}"
+                               FontAttributes="Bold" />
+                        <Label Grid.Column="2" 
+                               Text="UPLOADED" 
+                               Style="{StaticResource MetricLabelStyle}"
+                               FontAttributes="Bold" />
+                        <Label Grid.Column="3" 
+                               Text="TOTAL" 
+                               Style="{StaticResource MetricLabelStyle}"
+                               FontAttributes="Bold" />
+                    </Grid>
+                </Border>
+                
+                <!-- Data -->
+                <CollectionView Grid.Row="2" 
+                                ItemsSource="{Binding DailyUsages}"
+                                SelectionMode="None">
+                    <CollectionView.EmptyView>
+                        <Border BackgroundColor="{StaticResource BorderSubtleColor}"
+                                StrokeShape="RoundRectangle 12"
+                                Padding="40"
+                                Margin="0,20">
+                            <VerticalStackLayout HorizontalOptions="Center" 
+                                                VerticalOptions="Center"
+                                                Spacing="12">
+                                <Border BackgroundColor="{StaticResource SurfaceColor}"
+                                        StrokeShape="RoundRectangle 20"
+                                        WidthRequest="80"
+                                        HeightRequest="80">
+                                    <Label Text="📊" FontSize="36" 
+                                           HorizontalOptions="Center" 
+                                           VerticalOptions="Center" />
+                                </Border>
+                                <Label Text="No history data yet"
+                                       FontSize="18"
+                                       FontAttributes="Bold"
+                                       TextColor="{StaticResource PrimaryTextColor}"
+                                       HorizontalOptions="Center" />
+                                <Label Text="Data will appear after monitoring runs for a while"
+                                       Style="{StaticResource SubtitleStyle}"
+                                       HorizontalOptions="Center" />
+                            </VerticalStackLayout>
+                        </Border>
+                    </CollectionView.EmptyView>
+                    <CollectionView.ItemTemplate>
+                        <DataTemplate x:DataType="vm:DailyUsageItem">
+                            <Border BackgroundColor="Transparent"
+                                    StrokeShape="RoundRectangle 8"
+                                    Stroke="Transparent"
+                                    Padding="16,14"
+                                    Margin="0,2">
+                                <VisualStateManager.VisualStateGroups>
+                                    <VisualStateGroup Name="CommonStates">
+                                        <VisualState Name="Normal">
+                                            <VisualState.Setters>
+                                                <Setter Property="BackgroundColor" Value="Transparent" />
+                                            </VisualState.Setters>
+                                        </VisualState>
+                                        <VisualState Name="PointerOver">
+                                            <VisualState.Setters>
+                                                <Setter Property="BackgroundColor" Value="{StaticResource FlyoutItemHoverColor}" />
+                                            </VisualState.Setters>
+                                        </VisualState>
+                                    </VisualStateGroup>
+                                </VisualStateManager.VisualStateGroups>
+                                <Grid ColumnDefinitions="*, *, *, *">
+                                    <Label Text="{Binding DateFormatted}"
+                                           FontSize="14"
+                                           FontAttributes="Bold"
+                                           TextColor="{StaticResource PrimaryTextColor}" />
+                                    <Label Grid.Column="1"
+                                           Text="{Binding DownloadFormatted}"
+                                           FontSize="14"
+                                           TextColor="{StaticResource DownloadColor}" />
+                                    <Label Grid.Column="2"
+                                           Text="{Binding UploadFormatted}"
+                                           FontSize="14"
+                                           TextColor="{StaticResource UploadColor}" />
+                                    <Label Grid.Column="3"
+                                           Text="{Binding TotalFormatted}"
+                                           FontSize="14"
+                                           FontAttributes="Bold"
+                                           TextColor="{StaticResource PrimaryTextColor}" />
+                                </Grid>
+                            </Border>
+                        </DataTemplate>
+                    </CollectionView.ItemTemplate>
+                </CollectionView>
+            </Grid>
+        </Border>
+    </Grid>
+</ContentPage>

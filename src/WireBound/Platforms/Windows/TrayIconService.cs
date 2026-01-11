@@ -145,7 +145,14 @@ public class TrayIconService : ITrayIconService
         MainThread.BeginInvokeOnMainThread(() =>
         {
             Dispose();
-            Application.Current?.Quit();
+            if (Application.Current is App app)
+            {
+                app.ForceQuit();
+            }
+            else
+            {
+                Application.Current?.Quit();
+            }
         });
     }
 

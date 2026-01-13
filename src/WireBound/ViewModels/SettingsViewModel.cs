@@ -12,6 +12,7 @@ public sealed partial class SettingsViewModel : ObservableObject, IDisposable
     private readonly INetworkMonitorService _networkMonitor;
     private readonly INetworkPollingBackgroundService _pollingService;
     private readonly IElevationService _elevationService;
+    private readonly IStartupService _startupService;
     private CancellationTokenSource _statusCts = new();
     private bool _disposed;
 
@@ -23,6 +24,12 @@ public sealed partial class SettingsViewModel : ObservableObject, IDisposable
 
     [ObservableProperty]
     public partial bool StartWithWindows { get; set; }
+
+    [ObservableProperty]
+    public partial bool IsStartupDisabledByUser { get; set; }
+
+    [ObservableProperty]
+    public partial bool IsStartupDisabledByPolicy { get; set; }
 
     [ObservableProperty]
     public partial bool MinimizeToTray { get; set; }
@@ -71,12 +78,14 @@ public sealed partial class SettingsViewModel : ObservableObject, IDisposable
         IDataPersistenceService persistence, 
         INetworkMonitorService networkMonitor,
         INetworkPollingBackgroundService pollingService,
-        IElevationService elevationService)
+        IElevationService elevationService,
+        IStartupService startupService)
     {
         _persistence = persistence;
         _networkMonitor = networkMonitor;
         _pollingService = pollingService;
         _elevationService = elevationService;
+        _startupService = startupService;
 
         // Initialize observable properties
         PollingIntervalMs = 1000;
@@ -115,12 +124,20 @@ public sealed partial class SettingsViewModel : ObservableObject, IDisposable
     private async Task LoadSettingsAsync()
     {
         var settings = await _persistence.GetSettingsAsync().ConfigureAwait(false);
+        
+        // Load actual startup state from the system (not from saved settings)
+        var startupState = await _startupService.GetStartupStateAsync().ConfigureAwait(false);
 
         MainThread.BeginInvokeOnMainThread(() =>
         {
             PollingIntervalMs = settings.PollingIntervalMs;
             SaveIntervalSeconds = settings.SaveIntervalSeconds;
-            StartWithWindows = settings.StartWithWindows;
+            
+            // Set startup state based on actual system registration
+            StartWithWindows = startupState == StartupState.Enabled;
+            IsStartupDisabledByUser = startupState == StartupState.DisabledByUser;
+            IsStartupDisabledByPolicy = startupState == StartupState.DisabledByPolicy;
+            
             MinimizeToTray = settings.MinimizeToTray;
             UseIpHelperApi = settings.UseIpHelperApi;
             DataRetentionDays = settings.DataRetentionDays;
@@ -149,12 +166,23 @@ public sealed partial class SettingsViewModel : ObservableObject, IDisposable
     [RelayCommand]
     private async Task SaveSettingsAsync()
     {
+        // Apply startup registration first to verify it works
+        var requestedStartup = StartWithWindows;
+        var startupResult = await _startupService.SetStartupWithResultAsync(requestedStartup).ConfigureAwait(true);
+        
+        // Update UI with actual state from the result (avoids duplicate API call)
+        var actualStartupEnabled = startupResult.State == StartupState.Enabled;
+        StartWithWindows = actualStartupEnabled;
+        IsStartupDisabledByUser = startupResult.State == StartupState.DisabledByUser;
+        IsStartupDisabledByPolicy = startupResult.State == StartupState.DisabledByPolicy;
+
+        // Save settings with the actual startup state (not the requested one)
         var settings = new AppSettings
         {
             Id = 1,
             PollingIntervalMs = PollingIntervalMs,
             SaveIntervalSeconds = SaveIntervalSeconds,
-            StartWithWindows = StartWithWindows,
+            StartWithWindows = actualStartupEnabled,
             MinimizeToTray = MinimizeToTray,
             UseIpHelperApi = UseIpHelperApi,
             DataRetentionDays = DataRetentionDays,
@@ -167,6 +195,29 @@ public sealed partial class SettingsViewModel : ObservableObject, IDisposable
 
         await _persistence.SaveSettingsAsync(settings).ConfigureAwait(true);
 
+        // Check if startup registration failed when requested
+        if (requestedStartup && !startupResult.Success)
+        {
+            if (IsStartupDisabledByUser)
+            {
+                StatusMessage = Strings.Settings_StartupDisabledByUser;
+                await ClearStatusAfterDelayAsync().ConfigureAwait(true);
+                return;
+            }
+            else if (IsStartupDisabledByPolicy)
+            {
+                StatusMessage = Strings.Settings_StartupDisabledByPolicy;
+                await ClearStatusAfterDelayAsync().ConfigureAwait(true);
+                return;
+            }
+            else
+            {
+                StatusMessage = Strings.Settings_StartupEnableFailed;
+                await ClearStatusAfterDelayAsync().ConfigureAwait(true);
+                return;
+            }
+        }
+
         // Apply changes to running services
         _networkMonitor.SetUseIpHelperApi(UseIpHelperApi);
         if (SelectedAdapter != null)
@@ -178,7 +229,7 @@ public sealed partial class SettingsViewModel : ObservableObject, IDisposable
         _pollingService.UpdatePollingInterval(PollingIntervalMs);
         _pollingService.UpdateSaveInterval(SaveIntervalSeconds);
 
-        StatusMessage = "Settings saved successfully!";
+        StatusMessage = Strings.Settings_SavedSuccessfully;
 
         // Clear status after delay with cancellation support
         await ClearStatusAfterDelayAsync();

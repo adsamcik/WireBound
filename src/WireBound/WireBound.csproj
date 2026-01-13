@@ -28,7 +28,13 @@
     <!-- Windows app settings -->
     <EnableMsixTooling>true</EnableMsixTooling>
     <WindowsPackageType>None</WindowsPackageType>
-    <PublishReadyToRun>true</PublishReadyToRun>
+    
+    <!-- Optional AOT compilation - set to true to enable Native AOT -->
+    <!-- Usage: dotnet publish -p:EnableAOT=true -->
+    <EnableAOT Condition="'$(EnableAOT)' == ''">false</EnableAOT>
+    
+    <!-- ReadyToRun for non-AOT builds (improves startup without full AOT) -->
+    <PublishReadyToRun Condition="'$(EnableAOT)' != 'true'">true</PublishReadyToRun>
     
     <!-- NativeAOT & Trimming Preparation (.NET 10 Modern Patterns) -->
     <EnableTrimAnalyzer>true</EnableTrimAnalyzer>
@@ -56,6 +62,18 @@
   <PropertyGroup Condition="'$(Configuration)' == 'Release'">
     <DebugType>none</DebugType>
     <DebugSymbols>false</DebugSymbols>
+  </PropertyGroup>
+
+  <!-- Native AOT Configuration - enabled with -p:EnableAOT=true -->
+  <PropertyGroup Condition="'$(EnableAOT)' == 'true'">
+    <PublishAot>true</PublishAot>
+    <PublishTrimmed>true</PublishTrimmed>
+    <TrimMode>full</TrimMode>
+    <IlcOptimizationPreference>Speed</IlcOptimizationPreference>
+    <IlcGenerateStackTraceData>false</IlcGenerateStackTraceData>
+    <InvariantGlobalization>false</InvariantGlobalization>
+    <!-- Suppress known AOT warnings for third-party libraries if needed -->
+    <SuppressAotAnalysisWarnings>false</SuppressAotAnalysisWarnings>
   </PropertyGroup>
 
   <ItemGroup>

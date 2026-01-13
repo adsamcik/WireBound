@@ -2,6 +2,7 @@
 <ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
              xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
              xmlns:vm="clr-namespace:WireBound.ViewModels"
+             xmlns:ext="clr-namespace:WireBound.Extensions"
              x:Class="WireBound.Views.SettingsPage"
              x:DataType="vm:SettingsViewModel"
              BackgroundColor="{StaticResource BackgroundColor}">
@@ -114,6 +115,29 @@
                                     VerticalOptions="Center" />
                         </Grid>
                     </Border>
+                    
+                    <!-- Per-App Network Tracking -->
+                    <Border BackgroundColor="{StaticResource BorderSubtleColor}"
+                            StrokeShape="RoundRectangle 12"
+                            Padding="16">
+                        <Grid ColumnDefinitions="*, Auto">
+                            <VerticalStackLayout Spacing="4">
+                                <Label Text="Per-App Network Tracking"
+                                       Style="{StaticResource CardTitleStyle}" />
+                                <Label Text="Track network usage for individual applications"
+                                       Style="{StaticResource CaptionStyle}" />
+                                <Label Text="⚠️ Requires administrator privileges"
+                                       Style="{StaticResource CaptionStyle}"
+                                       TextColor="{StaticResource WarningColor}"
+                                       IsVisible="{Binding RequiresElevation}" />
+                            </VerticalStackLayout>
+                            <Switch Grid.Column="1"
+                                    IsToggled="{Binding IsPerAppTrackingEnabled}"
+                                    IsEnabled="{Binding IsElevated}"
+                                    OnColor="{StaticResource PrimaryColor}"
+                                    VerticalOptions="Center" />
+                        </Grid>
+                    </Border>
                 </VerticalStackLayout>
             </Border>
 
@@ -147,13 +171,38 @@
                             Padding="16">
                         <Grid ColumnDefinitions="*, Auto">
                             <VerticalStackLayout Spacing="4">
-                                <Label Text="Start with Windows"
+                                <Label Text="{ext:Localize Settings_StartWithWindows}"
                                        Style="{StaticResource CardTitleStyle}" />
-                                <Label Text="Launch WireBound when Windows starts"
+                                <Label Text="{ext:Localize Settings_StartWithWindowsDescription}"
                                        Style="{StaticResource CaptionStyle}" />
+                                <HorizontalStackLayout Spacing="8"
+                                                       IsVisible="{Binding IsStartupDisabledByUser}">
+                                    <Label Text="⚠"
+                                           FontSize="14"
+                                           FontFamily="Segoe MDL2 Assets"
+                                           TextColor="{StaticResource WarningColor}"
+                                           VerticalOptions="Center"
+                                           SemanticProperties.Description="Warning icon" />
+                                    <Label Text="{ext:Localize Settings_StartupDisabledByUser}"
+                                           Style="{StaticResource CaptionStyle}"
+                                           TextColor="{StaticResource WarningColor}" />
+                                </HorizontalStackLayout>
+                                <HorizontalStackLayout Spacing="8"
+                                                       IsVisible="{Binding IsStartupDisabledByPolicy}">
+                                    <Label Text="&#xE72E;"
+                                           FontSize="14"
+                                           FontFamily="Segoe MDL2 Assets"
+                                           TextColor="{StaticResource ErrorColor}"
+                                           VerticalOptions="Center"
+                                           SemanticProperties.Description="Lock icon" />
+                                    <Label Text="{ext:Localize Settings_StartupDisabledByPolicy}"
+                                           Style="{StaticResource CaptionStyle}"
+                                           TextColor="{StaticResource ErrorColor}" />
+                                </HorizontalStackLayout>
                             </VerticalStackLayout>
                             <Switch Grid.Column="1"
                                     IsToggled="{Binding StartWithWindows}"
+                                    IsEnabled="{Binding IsStartupDisabledByPolicy, Converter={StaticResource InverseBoolConverter}}"
                                     OnColor="{StaticResource PrimaryColor}"
                                     VerticalOptions="Center" />
                         </Grid>

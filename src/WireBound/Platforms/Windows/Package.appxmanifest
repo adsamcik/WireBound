@@ -2,18 +2,19 @@
 <Package
   xmlns="http://schemas.microsoft.com/appx/manifest/foundation/windows10"
   xmlns:uap="http://schemas.microsoft.com/appx/manifest/uap/windows10"
+  xmlns:uap5="http://schemas.microsoft.com/appx/manifest/uap/windows10/5"
   xmlns:mp="http://schemas.microsoft.com/appx/2014/phone/manifest"
   xmlns:rescap="http://schemas.microsoft.com/appx/manifest/foundation/windows10/restrictedcapabilities"
-  IgnorableNamespaces="uap rescap">
+  IgnorableNamespaces="uap uap5 rescap">
 
   <Identity Name="com.wirebound.networkmonitor" Publisher="CN=WireBound" Version="1.0.0.0" />
 
-  <mp:PhoneIdentity PhoneProductId="BC72B80C-1234-5678-ABCD-WIREBOUND123" PhonePublisherId="00000000-0000-0000-0000-000000000000" />
+  <mp:PhoneIdentity PhoneProductId="BC72B80C-1234-5678-ABCD-0123456789AB" PhonePublisherId="00000000-0000-0000-0000-000000000000" />
 
   <Properties>
     <DisplayName>WireBound</DisplayName>
     <PublisherDisplayName>WireBound</PublisherDisplayName>
-    <Logo>Assets\StoreLogo.png</Logo>
+    <Logo>$placeholder$.png</Logo>
   </Properties>
 
   <Dependencies>
@@ -30,12 +31,20 @@
       <uap:VisualElements
         DisplayName="WireBound"
         Description="Network Traffic Monitor"
-        Square150x150Logo="Assets\Square150x150Logo.png"
-        Square44x44Logo="Assets\Square44x44Logo.png"
+        Square150x150Logo="$placeholder$.png"
+        Square44x44Logo="$placeholder$.png"
         BackgroundColor="transparent">
-        <uap:DefaultTile Square71x71Logo="Assets\Square71x71Logo.png" Wide310x150Logo="Assets\Wide310x150Logo.png" />
-        <uap:SplashScreen Image="Assets\SplashScreen.png" />
+        <uap:DefaultTile Wide310x150Logo="$placeholder$.png" />
+        <uap:SplashScreen Image="$placeholder$.png" />
       </uap:VisualElements>
+      <Extensions>
+        <uap5:Extension Category="windows.startupTask">
+          <uap5:StartupTask
+            TaskId="WireBoundStartupTask"
+            Enabled="false"
+            DisplayName="WireBound Network Monitor" />
+        </uap5:Extension>
+      </Extensions>
     </Application>
   </Applications>
 

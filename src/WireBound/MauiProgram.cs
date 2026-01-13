@@ -7,6 +7,7 @@ using WireBound.Data;
 using WireBound.Services;
 using WireBound.ViewModels;
 using WireBound.Views;
+using Abstractions = WireBound.Services.Abstractions;
 #if WINDOWS
 using WireBound.Platforms.Windows;
 #endif
@@ -56,10 +57,16 @@ public static class MauiProgram
         builder.Services.AddDbContext<WireBoundDbContext>();
 
         // Register Services (interfaces with implementations)
+        builder.Services.AddSingleton<ILocalizationService, LocalizationService>();
         builder.Services.AddSingleton<INetworkMonitorService, NetworkMonitorService>();
         builder.Services.AddSingleton<IDataPersistenceService, DataPersistenceService>();
         builder.Services.AddSingleton<IProcessNetworkService, ProcessNetworkService>();
         builder.Services.AddSingleton<IElevationService, ElevationService>();
+        
+        // Startup service with abstracted dependencies for testability
+        builder.Services.AddSingleton<Abstractions.IRegistryService, Abstractions.WindowsRegistryService>();
+        builder.Services.AddSingleton<Abstractions.IStartupTaskService, Abstractions.WindowsStartupTaskService>();
+        builder.Services.AddSingleton<IStartupService, StartupService>();
         
 #if WINDOWS
         // Register TrayIconService for Windows platform
@@ -93,6 +100,10 @@ public static class MauiProgram
         builder.Services.AddTransient<ApplicationsPage>();
 
         var app = builder.Build();
+
+        // Initialize localization for static access (used by XAML markup extension)
+        var localizationService = app.Services.GetRequiredService<ILocalizationService>();
+        Strings.Initialize(localizationService);
 
         // Initialize database
         try

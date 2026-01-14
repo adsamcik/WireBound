@@ -1,106 +1,417 @@
 <UserControl xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:vm="using:WireBound.Avalonia.ViewModels"
+             xmlns:lvc="using:LiveChartsCore.SkiaSharpView.Avalonia"
              x:Class="WireBound.Avalonia.Views.HistoryView"
              x:DataType="vm:HistoryViewModel"
              Background="{DynamicResource BackgroundBrush}">
 
-    <Grid RowDefinitions="Auto, *" Margin="28">
+    <Grid RowDefinitions="Auto, Auto, Auto, *" Margin="28">
         
-        <!-- Header -->
-        <StackPanel Spacing="4">
-            <TextBlock Text="History" Classes="PageTitle" />
-            <TextBlock Text="Network usage over time" Classes="Subtitle" />
-        </StackPanel>
-
-        <!-- Daily Usage Table -->
-        <Border Grid.Row="1" Classes="ElevatedCard" Margin="0,24,0,0">
-            <Grid RowDefinitions="Auto, Auto, *">
+        <!-- HEADER ROW -->
+        <Grid ColumnDefinitions="*, Auto">
+            <StackPanel Spacing="4">
+                <TextBlock Text="History" Classes="PageTitle" />
+                <TextBlock Text="Network usage over time" Classes="Subtitle" />
+            </StackPanel>
+            
+            <!-- Controls: Period Selector + Export -->
+            <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="12" VerticalAlignment="Center">
                 
-                <!-- Section Header -->
-                <StackPanel Orientation="Horizontal" Spacing="12">
-                    <Border Background="#15FFB627" CornerRadius="8" Width="40" Height="40">
-                        <TextBlock Text="📅" FontSize="20"
-                                   HorizontalAlignment="Center" VerticalAlignment="Center" />
-                    </Border>
-                    <StackPanel VerticalAlignment="Center">
-                        <TextBlock Text="Daily Usage" Classes="SectionHeader" />
-                        <TextBlock Text="Last 30 days of network activity" Classes="Caption" />
+                <!-- Period Selector -->
+                <Border Classes="CompactCard" Padding="14,10">
+                    <StackPanel Orientation="Horizontal" Spacing="12">
+                        <TextBlock Text="📅" FontSize="16" VerticalAlignment="Center" />
+                        <TextBlock Text="Period" Classes="Caption" VerticalAlignment="Center" />
+                        <ComboBox ItemsSource="{Binding PeriodOptions}"
+                                  SelectedItem="{Binding SelectedPeriod}"
+                                  Width="110"
+                                  VerticalAlignment="Center">
+                            <ComboBox.ItemTemplate>
+                                <DataTemplate x:DataType="vm:HistoryPeriodOption">
+                                    <TextBlock Text="{Binding Label}" />
+                                </DataTemplate>
+                            </ComboBox.ItemTemplate>
+                        </ComboBox>
                     </StackPanel>
-                </StackPanel>
-                
-                <!-- Table Header -->
-                <Border Grid.Row="1"
-                        Background="{DynamicResource BorderSubtleBrush}"
-                        CornerRadius="8"
-                        Padding="16,12"
-                        Margin="0,16,0,0">
-                    <Grid ColumnDefinitions="*, *, *, *">
-                        <TextBlock Text="DATE" Classes="MetricLabel" FontWeight="Bold" />
-                        <TextBlock Grid.Column="1" Text="DOWNLOADED" Classes="MetricLabel" FontWeight="Bold" />
-                        <TextBlock Grid.Column="2" Text="UPLOADED" Classes="MetricLabel" FontWeight="Bold" />
-                        <TextBlock Grid.Column="3" Text="TOTAL" Classes="MetricLabel" FontWeight="Bold" />
-                    </Grid>
                 </Border>
                 
-                <!-- Data List -->
-                <ScrollViewer Grid.Row="2" Margin="0,16,0,0">
-                    <ItemsControl ItemsSource="{Binding DailyUsages}">
-                        <ItemsControl.ItemTemplate>
-                            <DataTemplate x:DataType="vm:DailyUsageItem">
-                                <Border Background="Transparent"
-                                        CornerRadius="8"
-                                        Padding="16,14"
-                                        Margin="0,2">
-                                    <Border.Styles>
-                                        <Style Selector="Border:pointerover">
-                                            <Setter Property="Background" Value="{DynamicResource FlyoutItemHoverColor}" />
-                                        </Style>
-                                    </Border.Styles>
-                                    <Grid ColumnDefinitions="*, *, *, *">
-                                        <TextBlock Text="{Binding DateFormatted}"
-                                                   FontSize="14" FontWeight="Bold" />
-                                        <TextBlock Grid.Column="1"
-                                                   Text="{Binding DownloadFormatted}"
-                                                   FontSize="14"
-                                                   Foreground="{DynamicResource DownloadBrush}" />
-                                        <TextBlock Grid.Column="2"
-                                                   Text="{Binding UploadFormatted}"
-                                                   FontSize="14"
-                                                   Foreground="{DynamicResource UploadBrush}" />
-                                        <TextBlock Grid.Column="3"
-                                                   Text="{Binding TotalFormatted}"
-                                                   FontSize="14" FontWeight="Bold" />
-                                    </Grid>
-                                </Border>
-                            </DataTemplate>
-                        </ItemsControl.ItemTemplate>
-                    </ItemsControl>
-                </ScrollViewer>
+                <!-- Export Button -->
+                <Button Command="{Binding ExportToCsvCommand}"
+                        ToolTip.Tip="Export to CSV"
+                        Padding="12,10">
+                    <StackPanel Orientation="Horizontal" Spacing="6">
+                        <TextBlock Text="📥" FontSize="14" />
+                        <TextBlock Text="Export" FontSize="13" />
+                    </StackPanel>
+                </Button>
+            </StackPanel>
+        </Grid>
+
+        <!-- SUMMARY STATISTICS ROW -->
+        <Border Grid.Row="1" Classes="Card" Padding="20" Margin="0,20,0,0"
+                IsVisible="{Binding HasData}">
+            <Grid ColumnDefinitions="*, *, *, *, *, *">
                 
-                <!-- Empty State -->
-                <Border Grid.Row="2"
-                        Background="{DynamicResource BorderSubtleBrush}"
-                        CornerRadius="12"
-                        Padding="40"
-                        Margin="0,20"
-                        IsVisible="{Binding !DailyUsages.Count}">
-                    <StackPanel HorizontalAlignment="Center" Spacing="12">
-                        <Border Background="{DynamicResource SurfaceBrush}"
-                                CornerRadius="20"
-                                Width="80" Height="80">
-                            <TextBlock Text="📊" FontSize="36"
-                                       HorizontalAlignment="Center" VerticalAlignment="Center" />
-                        </Border>
-                        <TextBlock Text="No history data yet"
-                                   FontSize="18" FontWeight="Bold"
+                <!-- Total Download -->
+                <Border Background="{DynamicResource BorderSubtleBrush}" CornerRadius="12" Padding="16,12" Margin="0,0,8,0">
+                    <StackPanel HorizontalAlignment="Center" Spacing="6">
+                        <StackPanel Orientation="Horizontal" Spacing="6" HorizontalAlignment="Center">
+                            <TextBlock Text="⬇️" FontSize="12" />
+                            <TextBlock Text="DOWNLOADED" Classes="MetricLabel" />
+                        </StackPanel>
+                        <TextBlock Text="{Binding TotalDownload}"
+                                   FontSize="20" FontWeight="Bold"
+                                   Foreground="{DynamicResource DownloadBrush}"
                                    HorizontalAlignment="Center" />
-                        <TextBlock Text="Data will appear after monitoring runs for a while"
-                                   Classes="Subtitle"
+                    </StackPanel>
+                </Border>
+                
+                <!-- Total Upload -->
+                <Border Grid.Column="1" Background="{DynamicResource BorderSubtleBrush}" CornerRadius="12" Padding="16,12" Margin="8,0">
+                    <StackPanel HorizontalAlignment="Center" Spacing="6">
+                        <StackPanel Orientation="Horizontal" Spacing="6" HorizontalAlignment="Center">
+                            <TextBlock Text="⬆️" FontSize="12" />
+                            <TextBlock Text="UPLOADED" Classes="MetricLabel" />
+                        </StackPanel>
+                        <TextBlock Text="{Binding TotalUpload}"
+                                   FontSize="20" FontWeight="Bold"
+                                   Foreground="{DynamicResource UploadBrush}"
                                    HorizontalAlignment="Center" />
+                    </StackPanel>
+                </Border>
+                
+                <!-- Total Usage -->
+                <Border Grid.Column="2" Background="{DynamicResource BorderSubtleBrush}" CornerRadius="12" Padding="16,12" Margin="8,0">
+                    <StackPanel HorizontalAlignment="Center" Spacing="6">
+                        <StackPanel Orientation="Horizontal" Spacing="6" HorizontalAlignment="Center">
+                            <TextBlock Text="📊" FontSize="12" />
+                            <TextBlock Text="TOTAL" Classes="MetricLabel" />
+                        </StackPanel>
+                        <TextBlock Text="{Binding TotalUsage}"
+                                   FontSize="20" FontWeight="Bold"
+                                   Foreground="{DynamicResource PrimaryTextBrush}"
+                                   HorizontalAlignment="Center" />
+                    </StackPanel>
+                </Border>
+                
+                <!-- Daily Average -->
+                <Border Grid.Column="3" Background="{DynamicResource BorderSubtleBrush}" CornerRadius="12" Padding="16,12" Margin="8,0">
+                    <StackPanel HorizontalAlignment="Center" Spacing="6">
+                        <StackPanel Orientation="Horizontal" Spacing="6" HorizontalAlignment="Center">
+                            <TextBlock Text="📈" FontSize="12" />
+                            <TextBlock Text="DAILY AVG" Classes="MetricLabel" />
+                        </StackPanel>
+                        <TextBlock Text="{Binding DailyAverage}"
+                                   FontSize="20" FontWeight="Bold"
+                                   Foreground="{DynamicResource SecondaryTextBrush}"
+                                   HorizontalAlignment="Center" />
+                    </StackPanel>
+                </Border>
+                
+                <!-- Peak Day -->
+                <Border Grid.Column="4" Background="{DynamicResource BorderSubtleBrush}" CornerRadius="12" Padding="16,12" Margin="8,0">
+                    <StackPanel HorizontalAlignment="Center" Spacing="6">
+                        <StackPanel Orientation="Horizontal" Spacing="6" HorizontalAlignment="Center">
+                            <TextBlock Text="🔥" FontSize="12" />
+                            <TextBlock Text="PEAK DAY" Classes="MetricLabel" />
+                        </StackPanel>
+                        <TextBlock Text="{Binding PeakDayUsage}"
+                                   FontSize="20" FontWeight="Bold"
+                                   Foreground="{DynamicResource WarningBrush}"
+                                   HorizontalAlignment="Center" />
+                        <TextBlock Text="{Binding PeakDayDate}"
+                                   Classes="Caption"
+                                   HorizontalAlignment="Center" />
+                    </StackPanel>
+                </Border>
+                
+                <!-- Trend vs Previous Period -->
+                <Border Grid.Column="5" Background="{DynamicResource BorderSubtleBrush}" CornerRadius="12" Padding="16,12" Margin="8,0,0,0">
+                    <StackPanel HorizontalAlignment="Center" Spacing="6">
+                        <StackPanel Orientation="Horizontal" Spacing="6" HorizontalAlignment="Center">
+                            <TextBlock Text="📉" FontSize="12" />
+                            <TextBlock Text="VS LAST PERIOD" Classes="MetricLabel" />
+                        </StackPanel>
+                        <TextBlock Text="{Binding TrendVsPreviousPeriod}"
+                                   FontSize="20" FontWeight="Bold"
+                                   HorizontalAlignment="Center">
+                            <TextBlock.Foreground>
+                                <MultiBinding>
+                                    <Binding Path="TrendIsPositive" />
+                                </MultiBinding>
+                            </TextBlock.Foreground>
+                        </TextBlock>
                     </StackPanel>
                 </Border>
             </Grid>
         </Border>
+
+        <!-- USAGE CHART -->
+        <Border Grid.Row="2" Classes="ElevatedCard" Margin="0,20,0,0" Height="220"
+                IsVisible="{Binding HasData}">
+            <Grid RowDefinitions="Auto, *">
+                
+                <!-- Chart Header with Legend -->
+                <Grid ColumnDefinitions="Auto, *, Auto" Margin="0,0,0,12">
+                    <StackPanel Orientation="Horizontal" Spacing="8">
+                        <Border Background="#15FFB627" CornerRadius="8" Width="36" Height="36">
+                            <TextBlock Text="📊" FontSize="18"
+                                       HorizontalAlignment="Center" VerticalAlignment="Center" />
+                        </Border>
+                        <StackPanel VerticalAlignment="Center">
+                            <TextBlock Text="Daily Usage" Classes="CardTitle" />
+                            <TextBlock Text="Click a day to see hourly breakdown" Classes="Caption" />
+                        </StackPanel>
+                    </StackPanel>
+                    
+                    <!-- Legend -->
+                    <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="20" VerticalAlignment="Center">
+                        <StackPanel Orientation="Horizontal" Spacing="8">
+                            <Border Background="{DynamicResource DownloadBrush}"
+                                    Width="16" Height="4"
+                                    CornerRadius="2"
+                                    VerticalAlignment="Center" />
+                            <TextBlock Text="Download" FontSize="12" VerticalAlignment="Center" />
+                        </StackPanel>
+                        <StackPanel Orientation="Horizontal" Spacing="8">
+                            <Border Background="{DynamicResource UploadBrush}"
+                                    Width="16" Height="4"
+                                    CornerRadius="2"
+                                    VerticalAlignment="Center" />
+                            <TextBlock Text="Upload" FontSize="12" VerticalAlignment="Center" />
+                        </StackPanel>
+                    </StackPanel>
+                </Grid>
+                
+                <!-- Chart -->
+                <lvc:CartesianChart Grid.Row="1"
+                                    Series="{Binding UsageSeries}"
+                                    XAxes="{Binding XAxes}"
+                                    YAxes="{Binding YAxes}"
+                                    TooltipPosition="Top"
+                                    Background="Transparent" />
+            </Grid>
+        </Border>
+
+        <!-- MAIN CONTENT: Table + Hourly Panel -->
+        <Grid Grid.Row="3" Margin="0,20,0,0">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*" />
+                <ColumnDefinition Width="Auto" />
+            </Grid.ColumnDefinitions>
+            
+            <!-- Daily Usage Table -->
+            <Border Classes="ElevatedCard">
+                <Grid RowDefinitions="Auto, Auto, *">
+                    
+                    <!-- Section Header -->
+                    <StackPanel Orientation="Horizontal" Spacing="12">
+                        <Border Background="#15FFB627" CornerRadius="8" Width="40" Height="40">
+                            <TextBlock Text="📅" FontSize="20"
+                                       HorizontalAlignment="Center" VerticalAlignment="Center" />
+                        </Border>
+                        <StackPanel VerticalAlignment="Center">
+                            <TextBlock Text="Daily Breakdown" Classes="SectionHeader" />
+                            <TextBlock Classes="Caption">
+                                <Run Text="{Binding SelectedPeriod.Description}" />
+                                <Run Text=" • Click row for hourly details" />
+                            </TextBlock>
+                        </StackPanel>
+                    </StackPanel>
+                    
+                    <!-- Table Header -->
+                    <Border Grid.Row="1"
+                            Background="{DynamicResource BorderSubtleBrush}"
+                            CornerRadius="8"
+                            Padding="16,12"
+                            Margin="0,16,0,0">
+                        <Grid ColumnDefinitions="1.2*, *, *, *, 0.6*">
+                            <TextBlock Text="DATE" Classes="MetricLabel" FontWeight="Bold" />
+                            <TextBlock Grid.Column="1" Text="DOWNLOADED" Classes="MetricLabel" FontWeight="Bold" />
+                            <TextBlock Grid.Column="2" Text="UPLOADED" Classes="MetricLabel" FontWeight="Bold" />
+                            <TextBlock Grid.Column="3" Text="TOTAL" Classes="MetricLabel" FontWeight="Bold" />
+                            <TextBlock Grid.Column="4" Text="TREND" Classes="MetricLabel" FontWeight="Bold" HorizontalAlignment="Center" />
+                        </Grid>
+                    </Border>
+                    
+                    <!-- Data List -->
+                    <ScrollViewer Grid.Row="2" Margin="0,8,0,0">
+                        <ItemsControl ItemsSource="{Binding DailyUsages}">
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate x:DataType="vm:DailyUsageItem">
+                                    <Button Command="{Binding $parent[ItemsControl].((vm:HistoryViewModel)DataContext).SelectDayCommand}"
+                                            CommandParameter="{Binding}"
+                                            Background="Transparent"
+                                            Padding="0"
+                                            HorizontalAlignment="Stretch"
+                                            HorizontalContentAlignment="Stretch"
+                                            Cursor="Hand">
+                                        <Button.Styles>
+                                            <Style Selector="Button:pointerover /template/ ContentPresenter">
+                                                <Setter Property="Background" Value="{DynamicResource FlyoutItemHoverColor}" />
+                                            </Style>
+                                        </Button.Styles>
+                                        <Border CornerRadius="8"
+                                                Padding="16,14"
+                                                Margin="0,2">
+                                            <Grid ColumnDefinitions="1.2*, *, *, *, 0.6*">
+                                                <TextBlock Text="{Binding DateFormatted}"
+                                                           FontSize="14" FontWeight="Bold" />
+                                                <TextBlock Grid.Column="1"
+                                                           Text="{Binding DownloadFormatted}"
+                                                           FontSize="14"
+                                                           Foreground="{DynamicResource DownloadBrush}" />
+                                                <TextBlock Grid.Column="2"
+                                                           Text="{Binding UploadFormatted}"
+                                                           FontSize="14"
+                                                           Foreground="{DynamicResource UploadBrush}" />
+                                                <TextBlock Grid.Column="3"
+                                                           Text="{Binding TotalFormatted}"
+                                                           FontSize="14" FontWeight="Bold" />
+                                                <TextBlock Grid.Column="4"
+                                                           Text="{Binding TrendIndicator}"
+                                                           FontSize="16" FontWeight="Bold"
+                                                           HorizontalAlignment="Center"
+                                                           ToolTip.Tip="{Binding TrendTooltip}" />
+                                            </Grid>
+                                        </Border>
+                                    </Button>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+                    </ScrollViewer>
+                    
+                    <!-- Empty State -->
+                    <Border Grid.Row="2"
+                            Background="{DynamicResource BorderSubtleBrush}"
+                            CornerRadius="12"
+                            Padding="40"
+                            Margin="0,20"
+                            IsVisible="{Binding !HasData}">
+                        <StackPanel HorizontalAlignment="Center" Spacing="12">
+                            <Border Background="{DynamicResource SurfaceBrush}"
+                                    CornerRadius="20"
+                                    Width="80" Height="80">
+                                <TextBlock Text="📊" FontSize="36"
+                                           HorizontalAlignment="Center" VerticalAlignment="Center" />
+                            </Border>
+                            <TextBlock Text="No history data yet"
+                                       FontSize="18" FontWeight="Bold"
+                                       HorizontalAlignment="Center" />
+                            <TextBlock Text="Data will appear after monitoring runs for a while"
+                                       Classes="Subtitle"
+                                       HorizontalAlignment="Center" />
+                        </StackPanel>
+                    </Border>
+                </Grid>
+            </Border>
+            
+            <!-- Hourly Drill-Down Panel -->
+            <Border Grid.Column="1" 
+                    Classes="ElevatedCard"
+                    Width="400"
+                    Margin="20,0,0,0"
+                    IsVisible="{Binding ShowHourlyPanel}">
+                <Grid RowDefinitions="Auto, Auto, *, Auto">
+                    
+                    <!-- Panel Header -->
+                    <Grid ColumnDefinitions="*, Auto">
+                        <StackPanel Orientation="Horizontal" Spacing="10">
+                            <Border Background="#1500E5FF" CornerRadius="8" Width="36" Height="36">
+                                <TextBlock Text="⏰" FontSize="18"
+                                           HorizontalAlignment="Center" VerticalAlignment="Center" />
+                            </Border>
+                            <StackPanel VerticalAlignment="Center">
+                                <TextBlock Text="Hourly Breakdown" Classes="CardTitle" />
+                                <TextBlock Text="{Binding SelectedDay.DateFormatted}" Classes="Caption" />
+                            </StackPanel>
+                        </StackPanel>
+                        
+                        <Button Grid.Column="1"
+                                Command="{Binding CloseHourlyPanelCommand}"
+                                Padding="8"
+                                ToolTip.Tip="Close panel">
+                            <TextBlock Text="✕" FontSize="14" />
+                        </Button>
+                    </Grid>
+                    
+                    <!-- Hourly Chart -->
+                    <Border Grid.Row="1" Height="140" Margin="0,16,0,0">
+                        <lvc:CartesianChart Series="{Binding HourlySeries}"
+                                            XAxes="{Binding HourlyXAxes}"
+                                            YAxes="{Binding HourlyYAxes}"
+                                            TooltipPosition="Top"
+                                            Background="Transparent" />
+                    </Border>
+                    
+                    <!-- Hourly Data List -->
+                    <ScrollViewer Grid.Row="2" Margin="0,12,0,0">
+                        <ItemsControl ItemsSource="{Binding HourlyUsages}">
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate x:DataType="vm:HourlyUsageItem">
+                                    <Border Background="Transparent"
+                                            CornerRadius="6"
+                                            Padding="12,10"
+                                            Margin="0,2">
+                                        <Border.Styles>
+                                            <Style Selector="Border:pointerover">
+                                                <Setter Property="Background" Value="{DynamicResource FlyoutItemHoverColor}" />
+                                            </Style>
+                                        </Border.Styles>
+                                        <Grid ColumnDefinitions="Auto, *, Auto">
+                                            <TextBlock Text="{Binding HourFormatted}"
+                                                       FontSize="13" FontWeight="Bold"
+                                                       Width="60" />
+                                            <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="16">
+                                                <TextBlock Text="{Binding DownloadFormatted}"
+                                                           FontSize="12"
+                                                           Foreground="{DynamicResource DownloadBrush}" />
+                                                <TextBlock Text="{Binding UploadFormatted}"
+                                                           FontSize="12"
+                                                           Foreground="{DynamicResource UploadBrush}" />
+                                            </StackPanel>
+                                            <TextBlock Grid.Column="2"
+                                                       Text="{Binding TotalFormatted}"
+                                                       FontSize="12" FontWeight="Bold" />
+                                        </Grid>
+                                    </Border>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+                    </ScrollViewer>
+                    
+                    <!-- Day Summary -->
+                    <Border Grid.Row="3"
+                            Background="{DynamicResource BorderSubtleBrush}"
+                            CornerRadius="8"
+                            Padding="12"
+                            Margin="0,12,0,0">
+                        <Grid ColumnDefinitions="*, *, *">
+                            <StackPanel HorizontalAlignment="Center" Spacing="2">
+                                <TextBlock Text="DOWNLOAD" Classes="MetricLabel" FontSize="10" HorizontalAlignment="Center" />
+                                <TextBlock Text="{Binding SelectedDay.DownloadFormatted}"
+                                           FontSize="14" FontWeight="Bold"
+                                           Foreground="{DynamicResource DownloadBrush}"
+                                           HorizontalAlignment="Center" />
+                            </StackPanel>
+                            <StackPanel Grid.Column="1" HorizontalAlignment="Center" Spacing="2">
+                                <TextBlock Text="UPLOAD" Classes="MetricLabel" FontSize="10" HorizontalAlignment="Center" />
+                                <TextBlock Text="{Binding SelectedDay.UploadFormatted}"
+                                           FontSize="14" FontWeight="Bold"
+                                           Foreground="{DynamicResource UploadBrush}"
+                                           HorizontalAlignment="Center" />
+                            </StackPanel>
+                            <StackPanel Grid.Column="2" HorizontalAlignment="Center" Spacing="2">
+                                <TextBlock Text="TOTAL" Classes="MetricLabel" FontSize="10" HorizontalAlignment="Center" />
+                                <TextBlock Text="{Binding SelectedDay.TotalFormatted}"
+                                           FontSize="14" FontWeight="Bold"
+                                           HorizontalAlignment="Center" />
+                            </StackPanel>
+                        </Grid>
+                    </Border>
+                </Grid>
+            </Border>
+        </Grid>
     </Grid>
 </UserControl>

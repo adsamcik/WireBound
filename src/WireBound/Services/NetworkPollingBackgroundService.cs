@@ -1,5 +1,6 @@
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
+using WireBound.Core.Services;
 
 namespace WireBound.Services;
 

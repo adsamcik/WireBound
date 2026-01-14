@@ -86,9 +86,16 @@ if ($Clean -and (Test-Path $OutputDir)) {
 # Ensure output directory exists
 New-Item -ItemType Directory -Path $OutputDir -Force | Out-Null
 
-# Restore dependencies
+# Restore dependencies with proper runtime settings
 Write-Step "Restoring dependencies..."
-dotnet restore $ProjectPath
+$restoreArgs = @(
+    "restore", $ProjectPath,
+    "--runtime", $Runtime
+)
+if (-not $EnableAOT) {
+    $restoreArgs += "-p:PublishReadyToRun=true"
+}
+& dotnet @restoreArgs
 if ($LASTEXITCODE -ne 0) { throw "Restore failed" }
 Write-Success "Dependencies restored"
 

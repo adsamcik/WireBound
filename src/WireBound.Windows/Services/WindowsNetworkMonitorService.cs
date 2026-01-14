@@ -60,11 +60,19 @@ public sealed class WindowsNetworkMonitorService : INetworkMonitorService
         }
     }
 
-    public IReadOnlyList<NetworkAdapter> GetAdapters()
+    public IReadOnlyList<NetworkAdapter> GetAdapters(bool includeVirtual = false)
     {
         lock (_lock)
         {
-            return _adapterStates.Values.Select(s => s.Adapter).ToList();
+            var adapters = _adapterStates.Values.Select(s => s.Adapter);
+            
+            if (!includeVirtual)
+            {
+                // Simple mode: show physical adapters AND known VPNs
+                adapters = adapters.Where(a => !a.IsVirtual || a.IsKnownVpn);
+            }
+            
+            return adapters.ToList();
         }
     }
 
@@ -276,10 +284,14 @@ public sealed class WindowsNetworkMonitorService : INetworkMonitorService
 
     private static NetworkAdapter MapAdapter(NetworkInterface nic)
     {
+        var vpnProvider = DetectVpnProvider(nic);
+        var isVirtual = IsVirtualAdapter(nic);
+        
         return new NetworkAdapter
         {
             Id = nic.Id,
             Name = nic.Name,
+            DisplayName = GetDisplayName(nic),
             Description = nic.Description,
             IsActive = nic.OperationalStatus == OperationalStatus.Up,
             Speed = nic.Speed,
@@ -290,8 +302,110 @@ public sealed class WindowsNetworkMonitorService : INetworkMonitorService
                 NetworkInterfaceType.Loopback => NetworkAdapterType.Loopback,
                 NetworkInterfaceType.Tunnel => NetworkAdapterType.Tunnel,
                 _ => NetworkAdapterType.Other
-            }
+            },
+            IsVirtual = isVirtual,
+            IsKnownVpn = vpnProvider != null,
+            Category = GetAdapterCategory(nic)
         };
+    }
+    
+    /// <summary>
+    /// Generates a friendly display name for the adapter.
+    /// </summary>
+    private static string GetDisplayName(NetworkInterface nic)
+    {
+        var name = nic.Name;
+        var vpnProvider = DetectVpnProvider(nic);
+        if (vpnProvider != null)
+            return $"{name} ({vpnProvider})";
+        return name;
+    }
+    
+    /// <summary>
+    /// Detects if an adapter is a known VPN and returns the provider name.
+    /// </summary>
+    private static string? DetectVpnProvider(NetworkInterface nic)
+    {
+        var name = nic.Name.ToLowerInvariant();
+        var description = nic.Description.ToLowerInvariant();
+        var type = nic.NetworkInterfaceType;
+        
+        // WireGuard
+        if (name.StartsWith("wg") || name.StartsWith("wt") || description.Contains("wireguard"))
+            return "WireGuard";
+        
+        // Common VPN providers
+        if (description.Contains("nordvpn") || description.Contains("nordlynx"))
+            return "NordVPN";
+        if (description.Contains("expressvpn") || description.Contains("lightway"))
+            return "ExpressVPN";
+        if (description.Contains("surfshark"))
+            return "Surfshark";
+        if (description.Contains("protonvpn") || description.Contains("proton vpn"))
+            return "ProtonVPN";
+        if (description.Contains("openvpn") || description.Contains("tap-windows"))
+            return "OpenVPN";
+        if (description.Contains("cisco") || description.Contains("anyconnect"))
+            return "Cisco AnyConnect";
+        if (description.Contains("tailscale"))
+            return "Tailscale";
+        if (description.Contains("zerotier"))
+            return "ZeroTier";
+        if (description.Contains("cloudflare") || description.Contains("warp"))
+            return "Cloudflare WARP";
+        
+        // Generic VPN/Tunnel detection
+        if (type == NetworkInterfaceType.Tunnel || type == NetworkInterfaceType.Ppp)
+            return "VPN";
+        
+        if (description.Contains("vpn adapter") || description.Contains("tunnel adapter"))
+            return "VPN";
+        
+        return null;
+    }
+    
+    /// <summary>
+    /// Determines if an adapter is virtual (VM, container, or VPN).
+    /// </summary>
+    private static bool IsVirtualAdapter(NetworkInterface nic)
+    {
+        if (DetectVpnProvider(nic) != null)
+            return true;
+        
+        var name = nic.Name.ToLowerInvariant();
+        var description = nic.Description.ToLowerInvariant();
+        
+        // Hyper-V, VMware, VirtualBox, Docker, WSL, etc.
+        if (name.StartsWith("vethernet") || name.StartsWith("vswitch") ||
+            description.Contains("hyper-v") || description.Contains("vmware") ||
+            description.Contains("virtualbox") || description.Contains("vbox") ||
+            name.Contains("docker") || description.Contains("docker") ||
+            name.Contains("wsl") || description.Contains("wsl"))
+            return true;
+        
+        return false;
+    }
+    
+    /// <summary>
+    /// Gets the category for display grouping in the UI.
+    /// </summary>
+    private static string GetAdapterCategory(NetworkInterface nic)
+    {
+        if (DetectVpnProvider(nic) != null)
+            return "VPN";
+        
+        var name = nic.Name.ToLowerInvariant();
+        var description = nic.Description.ToLowerInvariant();
+        
+        if (name.StartsWith("vethernet") || description.Contains("hyper-v") ||
+            description.Contains("vmware") || description.Contains("virtualbox"))
+            return "Virtual Machine";
+        
+        if (name.Contains("docker") || description.Contains("docker") ||
+            name.Contains("wsl") || description.Contains("wsl"))
+            return "Container";
+        
+        return "Physical";
     }
 
     private static NetworkStats CreateStats(AdapterState state)

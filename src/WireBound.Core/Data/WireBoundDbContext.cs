@@ -67,4 +67,51 @@ public sealed class WireBoundDbContext : DbContext
         // Seed default settings
         modelBuilder.Entity<AppSettings>().HasData(new AppSettings { Id = 1 });
     }
+
+    /// <summary>
+    /// Applies any necessary schema migrations for existing databases.
+    /// EnsureCreated() only creates new tables, it doesn't add columns to existing tables.
+    /// This method handles incremental schema changes.
+    /// </summary>
+    public void ApplyMigrations()
+    {
+        var connection = Database.GetDbConnection();
+        connection.Open();
+
+        try
+        {
+            // Check and add UseSpeedInBits column to Settings table if missing
+            AddColumnIfNotExists(connection, "Settings", "UseSpeedInBits", "INTEGER NOT NULL DEFAULT 0");
+        }
+        finally
+        {
+            connection.Close();
+        }
+    }
+
+    private static void AddColumnIfNotExists(System.Data.Common.DbConnection connection, string table, string column, string definition)
+    {
+        using var command = connection.CreateCommand();
+        command.CommandText = $"PRAGMA table_info({table})";
+
+        var columnExists = false;
+        using (var reader = command.ExecuteReader())
+        {
+            while (reader.Read())
+            {
+                if (reader.GetString(1).Equals(column, StringComparison.OrdinalIgnoreCase))
+                {
+                    columnExists = true;
+                    break;
+                }
+            }
+        }
+
+        if (!columnExists)
+        {
+            using var alterCommand = connection.CreateCommand();
+            alterCommand.CommandText = $"ALTER TABLE {table} ADD COLUMN {column} {definition}";
+            alterCommand.ExecuteNonQuery();
+        }
+    }
 }

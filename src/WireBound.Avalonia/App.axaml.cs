@@ -102,6 +102,7 @@ public partial class App : Application
             using var scope = _serviceProvider!.CreateScope();
             var context = scope.ServiceProvider.GetRequiredService<WireBoundDbContext>();
             context.Database.EnsureCreated();
+            context.ApplyMigrations();
             Log.Information("Database initialized successfully");
         }
         catch (Exception ex)

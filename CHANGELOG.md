@@ -18,6 +18,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Database migration for existing databases with new schema columns
 - Publishing pipeline now correctly implements GetAdapters interface
 - Resolved all build warnings
 - Fixed RuntimeIdentifier for ReadyToRun compilation

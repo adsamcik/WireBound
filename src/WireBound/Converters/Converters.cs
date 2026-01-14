@@ -1,5 +1,5 @@
 using System.Globalization;
-using WireBound.Helpers;
+using WireBound.Core.Helpers;
 
 namespace WireBound.Converters;
 

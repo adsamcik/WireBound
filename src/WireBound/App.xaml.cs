@@ -1,5 +1,6 @@
 using Microsoft.Extensions.Hosting;
 using Serilog;
+using WireBound.Core.Services;
 using WireBound.Services;
 using WireBound.ViewModels;
 

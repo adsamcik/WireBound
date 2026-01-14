@@ -3,13 +3,13 @@ using LiveChartsCore.SkiaSharpView.Maui;
 using Microsoft.Extensions.Logging;
 using Serilog;
 using SkiaSharp.Views.Maui.Controls.Hosting;
-using WireBound.Data;
+using WireBound.Core.Data;
+using WireBound.Core.Services;
 using WireBound.Services;
 using WireBound.ViewModels;
 using WireBound.Views;
-using Abstractions = WireBound.Services.Abstractions;
 #if WINDOWS
-using WireBound.Platforms.Windows;
+using WireBound.Windows;
 #endif
 
 namespace WireBound;
@@ -56,22 +56,13 @@ public static class MauiProgram
         // Register Database
         builder.Services.AddDbContext<WireBoundDbContext>();
 
-        // Register Services (interfaces with implementations)
-        builder.Services.AddSingleton<ILocalizationService, LocalizationService>();
-        builder.Services.AddSingleton<INetworkMonitorService, NetworkMonitorService>();
-        builder.Services.AddSingleton<IDataPersistenceService, DataPersistenceService>();
-        builder.Services.AddSingleton<IProcessNetworkService, ProcessNetworkService>();
-        builder.Services.AddSingleton<IElevationService, ElevationService>();
-        
-        // Startup service with abstracted dependencies for testability
-        builder.Services.AddSingleton<Abstractions.IRegistryService, Abstractions.WindowsRegistryService>();
-        builder.Services.AddSingleton<Abstractions.IStartupTaskService, Abstractions.WindowsStartupTaskService>();
-        builder.Services.AddSingleton<IStartupService, StartupService>();
-        
+        // Register platform-specific services
 #if WINDOWS
-        // Register TrayIconService for Windows platform
-        builder.Services.AddSingleton<ITrayIconService, TrayIconService>();
+        builder.Services.AddWindowsPlatformServices();
 #endif
+        
+        // Register app-specific services
+        builder.Services.AddSingleton<ILocalizationService, LocalizationService>();
         
         // Register NetworkPollingBackgroundService with both concrete type and interface
         // This allows accessing the same instance via either type

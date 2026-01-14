@@ -1,7 +1,8 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
-using WireBound.Data;
-using WireBound.Models;
+using WireBound.Core.Data;
+using WireBound.Core.Models;
+using WireBound.Core.Services;
 
 namespace WireBound.Services;
 

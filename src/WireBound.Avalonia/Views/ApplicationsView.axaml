@@ -1,0 +1,225 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:WireBound.Avalonia.ViewModels"
+             xmlns:models="using:WireBound.Core.Models"
+             x:Class="WireBound.Avalonia.Views.ApplicationsView"
+             x:DataType="vm:ApplicationsViewModel"
+             Background="{DynamicResource BackgroundBrush}">
+
+    <Grid RowDefinitions="Auto, *">
+        
+        <!-- Loading Overlay -->
+        <Border Grid.RowSpan="2"
+                IsVisible="{Binding IsLoading}"
+                Background="{DynamicResource OverlayColor}"
+                ZIndex="100">
+            <Border Background="{DynamicResource CardBrush}"
+                    CornerRadius="16"
+                    Padding="32"
+                    HorizontalAlignment="Center"
+                    VerticalAlignment="Center">
+                <StackPanel Spacing="16">
+                    <ProgressBar IsIndeterminate="True"
+                                 IsVisible="{Binding IsLoading}"
+                                 Width="48" Height="8"
+                                 HorizontalAlignment="Center" />
+                    <TextBlock Text="Loading applications..."
+                               Classes="Subtitle"
+                               HorizontalAlignment="Center" />
+                </StackPanel>
+            </Border>
+        </Border>
+
+        <ScrollViewer Grid.Row="1" Margin="28">
+            <StackPanel Spacing="24">
+
+                <!-- Page Header -->
+                <StackPanel Spacing="4">
+                    <TextBlock Text="Applications" Classes="PageTitle" />
+                    <TextBlock Text="Per-application network usage tracking" Classes="Subtitle" />
+                </StackPanel>
+
+                <!-- Platform Warning -->
+                <Border Classes="Card"
+                        Background="{DynamicResource WarningBannerColor}"
+                        IsVisible="{Binding !IsPlatformSupported}">
+                    <StackPanel Orientation="Horizontal" Spacing="16">
+                        <Border Background="#25FFB627" CornerRadius="10" Width="48" Height="48">
+                            <TextBlock Text="⚠️" FontSize="24"
+                                       HorizontalAlignment="Center" VerticalAlignment="Center" />
+                        </Border>
+                        <StackPanel VerticalAlignment="Center">
+                            <TextBlock Text="Feature Not Available"
+                                       FontSize="16" FontWeight="Bold"
+                                       Foreground="{DynamicResource WarningBrush}" />
+                            <TextBlock Text="Per-app network tracking is not yet implemented in the Avalonia version."
+                                       Classes="Subtitle" />
+                        </StackPanel>
+                    </StackPanel>
+                </Border>
+
+                <!-- Feature Disabled Warning -->
+                <Border Classes="Card"
+                        Background="{DynamicResource InfoBannerColor}"
+                        IsVisible="{Binding !IsPerAppTrackingEnabled}">
+                    <StackPanel Orientation="Horizontal" Spacing="16">
+                        <Border Background="#2500E5FF" CornerRadius="10" Width="48" Height="48">
+                            <TextBlock Text="ℹ️" FontSize="24"
+                                       HorizontalAlignment="Center" VerticalAlignment="Center" />
+                        </Border>
+                        <StackPanel VerticalAlignment="Center">
+                            <TextBlock Text="Feature Disabled"
+                                       FontSize="16" FontWeight="Bold"
+                                       Foreground="{DynamicResource PrimaryBrush}" />
+                            <TextBlock Text="Enable Per-App Network Tracking in Settings to use this feature."
+                                       Classes="Subtitle" />
+                        </StackPanel>
+                    </StackPanel>
+                </Border>
+
+                <!-- Summary Cards -->
+                <Grid ColumnDefinitions="*, *, *">
+                    <Border Grid.Column="0" Classes="ElevatedCard" Margin="0,0,10,0">
+                        <StackPanel Spacing="8">
+                            <StackPanel Orientation="Horizontal" Spacing="8">
+                                <TextBlock Text="📱" FontSize="16" />
+                                <TextBlock Text="APPS TRACKED" Classes="MetricLabel" />
+                            </StackPanel>
+                            <TextBlock Text="{Binding AppCount}"
+                                       FontSize="32" FontWeight="Bold" />
+                        </StackPanel>
+                    </Border>
+                    <Border Grid.Column="1" Classes="ElevatedCard" Margin="10,0">
+                        <StackPanel Spacing="8">
+                            <StackPanel Orientation="Horizontal" Spacing="8">
+                                <TextBlock Text="⬇️" FontSize="16" />
+                                <TextBlock Text="TOTAL DOWNLOAD" Classes="MetricLabel" />
+                            </StackPanel>
+                            <TextBlock Text="{Binding TotalDownload}"
+                                       FontSize="32" FontWeight="Bold"
+                                       Foreground="{DynamicResource DownloadBrush}" />
+                        </StackPanel>
+                    </Border>
+                    <Border Grid.Column="2" Classes="ElevatedCard" Margin="10,0,0,0">
+                        <StackPanel Spacing="8">
+                            <StackPanel Orientation="Horizontal" Spacing="8">
+                                <TextBlock Text="⬆️" FontSize="16" />
+                                <TextBlock Text="TOTAL UPLOAD" Classes="MetricLabel" />
+                            </StackPanel>
+                            <TextBlock Text="{Binding TotalUpload}"
+                                       FontSize="32" FontWeight="Bold"
+                                       Foreground="{DynamicResource UploadBrush}" />
+                        </StackPanel>
+                    </Border>
+                </Grid>
+
+                <!-- Filter Bar -->
+                <Border Classes="Card" Padding="20">
+                    <Grid ColumnDefinitions="*, Auto, Auto, Auto, Auto">
+                        <Border Background="{DynamicResource SurfaceBrush}"
+                                Margin="0,0,16,0"
+                                CornerRadius="10"
+                                BorderBrush="{DynamicResource GlassBorderBrush}"
+                                BorderThickness="1"
+                                Padding="12,0">
+                            <TextBox Watermark="🔍 Search applications..."
+                                     Text="{Binding SearchText}"
+                                     Background="Transparent"
+                                     BorderThickness="0" />
+                        </Border>
+                        <CalendarDatePicker Grid.Column="1"
+                                            SelectedDate="{Binding StartDate}"
+                                            Margin="0,0,16,0" />
+                        <TextBlock Grid.Column="2" Text="→" VerticalAlignment="Center"
+                                   Foreground="{DynamicResource MutedTextBrush}"
+                                   Margin="0,0,16,0" />
+                        <CalendarDatePicker Grid.Column="3"
+                                            SelectedDate="{Binding EndDate}"
+                                            Margin="0,0,16,0" />
+                        <Button Grid.Column="4"
+                                Content="🔄 Refresh"
+                                Command="{Binding RefreshCommand}"
+                                Classes="Primary"
+                                Padding="16,10" />
+                    </Grid>
+                </Border>
+
+                <!-- Historical Usage -->
+                <StackPanel Spacing="16">
+                    <StackPanel Orientation="Horizontal" Spacing="12">
+                        <TextBlock Text="📊" FontSize="16" VerticalAlignment="Center" />
+                        <TextBlock Text="HISTORICAL USAGE" Classes="MetricLabel" VerticalAlignment="Center" />
+                    </StackPanel>
+                    
+                    <Border Classes="Card">
+                        <ItemsControl ItemsSource="{Binding AllApps}">
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate x:DataType="models:AppUsageRecord">
+                                    <Border Padding="16" Margin="0,0,0,8"
+                                            Background="{DynamicResource BorderSubtleBrush}"
+                                            CornerRadius="12">
+                                        <Grid ColumnDefinitions="Auto, *, Auto, Auto, Auto">
+                                            <Border Width="48" Height="48"
+                                                    Background="#15A855F7"
+                                                    CornerRadius="12"
+                                                    Margin="0,0,20,0">
+                                                <TextBlock Text="📦" FontSize="22"
+                                                           HorizontalAlignment="Center"
+                                                           VerticalAlignment="Center" />
+                                            </Border>
+                                            <StackPanel Grid.Column="1" VerticalAlignment="Center" Spacing="2"
+                                                        Margin="0,0,20,0">
+                                                <TextBlock Text="{Binding AppName}"
+                                                           FontSize="15" FontWeight="Bold"
+                                                           TextTrimming="CharacterEllipsis" />
+                                                <TextBlock Text="{Binding ProcessName}" Classes="Caption" />
+                                            </StackPanel>
+                                            <StackPanel Grid.Column="2" VerticalAlignment="Center" Spacing="2">
+                                                <TextBlock Text="Download" Classes="Caption" HorizontalAlignment="Right" />
+                                                <TextBlock Text="{Binding BytesReceived, StringFormat='{}{0:N0} B'}"
+                                                           FontSize="14" FontWeight="Bold"
+                                                           Foreground="{DynamicResource DownloadBrush}"
+                                                           HorizontalAlignment="Right" />
+                                            </StackPanel>
+                                            <StackPanel Grid.Column="3" VerticalAlignment="Center" Spacing="2">
+                                                <TextBlock Text="Upload" Classes="Caption" HorizontalAlignment="Right" />
+                                                <TextBlock Text="{Binding BytesSent, StringFormat='{}{0:N0} B'}"
+                                                           FontSize="14" FontWeight="Bold"
+                                                           Foreground="{DynamicResource UploadBrush}"
+                                                           HorizontalAlignment="Right" />
+                                            </StackPanel>
+                                            <StackPanel Grid.Column="4" VerticalAlignment="Center" Spacing="2">
+                                                <TextBlock Text="Total" Classes="Caption" HorizontalAlignment="Right" />
+                                                <TextBlock Text="{Binding TotalBytes, StringFormat='{}{0:N0} B'}"
+                                                           FontSize="14" FontWeight="Bold"
+                                                           HorizontalAlignment="Right" />
+                                            </StackPanel>
+                                        </Grid>
+                                    </Border>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+                    </Border>
+
+                    <!-- Empty State -->
+                    <Border Background="{DynamicResource BorderSubtleBrush}"
+                            CornerRadius="12"
+                            Padding="40"
+                            Margin="0,8"
+                            IsVisible="{Binding !AllApps.Count}">
+                        <StackPanel HorizontalAlignment="Center" Spacing="12">
+                            <TextBlock Text="📦" FontSize="36" HorizontalAlignment="Center" />
+                            <TextBlock Text="No application data found"
+                                       FontSize="16" FontWeight="Bold"
+                                       HorizontalAlignment="Center" />
+                            <TextBlock Text="for the selected date range"
+                                       Classes="Subtitle"
+                                       HorizontalAlignment="Center" />
+                        </StackPanel>
+                    </Border>
+                </StackPanel>
+
+            </StackPanel>
+        </ScrollViewer>
+    </Grid>
+</UserControl>

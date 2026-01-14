@@ -1,0 +1,106 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:WireBound.Avalonia.ViewModels"
+             x:Class="WireBound.Avalonia.Views.HistoryView"
+             x:DataType="vm:HistoryViewModel"
+             Background="{DynamicResource BackgroundBrush}">
+
+    <Grid RowDefinitions="Auto, *" Margin="28">
+        
+        <!-- Header -->
+        <StackPanel Spacing="4">
+            <TextBlock Text="History" Classes="PageTitle" />
+            <TextBlock Text="Network usage over time" Classes="Subtitle" />
+        </StackPanel>
+
+        <!-- Daily Usage Table -->
+        <Border Grid.Row="1" Classes="ElevatedCard" Margin="0,24,0,0">
+            <Grid RowDefinitions="Auto, Auto, *">
+                
+                <!-- Section Header -->
+                <StackPanel Orientation="Horizontal" Spacing="12">
+                    <Border Background="#15FFB627" CornerRadius="8" Width="40" Height="40">
+                        <TextBlock Text="📅" FontSize="20"
+                                   HorizontalAlignment="Center" VerticalAlignment="Center" />
+                    </Border>
+                    <StackPanel VerticalAlignment="Center">
+                        <TextBlock Text="Daily Usage" Classes="SectionHeader" />
+                        <TextBlock Text="Last 30 days of network activity" Classes="Caption" />
+                    </StackPanel>
+                </StackPanel>
+                
+                <!-- Table Header -->
+                <Border Grid.Row="1"
+                        Background="{DynamicResource BorderSubtleBrush}"
+                        CornerRadius="8"
+                        Padding="16,12"
+                        Margin="0,16,0,0">
+                    <Grid ColumnDefinitions="*, *, *, *">
+                        <TextBlock Text="DATE" Classes="MetricLabel" FontWeight="Bold" />
+                        <TextBlock Grid.Column="1" Text="DOWNLOADED" Classes="MetricLabel" FontWeight="Bold" />
+                        <TextBlock Grid.Column="2" Text="UPLOADED" Classes="MetricLabel" FontWeight="Bold" />
+                        <TextBlock Grid.Column="3" Text="TOTAL" Classes="MetricLabel" FontWeight="Bold" />
+                    </Grid>
+                </Border>
+                
+                <!-- Data List -->
+                <ScrollViewer Grid.Row="2" Margin="0,16,0,0">
+                    <ItemsControl ItemsSource="{Binding DailyUsages}">
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate x:DataType="vm:DailyUsageItem">
+                                <Border Background="Transparent"
+                                        CornerRadius="8"
+                                        Padding="16,14"
+                                        Margin="0,2">
+                                    <Border.Styles>
+                                        <Style Selector="Border:pointerover">
+                                            <Setter Property="Background" Value="{DynamicResource FlyoutItemHoverColor}" />
+                                        </Style>
+                                    </Border.Styles>
+                                    <Grid ColumnDefinitions="*, *, *, *">
+                                        <TextBlock Text="{Binding DateFormatted}"
+                                                   FontSize="14" FontWeight="Bold" />
+                                        <TextBlock Grid.Column="1"
+                                                   Text="{Binding DownloadFormatted}"
+                                                   FontSize="14"
+                                                   Foreground="{DynamicResource DownloadBrush}" />
+                                        <TextBlock Grid.Column="2"
+                                                   Text="{Binding UploadFormatted}"
+                                                   FontSize="14"
+                                                   Foreground="{DynamicResource UploadBrush}" />
+                                        <TextBlock Grid.Column="3"
+                                                   Text="{Binding TotalFormatted}"
+                                                   FontSize="14" FontWeight="Bold" />
+                                    </Grid>
+                                </Border>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                </ScrollViewer>
+                
+                <!-- Empty State -->
+                <Border Grid.Row="2"
+                        Background="{DynamicResource BorderSubtleBrush}"
+                        CornerRadius="12"
+                        Padding="40"
+                        Margin="0,20"
+                        IsVisible="{Binding !DailyUsages.Count}">
+                    <StackPanel HorizontalAlignment="Center" Spacing="12">
+                        <Border Background="{DynamicResource SurfaceBrush}"
+                                CornerRadius="20"
+                                Width="80" Height="80">
+                            <TextBlock Text="📊" FontSize="36"
+                                       HorizontalAlignment="Center" VerticalAlignment="Center" />
+                        </Border>
+                        <TextBlock Text="No history data yet"
+                                   FontSize="18" FontWeight="Bold"
+                                   HorizontalAlignment="Center" />
+                        <TextBlock Text="Data will appear after monitoring runs for a while"
+                                   Classes="Subtitle"
+                                   HorizontalAlignment="Center" />
+                    </StackPanel>
+                </Border>
+            </Grid>
+        </Border>
+    </Grid>
+</UserControl>

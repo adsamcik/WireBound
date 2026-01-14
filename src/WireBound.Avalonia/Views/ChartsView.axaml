@@ -1,0 +1,182 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:WireBound.Avalonia.ViewModels"
+             xmlns:lvc="using:LiveChartsCore.SkiaSharpView.Avalonia"
+             x:Class="WireBound.Avalonia.Views.ChartsView"
+             x:DataType="vm:ChartsViewModel"
+             Background="{DynamicResource BackgroundBrush}">
+
+    <Grid RowDefinitions="Auto, Auto, *, Auto" Margin="28">
+        
+        <!-- HEADER -->
+        <Grid ColumnDefinitions="*, Auto">
+            <StackPanel Spacing="4">
+                <TextBlock Text="Live Chart" Classes="PageTitle" />
+                <TextBlock Text="Real-time network speed visualization" Classes="Subtitle" />
+            </StackPanel>
+            
+            <!-- Time Range Selector -->
+            <Border Grid.Column="1" Classes="CompactCard" VerticalAlignment="Center" Padding="14,10">
+                <StackPanel Orientation="Horizontal" Spacing="12">
+                    <TextBlock Text="⏱️" FontSize="16" VerticalAlignment="Center" />
+                    <TextBlock Text="Time Range" Classes="Caption" VerticalAlignment="Center" />
+                    <ComboBox ItemsSource="{Binding TimeRangeOptions}"
+                              SelectedItem="{Binding SelectedTimeRange}"
+                              Width="100"
+                              VerticalAlignment="Center">
+                        <ComboBox.ItemTemplate>
+                            <DataTemplate>
+                                <TextBlock Text="{Binding Label}" />
+                            </DataTemplate>
+                        </ComboBox.ItemTemplate>
+                    </ComboBox>
+                </StackPanel>
+            </Border>
+        </Grid>
+
+        <!-- STATISTICS ROW -->
+        <Border Grid.Row="1" Classes="Card" Padding="20" Margin="0,20,0,0">
+            <Grid ColumnDefinitions="*, *, *, *">
+                
+                <Border Background="{DynamicResource BorderSubtleBrush}" CornerRadius="12" Padding="16,12" Margin="0,0,10,0">
+                    <StackPanel HorizontalAlignment="Center" Spacing="6">
+                        <StackPanel Orientation="Horizontal" Spacing="6" HorizontalAlignment="Center">
+                            <TextBlock Text="⬇️" FontSize="12" />
+                            <TextBlock Text="PEAK DOWNLOAD" Classes="MetricLabel" />
+                        </StackPanel>
+                        <TextBlock Text="{Binding PeakDownloadSpeed}"
+                                   FontSize="22" FontWeight="Bold"
+                                   Foreground="{DynamicResource DownloadBrush}"
+                                   HorizontalAlignment="Center" />
+                    </StackPanel>
+                </Border>
+                
+                <Border Grid.Column="1" Background="{DynamicResource BorderSubtleBrush}" CornerRadius="12" Padding="16,12" Margin="10,0">
+                    <StackPanel HorizontalAlignment="Center" Spacing="6">
+                        <StackPanel Orientation="Horizontal" Spacing="6" HorizontalAlignment="Center">
+                            <TextBlock Text="📊" FontSize="12" />
+                            <TextBlock Text="AVG DOWNLOAD" Classes="MetricLabel" />
+                        </StackPanel>
+                        <TextBlock Text="{Binding AverageDownloadSpeed}"
+                                   FontSize="22" FontWeight="Bold"
+                                   Foreground="{DynamicResource DownloadColorDim}"
+                                   HorizontalAlignment="Center" />
+                    </StackPanel>
+                </Border>
+                
+                <Border Grid.Column="2" Background="{DynamicResource BorderSubtleBrush}" CornerRadius="12" Padding="16,12" Margin="10,0">
+                    <StackPanel HorizontalAlignment="Center" Spacing="6">
+                        <StackPanel Orientation="Horizontal" Spacing="6" HorizontalAlignment="Center">
+                            <TextBlock Text="⬆️" FontSize="12" />
+                            <TextBlock Text="PEAK UPLOAD" Classes="MetricLabel" />
+                        </StackPanel>
+                        <TextBlock Text="{Binding PeakUploadSpeed}"
+                                   FontSize="22" FontWeight="Bold"
+                                   Foreground="{DynamicResource UploadBrush}"
+                                   HorizontalAlignment="Center" />
+                    </StackPanel>
+                </Border>
+                
+                <Border Grid.Column="3" Background="{DynamicResource BorderSubtleBrush}" CornerRadius="12" Padding="16,12" Margin="10,0,0,0">
+                    <StackPanel HorizontalAlignment="Center" Spacing="6">
+                        <StackPanel Orientation="Horizontal" Spacing="6" HorizontalAlignment="Center">
+                            <TextBlock Text="📊" FontSize="12" />
+                            <TextBlock Text="AVG UPLOAD" Classes="MetricLabel" />
+                        </StackPanel>
+                        <TextBlock Text="{Binding AverageUploadSpeed}"
+                                   FontSize="22" FontWeight="Bold"
+                                   Foreground="{DynamicResource UploadColorDim}"
+                                   HorizontalAlignment="Center" />
+                    </StackPanel>
+                </Border>
+            </Grid>
+        </Border>
+
+        <!-- MAIN CHART -->
+        <Border Grid.Row="2" Classes="ElevatedCard" Margin="0,20,0,0">
+            <Grid RowDefinitions="Auto, *, Auto">
+                
+                <!-- Legend -->
+                <StackPanel Orientation="Horizontal" Spacing="32" HorizontalAlignment="Center" Margin="0,0,0,16">
+                    <StackPanel Orientation="Horizontal" Spacing="10">
+                        <Border Background="{DynamicResource DownloadBrush}"
+                                Width="24" Height="4"
+                                CornerRadius="2"
+                                VerticalAlignment="Center" />
+                        <TextBlock Text="Download" FontSize="13" FontWeight="Bold" VerticalAlignment="Center" />
+                    </StackPanel>
+                    <StackPanel Orientation="Horizontal" Spacing="10">
+                        <Border Background="{DynamicResource UploadBrush}"
+                                Width="24" Height="4"
+                                CornerRadius="2"
+                                VerticalAlignment="Center" />
+                        <TextBlock Text="Upload" FontSize="13" FontWeight="Bold" VerticalAlignment="Center" />
+                    </StackPanel>
+                </StackPanel>
+                
+                <!-- Chart -->
+                <lvc:CartesianChart Grid.Row="1"
+                                    Margin="0,0,0,16"
+                                    Series="{Binding SpeedSeries}"
+                                    XAxes="{Binding XAxes}"
+                                    YAxes="{Binding YAxes}"
+                                    ZoomMode="X"
+                                    TooltipPosition="Top"
+                                    Background="{DynamicResource SurfaceBrush}" />
+                
+                <!-- Hint -->
+                <Border Grid.Row="2"
+                        Background="{DynamicResource BorderSubtleBrush}"
+                        CornerRadius="8"
+                        Padding="12,8"
+                        HorizontalAlignment="Center">
+                    <StackPanel Orientation="Horizontal" Spacing="8">
+                        <TextBlock Text="💡" FontSize="12" VerticalAlignment="Center" />
+                        <TextBlock Text="Scroll to zoom • Drag to pan • Change time range above"
+                                   FontSize="12"
+                                   Foreground="{DynamicResource SecondaryTextBrush}"
+                                   VerticalAlignment="Center" />
+                    </StackPanel>
+                </Border>
+            </Grid>
+        </Border>
+
+        <!-- CURRENT SPEED FOOTER -->
+        <Border Grid.Row="3" Classes="Card" Padding="20" Margin="0,20,0,0">
+            <Grid ColumnDefinitions="*, Auto, *">
+                
+                <!-- Download -->
+                <StackPanel Orientation="Horizontal" Spacing="16" HorizontalAlignment="Center" Margin="0,0,12,0">
+                    <Border Background="#1500E5FF" CornerRadius="10" Width="48" Height="48" VerticalAlignment="Center">
+                        <TextBlock Text="↓" FontSize="28" FontWeight="Bold"
+                                   Foreground="{DynamicResource DownloadBrush}"
+                                   HorizontalAlignment="Center" VerticalAlignment="Center" />
+                    </Border>
+                    <StackPanel VerticalAlignment="Center" Spacing="2">
+                        <TextBlock Text="Download Speed" Classes="Caption" />
+                        <TextBlock Text="{Binding DownloadSpeed}"
+                                   FontSize="28" FontWeight="Bold"
+                                   Foreground="{DynamicResource DownloadBrush}" />
+                    </StackPanel>
+                </StackPanel>
+                
+                <Rectangle Grid.Column="1" Classes="VerticalDivider" Margin="12,0" />
+                
+                <!-- Upload -->
+                <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="16" HorizontalAlignment="Center" Margin="12,0,0,0">
+                    <Border Background="#15FF6B35" CornerRadius="10" Width="48" Height="48" VerticalAlignment="Center">
+                        <TextBlock Text="↑" FontSize="28" FontWeight="Bold"
+                                   Foreground="{DynamicResource UploadBrush}"
+                                   HorizontalAlignment="Center" VerticalAlignment="Center" />
+                    </Border>
+                    <StackPanel VerticalAlignment="Center" Spacing="2">
+                        <TextBlock Text="Upload Speed" Classes="Caption" />
+                        <TextBlock Text="{Binding UploadSpeed}"
+                                   FontSize="28" FontWeight="Bold"
+                                   Foreground="{DynamicResource UploadBrush}" />
+                    </StackPanel>
+                </StackPanel>
+            </Grid>
+        </Border>
+    </Grid>
+</UserControl>

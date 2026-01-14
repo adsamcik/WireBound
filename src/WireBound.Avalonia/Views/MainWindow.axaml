@@ -1,0 +1,148 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:vm="using:WireBound.Avalonia.ViewModels"
+        xmlns:views="using:WireBound.Avalonia.Views"
+        x:Class="WireBound.Avalonia.Views.MainWindow"
+        x:DataType="vm:MainViewModel"
+        Title="WireBound - Network Traffic Monitor"
+        Width="1200" Height="800"
+        MinWidth="900" MinHeight="650"
+        Background="{DynamicResource BackgroundBrush}"
+        WindowStartupLocation="CenterScreen">
+
+    <Design.DataContext>
+        <vm:MainViewModel />
+    </Design.DataContext>
+
+    <Grid ColumnDefinitions="240, *">
+        
+        <!-- ═══════════════════════════════════════════════════════════════ -->
+        <!-- NAVIGATION RAIL                                                  -->
+        <!-- ═══════════════════════════════════════════════════════════════ -->
+        
+        <Border Grid.Column="0"
+                Background="{DynamicResource RailBackgroundBrush}"
+                BorderBrush="{DynamicResource BorderBrush}"
+                BorderThickness="0,0,1,0">
+            
+            <Grid RowDefinitions="Auto, *, Auto">
+                
+                <!-- Header -->
+                <StackPanel Margin="20,24,20,16" Spacing="16">
+                    
+                    <!-- App Logo & Title -->
+                    <StackPanel Orientation="Horizontal" Spacing="14">
+                        <Border Background="{DynamicResource PrimaryBrush}"
+                                CornerRadius="12"
+                                Width="48" Height="48"
+                                BoxShadow="0 0 12 0 #8000E5FF">
+                            <TextBlock Text="⚡"
+                                       FontSize="24"
+                                       HorizontalAlignment="Center"
+                                       VerticalAlignment="Center" />
+                        </Border>
+                        
+                        <StackPanel VerticalAlignment="Center" Spacing="2">
+                            <TextBlock Text="WireBound"
+                                       FontSize="20"
+                                       FontWeight="Bold"
+                                       Foreground="{DynamicResource PrimaryTextBrush}" />
+                            <TextBlock Text="Network Monitor"
+                                       FontSize="12"
+                                       Foreground="{DynamicResource SecondaryTextBrush}" />
+                        </StackPanel>
+                    </StackPanel>
+                    
+                    <!-- Decorative Wire Divider -->
+                    <Grid ColumnDefinitions="Auto, *, Auto" Height="12">
+                        <Ellipse Width="6" Height="6" 
+                                 Fill="{DynamicResource WireColor}"
+                                 VerticalAlignment="Center" />
+                        <Rectangle Grid.Column="1" 
+                                   Height="2" 
+                                   Fill="{DynamicResource WireColor}"
+                                   Margin="4,0" />
+                        <Ellipse Grid.Column="2"
+                                 Width="6" Height="6" 
+                                 Fill="{DynamicResource WireColor}"
+                                 VerticalAlignment="Center" />
+                    </Grid>
+                </StackPanel>
+                
+                <!-- Navigation Items -->
+                <ListBox Grid.Row="1"
+                         ItemsSource="{Binding NavigationItems}"
+                         SelectedItem="{Binding SelectedNavigationItem}"
+                         Background="Transparent"
+                         Margin="8,0">
+                    <ListBox.Styles>
+                        <Style Selector="ListBoxItem">
+                            <Setter Property="Padding" Value="16,14" />
+                            <Setter Property="CornerRadius" Value="10" />
+                            <Setter Property="Margin" Value="0,2" />
+                        </Style>
+                        <Style Selector="ListBoxItem:pointerover /template/ ContentPresenter">
+                            <Setter Property="Background" Value="{DynamicResource FlyoutItemHoverColor}" />
+                        </Style>
+                        <Style Selector="ListBoxItem:selected /template/ ContentPresenter">
+                            <Setter Property="Background" Value="{DynamicResource FlyoutItemActiveColor}" />
+                        </Style>
+                    </ListBox.Styles>
+                    <ListBox.ItemTemplate>
+                        <DataTemplate x:DataType="vm:NavigationItem">
+                            <StackPanel Orientation="Horizontal" Spacing="12">
+                                <TextBlock Text="{Binding Icon}" FontSize="16" />
+                                <TextBlock Text="{Binding Title}" 
+                                           FontSize="14"
+                                           VerticalAlignment="Center" />
+                            </StackPanel>
+                        </DataTemplate>
+                    </ListBox.ItemTemplate>
+                </ListBox>
+                
+                <!-- Footer -->
+                <StackPanel Grid.Row="2" Margin="20,12,20,20" Spacing="12">
+                    
+                    <!-- Wire Divider -->
+                    <Grid ColumnDefinitions="Auto, *, Auto" Height="12">
+                        <Ellipse Width="6" Height="6" 
+                                 Fill="{DynamicResource WireColor}"
+                                 VerticalAlignment="Center" />
+                        <Rectangle Grid.Column="1" 
+                                   Height="2" 
+                                   Fill="{DynamicResource WireColor}"
+                                   Margin="4,0" />
+                        <Ellipse Grid.Column="2"
+                                 Width="6" Height="6" 
+                                 Fill="{DynamicResource WireColor}"
+                                 VerticalAlignment="Center" />
+                    </Grid>
+                    
+                    <!-- Status Indicator -->
+                    <StackPanel Orientation="Horizontal" Spacing="10">
+                        <Ellipse Width="10" Height="10"
+                                 Fill="{DynamicResource SuccessBrush}"
+                                 VerticalAlignment="Center" />
+                        <TextBlock Text="Monitoring Active"
+                                   FontSize="12"
+                                   Foreground="{DynamicResource SuccessBrush}"
+                                   VerticalAlignment="Center" />
+                    </StackPanel>
+                    
+                    <!-- Version -->
+                    <TextBlock Text="v2.0.0"
+                               FontSize="11"
+                               Foreground="{DynamicResource MutedTextBrush}" />
+                </StackPanel>
+            </Grid>
+        </Border>
+        
+        <!-- ═══════════════════════════════════════════════════════════════ -->
+        <!-- MAIN CONTENT AREA                                                -->
+        <!-- ═══════════════════════════════════════════════════════════════ -->
+        
+        <ContentControl Grid.Column="1"
+                        Content="{Binding CurrentView}" />
+        
+    </Grid>
+</Window>

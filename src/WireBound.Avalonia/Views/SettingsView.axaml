@@ -1,0 +1,217 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:WireBound.Avalonia.ViewModels"
+             x:Class="WireBound.Avalonia.Views.SettingsView"
+             x:DataType="vm:SettingsViewModel"
+             Background="{DynamicResource BackgroundBrush}">
+
+    <ScrollViewer Margin="28">
+        <StackPanel Spacing="24">
+            
+            <!-- Header -->
+            <StackPanel Spacing="4">
+                <TextBlock Text="Settings" Classes="PageTitle" />
+                <TextBlock Text="Configure monitoring options" Classes="Subtitle" />
+            </StackPanel>
+
+            <!-- Network Settings -->
+            <Border Classes="ElevatedCard">
+                <StackPanel Spacing="24">
+                    
+                    <StackPanel Orientation="Horizontal" Spacing="12">
+                        <Border Background="#1500E5FF" CornerRadius="8" Width="40" Height="40">
+                            <TextBlock Text="📡" FontSize="20"
+                                       HorizontalAlignment="Center" VerticalAlignment="Center" />
+                        </Border>
+                        <StackPanel VerticalAlignment="Center">
+                            <TextBlock Text="Monitoring Settings" Classes="SectionHeader" />
+                            <TextBlock Text="Configure how network data is collected" Classes="Caption" />
+                        </StackPanel>
+                    </StackPanel>
+                    
+                    <!-- Network Adapter -->
+                    <Border Background="{DynamicResource BorderSubtleBrush}" CornerRadius="12" Padding="16">
+                        <Grid ColumnDefinitions="*, Auto">
+                            <StackPanel Spacing="4">
+                                <TextBlock Text="Network Adapter" Classes="CardTitle" />
+                                <TextBlock Text="Select which adapter to monitor" Classes="Caption" />
+                            </StackPanel>
+                            <ComboBox Grid.Column="1"
+                                      ItemsSource="{Binding Adapters}"
+                                      SelectedItem="{Binding SelectedAdapter}"
+                                      Width="220"
+                                      VerticalAlignment="Center">
+                                <ComboBox.ItemTemplate>
+                                    <DataTemplate>
+                                        <TextBlock Text="{Binding Name}" />
+                                    </DataTemplate>
+                                </ComboBox.ItemTemplate>
+                            </ComboBox>
+                        </Grid>
+                    </Border>
+                    
+                    <!-- Polling Interval -->
+                    <Border Background="{DynamicResource BorderSubtleBrush}" CornerRadius="12" Padding="16">
+                        <Grid ColumnDefinitions="*, Auto">
+                            <StackPanel Spacing="4">
+                                <TextBlock Text="Polling Interval" Classes="CardTitle" />
+                                <TextBlock Text="How often to sample network data" Classes="Caption" />
+                            </StackPanel>
+                            <ComboBox Grid.Column="1"
+                                      ItemsSource="{Binding PollingIntervals}"
+                                      SelectedItem="{Binding PollingIntervalMs}"
+                                      Width="120"
+                                      VerticalAlignment="Center" />
+                        </Grid>
+                    </Border>
+                    
+                    <!-- Speed Unit -->
+                    <Border Background="{DynamicResource BorderSubtleBrush}" CornerRadius="12" Padding="16">
+                        <Grid ColumnDefinitions="*, Auto">
+                            <StackPanel Spacing="4">
+                                <TextBlock Text="Speed Unit" Classes="CardTitle" />
+                                <TextBlock Text="Display speeds in bits (Mbps) or bytes (MB/s)" Classes="Caption" />
+                            </StackPanel>
+                            <ToggleSwitch Grid.Column="1"
+                                          IsChecked="{Binding UseSpeedInBits}"
+                                          OnContent="Mbps" OffContent="MB/s"
+                                          VerticalAlignment="Center" />
+                        </Grid>
+                    </Border>
+                    
+                    <!-- Use IP Helper API -->
+                    <Border Background="{DynamicResource BorderSubtleBrush}" CornerRadius="12" Padding="16">
+                        <Grid ColumnDefinitions="*, Auto">
+                            <StackPanel Spacing="4">
+                                <TextBlock Text="Use IP Helper API" Classes="CardTitle" />
+                                <TextBlock Text="More accurate readings but may require elevation" Classes="Caption" />
+                            </StackPanel>
+                            <ToggleSwitch Grid.Column="1"
+                                          IsChecked="{Binding UseIpHelperApi}"
+                                          VerticalAlignment="Center" />
+                        </Grid>
+                    </Border>
+                    
+                    <!-- Per-App Tracking -->
+                    <Border Background="{DynamicResource BorderSubtleBrush}" CornerRadius="12" Padding="16">
+                        <Grid ColumnDefinitions="*, Auto">
+                            <StackPanel Spacing="4">
+                                <TextBlock Text="Per-App Network Tracking" Classes="CardTitle" />
+                                <TextBlock Text="Track network usage for individual applications" Classes="Caption" />
+                                <TextBlock Text="⚠️ Requires administrator privileges"
+                                           Classes="Caption"
+                                           Foreground="{DynamicResource WarningBrush}"
+                                           IsVisible="{Binding RequiresElevation}" />
+                            </StackPanel>
+                            <ToggleSwitch Grid.Column="1"
+                                          IsChecked="{Binding IsPerAppTrackingEnabled}"
+                                          IsEnabled="{Binding IsElevated}"
+                                          VerticalAlignment="Center" />
+                        </Grid>
+                    </Border>
+                </StackPanel>
+            </Border>
+
+            <!-- Application Settings -->
+            <Border Classes="ElevatedCard">
+                <StackPanel Spacing="24">
+                    
+                    <StackPanel Orientation="Horizontal" Spacing="12">
+                        <Border Background="#15FF6B35" CornerRadius="8" Width="40" Height="40">
+                            <TextBlock Text="🖥️" FontSize="20"
+                                       HorizontalAlignment="Center" VerticalAlignment="Center" />
+                        </Border>
+                        <StackPanel VerticalAlignment="Center">
+                            <TextBlock Text="Application Settings" Classes="SectionHeader" />
+                            <TextBlock Text="Startup and behavior options" Classes="Caption" />
+                        </StackPanel>
+                    </StackPanel>
+                    
+                    <!-- Start with Windows -->
+                    <Border Background="{DynamicResource BorderSubtleBrush}" CornerRadius="12" Padding="16">
+                        <Grid ColumnDefinitions="*, Auto">
+                            <StackPanel Spacing="4">
+                                <TextBlock Text="Start with Windows" Classes="CardTitle" />
+                                <TextBlock Text="Launch WireBound when Windows starts" Classes="Caption" />
+                            </StackPanel>
+                            <ToggleSwitch Grid.Column="1"
+                                          IsChecked="{Binding StartWithWindows}"
+                                          VerticalAlignment="Center" />
+                        </Grid>
+                    </Border>
+                    
+                    <!-- Minimize to Tray -->
+                    <Border Background="{DynamicResource BorderSubtleBrush}" CornerRadius="12" Padding="16">
+                        <Grid ColumnDefinitions="*, Auto">
+                            <StackPanel Spacing="4">
+                                <TextBlock Text="Minimize to System Tray" Classes="CardTitle" />
+                                <TextBlock Text="Keep running in background when minimized" Classes="Caption" />
+                            </StackPanel>
+                            <ToggleSwitch Grid.Column="1"
+                                          IsChecked="{Binding MinimizeToTray}"
+                                          VerticalAlignment="Center" />
+                        </Grid>
+                    </Border>
+                </StackPanel>
+            </Border>
+
+            <!-- Elevation Status -->
+            <Border Classes="ElevatedCard">
+                <StackPanel Spacing="24">
+                    
+                    <StackPanel Orientation="Horizontal" Spacing="12">
+                        <Border Background="#15FFB627" CornerRadius="8" Width="40" Height="40">
+                            <TextBlock Text="🛡️" FontSize="20"
+                                       HorizontalAlignment="Center" VerticalAlignment="Center" />
+                        </Border>
+                        <StackPanel VerticalAlignment="Center">
+                            <TextBlock Text="Administrator Privileges" Classes="SectionHeader" />
+                            <TextBlock Text="Elevation status for advanced features" Classes="Caption" />
+                        </StackPanel>
+                    </StackPanel>
+                    
+                    <Border Background="{DynamicResource BorderSubtleBrush}" CornerRadius="12" Padding="16">
+                        <Grid ColumnDefinitions="*, Auto">
+                            <StackPanel Spacing="4">
+                                <StackPanel Orientation="Horizontal" Spacing="8">
+                                    <TextBlock Text="Current Status:" Classes="CardTitle" />
+                                    <TextBlock Text="Running as Administrator"
+                                               Foreground="{DynamicResource SuccessBrush}"
+                                               FontWeight="Bold"
+                                               IsVisible="{Binding IsElevated}"
+                                               VerticalAlignment="Center" />
+                                    <TextBlock Text="Standard User"
+                                               Foreground="{DynamicResource WarningBrush}"
+                                               FontWeight="Bold"
+                                               IsVisible="{Binding !IsElevated}"
+                                               VerticalAlignment="Center" />
+                                </StackPanel>
+                                <TextBlock Text="Per-app network tracking requires administrator privileges"
+                                           Classes="Caption"
+                                           IsVisible="{Binding RequiresElevation}" />
+                                <TextBlock Text="All features are available"
+                                           Classes="Caption"
+                                           Foreground="{DynamicResource SuccessBrush}"
+                                           IsVisible="{Binding IsElevated}" />
+                            </StackPanel>
+                            <Button Grid.Column="1"
+                                    Content="🛡️ Elevate"
+                                    Command="{Binding RequestElevationCommand}"
+                                    IsEnabled="{Binding !IsRequestingElevation}"
+                                    IsVisible="{Binding RequiresElevation}"
+                                    Classes="Warning"
+                                    VerticalAlignment="Center" />
+                        </Grid>
+                    </Border>
+                </StackPanel>
+            </Border>
+
+            <!-- Auto-save note -->
+            <TextBlock Text="Settings are saved automatically"
+                       Classes="Caption"
+                       HorizontalAlignment="Center"
+                       Opacity="0.6" />
+                   
+        </StackPanel>
+    </ScrollViewer>
+</UserControl>

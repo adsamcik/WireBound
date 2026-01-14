@@ -2,7 +2,7 @@
 <ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
              xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
              xmlns:vm="clr-namespace:WireBound.ViewModels"
-             xmlns:models="clr-namespace:WireBound.Models"
+             xmlns:models="clr-namespace:WireBound.Core.Models;assembly=WireBound.Core"
              x:Class="WireBound.Views.ApplicationsPage"
              x:DataType="vm:ApplicationsViewModel"
              BackgroundColor="{StaticResource BackgroundColor}">

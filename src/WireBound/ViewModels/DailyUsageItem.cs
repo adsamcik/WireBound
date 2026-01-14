@@ -1,5 +1,5 @@
-using WireBound.Helpers;
-using WireBound.Models;
+using WireBound.Core.Helpers;
+using WireBound.Core.Models;
 
 namespace WireBound.ViewModels;
 

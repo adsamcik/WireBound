@@ -8,9 +8,9 @@ using LiveChartsCore.SkiaSharpView.Painting.Effects;
 using SkiaSharp;
 using System.Collections.ObjectModel;
 using System.Timers;
-using WireBound.Helpers;
-using WireBound.Models;
-using WireBound.Services;
+using WireBound.Core.Helpers;
+using WireBound.Core.Models;
+using WireBound.Core.Services;
 
 namespace WireBound.ViewModels;
 

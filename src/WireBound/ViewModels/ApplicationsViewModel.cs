@@ -1,9 +1,9 @@
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using System.Collections.ObjectModel;
-using WireBound.Helpers;
-using WireBound.Models;
-using WireBound.Services;
+using WireBound.Core.Helpers;
+using WireBound.Core.Models;
+using WireBound.Core.Services;
 
 namespace WireBound.ViewModels;
 

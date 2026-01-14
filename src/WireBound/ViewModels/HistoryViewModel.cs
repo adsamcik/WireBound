@@ -5,9 +5,9 @@ using LiveChartsCore.SkiaSharpView;
 using LiveChartsCore.SkiaSharpView.Painting;
 using SkiaSharp;
 using System.Collections.ObjectModel;
-using WireBound.Helpers;
-using WireBound.Models;
-using WireBound.Services;
+using WireBound.Core.Helpers;
+using WireBound.Core.Models;
+using WireBound.Core.Services;
 
 namespace WireBound.ViewModels;
 

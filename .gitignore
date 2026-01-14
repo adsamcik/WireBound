@@ -1,11 +1,59 @@
-# WireBound build outputs
+# Build outputs
 bin/
 obj/
+publish/
 
-# IDE
+# IDE and editor files
 .vs/
+.vscode/
 *.user
 *.suo
+*.userosscache
+*.sln.docstates
+
+# NuGet
+*.nupkg
+**/packages/*
+!**/packages/build/
+
+# Windows image file caches
+Thumbs.db
+ehthumbs.db
+
+# Folder config file
+Desktop.ini
+
+# Recycle Bin
+$RECYCLE.BIN/
+
+# VS Code directories
+.history/
+
+# Windows Store app package directories
+AppPackages/
+BundleArtifacts/
+Package.StoreAssociation.xml
+
+# MAUI
+*.ipa
+*.apk
+*.aab
+*.msix
+*.msixbundle
+*.appx
+*.appxbundle
+*.appxupload
+
+# Certificate files
+*.pfx
+*.cer
+
+# Rider
+.idea/
+*.sln.iml
+
+# JetBrains Rider
+.idea/
 
 # Database files (local)
 *.db
@@ -14,3 +62,23 @@ obj/
 
 # Logs
 *.log
+logs/
+
+# Test results
+TestResults/
+*.trx
+
+# Crash dumps
+*.dmp
+
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+
+# BenchmarkDotNet
+BenchmarkDotNet.Artifacts/
+
+# Local settings
+appsettings.local.json
+appsettings.*.local.json

@@ -18,6 +18,10 @@
 .PARAMETER SelfContained
     Whether to create a self-contained deployment. Defaults to $true.
 
+.PARAMETER EnableAOT
+    Whether to enable Native AOT compilation. Defaults to $false.
+    AOT builds are smaller and faster but take longer to compile.
+
 .PARAMETER Clean
     Clean the output directory before publishing.
 
@@ -26,6 +30,9 @@
 
 .EXAMPLE
     .\publish.ps1 -PackageType "Both" -Clean
+
+.EXAMPLE
+    .\publish.ps1 -EnableAOT -PackageType "Portable"
 #>
 
 param(
@@ -34,6 +41,7 @@ param(
     [ValidateSet("Portable", "MSIX", "Both")]
     [string]$PackageType = "Portable",
     [switch]$SelfContained = $true,
+    [switch]$EnableAOT = $false,
     [switch]$Clean
 )
 
@@ -58,6 +66,7 @@ $OutputDir = $ExecutionContext.SessionState.Path.GetUnresolvedProviderPathFromPS
 
 Write-Host "`nProject: $ProjectPath"
 Write-Host "Output:  $OutputDir"
+Write-Host "AOT:     $(if ($EnableAOT) { 'Enabled' } else { 'Disabled' })"
 
 # Get version from project if not specified
 if (-not $Version) {
@@ -85,9 +94,11 @@ Write-Success "Dependencies restored"
 
 # Build portable version
 if ($PackageType -eq "Portable" -or $PackageType -eq "Both") {
-    Write-Step "Building portable (unpackaged) version..."
+    $buildType = if ($EnableAOT) { "portable (AOT)" } else { "portable (unpackaged)" }
+    Write-Step "Building $buildType version..."
     
-    $portableOutput = Join-Path $OutputDir "portable"
+    $portableSuffix = if ($EnableAOT) { "aot" } else { "portable" }
+    $portableOutput = Join-Path $OutputDir $portableSuffix
     
     $publishArgs = @(
         "publish", $ProjectPath,
@@ -95,9 +106,14 @@ if ($PackageType -eq "Portable" -or $PackageType -eq "Both") {
         "--runtime", $Runtime,
         "--output", $portableOutput,
         "-p:WindowsPackageType=None",
-        "-p:PublishReadyToRun=true",
         "-p:Version=$Version"
     )
+    
+    if ($EnableAOT) {
+        $publishArgs += "-p:EnableAOT=true"
+    } else {
+        $publishArgs += "-p:PublishReadyToRun=true"
+    }
     
     if ($SelfContained) {
         $publishArgs += "--self-contained", "true"
@@ -110,7 +126,8 @@ if ($PackageType -eq "Portable" -or $PackageType -eq "Both") {
     if ($LASTEXITCODE -ne 0) { throw "Portable build failed" }
     
     # Create zip archive
-    $zipPath = Join-Path $OutputDir "WireBound-$Version-win-x64-portable.zip"
+    $zipSuffix = if ($EnableAOT) { "aot" } else { "portable" }
+    $zipPath = Join-Path $OutputDir "WireBound-$Version-win-x64-$zipSuffix.zip"
     if (Test-Path $zipPath) { Remove-Item $zipPath -Force }
     Compress-Archive -Path "$portableOutput\*" -DestinationPath $zipPath
     
@@ -139,11 +156,50 @@ if ($PackageType -eq "MSIX" -or $PackageType -eq "Both") {
         & dotnet @publishArgs
         
         if ($LASTEXITCODE -eq 0) {
-            Write-Success "MSIX package created in: $msixOutput"
+            # Find and copy the MSIX package files to output
+            $appPackagesDir = Join-Path (Split-Path $ProjectPath) "bin\Release\net10.0-windows10.0.19041.0\win-x64\AppPackages"
+            $msixTestDir = Get-ChildItem $appPackagesDir -Directory -Filter "*_Test" | Select-Object -First 1
+            
+            if ($msixTestDir) {
+                Write-Step "Copying MSIX installer files..."
+                $msixInstallerDir = Join-Path $OutputDir "msix-installer"
+                New-Item -ItemType Directory -Path $msixInstallerDir -Force | Out-Null
+                
+                # Copy the MSIX file
+                Copy-Item (Join-Path $msixTestDir.FullName "*.msix") -Destination $msixInstallerDir -Force
+                
+                # Copy Install.ps1 and Add-AppDevPackage.ps1 scripts
+                $installScript = Join-Path $msixTestDir.FullName "Install.ps1"
+                if (Test-Path $installScript) {
+                    Copy-Item $installScript -Destination $msixInstallerDir -Force
+                }
+                
+                $addAppScript = Join-Path $msixTestDir.FullName "Add-AppDevPackage.ps1"
+                if (Test-Path $addAppScript) {
+                    Copy-Item $addAppScript -Destination $msixInstallerDir -Force
+                }
+                
+                # Copy Add-AppDevPackage resources folder
+                $resourcesDir = Join-Path $msixTestDir.FullName "Add-AppDevPackage.resources"
+                if (Test-Path $resourcesDir) {
+                    Copy-Item $resourcesDir -Destination $msixInstallerDir -Recurse -Force
+                }
+                
+                # Copy dependencies (Windows App Runtime)
+                $depsDir = Join-Path $msixTestDir.FullName "Dependencies"
+                if (Test-Path $depsDir) {
+                    Copy-Item $depsDir -Destination $msixInstallerDir -Recurse -Force
+                }
+                
+                Write-Success "MSIX installer files copied to: $msixInstallerDir"
+            }
+            
+            Write-Success "MSIX package created"
             Write-Warning "The MSIX is unsigned. To install, either:"
             Write-Host "  1. Sign it with a trusted certificate"
-            Write-Host "  2. Enable Developer Mode on Windows"
-            Write-Host "  3. Sideload with: Add-AppxPackage -Path <msix-file>"
+            Write-Host "  2. Enable Developer Mode on Windows (Settings > Privacy & Security > For developers)"
+            Write-Host "  3. Run Install.ps1 from the msix-installer folder"
+            Write-Host "  4. Or sideload with: Add-AppxPackage -Path <msix-file>"
         }
     } catch {
         Write-Warning "MSIX build failed: $_"

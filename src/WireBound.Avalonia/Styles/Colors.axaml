@@ -1,0 +1,163 @@
+<ResourceDictionary xmlns="https://github.com/avaloniaui"
+                    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+
+    <!-- 
+    ═══════════════════════════════════════════════════════════════════════════
+    WireBound Design System v2.0 - "Deep Ocean" Theme (Avalonia)
+    ═══════════════════════════════════════════════════════════════════════════
+    -->
+    
+    <!-- ═══════════════════════════════════════════════════════════════════ -->
+    <!-- CORE BACKGROUND COLORS                                               -->
+    <!-- ═══════════════════════════════════════════════════════════════════ -->
+    
+    <Color x:Key="BackgroundColor">#0D1321</Color>
+    <Color x:Key="BackgroundColorDark">#0D1321</Color>
+    <Color x:Key="BackgroundColorLight">#F8FAFC</Color>
+    
+    <Color x:Key="SurfaceColor">#1D2D44</Color>
+    <Color x:Key="SurfaceElevatedColor">#3E5C76</Color>
+    <Color x:Key="CardColor">#1D2D44</Color>
+    <Color x:Key="CardColorDark">#1D2D44</Color>
+    <Color x:Key="CardColorLight">#FFFFFF</Color>
+    <Color x:Key="CardHoverColor">#2A3F5F</Color>
+    
+    <Color x:Key="GlassBackground">#991D2D44</Color>
+    <Color x:Key="GlassBorder">#20FFFFFF</Color>
+    <Color x:Key="GlassHighlight">#10FFFFFF</Color>
+    
+    <Color x:Key="RailBackgroundColor">#0A0E14</Color>
+    <Color x:Key="SidebarColor">#0F1620</Color>
+    
+    <!-- ═══════════════════════════════════════════════════════════════════ -->
+    <!-- BRAND & ACTIVITY COLORS                                              -->
+    <!-- ═══════════════════════════════════════════════════════════════════ -->
+    
+    <Color x:Key="PrimaryColor">#00E5FF</Color>
+    <Color x:Key="PrimaryColorLight">#4DF0FF</Color>
+    <Color x:Key="PrimaryColorDark">#00B8CC</Color>
+    
+    <Color x:Key="SecondaryColor">#FF6B35</Color>
+    <Color x:Key="SecondaryColorLight">#FF8C5A</Color>
+    <Color x:Key="SecondaryColorDark">#E55A2B</Color>
+    
+    <Color x:Key="DownloadColor">#00E5FF</Color>
+    <Color x:Key="DownloadColorGlow">#00D4FF</Color>
+    <Color x:Key="DownloadColorDim">#0099AA</Color>
+    <Color x:Key="UploadColor">#FF6B35</Color>
+    <Color x:Key="UploadColorGlow">#FF8C5A</Color>
+    <Color x:Key="UploadColorDim">#CC5529</Color>
+    
+    <Color x:Key="ChartAccentColor">#FFB627</Color>
+    <Color x:Key="ChartTertiaryColor">#A855F7</Color>
+    
+    <!-- ═══════════════════════════════════════════════════════════════════ -->
+    <!-- TEXT COLORS                                                          -->
+    <!-- ═══════════════════════════════════════════════════════════════════ -->
+    
+    <Color x:Key="PrimaryTextColor">#F0EBD8</Color>
+    <Color x:Key="SecondaryTextColor">#A0A8B8</Color>
+    <Color x:Key="MutedTextColor">#6B7280</Color>
+    <Color x:Key="DisabledTextColor">#4B5563</Color>
+    
+    <!-- ═══════════════════════════════════════════════════════════════════ -->
+    <!-- STATUS COLORS                                                        -->
+    <!-- ═══════════════════════════════════════════════════════════════════ -->
+    
+    <Color x:Key="SuccessColor">#00C9A7</Color>
+    <Color x:Key="SuccessColorLight">#00E6BE</Color>
+    <Color x:Key="SuccessColorDark">#00A88C</Color>
+    
+    <Color x:Key="WarningColor">#FFB627</Color>
+    <Color x:Key="WarningColorLight">#FFC84D</Color>
+    <Color x:Key="WarningColorDark">#E6A020</Color>
+    
+    <Color x:Key="ErrorColor">#F45B69</Color>
+    <Color x:Key="ErrorColorLight">#F77C87</Color>
+    <Color x:Key="ErrorColorDark">#D94452</Color>
+    
+    <Color x:Key="InfoColor">#3B82F6</Color>
+    
+    <!-- ═══════════════════════════════════════════════════════════════════ -->
+    <!-- BORDER & DIVIDER COLORS                                              -->
+    <!-- ═══════════════════════════════════════════════════════════════════ -->
+    
+    <Color x:Key="BorderColor">#2A3A5E</Color>
+    <Color x:Key="BorderSubtleColor">#1E2A40</Color>
+    <Color x:Key="DividerColor">#1E2A40</Color>
+    
+    <Color x:Key="WireColor">#2A3A5E</Color>
+    <Color x:Key="WireActiveColor">#00E5FF</Color>
+    <Color x:Key="NodeColor">#3E5C76</Color>
+    <Color x:Key="NodeActiveColor">#00E5FF</Color>
+    
+    <!-- ═══════════════════════════════════════════════════════════════════ -->
+    <!-- FLYOUT/NAVIGATION COLORS                                             -->
+    <!-- ═══════════════════════════════════════════════════════════════════ -->
+    
+    <Color x:Key="FlyoutBackgroundColor">#0A0E14</Color>
+    <Color x:Key="FlyoutBorderColor">#1E2A40</Color>
+    <Color x:Key="FlyoutItemHoverColor">#152030</Color>
+    <Color x:Key="FlyoutItemActiveColor">#1A2840</Color>
+    
+    <!-- ═══════════════════════════════════════════════════════════════════ -->
+    <!-- BUTTON COLORS                                                        -->
+    <!-- ═══════════════════════════════════════════════════════════════════ -->
+    
+    <Color x:Key="ButtonTextColor">#FFFFFF</Color>
+    <Color x:Key="ButtonBackgroundColor">#00B8CC</Color>
+    <Color x:Key="ButtonHoverColor">#00D4E6</Color>
+    <Color x:Key="ButtonPressedColor">#0099AA</Color>
+    
+    <Color x:Key="SecondaryButtonBackgroundColor">#1E2A40</Color>
+    <Color x:Key="SecondaryButtonHoverColor">#2A3A55</Color>
+    
+    <!-- ═══════════════════════════════════════════════════════════════════ -->
+    <!-- OVERLAY & BANNER COLORS                                              -->
+    <!-- ═══════════════════════════════════════════════════════════════════ -->
+    
+    <Color x:Key="OverlayColor">#CC0D1321</Color>
+    <Color x:Key="OverlayLightColor">#800D1321</Color>
+    
+    <Color x:Key="WarningBannerColor">#331D1308</Color>
+    <Color x:Key="InfoBannerColor">#1A1D2D44</Color>
+    <Color x:Key="SuccessBannerColor">#1A00C9A7</Color>
+    <Color x:Key="ErrorBannerColor">#1AF45B69</Color>
+    
+    <!-- ═══════════════════════════════════════════════════════════════════ -->
+    <!-- SHADOW & GLOW COLORS                                                 -->
+    <!-- ═══════════════════════════════════════════════════════════════════ -->
+    
+    <Color x:Key="ShadowColor">#40000000</Color>
+    <Color x:Key="ShadowDeepColor">#60000000</Color>
+    <Color x:Key="GlowDownloadColor">#4000E5FF</Color>
+    <Color x:Key="GlowUploadColor">#40FF6B35</Color>
+    <Color x:Key="GlowSuccessColor">#4000C9A7</Color>
+    
+    <!-- ═══════════════════════════════════════════════════════════════════ -->
+    <!-- SOLID COLOR BRUSHES (for easy binding)                               -->
+    <!-- ═══════════════════════════════════════════════════════════════════ -->
+    
+    <SolidColorBrush x:Key="BackgroundBrush" Color="{StaticResource BackgroundColor}" />
+    <SolidColorBrush x:Key="SurfaceBrush" Color="{StaticResource SurfaceColor}" />
+    <SolidColorBrush x:Key="CardBrush" Color="{StaticResource CardColor}" />
+    <SolidColorBrush x:Key="PrimaryBrush" Color="{StaticResource PrimaryColor}" />
+    <SolidColorBrush x:Key="SecondaryBrush" Color="{StaticResource SecondaryColor}" />
+    <SolidColorBrush x:Key="DownloadBrush" Color="{StaticResource DownloadColor}" />
+    <SolidColorBrush x:Key="UploadBrush" Color="{StaticResource UploadColor}" />
+    <SolidColorBrush x:Key="PrimaryTextBrush" Color="{StaticResource PrimaryTextColor}" />
+    <SolidColorBrush x:Key="SecondaryTextBrush" Color="{StaticResource SecondaryTextColor}" />
+    <SolidColorBrush x:Key="MutedTextBrush" Color="{StaticResource MutedTextColor}" />
+    <SolidColorBrush x:Key="SuccessBrush" Color="{StaticResource SuccessColor}" />
+    <SolidColorBrush x:Key="WarningBrush" Color="{StaticResource WarningColor}" />
+    <SolidColorBrush x:Key="ErrorBrush" Color="{StaticResource ErrorColor}" />
+    <SolidColorBrush x:Key="BorderBrush" Color="{StaticResource BorderColor}" />
+    <SolidColorBrush x:Key="BorderSubtleBrush" Color="{StaticResource BorderSubtleColor}" />
+    <SolidColorBrush x:Key="DividerBrush" Color="{StaticResource DividerColor}" />
+    <SolidColorBrush x:Key="GlassBorderBrush" Color="{StaticResource GlassBorder}" />
+    <SolidColorBrush x:Key="RailBackgroundBrush" Color="{StaticResource RailBackgroundColor}" />
+    <SolidColorBrush x:Key="FlyoutItemHoverBrush" Color="{StaticResource FlyoutItemHoverColor}" />
+    <SolidColorBrush x:Key="ButtonBackgroundBrush" Color="{StaticResource ButtonBackgroundColor}" />
+    <SolidColorBrush x:Key="SecondaryButtonBackgroundBrush" Color="{StaticResource SecondaryButtonBackgroundColor}" />
+
+</ResourceDictionary>

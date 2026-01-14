@@ -452,10 +452,28 @@ public sealed class CrossPlatformNetworkMonitorService : INetworkMonitorService
         lock (_lock)
         {
             var nowMs = _pollStopwatch.ElapsedMilliseconds;
-            long totalDownloadSpeed = 0;
-            long totalUploadSpeed = 0;
-            long totalSessionReceived = 0;
-            long totalSessionSent = 0;
+            
+            // Physical adapter totals
+            long physicalDownloadSpeed = 0;
+            long physicalUploadSpeed = 0;
+            long physicalSessionReceived = 0;
+            long physicalSessionSent = 0;
+            
+            // VPN adapter totals (for overhead calculation)
+            long vpnDownloadSpeed = 0;
+            long vpnUploadSpeed = 0;
+            long vpnSessionReceived = 0;
+            long vpnSessionSent = 0;
+            
+            // Selected adapter totals (when specific adapter is selected)
+            long selectedDownloadSpeed = 0;
+            long selectedUploadSpeed = 0;
+            long selectedSessionReceived = 0;
+            long selectedSessionSent = 0;
+            
+            // Track active VPN adapters
+            var activeVpnAdapters = new List<string>();
+            bool hasSelectedAdapter = !string.IsNullOrEmpty(_selectedAdapterId);
 
             foreach (var nic in NetworkInterface.GetAllNetworkInterfaces())
             {
@@ -498,20 +516,41 @@ public sealed class CrossPlatformNetworkMonitorService : INetworkMonitorService
                         state.LastBytesReceived = stats.BytesReceived;
                         state.LastBytesSent = stats.BytesSent;
                         state.LastPollTimestampMs = nowMs;
-
-                        // Aggregate based on adapter selection:
-                        // - If specific adapter selected: only include that adapter
-                        // - If "All Adapters" (empty): only include physical adapters to avoid double-counting
-                        bool includeInAggregate = !string.IsNullOrEmpty(_selectedAdapterId)
-                            ? _selectedAdapterId == nic.Id
-                            : !state.IsVirtual; // Exclude virtual adapters from "All Adapters" aggregate
                         
-                        if (includeInAggregate)
+                        var sessionReceived = stats.BytesReceived - state.SessionStartReceived;
+                        var sessionSent = stats.BytesSent - state.SessionStartSent;
+                        
+                        // If a specific adapter is selected, track it
+                        if (hasSelectedAdapter && _selectedAdapterId == nic.Id)
                         {
-                            totalDownloadSpeed += state.DownloadSpeedBps;
-                            totalUploadSpeed += state.UploadSpeedBps;
-                            totalSessionReceived += stats.BytesReceived - state.SessionStartReceived;
-                            totalSessionSent += stats.BytesSent - state.SessionStartSent;
+                            selectedDownloadSpeed = state.DownloadSpeedBps;
+                            selectedUploadSpeed = state.UploadSpeedBps;
+                            selectedSessionReceived = sessionReceived;
+                            selectedSessionSent = sessionSent;
+                        }
+                        
+                        // Always categorize traffic for VPN analysis
+                        if (state.Adapter.IsKnownVpn)
+                        {
+                            // This is VPN tunnel traffic (the "actual" user payload)
+                            vpnDownloadSpeed += state.DownloadSpeedBps;
+                            vpnUploadSpeed += state.UploadSpeedBps;
+                            vpnSessionReceived += sessionReceived;
+                            vpnSessionSent += sessionSent;
+                            
+                            // Track active VPN adapters (those with traffic)
+                            if (state.DownloadSpeedBps > 0 || state.UploadSpeedBps > 0)
+                            {
+                                activeVpnAdapters.Add(state.Adapter.DisplayName);
+                            }
+                        }
+                        else if (!state.IsVirtual)
+                        {
+                            // Physical adapter traffic (includes VPN overhead when VPN is active)
+                            physicalDownloadSpeed += state.DownloadSpeedBps;
+                            physicalUploadSpeed += state.UploadSpeedBps;
+                            physicalSessionReceived += sessionReceived;
+                            physicalSessionSent += sessionSent;
                         }
                     }
                 }
@@ -521,15 +560,68 @@ public sealed class CrossPlatformNetworkMonitorService : INetworkMonitorService
                     _logger.LogWarning(ex, "Error reading stats for adapter {AdapterId}", nic.Id);
                 }
             }
+            
+            // Determine what to display based on selection
+            long displayDownloadSpeed;
+            long displayUploadSpeed;
+            long displaySessionReceived;
+            long displaySessionSent;
+            
+            if (hasSelectedAdapter)
+            {
+                // Specific adapter selected - show its traffic
+                displayDownloadSpeed = selectedDownloadSpeed;
+                displayUploadSpeed = selectedUploadSpeed;
+                displaySessionReceived = selectedSessionReceived;
+                displaySessionSent = selectedSessionSent;
+            }
+            else
+            {
+                // "All Adapters" mode:
+                // If VPN is active, use VPN traffic as "actual" (avoids double-counting)
+                // If no VPN, use physical adapter traffic
+                if (vpnDownloadSpeed > 0 || vpnUploadSpeed > 0)
+                {
+                    // VPN is active - display actual payload traffic (not counting overhead twice)
+                    // We show the VPN tunnel traffic as the "actual" speed
+                    // Physical includes this same traffic plus overhead
+                    displayDownloadSpeed = vpnDownloadSpeed;
+                    displayUploadSpeed = vpnUploadSpeed;
+                    displaySessionReceived = vpnSessionReceived;
+                    displaySessionSent = vpnSessionSent;
+                }
+                else
+                {
+                    // No VPN - just show physical adapter traffic
+                    displayDownloadSpeed = physicalDownloadSpeed;
+                    displayUploadSpeed = physicalUploadSpeed;
+                    displaySessionReceived = physicalSessionReceived;
+                    displaySessionSent = physicalSessionSent;
+                }
+            }
+            
+            // Determine if we have VPN traffic to analyze
+            bool hasVpnTraffic = (vpnDownloadSpeed > 0 || vpnUploadSpeed > 0) && 
+                                 (physicalDownloadSpeed > 0 || physicalUploadSpeed > 0);
 
             _currentStats = new NetworkStats
             {
                 Timestamp = DateTime.Now,
-                DownloadSpeedBps = totalDownloadSpeed,
-                UploadSpeedBps = totalUploadSpeed,
-                SessionBytesReceived = totalSessionReceived,
-                SessionBytesSent = totalSessionSent,
-                AdapterId = _selectedAdapterId
+                DownloadSpeedBps = displayDownloadSpeed,
+                UploadSpeedBps = displayUploadSpeed,
+                SessionBytesReceived = displaySessionReceived,
+                SessionBytesSent = displaySessionSent,
+                AdapterId = _selectedAdapterId,
+                
+                // VPN analysis data
+                HasVpnTraffic = hasVpnTraffic,
+                VpnDownloadSpeedBps = vpnDownloadSpeed,
+                VpnUploadSpeedBps = vpnUploadSpeed,
+                PhysicalDownloadSpeedBps = physicalDownloadSpeed,
+                PhysicalUploadSpeedBps = physicalUploadSpeed,
+                VpnSessionBytesReceived = vpnSessionReceived,
+                VpnSessionBytesSent = vpnSessionSent,
+                ActiveVpnAdapters = activeVpnAdapters
             };
 
             StatsUpdated?.Invoke(this, _currentStats);

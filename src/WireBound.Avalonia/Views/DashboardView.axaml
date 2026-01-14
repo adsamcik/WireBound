@@ -63,7 +63,7 @@
 
         <!-- MAIN CONTENT GRID -->
         <Grid Grid.Row="1" 
-              RowDefinitions="Auto, Auto, *"
+              RowDefinitions="Auto, Auto, Auto, *"
               ColumnDefinitions="*, *">
 
             <!-- DOWNLOAD SPEED CARD -->
@@ -217,9 +217,120 @@
                     </StackPanel>
                 </Grid>
             </Border>
+            
+            <!-- VPN TRAFFIC ANALYSIS PANEL (shown only when VPN traffic detected) -->
+            <Border Grid.Row="2" Grid.ColumnSpan="2" 
+                    Classes="Card" 
+                    Margin="0,20,0,0"
+                    IsVisible="{Binding HasVpnTraffic}">
+                <Grid RowDefinitions="Auto, Auto">
+                    <!-- Header -->
+                    <StackPanel Orientation="Horizontal" Spacing="10" Margin="0,0,0,16">
+                        <Border Background="#15A855F7" CornerRadius="8" Width="36" Height="36">
+                            <TextBlock Text="🔐" FontSize="18"
+                                       HorizontalAlignment="Center"
+                                       VerticalAlignment="Center" />
+                        </Border>
+                        <StackPanel VerticalAlignment="Center">
+                            <TextBlock Text="VPN Traffic Analysis" 
+                                       FontSize="14" FontWeight="Bold"
+                                       Foreground="{DynamicResource PrimaryTextBrush}" />
+                            <TextBlock Text="{Binding ActiveVpnNames}" 
+                                       Classes="Caption"
+                                       MaxWidth="400"
+                                       TextTrimming="CharacterEllipsis" />
+                        </StackPanel>
+                    </StackPanel>
+                    
+                    <!-- Traffic breakdown grid -->
+                    <Grid Grid.Row="1" ColumnDefinitions="*, Auto, *, Auto, *">
+                        
+                        <!-- Actual (VPN Tunnel) Traffic -->
+                        <StackPanel Spacing="6" VerticalAlignment="Center">
+                            <TextBlock Text="ACTUAL (PAYLOAD)" Classes="MetricLabel" />
+                            <StackPanel Orientation="Horizontal" Spacing="12">
+                                <StackPanel>
+                                    <TextBlock Text="↓" FontSize="12" 
+                                               Foreground="{DynamicResource DownloadBrush}" />
+                                    <TextBlock Text="{Binding VpnDownloadSpeed}" 
+                                               FontSize="16" FontWeight="Bold"
+                                               Foreground="{DynamicResource DownloadBrush}" />
+                                </StackPanel>
+                                <StackPanel>
+                                    <TextBlock Text="↑" FontSize="12" 
+                                               Foreground="{DynamicResource UploadBrush}" />
+                                    <TextBlock Text="{Binding VpnUploadSpeed}" 
+                                               FontSize="16" FontWeight="Bold"
+                                               Foreground="{DynamicResource UploadBrush}" />
+                                </StackPanel>
+                            </StackPanel>
+                        </StackPanel>
+                        
+                        <Rectangle Grid.Column="1" Classes="VerticalDivider" Margin="20,0" />
+                        
+                        <!-- Total (Physical) Traffic -->
+                        <StackPanel Grid.Column="2" Spacing="6" VerticalAlignment="Center">
+                            <TextBlock Text="TOTAL (WIRE)" Classes="MetricLabel" />
+                            <StackPanel Orientation="Horizontal" Spacing="12">
+                                <StackPanel>
+                                    <TextBlock Text="↓" FontSize="12" 
+                                               Foreground="{DynamicResource SecondaryTextBrush}" />
+                                    <TextBlock Text="{Binding PhysicalDownloadSpeed}" 
+                                               FontSize="16" FontWeight="Bold"
+                                               Foreground="{DynamicResource SecondaryTextBrush}" />
+                                </StackPanel>
+                                <StackPanel>
+                                    <TextBlock Text="↑" FontSize="12" 
+                                               Foreground="{DynamicResource SecondaryTextBrush}" />
+                                    <TextBlock Text="{Binding PhysicalUploadSpeed}" 
+                                               FontSize="16" FontWeight="Bold"
+                                               Foreground="{DynamicResource SecondaryTextBrush}" />
+                                </StackPanel>
+                            </StackPanel>
+                        </StackPanel>
+                        
+                        <Rectangle Grid.Column="3" Classes="VerticalDivider" Margin="20,0" />
+                        
+                        <!-- VPN Overhead -->
+                        <StackPanel Grid.Column="4" Spacing="6" VerticalAlignment="Center">
+                            <TextBlock Text="VPN OVERHEAD" Classes="MetricLabel" />
+                            <StackPanel Orientation="Horizontal" Spacing="12">
+                                <StackPanel>
+                                    <TextBlock Text="↓" FontSize="12" 
+                                               Foreground="{DynamicResource WarningBrush}" />
+                                    <StackPanel Orientation="Horizontal" Spacing="4">
+                                        <TextBlock Text="{Binding VpnDownloadOverhead}" 
+                                                   FontSize="16" FontWeight="Bold"
+                                                   Foreground="{DynamicResource WarningBrush}" />
+                                        <TextBlock Text="{Binding VpnDownloadOverheadPercent}" 
+                                                   FontSize="11"
+                                                   VerticalAlignment="Bottom"
+                                                   Margin="0,0,0,2"
+                                                   Foreground="{DynamicResource SecondaryTextBrush}" />
+                                    </StackPanel>
+                                </StackPanel>
+                                <StackPanel>
+                                    <TextBlock Text="↑" FontSize="12" 
+                                               Foreground="{DynamicResource WarningBrush}" />
+                                    <StackPanel Orientation="Horizontal" Spacing="4">
+                                        <TextBlock Text="{Binding VpnUploadOverhead}" 
+                                                   FontSize="16" FontWeight="Bold"
+                                                   Foreground="{DynamicResource WarningBrush}" />
+                                        <TextBlock Text="{Binding VpnUploadOverheadPercent}" 
+                                                   FontSize="11"
+                                                   VerticalAlignment="Bottom"
+                                                   Margin="0,0,0,2"
+                                                   Foreground="{DynamicResource SecondaryTextBrush}" />
+                                    </StackPanel>
+                                </StackPanel>
+                            </StackPanel>
+                        </StackPanel>
+                    </Grid>
+                </Grid>
+            </Border>
 
             <!-- QUICK ACTIONS -->
-            <Border Grid.Row="2" Grid.ColumnSpan="2" Classes="Card" VerticalAlignment="Top" Margin="0,20,0,0">
+            <Border Grid.Row="3" Grid.ColumnSpan="2" Classes="Card" VerticalAlignment="Top" Margin="0,20,0,0">
                 <Grid ColumnDefinitions="Auto, *, Auto">
                     
                     <StackPanel Orientation="Horizontal" Spacing="12">

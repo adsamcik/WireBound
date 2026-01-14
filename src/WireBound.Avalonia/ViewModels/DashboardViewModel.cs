@@ -101,6 +101,68 @@ public sealed partial class DashboardViewModel : ObservableObject, IDisposable
     
     [ObservableProperty]
     private RectangularSection[] _thresholdSections = [];
+    
+    // === VPN Traffic Analysis Properties ===
+    
+    /// <summary>
+    /// Whether VPN traffic analysis data is available to display
+    /// </summary>
+    [ObservableProperty]
+    private bool _hasVpnTraffic;
+    
+    /// <summary>
+    /// VPN download speed (actual payload through tunnel)
+    /// </summary>
+    [ObservableProperty]
+    private string _vpnDownloadSpeed = "0 B/s";
+    
+    /// <summary>
+    /// VPN upload speed (actual payload through tunnel)
+    /// </summary>
+    [ObservableProperty]
+    private string _vpnUploadSpeed = "0 B/s";
+    
+    /// <summary>
+    /// Physical adapter download speed (total including VPN overhead)
+    /// </summary>
+    [ObservableProperty]
+    private string _physicalDownloadSpeed = "0 B/s";
+    
+    /// <summary>
+    /// Physical adapter upload speed (total including VPN overhead)
+    /// </summary>
+    [ObservableProperty]
+    private string _physicalUploadSpeed = "0 B/s";
+    
+    /// <summary>
+    /// VPN download overhead
+    /// </summary>
+    [ObservableProperty]
+    private string _vpnDownloadOverhead = "0 B/s";
+    
+    /// <summary>
+    /// VPN upload overhead
+    /// </summary>
+    [ObservableProperty]
+    private string _vpnUploadOverhead = "0 B/s";
+    
+    /// <summary>
+    /// Download overhead percentage
+    /// </summary>
+    [ObservableProperty]
+    private string _vpnDownloadOverheadPercent = "0%";
+    
+    /// <summary>
+    /// Upload overhead percentage
+    /// </summary>
+    [ObservableProperty]
+    private string _vpnUploadOverheadPercent = "0%";
+    
+    /// <summary>
+    /// Names of active VPN adapters
+    /// </summary>
+    [ObservableProperty]
+    private string _activeVpnNames = "";
 
     public ISeries[] SpeedSeries { get; }
 
@@ -211,6 +273,21 @@ public sealed partial class DashboardViewModel : ObservableObject, IDisposable
         UploadSpeed = ByteFormatter.FormatSpeed(stats.UploadSpeedBps);
         SessionDownload = ByteFormatter.FormatBytes(stats.SessionBytesReceived);
         SessionUpload = ByteFormatter.FormatBytes(stats.SessionBytesSent);
+        
+        // Update VPN traffic analysis properties
+        HasVpnTraffic = stats.HasVpnTraffic;
+        if (stats.HasVpnTraffic)
+        {
+            VpnDownloadSpeed = ByteFormatter.FormatSpeed(stats.VpnDownloadSpeedBps);
+            VpnUploadSpeed = ByteFormatter.FormatSpeed(stats.VpnUploadSpeedBps);
+            PhysicalDownloadSpeed = ByteFormatter.FormatSpeed(stats.PhysicalDownloadSpeedBps);
+            PhysicalUploadSpeed = ByteFormatter.FormatSpeed(stats.PhysicalUploadSpeedBps);
+            VpnDownloadOverhead = ByteFormatter.FormatSpeed(stats.VpnDownloadOverheadBps);
+            VpnUploadOverhead = ByteFormatter.FormatSpeed(stats.VpnUploadOverheadBps);
+            VpnDownloadOverheadPercent = $"+{stats.VpnDownloadOverheadPercent:F1}%";
+            VpnUploadOverheadPercent = $"+{stats.VpnUploadOverheadPercent:F1}%";
+            ActiveVpnNames = string.Join(", ", stats.ActiveVpnAdapters);
+        }
 
         // Add to buffer
         _dataBuffer.Add((now, stats.DownloadSpeedBps, stats.UploadSpeedBps));

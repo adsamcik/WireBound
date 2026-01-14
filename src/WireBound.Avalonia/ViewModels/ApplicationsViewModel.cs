@@ -62,8 +62,7 @@ public sealed partial class ApplicationsViewModel : ObservableObject
         _persistence = persistence;
         _processNetworkService = serviceProvider.GetService(typeof(IProcessNetworkService)) as IProcessNetworkService;
 
-        // Per-app network tracking requires IProcessNetworkService which is not yet implemented for Avalonia
-        // This feature is Windows-only in the MAUI version as well
+        // Per-app network tracking requires IProcessNetworkService which is not yet implemented cross-platform
         IsPlatformSupported = _processNetworkService != null;
         IsPerAppTrackingEnabled = _processNetworkService?.IsRunning == true;
         RequiresElevation = false;

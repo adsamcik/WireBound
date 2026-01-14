@@ -23,7 +23,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Technical
 
-- Built with .NET 10 and MAUI
+- Built with .NET 10 and Avalonia UI (cross-platform)
 - MVVM architecture with CommunityToolkit.Mvvm
 - LiveCharts2 for real-time charting
 - Entity Framework Core with SQLite

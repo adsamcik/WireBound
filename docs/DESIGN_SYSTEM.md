@@ -234,6 +234,6 @@ The name suggests connectivity—being bound to the network. Visual reinforcemen
 - [ ] Create StatusIndicator control
 - [ ] Redesign DashboardPage layout
 - [ ] Redesign ChartsPage layout
-- [ ] Add animations with CommunityToolkit.Maui
+- [ ] Add animations with Avalonia animations
 - [ ] Test responsive breakpoints
 - [ ] Performance optimization pass

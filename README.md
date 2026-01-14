@@ -1,6 +1,6 @@
 # WireBound - Network Traffic Monitor
 
-A privacy-focused network traffic monitoring application for Windows built with .NET 10 and WPF.
+A privacy-focused, cross-platform network traffic monitoring application built with .NET 10 and Avalonia UI.
 
 ## Features
 
@@ -14,7 +14,7 @@ A privacy-focused network traffic monitoring application for Windows built with 
 ## Technology Stack
 
 - **.NET 10** - Latest .NET framework
-- **WPF** - Windows Presentation Foundation for modern UI
+- **Avalonia UI** - Cross-platform UI framework (Windows, Linux, macOS)
 - **SQLite** - Local database for historical data persistence
 - **LiveCharts2** - Beautiful real-time charts
 - **CommunityToolkit.Mvvm** - MVVM architecture support
@@ -23,22 +23,25 @@ A privacy-focused network traffic monitoring application for Windows built with 
 ## Project Structure
 
 ```
-src/WireBound/
-├── App.xaml              # Application entry and resources
-├── Converters/           # Value converters for XAML bindings
-├── Data/                 # Database context and migrations
-├── Models/               # Data models (NetworkStats, DailyUsage, etc.)
-├── Services/             # Core services (NetworkMonitor, DataPersistence)
-├── Themes/               # XAML styles and colors
-├── ViewModels/           # MVVM ViewModels
-└── Views/                # WPF Views (Dashboard, History, Settings)
+src/
+├── WireBound.Core/           # Shared core library
+│   ├── Data/                 # Database context and migrations
+│   ├── Helpers/              # Utility classes
+│   ├── Models/               # Domain models
+│   └── Services/             # Service interfaces
+│
+└── WireBound.Avalonia/       # Cross-platform UI application
+    ├── Services/             # Platform implementations
+    ├── Styles/               # AXAML styles and themes
+    ├── ViewModels/           # MVVM ViewModels
+    └── Views/                # AXAML views
 ```
 
 ## Getting Started
 
 ### Prerequisites
 
-- Windows 10/11
+- Windows 10/11, Linux, or macOS
 - .NET 10 SDK
 - Visual Studio 2022 or VS Code with C# extension
 
@@ -52,7 +55,7 @@ dotnet restore
 dotnet build
 
 # Run the application
-dotnet run --project src/WireBound/WireBound.csproj
+dotnet run --project src/WireBound.Avalonia/WireBound.Avalonia.csproj
 ```
 
 ### Debug in Visual Studio Code

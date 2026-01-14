@@ -33,7 +33,7 @@
     <!-- DevTools (Debug only) -->
     <PackageReference Include="Avalonia.Diagnostics" Version="11.2.4" Condition="'$(Configuration)' == 'Debug'" />
 
-    <!-- Community Toolkit MVVM (same package as MAUI, UI-agnostic) -->
+    <!-- Community Toolkit MVVM -->
     <PackageReference Include="CommunityToolkit.Mvvm" Version="8.4.0" />
 
     <!-- Charts (Avalonia version) -->
@@ -53,10 +53,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <!-- Project references -->
     <ProjectReference Include="..\WireBound.Core\WireBound.Core.csproj" />
-    <!-- Windows-specific services temporarily disabled - using stub services -->
-    <!-- <ProjectReference Include="..\WireBound.Windows\WireBound.Windows.csproj" Condition="$([MSBuild]::IsOSPlatform('Windows'))" /> -->
   </ItemGroup>
 
 </Project>

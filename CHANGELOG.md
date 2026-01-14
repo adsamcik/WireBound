@@ -7,6 +7,37 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.2.0] - 2026-01-14
+
+### Changed
+
+- **Migrated from MAUI to Avalonia UI** - Now fully cross-platform (Windows, Linux, macOS)
+- Simplified project structure (removed WireBound.Windows)
+- Updated CI/CD pipelines to use Linux runners
+- Reduced build size by ~55% (108 MB → 49 MB)
+
+### Fixed
+
+- Publishing pipeline now correctly implements GetAdapters interface
+- Resolved all build warnings
+- Fixed RuntimeIdentifier for ReadyToRun compilation
+
+### Removed
+
+- Nightly builds workflow
+- MAUI-specific code and dependencies
+- Windows-only services (replaced with cross-platform alternatives)
+
+### Technical
+
+- Built with .NET 10 and Avalonia UI (cross-platform)
+- MVVM architecture with CommunityToolkit.Mvvm
+- LiveCharts2 for real-time charting
+- Entity Framework Core with SQLite
+- Serilog for structured logging
+
+## [0.0.1] - 2026-01-13
+
 ### Added
 
 - Initial release of WireBound

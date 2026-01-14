@@ -93,9 +93,14 @@
     <MauiFont Include="Resources\Fonts\*" />
   </ItemGroup>
 
+  <!-- Project References -->
+  <ItemGroup>
+    <ProjectReference Include="..\WireBound.Core\WireBound.Core.csproj" />
+    <ProjectReference Include="..\WireBound.Windows\WireBound.Windows.csproj" />
+  </ItemGroup>
+
   <ItemGroup>
     <!-- MAUI packages -->
-    <PackageReference Include="H.NotifyIcon.WinUI" Version="2.4.1" />
     <PackageReference Include="Microsoft.Maui.Controls" Version="10.0.20" />
     <PackageReference Include="Microsoft.Maui.Controls.Compatibility" Version="10.0.20" />
     
@@ -105,13 +110,6 @@
     
     <!-- Charts -->
     <PackageReference Include="LiveChartsCore.SkiaSharpView.Maui" Version="2.0.0-rc6.1" />
-    
-    <!-- Database -->
-    <PackageReference Include="Microsoft.EntityFrameworkCore.Sqlite" Version="10.0.1" />
-    <PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="10.0.1">
-      <PrivateAssets>all</PrivateAssets>
-      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
-    </PackageReference>
     
     <!-- Hosting & DI -->
     <PackageReference Include="Microsoft.Extensions.Hosting" Version="10.0.1" />

@@ -10,11 +10,15 @@ env:
   DOTNET_VERSION: '10.0.x'
   DOTNET_SKIP_FIRST_TIME_EXPERIENCE: true
   DOTNET_NOLOGO: true
-  PROJECT_PATH: src/WireBound/WireBound.csproj
+  PROJECT_PATH: src/WireBound.Avalonia/WireBound.Avalonia.csproj
 
 jobs:
   build:
-    runs-on: windows-latest
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [windows-latest, ubuntu-latest, macos-latest]
     
     steps:
       - name: Checkout repository
@@ -24,9 +28,6 @@ jobs:
         uses: actions/setup-dotnet@v5
         with:
           dotnet-version: ${{ env.DOTNET_VERSION }}
-
-      - name: Install MAUI workload
-        run: dotnet workload install maui-windows
 
       - name: Restore dependencies
         run: dotnet restore WireBound.slnx
@@ -39,7 +40,7 @@ jobs:
         continue-on-error: true
 
   code-quality:
-    runs-on: windows-latest
+    runs-on: ubuntu-latest
     
     steps:
       - name: Checkout repository
@@ -50,9 +51,6 @@ jobs:
         with:
           dotnet-version: ${{ env.DOTNET_VERSION }}
 
-      - name: Install MAUI workload
-        run: dotnet workload install maui-windows
-
       - name: Restore dependencies
         run: dotnet restore WireBound.slnx
 
@@ -61,29 +59,29 @@ jobs:
         continue-on-error: true
 
   publish-validation:
-    runs-on: windows-2022
+    runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
       matrix:
         include:
-          - name: Portable
-            aot: false
-            output: portable
-          - name: AOT
-            aot: true
-            output: aot
+          - os: windows-latest
+            runtime: win-x64
+            name: Windows
+          - os: ubuntu-latest
+            runtime: linux-x64
+            name: Linux
+          - os: macos-latest
+            runtime: osx-arm64
+            name: macOS
     
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Setup .NET
-        uses: actions/setup-dotnet@v4
+        uses: actions/setup-dotnet@v5
         with:
           dotnet-version: ${{ env.DOTNET_VERSION }}
-
-      - name: Install MAUI workload
-        run: dotnet workload install maui-windows
 
       - name: Restore dependencies
         run: dotnet restore ${{ env.PROJECT_PATH }}
@@ -91,63 +89,27 @@ jobs:
       - name: Publish ${{ matrix.name }} build
         shell: pwsh
         run: |
-          $publishArgs = @(
-            "publish", "${{ env.PROJECT_PATH }}",
-            "--configuration", "Release",
-            "--runtime", "win-x64",
-            "--output", "./publish/${{ matrix.output }}",
-            "-p:WindowsPackageType=None"
-          )
-          
-          if ("${{ matrix.aot }}" -eq "true") {
-            $publishArgs += "-p:EnableAOT=true"
-          } else {
-            $publishArgs += "-p:PublishReadyToRun=true"
-          }
-          
-          & dotnet @publishArgs
-        continue-on-error: ${{ matrix.aot }}
+          dotnet publish ${{ env.PROJECT_PATH }} `
+            --configuration Release `
+            --runtime ${{ matrix.runtime }} `
+            --self-contained true `
+            --output ./publish/${{ matrix.runtime }}
 
-      - name: Validate ${{ matrix.name }} build artifacts
+      - name: Validate build artifacts
         shell: pwsh
         run: |
-          $outputDir = "./publish/${{ matrix.output }}"
-          $exePath = Join-Path $outputDir "WireBound.exe"
+          $outputDir = "./publish/${{ matrix.runtime }}"
+          $exeName = if ("${{ matrix.os }}" -eq "windows-latest") { "WireBound.Avalonia.exe" } else { "WireBound.Avalonia" }
+          $exePath = Join-Path $outputDir $exeName
           
           if (-not (Test-Path $exePath)) {
             Write-Host "❌ Executable not found: $exePath"
-            if ("${{ matrix.aot }}" -eq "true") {
-              Write-Host "⚠️ AOT build may have failed due to trim/AOT warnings"
-              exit 0  # Don't fail CI for AOT issues
-            }
             exit 1
           }
           
           $exe = Get-Item $exePath
           $sizeMB = [math]::Round($exe.Length / 1MB, 2)
           Write-Host "✅ Executable found: $sizeMB MB"
-          
-          # Validate PE headers
-          $bytes = [System.IO.File]::ReadAllBytes($exePath)
-          if ($bytes[0] -eq 0x4D -and $bytes[1] -eq 0x5A) {
-            Write-Host "✅ Valid PE executable header"
-          } else {
-            Write-Host "❌ Invalid PE header"
-            exit 1
-          }
-          
-          # Check for required dependencies
-          $requiredFiles = @("WireBound.dll", "Microsoft.Maui.dll")
-          if ("${{ matrix.aot }}" -ne "true") {
-            foreach ($file in $requiredFiles) {
-              $filePath = Join-Path $outputDir $file
-              if (Test-Path $filePath) {
-                Write-Host "✅ Found: $file"
-              } else {
-                Write-Host "⚠️ Missing: $file (may be bundled)"
-              }
-            }
-          }
           
           # Report file count and total size
           $files = Get-ChildItem $outputDir -File -Recurse
@@ -157,144 +119,11 @@ jobs:
           Write-Host "   Files: $($files.Count)"
           Write-Host "   Total Size: $([math]::Round($totalSize, 2)) MB"
 
-      - name: Install Windows App SDK Runtime
-        shell: pwsh
-        run: |
-          Write-Host "📦 Installing Windows App SDK Runtime..."
-          
-          # Download the latest Windows App SDK runtime installer
-          $installerUrl = "https://aka.ms/windowsappsdk/1.6/latest/windowsappruntimeinstall-x64.exe"
-          $installerPath = "$env:TEMP\windowsappruntimeinstall-x64.exe"
-          
-          try {
-            Invoke-WebRequest -Uri $installerUrl -OutFile $installerPath -UseBasicParsing
-            Write-Host "✅ Downloaded Windows App SDK installer"
-            
-            # Install silently with --quiet flag
-            $process = Start-Process -FilePath $installerPath -ArgumentList "--quiet" -Wait -PassThru
-            
-            if ($process.ExitCode -eq 0) {
-              Write-Host "✅ Windows App SDK Runtime installed successfully"
-            } else {
-              Write-Host "⚠️ Windows App SDK Runtime installation returned: $($process.ExitCode)"
-              Write-Host "   This may be expected if the runtime is already installed or requires elevation"
-            }
-          } catch {
-            Write-Host "⚠️ Could not install Windows App SDK Runtime: $_"
-            Write-Host "   Smoke test may fail with runtime dependency error"
-          }
-        continue-on-error: true
-
-      - name: Smoke test - Validate app startup
-        shell: pwsh
-        run: |
-          $exePath = "./publish/${{ matrix.output }}/WireBound.exe"
-          
-          if (-not (Test-Path $exePath)) {
-            Write-Host "⚠️ Skipping smoke test - executable not found"
-            exit 0
-          }
-          
-          # MAUI apps require Windows App SDK runtime
-          # We can validate the executable starts by checking it doesn't crash immediately
-          try {
-            $process = Start-Process -FilePath $exePath -PassThru -WindowStyle Hidden
-            
-            # Give the app time to initialize
-            Start-Sleep -Seconds 3
-            
-            if ($process.HasExited) {
-              $exitCode = $process.ExitCode
-              if ($exitCode -eq 0) {
-                Write-Host "✅ App started and exited cleanly"
-              } elseif ($exitCode -eq -1073741189) {
-                # 0xC000027B - Windows App SDK dependency issue (expected in CI)
-                Write-Host "⚠️ App requires Windows App SDK runtime (expected in CI environment)"
-              } else {
-                Write-Host "⚠️ App exited with code: $exitCode"
-              }
-            } else {
-              Write-Host "✅ App is running (PID: $($process.Id))"
-              Stop-Process -Id $process.Id -Force -ErrorAction SilentlyContinue
-              Write-Host "✅ App stopped cleanly"
-            }
-          } catch {
-            Write-Host "⚠️ Could not start app: $_"
-          }
-        continue-on-error: true
-
       - name: Upload ${{ matrix.name }} artifacts
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         if: always()
         with:
-          name: WireBound-${{ matrix.output }}-ci
-          path: ./publish/${{ matrix.output }}/
+          name: WireBound-${{ matrix.runtime }}-ci
+          path: ./publish/${{ matrix.runtime }}/
           retention-days: 7
           if-no-files-found: ignore
-
-  aot-analysis:
-    runs-on: windows-latest
-    
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-
-      - name: Setup .NET
-        uses: actions/setup-dotnet@v4
-        with:
-          dotnet-version: ${{ env.DOTNET_VERSION }}
-
-      - name: Install MAUI workload
-        run: dotnet workload install maui-windows
-
-      - name: Restore dependencies
-        run: dotnet restore ${{ env.PROJECT_PATH }}
-
-      - name: Analyze trim warnings
-        shell: pwsh
-        run: |
-          Write-Host "📋 Analyzing trim/AOT compatibility..."
-          
-          # Build with trim analysis enabled to report warnings
-          $output = dotnet build ${{ env.PROJECT_PATH }} `
-            --configuration Release `
-            -p:PublishTrimmed=true `
-            -p:TrimMode=full `
-            -p:EnableTrimAnalyzer=true `
-            -p:SuppressTrimAnalysisWarnings=false `
-            2>&1
-          
-          $trimWarnings = $output | Select-String -Pattern "IL2\d{3}|IL3\d{3}" | Select-Object -Unique
-          
-          if ($trimWarnings.Count -gt 0) {
-            Write-Host ""
-            Write-Host "⚠️ Found $($trimWarnings.Count) unique trim/AOT warnings:"
-            Write-Host ""
-            $trimWarnings | ForEach-Object { Write-Host $_.Line }
-          } else {
-            Write-Host "✅ No trim warnings found in application code"
-          }
-        continue-on-error: true
-
-      - name: Check AOT compatibility annotations
-        shell: pwsh
-        run: |
-          Write-Host "🔍 Checking for AOT-friendly patterns..."
-          
-          # Check for RequiresDynamicCode/RequiresUnreferencedCode usage
-          $sourceFiles = Get-ChildItem -Path src -Recurse -Include *.cs
-          
-          $patterns = @{
-            "Source Generators" = "partial class|partial record"
-            "JSON Source Gen" = "JsonSerializable|JsonSourceGenerationOptions"
-            "Unsafe Blocks" = "unsafe\s*(struct|class|{)"
-            "Dynamic Code" = "RequiresDynamicCode|DynamicallyAccessedMembers"
-          }
-          
-          foreach ($pattern in $patterns.GetEnumerator()) {
-            $matches = $sourceFiles | Select-String -Pattern $pattern.Value -List
-            if ($matches.Count -gt 0) {
-              Write-Host "✅ $($pattern.Key): Found in $($matches.Count) file(s)"
-            }
-          }
-        continue-on-error: true

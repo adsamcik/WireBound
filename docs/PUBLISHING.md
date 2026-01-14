@@ -7,14 +7,17 @@ This document describes how to build and publish WireBound releases.
 ### Local Build
 
 ```powershell
-# Build portable version
-.\scripts\publish.ps1 -Version "1.0.0" -PackageType Portable
+# Build for Windows (default)
+.\scripts\publish.ps1 -Version "1.0.0"
 
 # Build with clean output
-.\scripts\publish.ps1 -Version "1.0.0" -PackageType Portable -Clean
+.\scripts\publish.ps1 -Version "1.0.0" -Clean
 
-# Build both portable and MSIX
-.\scripts\publish.ps1 -Version "1.0.0" -PackageType Both
+# Build for Linux
+.\scripts\publish.ps1 -Version "1.0.0" -Runtime linux-x64
+
+# Build for macOS (Apple Silicon)
+.\scripts\publish.ps1 -Version "1.0.0" -Runtime osx-arm64
 ```
 
 ### Creating a Release
@@ -25,7 +28,7 @@ This document describes how to build and publish WireBound releases.
    git tag v1.0.0
    git push origin v1.0.0
    ```
-3. GitHub Actions will automatically build and create a release
+3. GitHub Actions will automatically build and create a release for all platforms
 
 ## CI/CD Pipelines
 
@@ -33,9 +36,9 @@ This document describes how to build and publish WireBound releases.
 
 | Workflow | Trigger | Purpose |
 |----------|---------|---------|
-| `ci.yml` | Push/PR to main | Build validation & code quality |
-| `release.yml` | Version tags (`v*.*.*`) | Create GitHub releases |
-| `nightly.yml` | Daily at 2 AM UTC | Automated nightly builds |
+| `ci.yml` | Push/PR to main | Build validation across Windows, Linux, macOS |
+| `release.yml` | Version tags (`v*.*.*`) | Create GitHub releases with all platform builds |
+| `nightly.yml` | Daily at 2 AM UTC | Automated nightly builds for all platforms |
 
 ### Manual Release
 
@@ -48,18 +51,20 @@ You can trigger a release manually:
 
 ## Build Outputs
 
-### Portable (Unpackaged)
+### Supported Platforms
 
-- **Format:** ZIP archive
-- **Contents:** Self-contained executable with all dependencies
-- **Requirements:** Windows 10 19041+
-- **Installation:** Extract and run `WireBound.exe`
+| Platform | Runtime | Archive Format |
+|----------|---------|----------------|
+| Windows x64 | `win-x64` | `.zip` |
+| Linux x64 | `linux-x64` | `.tar.gz` |
+| macOS ARM64 | `osx-arm64` | `.tar.gz` |
+| macOS x64 | `osx-x64` | `.tar.gz` |
 
-### MSIX Package
+### Package Contents
 
-- **Format:** Windows app package
-- **Requirements:** Code signing certificate for trusted installation
-- **Installation:** Double-click or use `Add-AppxPackage`
+- **Format:** Self-contained application bundle
+- **Contents:** Executable with all dependencies (no .NET runtime required)
+- **Executable:** `WireBound.Avalonia.exe` (Windows) or `WireBound.Avalonia` (Linux/macOS)
 
 ## Version Numbering
 
@@ -72,72 +77,81 @@ WireBound follows [Semantic Versioning](https://semver.org/):
 
 ### Version Locations
 
-Versions are set in these locations:
+Versions are set in:
 
-1. `src/WireBound/WireBound.csproj`:
+1. `src/WireBound.Avalonia/WireBound.Avalonia.csproj`:
    - `<Version>` - NuGet/assembly version
-   - `<ApplicationDisplayVersion>` - Display version
-   - `<ApplicationVersion>` - Build number
 
-2. `src/WireBound/Platforms/Windows/Package.appxmanifest`:
-   - `<Identity Version="...">` - MSIX package version
+## Installation Instructions
 
-## Code Signing
+### Windows
 
-### For MSIX Distribution
+1. Download `WireBound-<version>-win-x64.zip`
+2. Extract to any folder
+3. Run `WireBound.Avalonia.exe`
 
-To distribute MSIX packages outside the Microsoft Store, you need a code signing certificate:
+### Linux
 
-1. **Development/Testing:**
-   - Enable Developer Mode in Windows Settings
-   - Use self-signed certificate
+```bash
+# Download and extract
+tar -xzf WireBound-<version>-linux-x64.tar.gz
 
-2. **Production:**
-   - Obtain a certificate from a trusted CA
-   - Store certificate in GitHub Secrets:
-     - `WINDOWS_SIGNING_CERT` - Base64-encoded .pfx
-     - `WINDOWS_SIGNING_PASSWORD` - Certificate password
+# Make executable
+chmod +x WireBound.Avalonia
 
-### Self-Signed Certificate (Development)
-
-```powershell
-# Create self-signed certificate
-$cert = New-SelfSignedCertificate `
-    -Type Custom `
-    -Subject "CN=WireBound Dev" `
-    -KeyUsage DigitalSignature `
-    -FriendlyName "WireBound Development" `
-    -CertStoreLocation "Cert:\CurrentUser\My" `
-    -TextExtension @("2.5.29.37={text}1.3.6.1.5.5.7.3.3", "2.5.29.19={text}")
-
-# Export certificate
-$password = ConvertTo-SecureString -String "YourPassword" -Force -AsPlainText
-Export-PfxCertificate -Cert $cert -FilePath "WireBound-Dev.pfx" -Password $password
+# Run
+./WireBound.Avalonia
 ```
+
+### macOS
+
+```bash
+# Download and extract
+tar -xzf WireBound-<version>-osx-arm64.tar.gz
+
+# Run (may require security approval)
+./WireBound.Avalonia
+```
+
+> **Note:** On first run, macOS may block the app. Go to **System Preferences** → **Security & Privacy** and click "Open Anyway".
 
 ## Troubleshooting
 
 ### Build Failures
 
-**Problem:** MAUI workload not found
-```
-error NETSDK1147: To build this project, the following workloads must be installed: maui-windows
-```
-**Solution:**
-```powershell
-dotnet workload install maui-windows
-```
-
 **Problem:** .NET version mismatch
 **Solution:** Ensure you have .NET 10 SDK installed. Check `global.json` for version requirements.
 
-### MSIX Issues
+```powershell
+dotnet --list-sdks
+```
 
-**Problem:** Package unsigned
-**Solution:** For development, enable Developer Mode. For production, use a valid code signing certificate.
+**Problem:** Restore fails for runtime
+**Solution:** Ensure the runtime identifier is supported:
 
-**Problem:** MSIX won't install
-**Solution:** Ensure the target machine trusts the certificate or has Developer Mode enabled.
+```powershell
+dotnet restore --runtime win-x64
+```
+
+### Linux Issues
+
+**Problem:** App won't start
+**Solution:** Ensure execute permissions and required libraries:
+
+```bash
+chmod +x WireBound.Avalonia
+# Install X11/Wayland dependencies if needed
+sudo apt install libx11-6 libice6 libsm6
+```
+
+### macOS Issues
+
+**Problem:** "App is damaged and can't be opened"
+**Solution:** Remove quarantine attribute:
+
+```bash
+xattr -cr WireBound.Avalonia
+```
 
 ## Release Checklist
 
@@ -145,6 +159,6 @@ dotnet workload install maui-windows
 - [ ] Update `CHANGELOG.md` with release notes
 - [ ] Test the build locally with `scripts/publish.ps1`
 - [ ] Commit changes and create version tag
-- [ ] Verify GitHub Actions build succeeds
-- [ ] Test downloaded artifacts on clean machine
+- [ ] Verify GitHub Actions build succeeds for all platforms
+- [ ] Test downloaded artifacts on each platform
 - [ ] Publish release notes to GitHub Releases

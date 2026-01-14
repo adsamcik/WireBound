@@ -4,7 +4,7 @@
 
 .DESCRIPTION
     This script builds WireBound in Release configuration and creates
-    distributable packages for Windows.
+    distributable packages for Windows, Linux, and macOS.
 
 .PARAMETER Version
     The version number to use (e.g., "1.0.0"). If not specified, uses the version from the project file.
@@ -12,42 +12,37 @@
 .PARAMETER OutputDir
     The output directory for published files. Defaults to "./publish".
 
-.PARAMETER PackageType
-    The type of package to create: "Portable", "MSIX", or "Both". Defaults to "Portable".
+.PARAMETER Runtime
+    The target runtime identifier. Defaults to "win-x64".
+    Supported: win-x64, linux-x64, osx-arm64, osx-x64
 
 .PARAMETER SelfContained
     Whether to create a self-contained deployment. Defaults to $true.
-
-.PARAMETER EnableAOT
-    Whether to enable Native AOT compilation. Defaults to $false.
-    AOT builds are smaller and faster but take longer to compile.
 
 .PARAMETER Clean
     Clean the output directory before publishing.
 
 .EXAMPLE
-    .\publish.ps1 -Version "1.0.0" -PackageType "Portable"
+    .\publish.ps1 -Version "1.0.0"
 
 .EXAMPLE
-    .\publish.ps1 -PackageType "Both" -Clean
+    .\publish.ps1 -Version "1.0.0" -Runtime "linux-x64"
 
 .EXAMPLE
-    .\publish.ps1 -EnableAOT -PackageType "Portable"
+    .\publish.ps1 -Clean -Runtime "osx-arm64"
 #>
 
 param(
     [string]$Version,
     [string]$OutputDir = "./publish",
-    [ValidateSet("Portable", "MSIX", "Both")]
-    [string]$PackageType = "Portable",
+    [ValidateSet("win-x64", "linux-x64", "osx-arm64", "osx-x64")]
+    [string]$Runtime = "win-x64",
     [switch]$SelfContained = $true,
-    [switch]$EnableAOT = $false,
     [switch]$Clean
 )
 
 $ErrorActionPreference = "Stop"
-$ProjectPath = "$PSScriptRoot/../src/WireBound/WireBound.csproj"
-$Runtime = "win-x64"
+$ProjectPath = "$PSScriptRoot/../src/WireBound.Avalonia/WireBound.Avalonia.csproj"
 
 # Colors for output
 function Write-Step { param($Message) Write-Host "`n▶ $Message" -ForegroundColor Cyan }
@@ -66,7 +61,7 @@ $OutputDir = $ExecutionContext.SessionState.Path.GetUnresolvedProviderPathFromPS
 
 Write-Host "`nProject: $ProjectPath"
 Write-Host "Output:  $OutputDir"
-Write-Host "AOT:     $(if ($EnableAOT) { 'Enabled' } else { 'Disabled' })"
+Write-Host "Runtime: $Runtime"
 
 # Get version from project if not specified
 if (-not $Version) {
@@ -86,133 +81,61 @@ if ($Clean -and (Test-Path $OutputDir)) {
 # Ensure output directory exists
 New-Item -ItemType Directory -Path $OutputDir -Force | Out-Null
 
-# Restore dependencies with proper runtime settings
+# Restore dependencies
 Write-Step "Restoring dependencies..."
 $restoreArgs = @(
     "restore", $ProjectPath,
     "--runtime", $Runtime
 )
-if (-not $EnableAOT) {
-    $restoreArgs += "-p:PublishReadyToRun=true"
-}
 & dotnet @restoreArgs
 if ($LASTEXITCODE -ne 0) { throw "Restore failed" }
 Write-Success "Dependencies restored"
 
-# Build portable version
-if ($PackageType -eq "Portable" -or $PackageType -eq "Both") {
-    $buildType = if ($EnableAOT) { "portable (AOT)" } else { "portable (unpackaged)" }
-    Write-Step "Building $buildType version..."
-    
-    $portableSuffix = if ($EnableAOT) { "aot" } else { "portable" }
-    $portableOutput = Join-Path $OutputDir $portableSuffix
-    
-    $publishArgs = @(
-        "publish", $ProjectPath,
-        "--configuration", "Release",
-        "--runtime", $Runtime,
-        "--output", $portableOutput,
-        "-p:WindowsPackageType=None",
-        "-p:Version=$Version"
-    )
-    
-    if ($EnableAOT) {
-        $publishArgs += "-p:EnableAOT=true"
-    } else {
-        $publishArgs += "-p:PublishReadyToRun=true"
-    }
-    
-    if ($SelfContained) {
-        $publishArgs += "--self-contained", "true"
-    } else {
-        $publishArgs += "--self-contained", "false"
-    }
-    
-    & dotnet @publishArgs
-    
-    if ($LASTEXITCODE -ne 0) { throw "Portable build failed" }
-    
-    # Create zip archive
-    $zipSuffix = if ($EnableAOT) { "aot" } else { "portable" }
-    $zipPath = Join-Path $OutputDir "WireBound-$Version-win-x64-$zipSuffix.zip"
-    if (Test-Path $zipPath) { Remove-Item $zipPath -Force }
-    Compress-Archive -Path "$portableOutput\*" -DestinationPath $zipPath
-    
-    Write-Success "Portable version created: $zipPath"
+# Build
+Write-Step "Building portable version for $Runtime..."
+
+$portableOutput = Join-Path $OutputDir $Runtime
+
+$publishArgs = @(
+    "publish", $ProjectPath,
+    "--configuration", "Release",
+    "--runtime", $Runtime,
+    "--output", $portableOutput,
+    "-p:Version=$Version"
+)
+
+if ($SelfContained) {
+    $publishArgs += "--self-contained", "true"
+} else {
+    $publishArgs += "--self-contained", "false"
 }
 
-# Build MSIX package
-if ($PackageType -eq "MSIX" -or $PackageType -eq "Both") {
-    Write-Step "Building MSIX package..."
-    Write-Warning "MSIX packaging requires a valid certificate for signing"
-    
-    $msixOutput = Join-Path $OutputDir "msix"
-    
-    $publishArgs = @(
-        "publish", $ProjectPath,
-        "--configuration", "Release",
-        "--runtime", $Runtime,
-        "--output", $msixOutput,
-        "-p:WindowsPackageType=MSIX",
-        "-p:GenerateAppxPackageOnBuild=true",
-        "-p:AppxPackageSigningEnabled=false",
-        "-p:Version=$Version"
-    )
-    
+& dotnet @publishArgs
+
+if ($LASTEXITCODE -ne 0) { throw "Build failed" }
+
+# Create archive
+$targetIsWindows = $Runtime.StartsWith("win")
+$archiveExt = if ($targetIsWindows) { "zip" } else { "tar.gz" }
+$archivePath = Join-Path $OutputDir "WireBound-$Version-$Runtime.$archiveExt"
+
+Write-Step "Creating archive..."
+
+if ($targetIsWindows) {
+    if (Test-Path $archivePath) { Remove-Item $archivePath -Force }
+    Compress-Archive -Path "$portableOutput\*" -DestinationPath $archivePath
+} else {
+    # Use tar for Linux/macOS
+    Push-Location $portableOutput
     try {
-        & dotnet @publishArgs
-        
-        if ($LASTEXITCODE -eq 0) {
-            # Find and copy the MSIX package files to output
-            $appPackagesDir = Join-Path (Split-Path $ProjectPath) "bin\Release\net10.0-windows10.0.19041.0\win-x64\AppPackages"
-            $msixTestDir = Get-ChildItem $appPackagesDir -Directory -Filter "*_Test" | Select-Object -First 1
-            
-            if ($msixTestDir) {
-                Write-Step "Copying MSIX installer files..."
-                $msixInstallerDir = Join-Path $OutputDir "msix-installer"
-                New-Item -ItemType Directory -Path $msixInstallerDir -Force | Out-Null
-                
-                # Copy the MSIX file
-                Copy-Item (Join-Path $msixTestDir.FullName "*.msix") -Destination $msixInstallerDir -Force
-                
-                # Copy Install.ps1 and Add-AppDevPackage.ps1 scripts
-                $installScript = Join-Path $msixTestDir.FullName "Install.ps1"
-                if (Test-Path $installScript) {
-                    Copy-Item $installScript -Destination $msixInstallerDir -Force
-                }
-                
-                $addAppScript = Join-Path $msixTestDir.FullName "Add-AppDevPackage.ps1"
-                if (Test-Path $addAppScript) {
-                    Copy-Item $addAppScript -Destination $msixInstallerDir -Force
-                }
-                
-                # Copy Add-AppDevPackage resources folder
-                $resourcesDir = Join-Path $msixTestDir.FullName "Add-AppDevPackage.resources"
-                if (Test-Path $resourcesDir) {
-                    Copy-Item $resourcesDir -Destination $msixInstallerDir -Recurse -Force
-                }
-                
-                # Copy dependencies (Windows App Runtime)
-                $depsDir = Join-Path $msixTestDir.FullName "Dependencies"
-                if (Test-Path $depsDir) {
-                    Copy-Item $depsDir -Destination $msixInstallerDir -Recurse -Force
-                }
-                
-                Write-Success "MSIX installer files copied to: $msixInstallerDir"
-            }
-            
-            Write-Success "MSIX package created"
-            Write-Warning "The MSIX is unsigned. To install, either:"
-            Write-Host "  1. Sign it with a trusted certificate"
-            Write-Host "  2. Enable Developer Mode on Windows (Settings > Privacy & Security > For developers)"
-            Write-Host "  3. Run Install.ps1 from the msix-installer folder"
-            Write-Host "  4. Or sideload with: Add-AppxPackage -Path <msix-file>"
-        }
-    } catch {
-        Write-Warning "MSIX build failed: $_"
-        Write-Host "This is expected if MSIX tooling is not fully configured."
+        if (Test-Path $archivePath) { Remove-Item $archivePath -Force }
+        tar -czvf $archivePath .
+    } finally {
+        Pop-Location
     }
 }
+
+Write-Success "Archive created: $archivePath"
 
 # Summary
 Write-Host ""
@@ -220,10 +143,29 @@ Write-Host "╔═════════════════════�
 Write-Host "║                    Build Complete!                           ║" -ForegroundColor Green
 Write-Host "╚══════════════════════════════════════════════════════════════╝" -ForegroundColor Green
 Write-Host ""
-Write-Host "Output files:"
-Get-ChildItem $OutputDir -Recurse -File | ForEach-Object {
-    $relativePath = $_.FullName.Replace($OutputDir, "").TrimStart("\")
-    $size = "{0:N2} MB" -f ($_.Length / 1MB)
-    Write-Host "  $relativePath ($size)"
+
+# Get archive info
+$archive = Get-Item $archivePath
+$sizeMB = [math]::Round($archive.Length / 1MB, 2)
+
+Write-Host "📦 Output: $archivePath"
+Write-Host "   Size:   $sizeMB MB"
+Write-Host ""
+
+# Platform-specific instructions
+if ($targetIsWindows) {
+    Write-Host "📋 To install (Windows):"
+    Write-Host "   1. Extract the ZIP file"
+    Write-Host "   2. Run WireBound.Avalonia.exe"
+} elseif ($Runtime.StartsWith("linux")) {
+    Write-Host "📋 To install (Linux):"
+    Write-Host "   1. Extract: tar -xzf $($archive.Name)"
+    Write-Host "   2. Make executable: chmod +x WireBound.Avalonia"
+    Write-Host "   3. Run: ./WireBound.Avalonia"
+} else {
+    Write-Host "📋 To install (macOS):"
+    Write-Host "   1. Extract: tar -xzf $($archive.Name)"
+    Write-Host "   2. Run: ./WireBound.Avalonia"
+    Write-Host "   Note: You may need to allow the app in Security & Privacy settings"
 }
 Write-Host ""

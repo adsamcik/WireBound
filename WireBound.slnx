@@ -3,11 +3,7 @@
     <Folder Name="/src/core/">
       <Project Path="src/WireBound.Core/WireBound.Core.csproj" />
     </Folder>
-    <Folder Name="/src/platforms/">
-      <Project Path="src/WireBound.Windows/WireBound.Windows.csproj" />
-    </Folder>
     <Folder Name="/src/apps/">
-      <Project Path="src/WireBound/WireBound.csproj" />
       <Project Path="src/WireBound.Avalonia/WireBound.Avalonia.csproj" />
     </Folder>
   </Folder>

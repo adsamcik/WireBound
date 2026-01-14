@@ -10,11 +10,24 @@ env:
   DOTNET_VERSION: '10.0.x'
   DOTNET_SKIP_FIRST_TIME_EXPERIENCE: true
   DOTNET_NOLOGO: true
-  PROJECT_PATH: src/WireBound/WireBound.csproj
+  PROJECT_PATH: src/WireBound.Avalonia/WireBound.Avalonia.csproj
 
 jobs:
   nightly:
-    runs-on: windows-latest
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: windows-latest
+            runtime: win-x64
+            archive: zip
+          - os: ubuntu-latest
+            runtime: linux-x64
+            archive: tar.gz
+          - os: macos-latest
+            runtime: osx-arm64
+            archive: tar.gz
     
     steps:
       - name: Checkout repository
@@ -37,34 +50,42 @@ jobs:
         with:
           dotnet-version: ${{ env.DOTNET_VERSION }}
 
-      - name: Install MAUI workload
-        run: dotnet workload install maui-windows
-
       - name: Restore dependencies
         run: dotnet restore ${{ env.PROJECT_PATH }}
 
       - name: Publish portable build
         run: |
-          dotnet publish ${{ env.PROJECT_PATH }} `
-            --configuration Release `
-            --runtime win-x64 `
-            --self-contained true `
-            --output ./publish/portable `
-            -p:WindowsPackageType=None `
-            -p:PublishReadyToRun=true
+          dotnet publish ${{ env.PROJECT_PATH }} --configuration Release --runtime ${{ matrix.runtime }} --self-contained true --output ./publish/${{ matrix.runtime }}
 
-      - name: Create archive
+      - name: Create archive (Windows)
+        if: matrix.os == 'windows-latest'
         shell: pwsh
         run: |
-          $version = "${{ steps.version.outputs.VERSION }}"
-          Compress-Archive -Path ./publish/portable/* -DestinationPath "./WireBound-nightly-win-x64.zip"
+          Compress-Archive -Path ./publish/${{ matrix.runtime }}/* -DestinationPath "./WireBound-nightly-${{ matrix.runtime }}.zip"
+
+      - name: Create archive (Linux/macOS)
+        if: matrix.os != 'windows-latest'
+        run: |
+          cd ./publish/${{ matrix.runtime }}
+          tar -czvf "../../WireBound-nightly-${{ matrix.runtime }}.tar.gz" .
 
       - name: Upload nightly artifact
         uses: actions/upload-artifact@v6
         with:
-          name: WireBound-nightly-${{ steps.version.outputs.VERSION }}
-          path: ./WireBound-nightly-win-x64.zip
+          name: WireBound-nightly-${{ steps.version.outputs.VERSION }}-${{ matrix.runtime }}
+          path: ./WireBound-nightly-${{ matrix.runtime }}.${{ matrix.archive }}
           retention-days: 7
+
+  update-nightly-release:
+    needs: nightly
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: ./artifacts
+          pattern: WireBound-nightly-*
 
       - name: Update nightly release
         uses: softprops/action-gh-release@v2
@@ -74,16 +95,17 @@ jobs:
           body: |
             ## 🌙 Nightly Build
             
-            **Build:** ${{ steps.version.outputs.VERSION }}
             **Commit:** ${{ github.sha }}
-            **Date:** $(date -u +"%Y-%m-%d %H:%M UTC")
+            **Date:** ${{ github.event.head_commit.timestamp }}
             
             ⚠️ **Warning:** This is an automated nightly build and may be unstable.
             
-            ### Download
-            - `WireBound-nightly-win-x64.zip` - Portable version (extract and run)
+            ### Downloads
+            - `WireBound-nightly-win-x64.zip` - Windows (extract and run)
+            - `WireBound-nightly-linux-x64.tar.gz` - Linux (extract and run)
+            - `WireBound-nightly-osx-arm64.tar.gz` - macOS ARM (extract and run)
           draft: false
           prerelease: true
-          files: ./WireBound-nightly-win-x64.zip
+          files: ./artifacts/**/*
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

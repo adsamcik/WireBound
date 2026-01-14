@@ -20,14 +20,27 @@ env:
   DOTNET_VERSION: '10.0.x'
   DOTNET_SKIP_FIRST_TIME_EXPERIENCE: true
   DOTNET_NOLOGO: true
-  PROJECT_PATH: src/WireBound/WireBound.csproj
+  PROJECT_PATH: src/WireBound.Avalonia/WireBound.Avalonia.csproj
 
 permissions:
   contents: write
 
 jobs:
   build-and-release:
-    runs-on: windows-latest
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: windows-latest
+            runtime: win-x64
+            archive: zip
+          - os: ubuntu-latest
+            runtime: linux-x64
+            archive: tar.gz
+          - os: macos-latest
+            runtime: osx-arm64
+            archive: tar.gz
     
     steps:
       - name: Checkout repository
@@ -52,102 +65,80 @@ jobs:
         with:
           dotnet-version: ${{ env.DOTNET_VERSION }}
 
-      - name: Install MAUI workload
-        run: dotnet workload install maui-windows
-
       - name: Restore dependencies
         run: dotnet restore ${{ env.PROJECT_PATH }}
 
-      - name: Update version in project
+      - name: Publish build
+        run: |
+          dotnet publish ${{ env.PROJECT_PATH }} --configuration Release --runtime ${{ matrix.runtime }} --self-contained true --output ./publish/${{ matrix.runtime }} -p:Version=${{ steps.version.outputs.VERSION }}
+
+      - name: Create archive (Windows)
+        if: matrix.os == 'windows-latest'
         shell: pwsh
         run: |
           $version = "${{ steps.version.outputs.VERSION }}"
-          $versionParts = $version.Split('.')
-          $displayVersion = $version
-          $buildVersion = if ($versionParts.Length -ge 3) { $versionParts[2] } else { "0" }
-          
-          $csproj = Get-Content ${{ env.PROJECT_PATH }} -Raw
-          $csproj = $csproj -replace '<ApplicationDisplayVersion>.*</ApplicationDisplayVersion>', "<ApplicationDisplayVersion>$displayVersion</ApplicationDisplayVersion>"
-          $csproj = $csproj -replace '<ApplicationVersion>.*</ApplicationVersion>', "<ApplicationVersion>$buildVersion</ApplicationVersion>"
-          $csproj = $csproj -replace '<Version>.*</Version>', "<Version>$version</Version>"
-          Set-Content ${{ env.PROJECT_PATH }} $csproj
-          
-          Write-Host "Updated version to $version"
+          Compress-Archive -Path ./publish/${{ matrix.runtime }}/* -DestinationPath "./WireBound-$version-${{ matrix.runtime }}.zip"
 
-      # Build unpackaged (portable) version
-      - name: Publish - Portable (Unpackaged)
+      - name: Create archive (Linux/macOS)
+        if: matrix.os != 'windows-latest'
         run: |
-          dotnet publish ${{ env.PROJECT_PATH }} `
-            --configuration Release `
-            --runtime win-x64 `
-            --self-contained true `
-            --output ./publish/portable `
-            -p:WindowsPackageType=None `
-            -p:PublishReadyToRun=true `
-            -p:PublishTrimmed=false
+          version="${{ steps.version.outputs.VERSION }}"
+          cd ./publish/${{ matrix.runtime }}
+          tar -czvf "../../WireBound-$version-${{ matrix.runtime }}.tar.gz" .
 
-      # Build AOT version (Native AOT compiled)
-      - name: Publish - AOT (Native)
-        run: |
-          dotnet publish ${{ env.PROJECT_PATH }} `
-            --configuration Release `
-            --runtime win-x64 `
-            --self-contained true `
-            --output ./publish/aot `
-            -p:WindowsPackageType=None `
-            -p:EnableAOT=true
-        continue-on-error: true
+      - name: Upload release artifact
+        uses: actions/upload-artifact@v6
+        with:
+          name: WireBound-${{ steps.version.outputs.VERSION }}-${{ matrix.runtime }}
+          path: ./WireBound-${{ steps.version.outputs.VERSION }}-${{ matrix.runtime }}.${{ matrix.archive }}
+          retention-days: 30
 
-      # Build MSIX package (optional - requires certificate)
-      - name: Publish - MSIX Package
-        run: |
-          dotnet publish ${{ env.PROJECT_PATH }} `
-            --configuration Release `
-            --runtime win-x64 `
-            --output ./publish/msix `
-            -p:WindowsPackageType=MSIX `
-            -p:GenerateAppxPackageOnBuild=true `
-            -p:AppxPackageSigningEnabled=false
-        continue-on-error: true
+  create-release:
+    needs: build-and-release
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
 
-      - name: Create portable archive
-        shell: pwsh
+      - name: Determine version
+        id: version
+        shell: bash
         run: |
-          $version = "${{ steps.version.outputs.VERSION }}"
-          Compress-Archive -Path ./publish/portable/* -DestinationPath "./WireBound-$version-win-x64-portable.zip"
+          if [ "${{ github.event_name }}" == "workflow_dispatch" ]; then
+            version="${{ inputs.version }}"
+          else
+            version="${{ github.ref_name }}"
+            version="${version#v}"
+          fi
+          echo "VERSION=$version" >> $GITHUB_OUTPUT
+          echo "Version: $version"
 
-      - name: Create AOT archive
-        shell: pwsh
-        run: |
-          $version = "${{ steps.version.outputs.VERSION }}"
-          if (Test-Path ./publish/aot) {
-            Compress-Archive -Path ./publish/aot/* -DestinationPath "./WireBound-$version-win-x64-aot.zip"
-          }
-        continue-on-error: true
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: ./artifacts
+          pattern: WireBound-*
 
       - name: Generate release notes
-        id: changelog
-        shell: pwsh
+        shell: bash
         run: |
-          $version = "${{ steps.version.outputs.VERSION }}"
-          $notes = @"
+          version="${{ steps.version.outputs.VERSION }}"
+          cat > release-notes.md << EOF
           ## WireBound v$version
           
           ### Downloads
-          - **Portable Version**: Standard build with ReadyToRun - extract and run ``WireBound.exe``
-          - **AOT Version**: Native AOT compiled for faster startup and smaller memory footprint (if available)
-          - **MSIX Package**: Windows packaged app (if available)
+          - **Windows (x64)**: \`WireBound-$version-win-x64.zip\` - Extract and run \`WireBound.Avalonia.exe\`
+          - **Linux (x64)**: \`WireBound-$version-linux-x64.tar.gz\` - Extract and run \`WireBound.Avalonia\`
+          - **macOS (ARM64)**: \`WireBound-$version-osx-arm64.tar.gz\` - Extract and run \`WireBound.Avalonia\`
           
           ### System Requirements
-          - Windows 10 version 1903 (19041) or later
-          - .NET 10 Runtime (included in all versions)
+          - Windows 10 or later / Linux / macOS
+          - .NET 10 Runtime (included in all versions - self-contained)
           
           ### What's New
           See [CHANGELOG.md](CHANGELOG.md) for detailed changes.
-          "@
-          
-          $notes | Out-File -FilePath release-notes.md -Encoding utf8
-          echo "Generated release notes"
+          EOF
 
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
@@ -158,22 +149,6 @@ jobs:
           draft: false
           prerelease: ${{ inputs.prerelease || false }}
           files: |
-            ./WireBound-*.zip
-            ./publish/msix/**/*.msix
+            ./artifacts/**/*
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Upload portable artifact
-        uses: actions/upload-artifact@v6
-        with:
-          name: WireBound-${{ steps.version.outputs.VERSION }}-portable
-          path: ./publish/portable/
-          retention-days: 30
-
-      - name: Upload MSIX artifact
-        uses: actions/upload-artifact@v6
-        with:
-          name: WireBound-${{ steps.version.outputs.VERSION }}-msix
-          path: ./publish/msix/
-          retention-days: 30
-        continue-on-error: true

@@ -13,9 +13,10 @@ public interface INetworkMonitorService
     event EventHandler<NetworkStats>? StatsUpdated;
 
     /// <summary>
-    /// Get all available network adapters
+    /// Get network adapters. By default returns only physical adapters (simple mode).
     /// </summary>
-    IReadOnlyList<NetworkAdapter> GetAdapters();
+    /// <param name="includeVirtual">If true, includes virtual adapters (VPN, Hyper-V, etc.)</param>
+    IReadOnlyList<NetworkAdapter> GetAdapters(bool includeVirtual = false);
 
     /// <summary>
     /// Get current network statistics

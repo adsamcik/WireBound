@@ -50,6 +50,11 @@ public class AppSettings
     /// </summary>
     public string Theme { get; set; } = "Dark";
     
+    /// <summary>
+    /// Speed display unit: true = bits per second (Mbps), false = bytes per second (MB/s)
+    /// </summary>
+    public bool UseSpeedInBits { get; set; } = false;
+    
     // === Per-App Network Tracking (Optional Feature) ===
     
     /// <summary>

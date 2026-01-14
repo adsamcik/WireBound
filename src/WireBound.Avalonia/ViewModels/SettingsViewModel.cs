@@ -39,7 +39,9 @@ public sealed partial class SettingsViewModel : ObservableObject
     private bool _minimizeToTray = true;
     
     [ObservableProperty]
-    private bool _useSpeedInBits;
+    private SpeedUnit _selectedSpeedUnit = SpeedUnit.BytesPerSecond;
+    
+    public SpeedUnit[] SpeedUnits { get; } = Enum.GetValues<SpeedUnit>();
 
     [ObservableProperty]
     private bool _isElevated;
@@ -64,7 +66,7 @@ public sealed partial class SettingsViewModel : ObservableObject
     partial void OnIsPerAppTrackingEnabledChanged(bool value) => ScheduleAutoSave();
     partial void OnStartWithWindowsChanged(bool value) => ScheduleAutoSave();
     partial void OnMinimizeToTrayChanged(bool value) => ScheduleAutoSave();
-    partial void OnUseSpeedInBitsChanged(bool value) => ScheduleAutoSave();
+    partial void OnSelectedSpeedUnitChanged(SpeedUnit value) => ScheduleAutoSave();
 
     private void ScheduleAutoSave()
     {
@@ -119,10 +121,10 @@ public sealed partial class SettingsViewModel : ObservableObject
         IsPerAppTrackingEnabled = settings.IsPerAppTrackingEnabled;
         MinimizeToTray = settings.MinimizeToTray;
         StartWithWindows = settings.StartWithWindows;
-        UseSpeedInBits = settings.UseSpeedInBits;
+        SelectedSpeedUnit = settings.SpeedUnit;
         
         // Apply speed unit setting globally
-        WireBound.Core.Helpers.ByteFormatter.UseSpeedInBits = settings.UseSpeedInBits;
+        WireBound.Core.Helpers.ByteFormatter.UseSpeedInBits = settings.SpeedUnit == SpeedUnit.BitsPerSecond;
         
         // Find matching adapter
         SelectedAdapter = Adapters.FirstOrDefault(a => a.Id == settings.SelectedAdapterId);
@@ -146,11 +148,11 @@ public sealed partial class SettingsViewModel : ObservableObject
             IsPerAppTrackingEnabled = IsPerAppTrackingEnabled,
             MinimizeToTray = MinimizeToTray,
             StartWithWindows = StartWithWindows,
-            UseSpeedInBits = UseSpeedInBits
+            SpeedUnit = SelectedSpeedUnit
         };
         
         // Apply speed unit setting globally
-        WireBound.Core.Helpers.ByteFormatter.UseSpeedInBits = UseSpeedInBits;
+        WireBound.Core.Helpers.ByteFormatter.UseSpeedInBits = SelectedSpeedUnit == SpeedUnit.BitsPerSecond;
 
         await _persistence.SaveSettingsAsync(settings);
 

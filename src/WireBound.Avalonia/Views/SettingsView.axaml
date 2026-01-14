@@ -72,10 +72,17 @@
                                 <TextBlock Text="Speed Unit" Classes="CardTitle" />
                                 <TextBlock Text="Display speeds in bits (Mbps) or bytes (MB/s)" Classes="Caption" />
                             </StackPanel>
-                            <ToggleSwitch Grid.Column="1"
-                                          IsChecked="{Binding UseSpeedInBits}"
-                                          OnContent="Mbps" OffContent="MB/s"
-                                          VerticalAlignment="Center" />
+                            <ComboBox Grid.Column="1"
+                                      ItemsSource="{Binding SpeedUnits}"
+                                      SelectedItem="{Binding SelectedSpeedUnit}"
+                                      Width="160"
+                                      VerticalAlignment="Center">
+                                <ComboBox.ItemTemplate>
+                                    <DataTemplate>
+                                        <TextBlock Text="{Binding Converter={StaticResource SpeedUnitConverter}}" />
+                                    </DataTemplate>
+                                </ComboBox.ItemTemplate>
+                            </ComboBox>
                         </Grid>
                     </Border>
                     

@@ -26,84 +26,27 @@ permissions:
   contents: write
 
 jobs:
-  build-and-release:
-    runs-on: ${{ matrix.os }}
+  build:
+    runs-on: ubuntu-latest
     strategy:
       fail-fast: false
       matrix:
         include:
-          - os: windows-latest
-            runtime: win-x64
-            archive: zip
-          - os: ubuntu-latest
-            runtime: linux-x64
+          - runtime: linux-x64
             archive: tar.gz
-          - os: macos-latest
-            runtime: osx-arm64
+          - runtime: win-x64
+            archive: zip
+          - runtime: osx-arm64
             archive: tar.gz
     
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v6
+        uses: actions/checkout@v4
         with:
           fetch-depth: 0
 
       - name: Determine version
         id: version
-        shell: pwsh
-        run: |
-          if ("${{ github.event_name }}" -eq "workflow_dispatch") {
-            $version = "${{ inputs.version }}"
-          } else {
-            $version = "${{ github.ref_name }}".TrimStart('v')
-          }
-          echo "VERSION=$version" >> $env:GITHUB_OUTPUT
-          echo "Version: $version"
-
-      - name: Setup .NET
-        uses: actions/setup-dotnet@v5
-        with:
-          dotnet-version: ${{ env.DOTNET_VERSION }}
-
-      - name: Restore dependencies
-        run: dotnet restore ${{ env.PROJECT_PATH }}
-
-      - name: Publish build
-        run: |
-          dotnet publish ${{ env.PROJECT_PATH }} --configuration Release --runtime ${{ matrix.runtime }} --self-contained true --output ./publish/${{ matrix.runtime }} -p:Version=${{ steps.version.outputs.VERSION }}
-
-      - name: Create archive (Windows)
-        if: matrix.os == 'windows-latest'
-        shell: pwsh
-        run: |
-          $version = "${{ steps.version.outputs.VERSION }}"
-          Compress-Archive -Path ./publish/${{ matrix.runtime }}/* -DestinationPath "./WireBound-$version-${{ matrix.runtime }}.zip"
-
-      - name: Create archive (Linux/macOS)
-        if: matrix.os != 'windows-latest'
-        run: |
-          version="${{ steps.version.outputs.VERSION }}"
-          cd ./publish/${{ matrix.runtime }}
-          tar -czvf "../../WireBound-$version-${{ matrix.runtime }}.tar.gz" .
-
-      - name: Upload release artifact
-        uses: actions/upload-artifact@v6
-        with:
-          name: WireBound-${{ steps.version.outputs.VERSION }}-${{ matrix.runtime }}
-          path: ./WireBound-${{ steps.version.outputs.VERSION }}-${{ matrix.runtime }}.${{ matrix.archive }}
-          retention-days: 30
-
-  create-release:
-    needs: build-and-release
-    runs-on: ubuntu-latest
-    
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v6
-
-      - name: Determine version
-        id: version
-        shell: bash
         run: |
           if [ "${{ github.event_name }}" == "workflow_dispatch" ]; then
             version="${{ inputs.version }}"
@@ -114,6 +57,61 @@ jobs:
           echo "VERSION=$version" >> $GITHUB_OUTPUT
           echo "Version: $version"
 
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: ${{ env.DOTNET_VERSION }}
+
+      - name: Restore dependencies
+        run: dotnet restore ${{ env.PROJECT_PATH }}
+
+      - name: Publish build
+        run: |
+          dotnet publish ${{ env.PROJECT_PATH }} \
+            --configuration Release \
+            --runtime ${{ matrix.runtime }} \
+            --self-contained true \
+            --output ./publish/${{ matrix.runtime }} \
+            -p:Version=${{ steps.version.outputs.VERSION }}
+
+      - name: Create archive (zip)
+        if: matrix.archive == 'zip'
+        run: |
+          cd ./publish/${{ matrix.runtime }}
+          zip -r "../../WireBound-${{ steps.version.outputs.VERSION }}-${{ matrix.runtime }}.zip" .
+
+      - name: Create archive (tar.gz)
+        if: matrix.archive == 'tar.gz'
+        run: |
+          cd ./publish/${{ matrix.runtime }}
+          tar -czvf "../../WireBound-${{ steps.version.outputs.VERSION }}-${{ matrix.runtime }}.tar.gz" .
+
+      - name: Upload release artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: WireBound-${{ steps.version.outputs.VERSION }}-${{ matrix.runtime }}
+          path: ./WireBound-${{ steps.version.outputs.VERSION }}-${{ matrix.runtime }}.${{ matrix.archive }}
+          retention-days: 30
+
+  release:
+    needs: build
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Determine version
+        id: version
+        run: |
+          if [ "${{ github.event_name }}" == "workflow_dispatch" ]; then
+            version="${{ inputs.version }}"
+          else
+            version="${{ github.ref_name }}"
+            version="${version#v}"
+          fi
+          echo "VERSION=$version" >> $GITHUB_OUTPUT
+
       - name: Download all artifacts
         uses: actions/download-artifact@v4
         with:
@@ -121,20 +119,19 @@ jobs:
           pattern: WireBound-*
 
       - name: Generate release notes
-        shell: bash
         run: |
           version="${{ steps.version.outputs.VERSION }}"
           cat > release-notes.md << EOF
           ## WireBound v$version
           
           ### Downloads
-          - **Windows (x64)**: \`WireBound-$version-win-x64.zip\` - Extract and run \`WireBound.Avalonia.exe\`
           - **Linux (x64)**: \`WireBound-$version-linux-x64.tar.gz\` - Extract and run \`WireBound.Avalonia\`
+          - **Windows (x64)**: \`WireBound-$version-win-x64.zip\` - Extract and run \`WireBound.Avalonia.exe\`
           - **macOS (ARM64)**: \`WireBound-$version-osx-arm64.tar.gz\` - Extract and run \`WireBound.Avalonia\`
           
           ### System Requirements
-          - Windows 10 or later / Linux / macOS
-          - .NET 10 Runtime (included in all versions - self-contained)
+          - Linux / Windows 10+ / macOS
+          - Self-contained (no runtime required)
           
           ### What's New
           See [CHANGELOG.md](CHANGELOG.md) for detailed changes.
@@ -148,7 +145,6 @@ jobs:
           body_path: release-notes.md
           draft: false
           prerelease: ${{ inputs.prerelease || false }}
-          files: |
-            ./artifacts/**/*
+          files: ./artifacts/**/*
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

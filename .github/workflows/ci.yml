@@ -10,22 +10,17 @@ env:
   DOTNET_VERSION: '10.0.x'
   DOTNET_SKIP_FIRST_TIME_EXPERIENCE: true
   DOTNET_NOLOGO: true
-  PROJECT_PATH: src/WireBound.Avalonia/WireBound.Avalonia.csproj
 
 jobs:
   build:
-    runs-on: ${{ matrix.os }}
-    strategy:
-      fail-fast: false
-      matrix:
-        os: [windows-latest, ubuntu-latest, macos-latest]
+    runs-on: ubuntu-latest
     
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v6
+        uses: actions/checkout@v4
 
       - name: Setup .NET
-        uses: actions/setup-dotnet@v5
+        uses: actions/setup-dotnet@v4
         with:
           dotnet-version: ${{ env.DOTNET_VERSION }}
 
@@ -44,10 +39,10 @@ jobs:
     
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v6
+        uses: actions/checkout@v4
 
       - name: Setup .NET
-        uses: actions/setup-dotnet@v5
+        uses: actions/setup-dotnet@v4
         with:
           dotnet-version: ${{ env.DOTNET_VERSION }}
 
@@ -59,71 +54,55 @@ jobs:
         continue-on-error: true
 
   publish-validation:
-    runs-on: ${{ matrix.os }}
+    runs-on: ubuntu-latest
     strategy:
       fail-fast: false
       matrix:
         include:
-          - os: windows-latest
-            runtime: win-x64
-            name: Windows
-          - os: ubuntu-latest
-            runtime: linux-x64
+          - runtime: linux-x64
             name: Linux
-          - os: macos-latest
-            runtime: osx-arm64
+          - runtime: win-x64
+            name: Windows
+          - runtime: osx-arm64
             name: macOS
     
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v6
+        uses: actions/checkout@v4
 
       - name: Setup .NET
-        uses: actions/setup-dotnet@v5
+        uses: actions/setup-dotnet@v4
         with:
           dotnet-version: ${{ env.DOTNET_VERSION }}
 
-      - name: Restore dependencies
-        run: dotnet restore ${{ env.PROJECT_PATH }}
-
       - name: Publish ${{ matrix.name }} build
-        shell: pwsh
         run: |
-          dotnet publish ${{ env.PROJECT_PATH }} `
-            --configuration Release `
-            --runtime ${{ matrix.runtime }} `
-            --self-contained true `
+          dotnet publish src/WireBound.Avalonia/WireBound.Avalonia.csproj \
+            --configuration Release \
+            --runtime ${{ matrix.runtime }} \
+            --self-contained true \
             --output ./publish/${{ matrix.runtime }}
 
       - name: Validate build artifacts
-        shell: pwsh
         run: |
-          $outputDir = "./publish/${{ matrix.runtime }}"
-          $exeName = if ("${{ matrix.os }}" -eq "windows-latest") { "WireBound.Avalonia.exe" } else { "WireBound.Avalonia" }
-          $exePath = Join-Path $outputDir $exeName
+          OUTPUT_DIR="./publish/${{ matrix.runtime }}"
+          if [ "${{ matrix.runtime }}" == "win-x64" ]; then
+            EXE_NAME="WireBound.Avalonia.exe"
+          else
+            EXE_NAME="WireBound.Avalonia"
+          fi
           
-          if (-not (Test-Path $exePath)) {
-            Write-Host "❌ Executable not found: $exePath"
+          if [ ! -f "$OUTPUT_DIR/$EXE_NAME" ]; then
+            echo "❌ Executable not found: $OUTPUT_DIR/$EXE_NAME"
             exit 1
-          }
+          fi
           
-          $exe = Get-Item $exePath
-          $sizeMB = [math]::Round($exe.Length / 1MB, 2)
-          Write-Host "✅ Executable found: $sizeMB MB"
+          SIZE=$(du -h "$OUTPUT_DIR/$EXE_NAME" | cut -f1)
+          echo "✅ Executable found: $SIZE"
           
-          # Report file count and total size
-          $files = Get-ChildItem $outputDir -File -Recurse
-          $totalSize = ($files | Measure-Object -Property Length -Sum).Sum / 1MB
-          Write-Host ""
-          Write-Host "📊 Build Summary (${{ matrix.name }}):"
-          Write-Host "   Files: $($files.Count)"
-          Write-Host "   Total Size: $([math]::Round($totalSize, 2)) MB"
-
-      - name: Upload ${{ matrix.name }} artifacts
-        uses: actions/upload-artifact@v6
-        if: always()
-        with:
-          name: WireBound-${{ matrix.runtime }}-ci
-          path: ./publish/${{ matrix.runtime }}/
-          retention-days: 7
-          if-no-files-found: ignore
+          FILE_COUNT=$(find "$OUTPUT_DIR" -type f | wc -l)
+          TOTAL_SIZE=$(du -sh "$OUTPUT_DIR" | cut -f1)
+          echo ""
+          echo "📊 Build Summary (${{ matrix.name }}):"
+          echo "   Files: $FILE_COUNT"
+          echo "   Total Size: $TOTAL_SIZE"

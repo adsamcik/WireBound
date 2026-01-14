@@ -86,6 +86,18 @@ jobs:
             -p:PublishReadyToRun=true `
             -p:PublishTrimmed=false
 
+      # Build AOT version (Native AOT compiled)
+      - name: Publish - AOT (Native)
+        run: |
+          dotnet publish ${{ env.PROJECT_PATH }} `
+            --configuration Release `
+            --runtime win-x64 `
+            --self-contained true `
+            --output ./publish/aot `
+            -p:WindowsPackageType=None `
+            -p:EnableAOT=true
+        continue-on-error: true
+
       # Build MSIX package (optional - requires certificate)
       - name: Publish - MSIX Package
         run: |
@@ -104,6 +116,15 @@ jobs:
           $version = "${{ steps.version.outputs.VERSION }}"
           Compress-Archive -Path ./publish/portable/* -DestinationPath "./WireBound-$version-win-x64-portable.zip"
 
+      - name: Create AOT archive
+        shell: pwsh
+        run: |
+          $version = "${{ steps.version.outputs.VERSION }}"
+          if (Test-Path ./publish/aot) {
+            Compress-Archive -Path ./publish/aot/* -DestinationPath "./WireBound-$version-win-x64-aot.zip"
+          }
+        continue-on-error: true
+
       - name: Generate release notes
         id: changelog
         shell: pwsh
@@ -113,12 +134,13 @@ jobs:
           ## WireBound v$version
           
           ### Downloads
-          - **Portable Version**: Extract and run `WireBound.exe` - no installation required
+          - **Portable Version**: Standard build with ReadyToRun - extract and run ``WireBound.exe``
+          - **AOT Version**: Native AOT compiled for faster startup and smaller memory footprint (if available)
           - **MSIX Package**: Windows packaged app (if available)
           
           ### System Requirements
           - Windows 10 version 1903 (19041) or later
-          - .NET 10 Runtime (included in portable version)
+          - .NET 10 Runtime (included in all versions)
           
           ### What's New
           See [CHANGELOG.md](CHANGELOG.md) for detailed changes.

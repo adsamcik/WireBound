@@ -294,7 +294,7 @@
 
             <!-- Save Button -->
             <Button Text="💾  Save Settings"
-                    Command="{Binding SaveCommand}"
+                    Command="{Binding SaveSettingsCommand}"
                     Style="{StaticResource PrimaryButtonStyle}"
                     HeightRequest="52"
                     HorizontalOptions="Fill" />

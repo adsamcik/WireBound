@@ -5,6 +5,7 @@ namespace WireBound.Extensions;
 /// Usage: Text="{local:Localize Settings_Title}"
 /// </summary>
 [ContentProperty(nameof(Key))]
+[AcceptEmptyServiceProvider]
 public sealed class LocalizeExtension : IMarkupExtension<string>
 {
     /// <summary>

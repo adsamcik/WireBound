@@ -247,7 +247,7 @@
                                     YAxes="{Binding YAxes}"
                                     ZoomMode="X"
                                     TooltipPosition="Top"
-                                    TooltipFindingStrategy="CompareAll"
+                                    FindingStrategy="CompareAll"
                                     BackgroundColor="{StaticResource SurfaceColor}" />
                 
                 <!-- Interaction Hint -->

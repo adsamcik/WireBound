@@ -274,6 +274,24 @@ public sealed partial class DashboardViewModel : ObservableObject, IDisposable
     }
     
     /// <summary>
+    /// Navigate to the Charts page
+    /// </summary>
+    [RelayCommand]
+    private async Task NavigateToChartsAsync()
+    {
+        await Shell.Current.GoToAsync("//Charts");
+    }
+    
+    /// <summary>
+    /// Navigate to the History page
+    /// </summary>
+    [RelayCommand]
+    private async Task NavigateToHistoryAsync()
+    {
+        await Shell.Current.GoToAsync("//History");
+    }
+    
+    /// <summary>
     /// Resets the chart X-axis to show live data with fixed time range
     /// </summary>
     private void ResetChartToLive()

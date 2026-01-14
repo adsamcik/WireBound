@@ -69,7 +69,13 @@ public sealed partial class SettingsViewModel : ObservableObject, IDisposable
     public partial NetworkAdapter? SelectedAdapter { get; set; }
 
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(HasStatusMessage))]
     public partial string StatusMessage { get; set; }
+
+    /// <summary>
+    /// Gets whether there is a status message to display.
+    /// </summary>
+    public bool HasStatusMessage => !string.IsNullOrEmpty(StatusMessage);
 
     public ObservableCollection<string> Themes { get; } = new() { "Light", "Dark", "System" };
     public ObservableCollection<int> PollingIntervals { get; } = new() { 500, 1000, 2000, 5000 };

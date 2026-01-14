@@ -8,6 +8,7 @@
     </Folder>
     <Folder Name="/src/apps/">
       <Project Path="src/WireBound/WireBound.csproj" />
+      <Project Path="src/WireBound.Avalonia/WireBound.Avalonia.csproj" />
     </Folder>
   </Folder>
 </Solution>

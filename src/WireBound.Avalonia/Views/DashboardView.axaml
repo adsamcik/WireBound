@@ -219,6 +219,7 @@
             </Border>
             
             <!-- VPN TRAFFIC ANALYSIS PANEL (shown only when VPN traffic detected) -->
+            <!-- Uses sticky visibility logic in ViewModel to prevent flickering -->
             <Border Grid.Row="2" Grid.ColumnSpan="2" 
                     Classes="Card" 
                     Margin="0,20,0,0"

@@ -105,7 +105,18 @@ public sealed partial class DashboardViewModel : ObservableObject, IDisposable
     // === VPN Traffic Analysis Properties ===
     
     /// <summary>
-    /// Whether VPN traffic analysis data is available to display
+    /// Tracks when VPN was last detected to prevent flickering
+    /// </summary>
+    private DateTime _lastVpnDetectedTime = DateTime.MinValue;
+    
+    /// <summary>
+    /// How long to keep the VPN panel visible after VPN traffic stops (in seconds)
+    /// </summary>
+    private const int VpnPanelStickyDurationSeconds = 10;
+    
+    /// <summary>
+    /// Whether VPN traffic analysis data is available to display.
+    /// Uses sticky logic to prevent UI flickering.
     /// </summary>
     [ObservableProperty]
     private bool _hasVpnTraffic;
@@ -274,10 +285,13 @@ public sealed partial class DashboardViewModel : ObservableObject, IDisposable
         SessionDownload = ByteFormatter.FormatBytes(stats.SessionBytesReceived);
         SessionUpload = ByteFormatter.FormatBytes(stats.SessionBytesSent);
         
-        // Update VPN traffic analysis properties
-        HasVpnTraffic = stats.HasVpnTraffic;
+        // Update VPN traffic analysis properties with sticky visibility logic
+        // to prevent the panel from flickering on/off rapidly
         if (stats.HasVpnTraffic)
         {
+            _lastVpnDetectedTime = now;
+            HasVpnTraffic = true;
+            
             VpnDownloadSpeed = ByteFormatter.FormatSpeed(stats.VpnDownloadSpeedBps);
             VpnUploadSpeed = ByteFormatter.FormatSpeed(stats.VpnUploadSpeedBps);
             PhysicalDownloadSpeed = ByteFormatter.FormatSpeed(stats.PhysicalDownloadSpeedBps);
@@ -287,6 +301,16 @@ public sealed partial class DashboardViewModel : ObservableObject, IDisposable
             VpnDownloadOverheadPercent = $"+{stats.VpnDownloadOverheadPercent:F1}%";
             VpnUploadOverheadPercent = $"+{stats.VpnUploadOverheadPercent:F1}%";
             ActiveVpnNames = string.Join(", ", stats.ActiveVpnAdapters);
+        }
+        else
+        {
+            // Keep panel visible for a sticky duration to prevent flicker
+            var timeSinceLastVpn = (now - _lastVpnDetectedTime).TotalSeconds;
+            if (HasVpnTraffic && timeSinceLastVpn > VpnPanelStickyDurationSeconds)
+            {
+                HasVpnTraffic = false;
+            }
+            // else: keep HasVpnTraffic at its current value (sticky)
         }
 
         // Add to buffer

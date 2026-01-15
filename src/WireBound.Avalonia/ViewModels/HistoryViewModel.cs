@@ -8,6 +8,7 @@ using System.Collections.ObjectModel;
 using WireBound.Core.Helpers;
 using WireBound.Core.Models;
 using WireBound.Core.Services;
+using Microsoft.Data.Sqlite;
 
 namespace WireBound.Avalonia.ViewModels;
 
@@ -92,9 +93,12 @@ public sealed class HourlyUsageItem
 /// <summary>
 /// ViewModel for the History page with enhanced analytics
 /// </summary>
-public sealed partial class HistoryViewModel : ObservableObject
+public sealed partial class HistoryViewModel : ObservableObject, IDisposable
 {
     private readonly IDataPersistenceService _persistence;
+    private CancellationTokenSource? _loadCts;
+    private CancellationTokenSource? _hourlyCts;
+    private bool _disposed;
 
     // === Period Selection ===
     public ObservableCollection<HistoryPeriodOption> PeriodOptions { get; } =
@@ -206,6 +210,22 @@ public sealed partial class HistoryViewModel : ObservableObject
     [ObservableProperty]
     private bool _hasData;
 
+    [ObservableProperty]
+    private bool _hasError;
+
+    [ObservableProperty]
+    private string _errorMessage = string.Empty;
+
+    // === Export State ===
+    [ObservableProperty]
+    private bool _isExporting;
+
+    [ObservableProperty]
+    private bool _exportSuccess;
+
+    [ObservableProperty]
+    private string _exportStatusMessage = string.Empty;
+
     public HistoryViewModel(IDataPersistenceService persistence)
     {
         _persistence = persistence;
@@ -235,6 +255,16 @@ public sealed partial class HistoryViewModel : ObservableObject
     [RelayCommand]
     private async Task RefreshAsync()
     {
+        HasError = false;
+        ErrorMessage = string.Empty;
+        await LoadDataAsync();
+    }
+
+    [RelayCommand]
+    private async Task RetryAsync()
+    {
+        HasError = false;
+        ErrorMessage = string.Empty;
         await LoadDataAsync();
     }
 
@@ -264,14 +294,31 @@ public sealed partial class HistoryViewModel : ObservableObject
     {
         if (DailyUsages.Count == 0) return;
 
+        IsExporting = true;
+        ExportSuccess = false;
+        ExportStatusMessage = string.Empty;
+
         try
         {
+            // Get documents path with fallback
             var documentsPath = Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments);
-            var fileName = $"WireBound_History_{DateTime.Now:yyyy-MM-dd_HHmmss}.csv";
+            if (string.IsNullOrEmpty(documentsPath) || !Directory.Exists(documentsPath))
+            {
+                documentsPath = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
+            }
+
+            var periodLabel = SelectedPeriod.Days.ToString();
+            var fileName = $"WireBound_History_{periodLabel}d_{DateTime.Now:yyyy-MM-dd_HHmmss}.csv";
             var filePath = Path.Combine(documentsPath, fileName);
 
             var lines = new List<string>
             {
+                $"# WireBound Network History Export",
+                $"# Period: {SelectedPeriod.Label} ({SelectedPeriod.Description})",
+                $"# Exported: {DateTime.Now:yyyy-MM-dd HH:mm:ss}",
+                $"# Total Downloaded: {TotalDownload}",
+                $"# Total Uploaded: {TotalUpload}",
+                "",
                 "Date,Downloaded (bytes),Uploaded (bytes),Total (bytes),Peak Download (bps),Peak Upload (bps)"
             };
 
@@ -282,24 +329,62 @@ public sealed partial class HistoryViewModel : ObservableObject
 
             await File.WriteAllLinesAsync(filePath, lines);
             
-            // Open the file location
-            var startInfo = new System.Diagnostics.ProcessStartInfo
+            ExportSuccess = true;
+            ExportStatusMessage = $"Exported to {fileName}";
+            
+            // Try to open the file location
+            try
             {
-                FileName = "explorer.exe",
-                Arguments = $"/select,\"{filePath}\"",
-                UseShellExecute = true
-            };
-            System.Diagnostics.Process.Start(startInfo);
+                var startInfo = new System.Diagnostics.ProcessStartInfo
+                {
+                    FileName = "explorer.exe",
+                    Arguments = $"/select,\"{filePath}\"",
+                    UseShellExecute = true
+                };
+                System.Diagnostics.Process.Start(startInfo);
+            }
+            catch
+            {
+                // Explorer failed but export succeeded - still show success
+            }
+
+            // Clear success message after delay
+            _ = ClearExportStatusAsync();
         }
-        catch
+        catch (UnauthorizedAccessException)
         {
-            // Silently fail - could add error notification later
+            ExportStatusMessage = "Permission denied. Cannot write to folder.";
         }
+        catch (IOException ex)
+        {
+            ExportStatusMessage = $"Write error: {ex.Message}";
+        }
+        catch (Exception ex)
+        {
+            ExportStatusMessage = $"Export failed: {ex.Message}";
+        }
+        finally
+        {
+            IsExporting = false;
+        }
+    }
+
+    private async Task ClearExportStatusAsync()
+    {
+        await Task.Delay(5000);
+        ExportStatusMessage = string.Empty;
+        ExportSuccess = false;
     }
 
     private async Task LoadDataAsync()
     {
+        // Cancel any pending load operation
+        _loadCts?.Cancel();
+        _loadCts = new CancellationTokenSource();
+        var ct = _loadCts.Token;
+
         IsLoading = true;
+        HasError = false;
 
         try
         {
@@ -307,11 +392,16 @@ public sealed partial class HistoryViewModel : ObservableObject
             var startDate = endDate.AddDays(-SelectedPeriod.Days);
             var previousPeriodStart = startDate.AddDays(-SelectedPeriod.Days);
 
-            // Load current period data
-            var usages = await _persistence.GetDailyUsageAsync(startDate, endDate);
+            // Load current and previous period data in parallel
+            var usagesTask = _persistence.GetDailyUsageAsync(startDate, endDate);
+            var previousUsagesTask = _persistence.GetDailyUsageAsync(previousPeriodStart, startDate.AddDays(-1));
             
-            // Load previous period for trend comparison
-            var previousUsages = await _persistence.GetDailyUsageAsync(previousPeriodStart, startDate.AddDays(-1));
+            await Task.WhenAll(usagesTask, previousUsagesTask);
+            
+            ct.ThrowIfCancellationRequested();
+            
+            var usages = await usagesTask;
+            var previousUsages = await previousUsagesTask;
 
             // Build daily items with trends
             DailyUsages.Clear();
@@ -386,6 +476,22 @@ public sealed partial class HistoryViewModel : ObservableObject
                 ResetSummary();
             }
         }
+        catch (OperationCanceledException)
+        {
+            // Load was cancelled, ignore
+        }
+        catch (SqliteException ex)
+        {
+            HasError = true;
+            ErrorMessage = $"Database error: {ex.Message}";
+            ResetSummary();
+        }
+        catch (Exception ex)
+        {
+            HasError = true;
+            ErrorMessage = $"Failed to load history: {ex.Message}";
+            ResetSummary();
+        }
         finally
         {
             IsLoading = false;
@@ -439,7 +545,16 @@ public sealed partial class HistoryViewModel : ObservableObject
 
     private async Task LoadHourlyDataAsync(DateOnly date)
     {
-        var hourlyData = await _persistence.GetHourlyUsageAsync(date);
+        // Cancel any pending hourly load
+        _hourlyCts?.Cancel();
+        _hourlyCts = new CancellationTokenSource();
+        var ct = _hourlyCts.Token;
+
+        try
+        {
+            var hourlyData = await _persistence.GetHourlyUsageAsync(date);
+            
+            ct.ThrowIfCancellationRequested();
         
         HourlyUsages.Clear();
         foreach (var hour in hourlyData.OrderBy(h => h.Hour))
@@ -454,13 +569,34 @@ public sealed partial class HistoryViewModel : ObservableObject
             });
         }
 
-        // Build hourly chart
-        if (HourlyUsages.Count > 0)
-        {
-            BuildHourlyChart(hourlyData.OrderBy(h => h.Hour).ToList());
-        }
+            // Build hourly chart
+            if (HourlyUsages.Count > 0)
+            {
+                BuildHourlyChart(hourlyData.OrderBy(h => h.Hour).ToList());
+            }
 
-        ShowHourlyPanel = true;
+            ShowHourlyPanel = true;
+        }
+        catch (OperationCanceledException)
+        {
+            // Cancelled, ignore
+        }
+        catch
+        {
+            // Failed to load hourly data - panel will show empty
+            ShowHourlyPanel = true;
+        }
+    }
+
+    public void Dispose()
+    {
+        if (_disposed) return;
+        _disposed = true;
+        
+        _loadCts?.Cancel();
+        _loadCts?.Dispose();
+        _hourlyCts?.Cancel();
+        _hourlyCts?.Dispose();
     }
 
     private void BuildHourlyChart(List<HourlyUsage> hourlyData)

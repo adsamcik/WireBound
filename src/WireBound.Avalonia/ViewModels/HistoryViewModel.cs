@@ -13,6 +13,17 @@ using Microsoft.Data.Sqlite;
 namespace WireBound.Avalonia.ViewModels;
 
 /// <summary>
+/// Columns that can be sorted in the daily usage table
+/// </summary>
+public enum SortColumn
+{
+    Date,
+    Download,
+    Upload,
+    Total
+}
+
+/// <summary>
 /// Time period options for history view
 /// </summary>
 public sealed class HistoryPeriodOption
@@ -20,6 +31,7 @@ public sealed class HistoryPeriodOption
     public required string Label { get; init; }
     public required int Days { get; init; }
     public required string Description { get; init; }
+    public bool IsCustom { get; init; }
 }
 
 /// <summary>
@@ -106,7 +118,8 @@ public sealed partial class HistoryViewModel : ObservableObject, IDisposable
         new() { Label = "7 Days", Days = 7, Description = "Last week" },
         new() { Label = "30 Days", Days = 30, Description = "Last month" },
         new() { Label = "90 Days", Days = 90, Description = "Last 3 months" },
-        new() { Label = "Year", Days = 365, Description = "Last 12 months" }
+        new() { Label = "Year", Days = 365, Description = "Last 12 months" },
+        new() { Label = "Custom", Days = 0, Description = "Custom range", IsCustom = true }
     ];
 
     [ObservableProperty]
@@ -161,6 +174,48 @@ public sealed partial class HistoryViewModel : ObservableObject, IDisposable
     // === Daily Data Table ===
     [ObservableProperty]
     private ObservableCollection<DailyUsageItem> _dailyUsages = [];
+
+    // === Sorting ===
+    [ObservableProperty]
+    private SortColumn _sortColumn = SortColumn.Date;
+
+    [ObservableProperty]
+    private bool _sortAscending;
+
+    // === Custom Date Range ===
+    [ObservableProperty]
+    private bool _isCustomDateRange;
+
+    [ObservableProperty]
+    private DateTimeOffset _customStartDate = DateTimeOffset.Now.AddDays(-30);
+
+    [ObservableProperty]
+    private DateTimeOffset _customEndDate = DateTimeOffset.Now;
+
+    // === Data Cap / Quota ===
+    [ObservableProperty]
+    private bool _hasDataCap;
+
+    [ObservableProperty]
+    private long _dataCapBytes = 100L * 1024 * 1024 * 1024; // 100 GB default
+
+    [ObservableProperty]
+    private double _dataCapUsedPercent;
+
+    [ObservableProperty]
+    private string _dataCapUsedFormatted = "0 B";
+
+    [ObservableProperty]
+    private string _dataCapTotalFormatted = "100 GB";
+
+    [ObservableProperty]
+    private string _dataCapRemainingFormatted = "100 GB";
+
+    [ObservableProperty]
+    private bool _dataCapWarning;
+
+    [ObservableProperty]
+    private bool _dataCapCritical;
 
     // === Hourly Drill-down ===
     [ObservableProperty]
@@ -259,7 +314,109 @@ public sealed partial class HistoryViewModel : ObservableObject, IDisposable
 
     partial void OnSelectedPeriodChanged(HistoryPeriodOption value)
     {
-        _ = LoadDataAsync();
+        IsCustomDateRange = value.IsCustom;
+        if (!value.IsCustom)
+        {
+            _ = LoadDataAsync();
+        }
+    }
+
+    partial void OnCustomStartDateChanged(DateTimeOffset value)
+    {
+        if (IsCustomDateRange) _ = LoadDataAsync();
+    }
+
+    partial void OnCustomEndDateChanged(DateTimeOffset value)
+    {
+        if (IsCustomDateRange) _ = LoadDataAsync();
+    }
+
+    [RelayCommand]
+    private void SortBy(string columnName)
+    {
+        var newColumn = columnName switch
+        {
+            "Date" => SortColumn.Date,
+            "Download" => SortColumn.Download,
+            "Upload" => SortColumn.Upload,
+            "Total" => SortColumn.Total,
+            _ => SortColumn.Date
+        };
+
+        if (SortColumn == newColumn)
+        {
+            SortAscending = !SortAscending;
+        }
+        else
+        {
+            SortColumn = newColumn;
+            SortAscending = false; // Default to descending for new column
+        }
+
+        ApplySorting();
+    }
+
+    private void ApplySorting()
+    {
+        var sorted = SortColumn switch
+        {
+            SortColumn.Date => SortAscending 
+                ? DailyUsages.OrderBy(x => x.Date).ToList()
+                : DailyUsages.OrderByDescending(x => x.Date).ToList(),
+            SortColumn.Download => SortAscending
+                ? DailyUsages.OrderBy(x => x.BytesReceived).ToList()
+                : DailyUsages.OrderByDescending(x => x.BytesReceived).ToList(),
+            SortColumn.Upload => SortAscending
+                ? DailyUsages.OrderBy(x => x.BytesSent).ToList()
+                : DailyUsages.OrderByDescending(x => x.BytesSent).ToList(),
+            SortColumn.Total => SortAscending
+                ? DailyUsages.OrderBy(x => x.TotalBytes).ToList()
+                : DailyUsages.OrderByDescending(x => x.TotalBytes).ToList(),
+            _ => DailyUsages.ToList()
+        };
+
+        DailyUsages.Clear();
+        foreach (var item in sorted)
+        {
+            DailyUsages.Add(item);
+        }
+    }
+
+    /// <summary>
+    /// Gets the sort indicator for a column header
+    /// </summary>
+    public string GetSortIndicator(SortColumn column) =>
+        SortColumn == column ? (SortAscending ? "↑" : "↓") : "";
+
+    [RelayCommand]
+    private void ToggleDataCap()
+    {
+        HasDataCap = !HasDataCap;
+    }
+
+    [RelayCommand]
+    private void SetDataCap(string capGb)
+    {
+        if (long.TryParse(capGb, out var gb))
+        {
+            DataCapBytes = gb * 1024L * 1024 * 1024;
+            DataCapTotalFormatted = ByteFormatter.FormatBytes(DataCapBytes);
+            UpdateDataCapStats();
+        }
+    }
+
+    private void UpdateDataCapStats()
+    {
+        if (!HasDataCap || DataCapBytes <= 0) return;
+
+        // Parse total usage from formatted string (we have the raw sum in LoadDataAsync)
+        // For now, recalculate from DailyUsages
+        var totalUsed = DailyUsages.Sum(d => d.TotalBytes);
+        DataCapUsedPercent = (double)totalUsed / DataCapBytes * 100;
+        DataCapUsedFormatted = ByteFormatter.FormatBytes(totalUsed);
+        DataCapRemainingFormatted = ByteFormatter.FormatBytes(Math.Max(0, DataCapBytes - totalUsed));
+        DataCapWarning = DataCapUsedPercent >= 80 && DataCapUsedPercent < 95;
+        DataCapCritical = DataCapUsedPercent >= 95;
     }
 
     [RelayCommand]
@@ -398,9 +555,23 @@ public sealed partial class HistoryViewModel : ObservableObject, IDisposable
 
         try
         {
-            var endDate = DateOnly.FromDateTime(DateTime.Today);
-            var startDate = endDate.AddDays(-SelectedPeriod.Days);
-            var previousPeriodStart = startDate.AddDays(-SelectedPeriod.Days);
+            DateOnly endDate, startDate, previousPeriodStart;
+
+            if (IsCustomDateRange)
+            {
+                // Custom date range
+                startDate = DateOnly.FromDateTime(CustomStartDate.DateTime);
+                endDate = DateOnly.FromDateTime(CustomEndDate.DateTime);
+                var daysDiff = endDate.DayNumber - startDate.DayNumber;
+                previousPeriodStart = startDate.AddDays(-daysDiff);
+            }
+            else
+            {
+                // Preset period
+                endDate = DateOnly.FromDateTime(DateTime.Today);
+                startDate = endDate.AddDays(-SelectedPeriod.Days);
+                previousPeriodStart = startDate.AddDays(-SelectedPeriod.Days);
+            }
 
             // Load current and previous period data in parallel
             var usagesTask = _persistence.GetDailyUsageAsync(startDate, endDate);
@@ -480,6 +651,12 @@ public sealed partial class HistoryViewModel : ObservableObject, IDisposable
 
                 // Build chart data
                 BuildUsageChart(usages.OrderBy(u => u.Date).ToList());
+
+                // Update data cap statistics
+                UpdateDataCapStats();
+
+                // Apply current sort order
+                ApplySorting();
             }
             else
             {

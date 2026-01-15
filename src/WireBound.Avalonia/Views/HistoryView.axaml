@@ -16,7 +16,7 @@
                 <TextBlock Text="Network usage over time" Classes="Subtitle" />
             </StackPanel>
             
-            <!-- Controls: Period Selector + Export -->
+            <!-- Controls: Period Selector + Custom Range + Export -->
             <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="12" VerticalAlignment="Center">
                 
                 <!-- Period Selector -->
@@ -34,6 +34,32 @@
                                 </DataTemplate>
                             </ComboBox.ItemTemplate>
                         </ComboBox>
+                    </StackPanel>
+                </Border>
+
+                <!-- Custom Date Range Picker (visible when Custom is selected) -->
+                <Border Classes="CompactCard" Padding="14,10"
+                        IsVisible="{Binding IsCustomDateRange}">
+                    <StackPanel Orientation="Horizontal" Spacing="8">
+                        <TextBlock Text="From" Classes="Caption" VerticalAlignment="Center" />
+                        <CalendarDatePicker SelectedDate="{Binding CustomStartDate}"
+                                            DisplayDateEnd="{Binding CustomEndDate.DateTime}"
+                                            Width="130" />
+                        <TextBlock Text="To" Classes="Caption" VerticalAlignment="Center" />
+                        <CalendarDatePicker SelectedDate="{Binding CustomEndDate}"
+                                            DisplayDateStart="{Binding CustomStartDate.DateTime}"
+                                            Width="130" />
+                    </StackPanel>
+                </Border>
+
+                <!-- Data Cap Toggle -->
+                <Border Classes="CompactCard" Padding="10,8">
+                    <StackPanel Orientation="Horizontal" Spacing="8">
+                        <TextBlock Text="📊" FontSize="14" VerticalAlignment="Center" />
+                        <TextBlock Text="Cap" Classes="Caption" VerticalAlignment="Center" />
+                        <ToggleSwitch IsChecked="{Binding HasDataCap}" 
+                                      OnContent="" OffContent=""
+                                      Padding="0" Margin="0" />
                     </StackPanel>
                 </Border>
                 
@@ -252,6 +278,97 @@
             </WrapPanel>
         </Border>
 
+        <!-- DATA CAP VISUALIZATION (only shown when enabled) -->
+        <Border Grid.Row="1" Classes="Card" Padding="20" Margin="0,12,0,0"
+                IsVisible="{Binding HasDataCap}">
+            <Grid ColumnDefinitions="Auto, *, Auto" RowDefinitions="Auto, Auto">
+                <!-- Icon and Title -->
+                <Border Background="#15FFB627" CornerRadius="8" Width="44" Height="44" 
+                        Grid.RowSpan="2" VerticalAlignment="Center">
+                    <TextBlock Text="📊" FontSize="22"
+                               HorizontalAlignment="Center" VerticalAlignment="Center" />
+                </Border>
+                
+                <!-- Progress Section -->
+                <StackPanel Grid.Column="1" Margin="16,0" Spacing="8">
+                    <Grid ColumnDefinitions="*, Auto">
+                        <StackPanel Orientation="Horizontal" Spacing="8">
+                            <TextBlock Text="Data Cap" FontSize="14" FontWeight="Bold" />
+                            <TextBlock FontSize="12" VerticalAlignment="Center"
+                                       Foreground="{DynamicResource WarningBrush}"
+                                       IsVisible="{Binding DataCapWarning}">
+                                ⚠️ 80% used
+                            </TextBlock>
+                            <TextBlock FontSize="12" VerticalAlignment="Center"
+                                       Foreground="{DynamicResource ErrorBrush}"
+                                       IsVisible="{Binding DataCapCritical}">
+                                🚨 Almost exceeded!
+                            </TextBlock>
+                        </StackPanel>
+                        <TextBlock Grid.Column="1" FontSize="12"
+                                   Foreground="{DynamicResource SecondaryTextBrush}">
+                            <Run Text="{Binding DataCapUsedFormatted}" />
+                            <Run Text=" of " />
+                            <Run Text="{Binding DataCapTotalFormatted}" />
+                        </TextBlock>
+                    </Grid>
+                    
+                    <!-- Progress Bar -->
+                    <Grid Height="12">
+                        <!-- Background track -->
+                        <Border Background="{DynamicResource BorderSubtleBrush}" 
+                                CornerRadius="6" />
+                        <!-- Filled progress - use a nested grid with star sizing -->
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="{Binding DataCapUsedPercent, Converter={x:Static conv:PercentToGridLengthConverter.Instance}}" />
+                                <ColumnDefinition Width="{Binding DataCapUsedPercent, Converter={x:Static conv:PercentToRemainingGridLengthConverter.Instance}}" />
+                            </Grid.ColumnDefinitions>
+                            <Border CornerRadius="6">
+                                <Border.Background>
+                                    <LinearGradientBrush StartPoint="0%,50%" EndPoint="100%,50%">
+                                        <GradientStop Color="#00E5FF" Offset="0" />
+                                        <GradientStop Color="#00C9A7" Offset="1" />
+                                    </LinearGradientBrush>
+                                </Border.Background>
+                            </Border>
+                        </Grid>
+                        <!-- Warning zone marker at 80% using proportional grid -->
+                        <Grid ColumnDefinitions="4*,Auto,*">
+                            <Border Grid.Column="1" Width="2" Height="12" 
+                                    Background="{DynamicResource WarningBrush}"
+                                    Opacity="0.5" />
+                        </Grid>
+                    </Grid>
+                </StackPanel>
+                
+                <!-- Remaining -->
+                <StackPanel Grid.Column="2" HorizontalAlignment="Right" VerticalAlignment="Center">
+                    <TextBlock Text="Remaining" Classes="Caption" HorizontalAlignment="Right" />
+                    <TextBlock Text="{Binding DataCapRemainingFormatted}"
+                               FontSize="16" FontWeight="Bold"
+                               Foreground="{DynamicResource SuccessBrush}"
+                               HorizontalAlignment="Right" />
+                </StackPanel>
+                
+                <!-- Cap Size Selector -->
+                <StackPanel Grid.Row="1" Grid.Column="1" Grid.ColumnSpan="2"
+                            Orientation="Horizontal" Spacing="8" Margin="16,12,0,0">
+                    <TextBlock Text="Set cap:" Classes="Caption" VerticalAlignment="Center" />
+                    <Button Command="{Binding SetDataCapCommand}" CommandParameter="50" 
+                            Content="50 GB" Padding="10,6" FontSize="11" />
+                    <Button Command="{Binding SetDataCapCommand}" CommandParameter="100"
+                            Content="100 GB" Padding="10,6" FontSize="11" />
+                    <Button Command="{Binding SetDataCapCommand}" CommandParameter="250"
+                            Content="250 GB" Padding="10,6" FontSize="11" />
+                    <Button Command="{Binding SetDataCapCommand}" CommandParameter="500"
+                            Content="500 GB" Padding="10,6" FontSize="11" />
+                    <Button Command="{Binding SetDataCapCommand}" CommandParameter="1000"
+                            Content="1 TB" Padding="10,6" FontSize="11" />
+                </StackPanel>
+            </Grid>
+        </Border>
+
         <!-- USAGE CHART -->
         <Border Grid.Row="2" Classes="ElevatedCard" Margin="0,20,0,0" Height="220"
                 IsVisible="{Binding HasData}">
@@ -325,17 +442,81 @@
                         </StackPanel>
                     </StackPanel>
                     
-                    <!-- Table Header -->
+                    <!-- Table Header with Sortable Columns -->
                     <Border Grid.Row="1"
                             Background="{DynamicResource BorderSubtleBrush}"
                             CornerRadius="8"
                             Padding="16,12"
                             Margin="0,16,0,0">
                         <Grid ColumnDefinitions="1.2*, *, *, *, 0.5*, 0.3*">
-                            <TextBlock Text="DATE" Classes="MetricLabel" FontWeight="Bold" />
-                            <TextBlock Grid.Column="1" Text="DOWNLOADED" Classes="MetricLabel" FontWeight="Bold" />
-                            <TextBlock Grid.Column="2" Text="UPLOADED" Classes="MetricLabel" FontWeight="Bold" />
-                            <TextBlock Grid.Column="3" Text="TOTAL" Classes="MetricLabel" FontWeight="Bold" />
+                            <!-- Date Column - Sortable -->
+                            <Button Command="{Binding SortByCommand}" CommandParameter="Date"
+                                    Background="Transparent" Padding="0" Cursor="Hand"
+                                    HorizontalAlignment="Left">
+                                <StackPanel Orientation="Horizontal" Spacing="4">
+                                    <TextBlock Text="DATE" Classes="MetricLabel" FontWeight="Bold" />
+                                    <TextBlock FontSize="10" Foreground="{DynamicResource PrimaryBrush}" VerticalAlignment="Center">
+                                        <TextBlock.Text>
+                                            <MultiBinding Converter="{x:Static conv:SortDirectionConverter.Instance}" ConverterParameter="Date">
+                                                <Binding Path="SortColumn" />
+                                                <Binding Path="SortAscending" />
+                                            </MultiBinding>
+                                        </TextBlock.Text>
+                                    </TextBlock>
+                                </StackPanel>
+                            </Button>
+                            
+                            <!-- Downloaded Column - Sortable -->
+                            <Button Grid.Column="1" Command="{Binding SortByCommand}" CommandParameter="Download"
+                                    Background="Transparent" Padding="0" Cursor="Hand"
+                                    HorizontalAlignment="Left">
+                                <StackPanel Orientation="Horizontal" Spacing="4">
+                                    <TextBlock Text="DOWNLOADED" Classes="MetricLabel" FontWeight="Bold" />
+                                    <TextBlock FontSize="10" Foreground="{DynamicResource PrimaryBrush}" VerticalAlignment="Center">
+                                        <TextBlock.Text>
+                                            <MultiBinding Converter="{x:Static conv:SortDirectionConverter.Instance}" ConverterParameter="Download">
+                                                <Binding Path="SortColumn" />
+                                                <Binding Path="SortAscending" />
+                                            </MultiBinding>
+                                        </TextBlock.Text>
+                                    </TextBlock>
+                                </StackPanel>
+                            </Button>
+                            
+                            <!-- Uploaded Column - Sortable -->
+                            <Button Grid.Column="2" Command="{Binding SortByCommand}" CommandParameter="Upload"
+                                    Background="Transparent" Padding="0" Cursor="Hand"
+                                    HorizontalAlignment="Left">
+                                <StackPanel Orientation="Horizontal" Spacing="4">
+                                    <TextBlock Text="UPLOADED" Classes="MetricLabel" FontWeight="Bold" />
+                                    <TextBlock FontSize="10" Foreground="{DynamicResource PrimaryBrush}" VerticalAlignment="Center">
+                                        <TextBlock.Text>
+                                            <MultiBinding Converter="{x:Static conv:SortDirectionConverter.Instance}" ConverterParameter="Upload">
+                                                <Binding Path="SortColumn" />
+                                                <Binding Path="SortAscending" />
+                                            </MultiBinding>
+                                        </TextBlock.Text>
+                                    </TextBlock>
+                                </StackPanel>
+                            </Button>
+                            
+                            <!-- Total Column - Sortable -->
+                            <Button Grid.Column="3" Command="{Binding SortByCommand}" CommandParameter="Total"
+                                    Background="Transparent" Padding="0" Cursor="Hand"
+                                    HorizontalAlignment="Left">
+                                <StackPanel Orientation="Horizontal" Spacing="4">
+                                    <TextBlock Text="TOTAL" Classes="MetricLabel" FontWeight="Bold" />
+                                    <TextBlock FontSize="10" Foreground="{DynamicResource PrimaryBrush}" VerticalAlignment="Center">
+                                        <TextBlock.Text>
+                                            <MultiBinding Converter="{x:Static conv:SortDirectionConverter.Instance}" ConverterParameter="Total">
+                                                <Binding Path="SortColumn" />
+                                                <Binding Path="SortAscending" />
+                                            </MultiBinding>
+                                        </TextBlock.Text>
+                                    </TextBlock>
+                                </StackPanel>
+                            </Button>
+                            
                             <TextBlock Grid.Column="4" Text="TREND" Classes="MetricLabel" FontWeight="Bold" HorizontalAlignment="Center" />
                             <!-- Empty column for chevron -->
                         </Grid>

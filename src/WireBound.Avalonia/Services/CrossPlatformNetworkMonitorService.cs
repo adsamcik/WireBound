@@ -473,6 +473,7 @@ public sealed class CrossPlatformNetworkMonitorService : INetworkMonitorService
             
             // Track active VPN adapters
             var activeVpnAdapters = new List<string>();
+            var connectedVpnAdapters = new List<string>();
             bool hasSelectedAdapter = !string.IsNullOrEmpty(_selectedAdapterId);
 
             foreach (var nic in NetworkInterface.GetAllNetworkInterfaces())
@@ -482,6 +483,12 @@ public sealed class CrossPlatformNetworkMonitorService : INetworkMonitorService
 
                 if (nic.OperationalStatus != OperationalStatus.Up)
                     continue;
+                
+                // Track connected VPN adapters (regardless of traffic)
+                if (state.Adapter.IsKnownVpn)
+                {
+                    connectedVpnAdapters.Add(state.Adapter.DisplayName);
+                }
 
                 try
                 {
@@ -603,6 +610,7 @@ public sealed class CrossPlatformNetworkMonitorService : INetworkMonitorService
             // Determine if we have VPN traffic to analyze
             bool hasVpnTraffic = (vpnDownloadSpeed > 0 || vpnUploadSpeed > 0) && 
                                  (physicalDownloadSpeed > 0 || physicalUploadSpeed > 0);
+            bool isVpnConnected = connectedVpnAdapters.Count > 0;
 
             _currentStats = new NetworkStats
             {
@@ -614,6 +622,7 @@ public sealed class CrossPlatformNetworkMonitorService : INetworkMonitorService
                 AdapterId = _selectedAdapterId,
                 
                 // VPN analysis data
+                IsVpnConnected = isVpnConnected,
                 HasVpnTraffic = hasVpnTraffic,
                 VpnDownloadSpeedBps = vpnDownloadSpeed,
                 VpnUploadSpeedBps = vpnUploadSpeed,
@@ -621,6 +630,7 @@ public sealed class CrossPlatformNetworkMonitorService : INetworkMonitorService
                 PhysicalUploadSpeedBps = physicalUploadSpeed,
                 VpnSessionBytesReceived = vpnSessionReceived,
                 VpnSessionBytesSent = vpnSessionSent,
+                ConnectedVpnAdapters = connectedVpnAdapters,
                 ActiveVpnAdapters = activeVpnAdapters
             };
 

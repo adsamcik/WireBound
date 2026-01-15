@@ -47,6 +47,11 @@ public class NetworkStats
     // === VPN Traffic Analysis ===
     
     /// <summary>
+    /// Whether a VPN adapter is connected (regardless of current traffic)
+    /// </summary>
+    public bool IsVpnConnected { get; set; }
+    
+    /// <summary>
     /// Whether VPN traffic analysis is active (VPN adapters detected with traffic)
     /// </summary>
     public bool HasVpnTraffic { get; set; }
@@ -113,7 +118,12 @@ public class NetworkStats
     public long VpnSessionBytesSent { get; set; }
     
     /// <summary>
-    /// Names of active VPN adapters for display
+    /// Names of connected VPN adapters (regardless of current traffic)
+    /// </summary>
+    public List<string> ConnectedVpnAdapters { get; set; } = [];
+    
+    /// <summary>
+    /// Names of VPN adapters with active traffic
     /// </summary>
     public List<string> ActiveVpnAdapters { get; set; } = [];
 

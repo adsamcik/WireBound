@@ -105,18 +105,13 @@ public sealed partial class DashboardViewModel : ObservableObject, IDisposable
     // === VPN Traffic Analysis Properties ===
     
     /// <summary>
-    /// Tracks when VPN was last detected to prevent flickering
+    /// Whether a VPN adapter is connected (used for panel visibility)
     /// </summary>
-    private DateTime _lastVpnDetectedTime = DateTime.MinValue;
+    [ObservableProperty]
+    private bool _isVpnConnected;
     
     /// <summary>
-    /// How long to keep the VPN panel visible after VPN traffic stops (in seconds)
-    /// </summary>
-    private const int VpnPanelStickyDurationSeconds = 10;
-    
-    /// <summary>
-    /// Whether VPN traffic analysis data is available to display.
-    /// Uses sticky logic to prevent UI flickering.
+    /// Whether there is active VPN traffic (used for showing traffic data)
     /// </summary>
     [ObservableProperty]
     private bool _hasVpnTraffic;
@@ -285,13 +280,23 @@ public sealed partial class DashboardViewModel : ObservableObject, IDisposable
         SessionDownload = ByteFormatter.FormatBytes(stats.SessionBytesReceived);
         SessionUpload = ByteFormatter.FormatBytes(stats.SessionBytesSent);
         
-        // Update VPN traffic analysis properties with sticky visibility logic
-        // to prevent the panel from flickering on/off rapidly
+        // Update VPN connection and traffic status
+        // Panel stays visible as long as VPN is connected
+        IsVpnConnected = stats.IsVpnConnected;
+        HasVpnTraffic = stats.HasVpnTraffic;
+        
+        // Update VPN display data - show connected VPN names even without traffic
+        if (stats.IsVpnConnected)
+        {
+            // Show connected adapters, or active ones if there's traffic
+            ActiveVpnNames = stats.ActiveVpnAdapters.Count > 0 
+                ? string.Join(", ", stats.ActiveVpnAdapters)
+                : string.Join(", ", stats.ConnectedVpnAdapters);
+        }
+        
+        // Update traffic data when there's active VPN traffic
         if (stats.HasVpnTraffic)
         {
-            _lastVpnDetectedTime = now;
-            HasVpnTraffic = true;
-            
             VpnDownloadSpeed = ByteFormatter.FormatSpeed(stats.VpnDownloadSpeedBps);
             VpnUploadSpeed = ByteFormatter.FormatSpeed(stats.VpnUploadSpeedBps);
             PhysicalDownloadSpeed = ByteFormatter.FormatSpeed(stats.PhysicalDownloadSpeedBps);
@@ -300,17 +305,6 @@ public sealed partial class DashboardViewModel : ObservableObject, IDisposable
             VpnUploadOverhead = ByteFormatter.FormatSpeed(stats.VpnUploadOverheadBps);
             VpnDownloadOverheadPercent = $"+{stats.VpnDownloadOverheadPercent:F1}%";
             VpnUploadOverheadPercent = $"+{stats.VpnUploadOverheadPercent:F1}%";
-            ActiveVpnNames = string.Join(", ", stats.ActiveVpnAdapters);
-        }
-        else
-        {
-            // Keep panel visible for a sticky duration to prevent flicker
-            var timeSinceLastVpn = (now - _lastVpnDetectedTime).TotalSeconds;
-            if (HasVpnTraffic && timeSinceLastVpn > VpnPanelStickyDurationSeconds)
-            {
-                HasVpnTraffic = false;
-            }
-            // else: keep HasVpnTraffic at its current value (sticky)
         }
 
         // Add to buffer

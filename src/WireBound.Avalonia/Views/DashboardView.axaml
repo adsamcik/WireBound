@@ -218,12 +218,11 @@
                 </Grid>
             </Border>
             
-            <!-- VPN TRAFFIC ANALYSIS PANEL (shown only when VPN traffic detected) -->
-            <!-- Uses sticky visibility logic in ViewModel to prevent flickering -->
+            <!-- VPN TRAFFIC ANALYSIS PANEL (shown when VPN is connected) -->
             <Border Grid.Row="2" Grid.ColumnSpan="2" 
                     Classes="Card" 
                     Margin="0,20,0,0"
-                    IsVisible="{Binding HasVpnTraffic}">
+                    IsVisible="{Binding IsVpnConnected}">
                 <Grid RowDefinitions="Auto, Auto">
                     <!-- Header -->
                     <StackPanel Orientation="Horizontal" Spacing="10" Margin="0,0,0,16">

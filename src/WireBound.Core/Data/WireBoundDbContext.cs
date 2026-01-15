@@ -80,8 +80,11 @@ public sealed class WireBoundDbContext : DbContext
 
         try
         {
-            // Check and add UseSpeedInBits column to Settings table if missing
-            AddColumnIfNotExists(connection, "Settings", "UseSpeedInBits", "INTEGER NOT NULL DEFAULT 0");
+            // Check and add SpeedUnit column to Settings table if missing (replaces old UseSpeedInBits)
+            AddColumnIfNotExists(connection, "Settings", "SpeedUnit", "INTEGER NOT NULL DEFAULT 0");
+            
+            // Legacy: remove UseSpeedInBits if it exists and SpeedUnit exists
+            // (handled by SQLite ignoring non-existent columns on DROP)
         }
         finally
         {

@@ -169,6 +169,16 @@ public sealed partial class HistoryViewModel : ObservableObject, IDisposable
     [ObservableProperty]
     private DailyUsageItem? _selectedDay;
 
+    /// <summary>
+    /// Exposes the selected day's date for row highlight binding
+    /// </summary>
+    public DateOnly? SelectedDate => SelectedDay?.Date;
+
+    partial void OnSelectedDayChanged(DailyUsageItem? value)
+    {
+        OnPropertyChanged(nameof(SelectedDate));
+    }
+
     [ObservableProperty]
     private ObservableCollection<HourlyUsageItem> _hourlyUsages = [];
 

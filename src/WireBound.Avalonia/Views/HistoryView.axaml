@@ -1,6 +1,7 @@
 <UserControl xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:vm="using:WireBound.Avalonia.ViewModels"
+             xmlns:conv="using:WireBound.Avalonia.Converters"
              xmlns:lvc="using:LiveChartsCore.SkiaSharpView.Avalonia"
              x:Class="WireBound.Avalonia.Views.HistoryView"
              x:DataType="vm:HistoryViewModel"
@@ -360,14 +361,19 @@
                                         <Border CornerRadius="8"
                                                 Padding="16,14"
                                                 Margin="0,2"
-                                                BorderThickness="2"
-                                                BorderBrush="Transparent">
-                                            <Border.Styles>
-                                                <!-- Selected row highlight style -->
-                                                <Style Selector="Border">
-                                                    <Setter Property="Background" Value="Transparent" />
-                                                </Style>
-                                            </Border.Styles>
+                                                BorderThickness="2">
+                                            <Border.BorderBrush>
+                                                <MultiBinding Converter="{x:Static conv:SelectedRowBorderConverter.Instance}">
+                                                    <Binding Path="Date" />
+                                                    <Binding Path="$parent[ItemsControl].((vm:HistoryViewModel)DataContext).SelectedDate" />
+                                                </MultiBinding>
+                                            </Border.BorderBrush>
+                                            <Border.Background>
+                                                <MultiBinding Converter="{x:Static conv:SelectedRowBackgroundConverter.Instance}">
+                                                    <Binding Path="Date" />
+                                                    <Binding Path="$parent[ItemsControl].((vm:HistoryViewModel)DataContext).SelectedDate" />
+                                                </MultiBinding>
+                                            </Border.Background>
                                             <Grid ColumnDefinitions="1.2*, *, *, *, 0.5*, 0.3*">
                                                 <TextBlock Text="{Binding DateFormatted}"
                                                            FontSize="14" FontWeight="Bold" />
@@ -394,7 +400,24 @@
                                                            Foreground="{DynamicResource SecondaryTextBrush}"
                                                            HorizontalAlignment="Right"
                                                            VerticalAlignment="Center"
-                                                           Opacity="0.5" />
+                                                           RenderTransformOrigin="0.5,0.5">
+                                                    <TextBlock.Opacity>
+                                                        <MultiBinding Converter="{x:Static conv:SelectedRowChevronOpacityConverter.Instance}">
+                                                            <Binding Path="Date" />
+                                                            <Binding Path="$parent[ItemsControl].((vm:HistoryViewModel)DataContext).SelectedDate" />
+                                                        </MultiBinding>
+                                                    </TextBlock.Opacity>
+                                                    <TextBlock.RenderTransform>
+                                                        <RotateTransform>
+                                                            <RotateTransform.Angle>
+                                                                <MultiBinding Converter="{x:Static conv:SelectedRowChevronRotationConverter.Instance}">
+                                                                    <Binding Path="Date" />
+                                                                    <Binding Path="$parent[ItemsControl].((vm:HistoryViewModel)DataContext).SelectedDate" />
+                                                                </MultiBinding>
+                                                            </RotateTransform.Angle>
+                                                        </RotateTransform>
+                                                    </TextBlock.RenderTransform>
+                                                </TextBlock>
                                             </Grid>
                                         </Border>
                                     </Button>

@@ -61,9 +61,9 @@
             </Border>
         </Grid>
 
-        <!-- MAIN CONTENT GRID -->
-        <Grid Grid.Row="1" 
-              RowDefinitions="Auto, Auto, Auto, Auto, Auto"
+        <!-- SCROLLABLE CONTENT -->
+        <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto">
+        <Grid RowDefinitions="Auto, Auto, Auto, Auto, Auto"
               ColumnDefinitions="*, *">
 
             <!-- DOWNLOAD SPEED CARD -->
@@ -440,5 +440,6 @@
                 </StackPanel>
             </Border>
         </Grid>
+        </ScrollViewer>
     </Grid>
 </UserControl>

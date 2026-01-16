@@ -69,6 +69,7 @@ public partial class App : Application
         // Uses System.Net.NetworkInformation which works on Windows and Linux
         services.AddSingleton<INetworkMonitorService, CrossPlatformNetworkMonitorService>();
         services.AddSingleton<IDataPersistenceService, DataPersistenceService>();
+        services.AddSingleton<IWiFiInfoService, WiFiInfoService>();
 
         // Register app-specific services
         services.AddSingleton<INavigationService, NavigationService>();

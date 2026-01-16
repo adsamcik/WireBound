@@ -41,6 +41,7 @@
 
     <!-- Charts (Avalonia version) -->
     <PackageReference Include="LiveChartsCore.SkiaSharpView.Avalonia" Version="2.0.0-rc6.1" />
+    <PackageReference Include="ManagedNativeWifi" Version="3.0.2" />
 
     <!-- Hosting &amp; DI -->
     <PackageReference Include="Microsoft.Extensions.Hosting" Version="10.0.1" />

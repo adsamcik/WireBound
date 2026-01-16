@@ -36,6 +36,16 @@ public class NetworkAdapter
     public bool IsKnownVpn { get; set; }
     
     /// <summary>
+    /// True if this is a USB tethering adapter (phone connected via USB)
+    /// </summary>
+    public bool IsUsbTethering { get; set; }
+    
+    /// <summary>
+    /// True if this is a Bluetooth tethering adapter
+    /// </summary>
+    public bool IsBluetoothTethering { get; set; }
+    
+    /// <summary>
     /// Category for display grouping (e.g., "VPN", "Virtual Machine", "Physical")
     /// </summary>
     public string Category { get; set; } = "Physical";

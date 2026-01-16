@@ -314,6 +314,17 @@ public sealed class CrossPlatformNetworkMonitorService : INetworkMonitorService
         if (vpnProvider != null)
             return $"{name} ({vpnProvider})";
         
+        // Check for tethering
+        var (isUsb, isBluetooth) = DetectTethering(nic);
+        if (isUsb)
+        {
+            if (description.Contains("apple"))
+                return $"{name} (iPhone USB)";
+            return $"{name} (USB Tethering)";
+        }
+        if (isBluetooth)
+            return $"{name} (Bluetooth)";
+        
         // Check for VM type
         if (description.Contains("hyper-v"))
             return $"{name} (Hyper-V)";
@@ -341,6 +352,7 @@ public sealed class CrossPlatformNetworkMonitorService : INetworkMonitorService
     private static NetworkAdapter MapAdapter(NetworkInterface nic, bool isVirtual)
     {
         var vpnProvider = DetectVpnProvider(nic);
+        var (isUsbTethering, isBluetoothTethering) = DetectTethering(nic);
         
         return new NetworkAdapter
         {
@@ -353,8 +365,38 @@ public sealed class CrossPlatformNetworkMonitorService : INetworkMonitorService
             IsActive = nic.OperationalStatus == OperationalStatus.Up,
             IsVirtual = isVirtual,
             IsKnownVpn = vpnProvider != null,
+            IsUsbTethering = isUsbTethering,
+            IsBluetoothTethering = isBluetoothTethering,
             Category = GetAdapterCategory(nic)
         };
+    }
+    
+    /// <summary>
+    /// Detects if the adapter is a USB or Bluetooth tethering connection
+    /// </summary>
+    private static (bool IsUsb, bool IsBluetooth) DetectTethering(NetworkInterface nic)
+    {
+        var description = nic.Description.ToLowerInvariant();
+        var name = nic.Name.ToLowerInvariant();
+        
+        // USB Tethering detection
+        // Android: "Remote NDIS based Internet Sharing Device" or "RNDIS"
+        // iPhone: "Apple Mobile Device Ethernet"
+        bool isUsb = description.Contains("rndis") ||
+                     description.Contains("remote ndis") ||
+                     description.Contains("apple mobile device ethernet") ||
+                     description.Contains("android usb ethernet") ||
+                     name.Contains("usb") && (name.Contains("eth") || name.Contains("net"));
+        
+        // Bluetooth tethering detection
+        // Look for Bluetooth PAN (Personal Area Network) adapters
+        bool isBluetooth = description.Contains("bluetooth") && 
+                           (description.Contains("network") || 
+                            description.Contains("pan") ||
+                            nic.NetworkInterfaceType == NetworkInterfaceType.Ethernet) ||
+                           name.Contains("bnep"); // Linux Bluetooth network interface
+        
+        return (isUsb, isBluetooth);
     }
 
     private static NetworkAdapterType MapAdapterType(NetworkInterfaceType type) => type switch

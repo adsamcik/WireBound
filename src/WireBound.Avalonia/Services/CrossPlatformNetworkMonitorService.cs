@@ -438,6 +438,22 @@ public sealed class CrossPlatformNetworkMonitorService : INetworkMonitorService
         }
     }
 
+    public IReadOnlyDictionary<string, NetworkStats> GetAllAdapterStats()
+    {
+        lock (_lock)
+        {
+            var result = new Dictionary<string, NetworkStats>();
+            foreach (var kvp in _adapterStates)
+            {
+                if (kvp.Value.Adapter.IsActive)
+                {
+                    result[kvp.Key] = CreateStats(kvp.Value);
+                }
+            }
+            return result;
+        }
+    }
+
     public void SetAdapter(string adapterId)
     {
         lock (_lock)

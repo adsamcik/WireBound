@@ -63,7 +63,7 @@
 
         <!-- MAIN CONTENT GRID -->
         <Grid Grid.Row="1" 
-              RowDefinitions="Auto, Auto, Auto, *"
+              RowDefinitions="Auto, Auto, Auto, Auto, Auto"
               ColumnDefinitions="*, *">
 
             <!-- DOWNLOAD SPEED CARD -->
@@ -313,6 +313,131 @@
                                 Command="{Binding NavigateToHistoryCommand}" />
                     </StackPanel>
                 </Grid>
+            </Border>
+            
+            <!-- ADAPTER DASHBOARD -->
+            <Border Grid.Row="4" Grid.ColumnSpan="2" 
+                    Classes="Card" 
+                    VerticalAlignment="Top" 
+                    Margin="0,20,0,0"
+                    IsVisible="{Binding ShowAdapterDashboard}">
+                <StackPanel Spacing="16">
+                    <!-- Section Header -->
+                    <Grid ColumnDefinitions="*, Auto">
+                        <StackPanel Orientation="Horizontal" Spacing="10">
+                            <TextBlock Text="🔌" FontSize="18" VerticalAlignment="Center" />
+                            <TextBlock Text="Network Adapters" 
+                                       FontSize="16" FontWeight="Bold" 
+                                       VerticalAlignment="Center" />
+                            <TextBlock Text="{Binding AdapterDisplayItems.Count, StringFormat='({0})'}"
+                                       Classes="Caption"
+                                       VerticalAlignment="Center" />
+                        </StackPanel>
+                        <ToggleButton Grid.Column="1"
+                                      IsChecked="{Binding ShowAdapterDashboard}"
+                                      ToolTip.Tip="Toggle adapter dashboard"
+                                      Padding="8,4">
+                            <TextBlock Text="▼" FontSize="10" />
+                        </ToggleButton>
+                    </Grid>
+                    
+                    <!-- Adapter List -->
+                    <ItemsControl ItemsSource="{Binding AdapterDisplayItems}">
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate>
+                                <Border Background="{DynamicResource SurfaceElevatedColor}"
+                                        CornerRadius="8"
+                                        Padding="12,10"
+                                        Margin="0,0,0,8">
+                                    <Grid ColumnDefinitions="Auto, *, Auto, Auto">
+                                        <!-- Type Icon -->
+                                        <Border Background="{DynamicResource PrimaryBrush}"
+                                                CornerRadius="6"
+                                                Width="32" Height="32"
+                                                Opacity="0.15"
+                                                VerticalAlignment="Center" />
+                                        <TextBlock Text="{Binding TypeIcon}" 
+                                                   FontSize="16"
+                                                   HorizontalAlignment="Center"
+                                                   VerticalAlignment="Center" />
+                                        
+                                        <!-- Name and Status -->
+                                        <StackPanel Grid.Column="1" Margin="12,0,0,0" VerticalAlignment="Center">
+                                            <StackPanel Orientation="Horizontal" Spacing="8">
+                                                <TextBlock Text="{Binding DisplayName}" 
+                                                           FontSize="14" FontWeight="SemiBold"
+                                                           Foreground="{DynamicResource PrimaryTextBrush}" />
+                                                <!-- Badge -->
+                                                <Border IsVisible="{Binding Badge, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"
+                                                        Background="{Binding BadgeColor}"
+                                                        CornerRadius="4"
+                                                        Padding="6,2"
+                                                        Opacity="0.9">
+                                                    <TextBlock Text="{Binding Badge}" 
+                                                               FontSize="10" FontWeight="Bold"
+                                                               Foreground="White" />
+                                                </Border>
+                                            </StackPanel>
+                                            <TextBlock Text="{Binding StatusLine}" 
+                                                       Classes="Caption"
+                                                       Opacity="0.7" />
+                                        </StackPanel>
+                                        
+                                        <!-- Traffic Stats -->
+                                        <StackPanel Grid.Column="2" 
+                                                    Orientation="Horizontal" 
+                                                    Spacing="20"
+                                                    Margin="20,0"
+                                                    VerticalAlignment="Center">
+                                            <StackPanel Orientation="Horizontal" Spacing="4">
+                                                <TextBlock Text="↓" FontSize="14" 
+                                                           Foreground="{DynamicResource DownloadBrush}"
+                                                           VerticalAlignment="Center" />
+                                                <TextBlock Text="{Binding DownloadSpeed}" 
+                                                           FontSize="13" FontWeight="SemiBold"
+                                                           Foreground="{DynamicResource DownloadBrush}"
+                                                           MinWidth="70"
+                                                           VerticalAlignment="Center" />
+                                            </StackPanel>
+                                            <StackPanel Orientation="Horizontal" Spacing="4">
+                                                <TextBlock Text="↑" FontSize="14" 
+                                                           Foreground="{DynamicResource UploadBrush}"
+                                                           VerticalAlignment="Center" />
+                                                <TextBlock Text="{Binding UploadSpeed}" 
+                                                           FontSize="13" FontWeight="SemiBold"
+                                                           Foreground="{DynamicResource UploadBrush}"
+                                                           MinWidth="70"
+                                                           VerticalAlignment="Center" />
+                                            </StackPanel>
+                                        </StackPanel>
+                                        
+                                        <!-- Session Totals (compact) -->
+                                        <Border Grid.Column="3"
+                                                Background="{DynamicResource BorderSubtleBrush}"
+                                                CornerRadius="4"
+                                                Padding="8,4"
+                                                VerticalAlignment="Center">
+                                            <StackPanel Orientation="Horizontal" Spacing="12">
+                                                <StackPanel Orientation="Horizontal" Spacing="3">
+                                                    <TextBlock Text="↓" FontSize="10" Foreground="{DynamicResource DownloadBrush}" />
+                                                    <TextBlock Text="{Binding SessionDownload}" 
+                                                               FontSize="11"
+                                                               Foreground="{DynamicResource DownloadBrush}" />
+                                                </StackPanel>
+                                                <StackPanel Orientation="Horizontal" Spacing="3">
+                                                    <TextBlock Text="↑" FontSize="10" Foreground="{DynamicResource UploadBrush}" />
+                                                    <TextBlock Text="{Binding SessionUpload}" 
+                                                               FontSize="11"
+                                                               Foreground="{DynamicResource UploadBrush}" />
+                                                </StackPanel>
+                                            </StackPanel>
+                                        </Border>
+                                    </Grid>
+                                </Border>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                </StackPanel>
             </Border>
         </Grid>
     </Grid>

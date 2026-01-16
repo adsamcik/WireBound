@@ -12,6 +12,7 @@ using WireBound.Avalonia.Services;
 using WireBound.Core.Helpers;
 using WireBound.Core.Models;
 using WireBound.Core.Services;
+using System.Collections.Concurrent;
 
 namespace WireBound.Avalonia.ViewModels;
 
@@ -139,6 +140,30 @@ public sealed partial class DashboardViewModel : ObservableObject, IDisposable
     /// </summary>
     [ObservableProperty]
     private string _activeVpnNames = "";
+    
+    // === Adapter Dashboard Properties ===
+    
+    /// <summary>
+    /// Whether to show the adapter dashboard panel
+    /// </summary>
+    [ObservableProperty]
+    private bool _showAdapterDashboard = true;
+    
+    /// <summary>
+    /// Collection of adapters with their current stats for the dashboard
+    /// </summary>
+    [ObservableProperty]
+    private ObservableCollection<AdapterDisplayItem> _adapterDisplayItems = [];
+    
+    /// <summary>
+    /// Cache for tracking per-adapter session bytes
+    /// </summary>
+    private readonly ConcurrentDictionary<string, (long Download, long Upload)> _adapterSessionBytes = new();
+    
+    /// <summary>
+    /// WiFi service for fetching WiFi info
+    /// </summary>
+    private readonly IWiFiInfoService? _wifiService;
 
     public ISeries[] SpeedSeries { get; }
 
@@ -162,10 +187,12 @@ public sealed partial class DashboardViewModel : ObservableObject, IDisposable
     public DashboardViewModel(
         INetworkPollingBackgroundService pollingService,
         INetworkMonitorService networkMonitor,
-        INavigationService navigationService)
+        INavigationService navigationService,
+        IWiFiInfoService? wifiService = null)
     {
         _networkMonitor = networkMonitor;
         _navigationService = navigationService;
+        _wifiService = wifiService;
 
         // Subscribe to stats updates
         networkMonitor.StatsUpdated += OnStatsUpdated;
@@ -228,6 +255,63 @@ public sealed partial class DashboardViewModel : ObservableObject, IDisposable
 
         // Load adapters
         LoadAdapters(networkMonitor);
+        
+        // Initialize adapter display items
+        LoadAdapterDisplayItems();
+    }
+    
+    /// <summary>
+    /// Loads adapter display items for the dashboard panel
+    /// </summary>
+    private void LoadAdapterDisplayItems()
+    {
+        var adapters = _networkMonitor.GetAdapters(ShowAdvancedAdapters)
+            .Where(a => a.IsActive) // Only show active adapters
+            .ToList();
+        
+        AdapterDisplayItems.Clear();
+        
+        foreach (var adapter in adapters)
+        {
+            var displayItem = new AdapterDisplayItem(adapter);
+            
+            // Fetch WiFi info for wireless adapters
+            if (adapter.AdapterType == NetworkAdapterType.WiFi && _wifiService?.IsSupported == true)
+            {
+                try
+                {
+                    var wifiInfo = _wifiService.GetWiFiInfo(adapter.Id);
+                    displayItem.WiFiInfo = wifiInfo;
+                }
+                catch
+                {
+                    // Ignore WiFi info fetch errors
+                }
+            }
+            
+            AdapterDisplayItems.Add(displayItem);
+        }
+    }
+    
+    /// <summary>
+    /// Updates adapter display items with current traffic stats
+    /// </summary>
+    private void UpdateAdapterDisplayItems()
+    {
+        var allStats = _networkMonitor.GetAllAdapterStats();
+        
+        foreach (var item in AdapterDisplayItems)
+        {
+            if (allStats.TryGetValue(item.Id, out var stats))
+            {
+                item.UpdateTraffic(
+                    stats.DownloadSpeedBps,
+                    stats.UploadSpeedBps,
+                    stats.SessionBytesReceived,
+                    stats.SessionBytesSent
+                );
+            }
+        }
     }
 
     private void OnStatsUpdated(object? sender, NetworkStats stats)
@@ -266,6 +350,12 @@ public sealed partial class DashboardViewModel : ObservableObject, IDisposable
             VpnUploadSpeed = ByteFormatter.FormatSpeed(stats.VpnUploadSpeedBps);
             VpnSessionDownload = ByteFormatter.FormatBytes(stats.VpnSessionBytesReceived);
             VpnSessionUpload = ByteFormatter.FormatBytes(stats.VpnSessionBytesSent);
+        }
+        
+        // Update adapter dashboard items
+        if (ShowAdapterDashboard && AdapterDisplayItems.Count > 0)
+        {
+            UpdateAdapterDisplayItems();
         }
 
         // Add to buffer

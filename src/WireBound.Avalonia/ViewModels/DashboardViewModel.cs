@@ -102,7 +102,7 @@ public sealed partial class DashboardViewModel : ObservableObject, IDisposable
     [ObservableProperty]
     private RectangularSection[] _thresholdSections = [];
     
-    // === VPN Traffic Analysis Properties ===
+    // === VPN Traffic Properties ===
     
     /// <summary>
     /// Whether a VPN adapter is connected (used for panel visibility)
@@ -111,58 +111,28 @@ public sealed partial class DashboardViewModel : ObservableObject, IDisposable
     private bool _isVpnConnected;
     
     /// <summary>
-    /// Whether there is active VPN traffic (used for showing traffic data)
-    /// </summary>
-    [ObservableProperty]
-    private bool _hasVpnTraffic;
-    
-    /// <summary>
-    /// VPN download speed (actual payload through tunnel)
+    /// VPN download speed
     /// </summary>
     [ObservableProperty]
     private string _vpnDownloadSpeed = "0 B/s";
     
     /// <summary>
-    /// VPN upload speed (actual payload through tunnel)
+    /// VPN upload speed
     /// </summary>
     [ObservableProperty]
     private string _vpnUploadSpeed = "0 B/s";
     
     /// <summary>
-    /// Physical adapter download speed (total including VPN overhead)
+    /// VPN session download total
     /// </summary>
     [ObservableProperty]
-    private string _physicalDownloadSpeed = "0 B/s";
+    private string _vpnSessionDownload = "0 B";
     
     /// <summary>
-    /// Physical adapter upload speed (total including VPN overhead)
+    /// VPN session upload total
     /// </summary>
     [ObservableProperty]
-    private string _physicalUploadSpeed = "0 B/s";
-    
-    /// <summary>
-    /// VPN download overhead
-    /// </summary>
-    [ObservableProperty]
-    private string _vpnDownloadOverhead = "0 B/s";
-    
-    /// <summary>
-    /// VPN upload overhead
-    /// </summary>
-    [ObservableProperty]
-    private string _vpnUploadOverhead = "0 B/s";
-    
-    /// <summary>
-    /// Download overhead percentage
-    /// </summary>
-    [ObservableProperty]
-    private string _vpnDownloadOverheadPercent = "0%";
-    
-    /// <summary>
-    /// Upload overhead percentage
-    /// </summary>
-    [ObservableProperty]
-    private string _vpnUploadOverheadPercent = "0%";
+    private string _vpnSessionUpload = "0 B";
     
     /// <summary>
     /// Names of active VPN adapters
@@ -280,31 +250,22 @@ public sealed partial class DashboardViewModel : ObservableObject, IDisposable
         SessionDownload = ByteFormatter.FormatBytes(stats.SessionBytesReceived);
         SessionUpload = ByteFormatter.FormatBytes(stats.SessionBytesSent);
         
-        // Update VPN connection and traffic status
-        // Panel stays visible as long as VPN is connected
+        // Update VPN connection status
         IsVpnConnected = stats.IsVpnConnected;
-        HasVpnTraffic = stats.HasVpnTraffic;
         
-        // Update VPN display data - show connected VPN names even without traffic
+        // Update VPN display data when connected
         if (stats.IsVpnConnected)
         {
             // Show connected adapters, or active ones if there's traffic
             ActiveVpnNames = stats.ActiveVpnAdapters.Count > 0 
                 ? string.Join(", ", stats.ActiveVpnAdapters)
                 : string.Join(", ", stats.ConnectedVpnAdapters);
-        }
-        
-        // Update traffic data when there's active VPN traffic
-        if (stats.HasVpnTraffic)
-        {
+            
+            // Update VPN traffic speeds and session totals
             VpnDownloadSpeed = ByteFormatter.FormatSpeed(stats.VpnDownloadSpeedBps);
             VpnUploadSpeed = ByteFormatter.FormatSpeed(stats.VpnUploadSpeedBps);
-            PhysicalDownloadSpeed = ByteFormatter.FormatSpeed(stats.PhysicalDownloadSpeedBps);
-            PhysicalUploadSpeed = ByteFormatter.FormatSpeed(stats.PhysicalUploadSpeedBps);
-            VpnDownloadOverhead = ByteFormatter.FormatSpeed(stats.VpnDownloadOverheadBps);
-            VpnUploadOverhead = ByteFormatter.FormatSpeed(stats.VpnUploadOverheadBps);
-            VpnDownloadOverheadPercent = $"+{stats.VpnDownloadOverheadPercent:F1}%";
-            VpnUploadOverheadPercent = $"+{stats.VpnUploadOverheadPercent:F1}%";
+            VpnSessionDownload = ByteFormatter.FormatBytes(stats.VpnSessionBytesReceived);
+            VpnSessionUpload = ByteFormatter.FormatBytes(stats.VpnSessionBytesSent);
         }
 
         // Add to buffer

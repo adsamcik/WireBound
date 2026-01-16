@@ -81,30 +81,59 @@ public class NetworkStats
     public long PhysicalUploadSpeedBps { get; set; }
     
     /// <summary>
+    /// Typical VPN overhead percentage (encryption, encapsulation, headers).
+    /// WireGuard: ~5-10%, OpenVPN: ~15-20%, IPSec: ~10-15%
+    /// We use a conservative estimate since we can't detect the VPN type reliably.
+    /// </summary>
+    private const double EstimatedOverheadPercent = 0.10; // 10%
+    
+    /// <summary>
+    /// Maximum reasonable overhead percentage before we assume split tunneling.
+    /// If calculated overhead exceeds this, traffic is likely split-tunneled.
+    /// </summary>
+    private const double MaxReasonableOverheadPercent = 0.50; // 50%
+    
+    /// <summary>
+    /// Whether split tunneling is likely active (physical traffic significantly exceeds VPN traffic).
+    /// </summary>
+    public bool IsSplitTunnelLikely => HasVpnTraffic && 
+        (VpnDownloadSpeedBps > 0 && PhysicalDownloadSpeedBps > VpnDownloadSpeedBps * (1 + MaxReasonableOverheadPercent) ||
+         VpnUploadSpeedBps > 0 && PhysicalUploadSpeedBps > VpnUploadSpeedBps * (1 + MaxReasonableOverheadPercent));
+    
+    /// <summary>
     /// Estimated VPN overhead for download in bytes per second.
-    /// Calculated as (Physical - VPN) when VPN is active.
-    /// This includes encryption, encapsulation, and protocol overhead.
+    /// When split tunneling is detected, uses estimated overhead instead of calculated.
     /// </summary>
-    public long VpnDownloadOverheadBps => HasVpnTraffic ? Math.Max(0, PhysicalDownloadSpeedBps - VpnDownloadSpeedBps) : 0;
-    
-    /// <summary>
-    /// Estimated VPN overhead for upload in bytes per second.
-    /// Calculated as (Physical - VPN) when VPN is active.
-    /// </summary>
-    public long VpnUploadOverheadBps => HasVpnTraffic ? Math.Max(0, PhysicalUploadSpeedBps - VpnUploadSpeedBps) : 0;
-    
-    /// <summary>
-    /// Overhead percentage for download (0-100)
-    /// </summary>
-    public double VpnDownloadOverheadPercent => VpnDownloadSpeedBps > 0 
-        ? Math.Round((double)VpnDownloadOverheadBps / VpnDownloadSpeedBps * 100, 1) 
+    public long VpnDownloadOverheadBps => HasVpnTraffic && VpnDownloadSpeedBps > 0
+        ? (IsSplitTunnelLikely 
+            ? (long)(VpnDownloadSpeedBps * EstimatedOverheadPercent)  // Estimated overhead
+            : Math.Max(0, PhysicalDownloadSpeedBps - VpnDownloadSpeedBps))  // Calculated overhead
         : 0;
     
     /// <summary>
-    /// Overhead percentage for upload (0-100)
+    /// Estimated VPN overhead for upload in bytes per second.
+    /// When split tunneling is detected, uses estimated overhead instead of calculated.
+    /// </summary>
+    public long VpnUploadOverheadBps => HasVpnTraffic && VpnUploadSpeedBps > 0
+        ? (IsSplitTunnelLikely 
+            ? (long)(VpnUploadSpeedBps * EstimatedOverheadPercent)  // Estimated overhead
+            : Math.Max(0, PhysicalUploadSpeedBps - VpnUploadSpeedBps))  // Calculated overhead
+        : 0;
+    
+    /// <summary>
+    /// Overhead percentage for download (0-100).
+    /// Capped at reasonable maximum to avoid misleading values.
+    /// </summary>
+    public double VpnDownloadOverheadPercent => VpnDownloadSpeedBps > 0 
+        ? Math.Min(Math.Round((double)VpnDownloadOverheadBps / VpnDownloadSpeedBps * 100, 1), MaxReasonableOverheadPercent * 100)
+        : 0;
+    
+    /// <summary>
+    /// Overhead percentage for upload (0-100).
+    /// Capped at reasonable maximum to avoid misleading values.
     /// </summary>
     public double VpnUploadOverheadPercent => VpnUploadSpeedBps > 0 
-        ? Math.Round((double)VpnUploadOverheadBps / VpnUploadSpeedBps * 100, 1) 
+        ? Math.Min(Math.Round((double)VpnUploadOverheadBps / VpnUploadSpeedBps * 100, 1), MaxReasonableOverheadPercent * 100)
         : 0;
     
     /// <summary>

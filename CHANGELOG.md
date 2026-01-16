@@ -7,6 +7,41 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.3.0] - 2026-01-16
+
+### Added
+
+- **Adapter Dashboard** - New dashboard section showing all active network adapters with real-time per-adapter traffic stats
+- **WiFi Detection** - Cross-platform WiFi info service showing SSID, signal strength, channel, and frequency band
+  - Windows: Native WiFi API via ManagedNativeWifi
+  - Linux: nmcli/iw command parsing
+  - macOS: airport command parsing
+- **Tethering Detection** - Automatic detection and labeling of USB and Bluetooth tethered connections
+  - Supports Android RNDIS, iPhone USB, and generic USB Ethernet adapters
+  - Bluetooth PAN/BNEP interface detection
+- **Adapter Badges** - Visual badges showing adapter type (VPN, USB, BT, VM) and WiFi signal percentage
+- **History View Enhancements**
+  - Column sorting for all data columns
+  - Custom date range picker
+  - Data cap tracking and progress display
+  - Row selection with visual feedback
+  - Responsive layout with panel animations
+  - Loading/error states with improved export handling
+  - Analytics charts and drill-down functionality
+
+### Changed
+
+- **Simplified VPN Panel** - Now shows only VPN traffic speeds and session totals (removed unreliable overhead calculation)
+- VPN panel visibility now based on connection status rather than active traffic
+- Speed Unit setting changed from toggle to dropdown selector
+- Dashboard content now scrollable for smaller screens
+
+### Fixed
+
+- VPN panel flickering when traffic fluctuated (added sticky visibility)
+- Database schema migration for UseSpeedInBits column
+- Solution nested folder structure causing NuGet restore warning
+
 ## [0.2.0] - 2026-01-14
 
 ### Changed

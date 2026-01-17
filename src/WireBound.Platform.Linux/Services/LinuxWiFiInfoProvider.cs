@@ -1,18 +1,20 @@
 using System.Diagnostics;
+using System.Runtime.Versioning;
 using System.Text.RegularExpressions;
 using Microsoft.Extensions.Logging;
-using WireBound.Core.Models;
+using WireBound.Platform.Abstract.Services;
 
-namespace WireBound.Avalonia.Services;
+namespace WireBound.Platform.Linux.Services;
 
 /// <summary>
-/// Linux implementation using nmcli and iw commands
+/// Linux implementation using nmcli and iw commands.
 /// </summary>
-internal partial class LinuxWiFiInfoProvider : IWiFiInfoProvider
+[SupportedOSPlatform("linux")]
+public sealed partial class LinuxWiFiInfoProvider : IWiFiInfoProvider
 {
-    private readonly ILogger _logger;
+    private readonly ILogger<LinuxWiFiInfoProvider> _logger;
     
-    public LinuxWiFiInfoProvider(ILogger logger)
+    public LinuxWiFiInfoProvider(ILogger<LinuxWiFiInfoProvider> logger)
     {
         _logger = logger;
     }
@@ -65,10 +67,10 @@ internal partial class LinuxWiFiInfoProvider : IWiFiInfoProvider
                         var linkResult = RunCommand("iw", $"dev {iface} link");
                         if (!string.IsNullOrEmpty(linkResult))
                         {
-                            var info = ParseIwLinkOutput(linkResult);
-                            if (info != null)
+                            var wifiInfo = ParseIwLinkOutput(linkResult);
+                            if (wifiInfo != null)
                             {
-                                result[iface] = info;
+                                result[iface] = wifiInfo;
                             }
                         }
                     }
@@ -102,23 +104,27 @@ internal partial class LinuxWiFiInfoProvider : IWiFiInfoProvider
                 
                 // Parse frequency to determine band
                 string? freqBand = null;
-                if (frequency != null)
+                int? freqMhz = null;
+                if (frequency != null && int.TryParse(frequency.Replace(" MHz", ""), out var parsedFreq))
                 {
-                    if (frequency.Contains("24") || frequency.StartsWith("2"))
-                        freqBand = "2.4 GHz";
-                    else if (frequency.Contains("5") || frequency.StartsWith("5"))
-                        freqBand = "5 GHz";
-                    else if (frequency.Contains("6") || frequency.StartsWith("6"))
-                        freqBand = "6 GHz";
+                    freqMhz = parsedFreq;
+                    freqBand = parsedFreq switch
+                    {
+                        >= 2400 and < 2500 => "2.4 GHz",
+                        >= 5000 and < 6000 => "5 GHz",
+                        >= 6000 => "6 GHz",
+                        _ => null
+                    };
                 }
                 
                 result[device] = new WiFiInfo
                 {
                     Ssid = ssid,
-                    SignalQualityPercent = signal,
+                    SignalStrength = signal,
                     Channel = channel > 0 ? channel : null,
-                    FrequencyBand = freqBand,
-                    SecurityType = security
+                    FrequencyMhz = freqMhz,
+                    Band = freqBand,
+                    Security = security
                 };
             }
         }
@@ -154,9 +160,11 @@ internal partial class LinuxWiFiInfoProvider : IWiFiInfoProvider
         if (signalMatch.Success && int.TryParse(signalMatch.Groups[1].Value, out var signal))
             signalDbm = signal;
         
+        int? freqMhz = null;
         string? freqBand = null;
         if (freqMatch.Success && int.TryParse(freqMatch.Groups[1].Value, out var freq))
         {
+            freqMhz = freq;
             freqBand = freq switch
             {
                 >= 2400 and < 2500 => "2.4 GHz",
@@ -170,12 +178,19 @@ internal partial class LinuxWiFiInfoProvider : IWiFiInfoProvider
         if (bitrateMatch.Success && int.TryParse(bitrateMatch.Groups[1].Value, out var bitrate))
             linkSpeed = bitrate;
         
+        // Convert dBm to approximate percentage
+        int signalPercent = signalDbm.HasValue 
+            ? Math.Clamp((signalDbm.Value + 100) * 2, 0, 100) 
+            : 0;
+        
         return new WiFiInfo
         {
             Ssid = ssidMatch.Groups[1].Value,
-            SignalStrengthDbm = signalDbm,
+            SignalDbm = signalDbm,
+            SignalStrength = signalPercent,
             LinkSpeedMbps = linkSpeed,
-            FrequencyBand = freqBand
+            FrequencyMhz = freqMhz,
+            Band = freqBand
         };
     }
     

@@ -7,8 +7,8 @@
     <LangVersion>preview</LangVersion>
     
     <!-- Library info -->
-    <Title>WireBound Core Library</Title>
-    <Description>Platform-agnostic core library for WireBound network monitor</Description>
+    <Title>WireBound Platform Windows</Title>
+    <Description>Windows-specific platform implementations for WireBound</Description>
     <Authors>WireBound</Authors>
     
     <!-- Analysis -->
@@ -22,14 +22,9 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <!-- Entity Framework for DbContext and models -->
-    <PackageReference Include="Microsoft.EntityFrameworkCore.Sqlite" Version="10.0.1" />
-    
-    <!-- LiveCharts for chart helpers -->
-    <PackageReference Include="LiveChartsCore.SkiaSharpView" Version="2.0.0-rc6.1" />
-    
-    <!-- Logging abstraction -->
-    <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" Version="10.0.1" />
+    <PackageReference Include="ManagedNativeWifi" Version="3.0.2" />
+    <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" Version="10.0.0" />
+    <PackageReference Include="Serilog" Version="4.3.0" />
   </ItemGroup>
 
   <ItemGroup>

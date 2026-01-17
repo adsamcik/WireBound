@@ -1,28 +1,9 @@
+using WireBound.Core.Services;
+
 namespace WireBound.Avalonia.Services;
 
 /// <summary>
-/// Navigation service interface for switching between views
-/// </summary>
-public interface INavigationService
-{
-    /// <summary>
-    /// Gets or sets the current view name
-    /// </summary>
-    string CurrentView { get; }
-
-    /// <summary>
-    /// Event raised when navigation occurs
-    /// </summary>
-    event Action<string>? NavigationChanged;
-
-    /// <summary>
-    /// Navigate to a named view
-    /// </summary>
-    void NavigateTo(string viewName);
-}
-
-/// <summary>
-/// Navigation service implementation
+/// Navigation service implementation for Avalonia UI.
 /// </summary>
 public sealed class NavigationService : INavigationService
 {

@@ -1,4 +1,4 @@
-namespace WireBound.Core.Services;
+namespace WireBound.Platform.Abstract.Services;
 
 /// <summary>
 /// Service for managing application startup registration with the operating system.

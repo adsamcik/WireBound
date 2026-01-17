@@ -8,7 +8,7 @@ using LiveChartsCore.SkiaSharpView.Painting.Effects;
 using SkiaSharp;
 using System.Collections.ObjectModel;
 using Avalonia.Threading;
-using WireBound.Avalonia.Services;
+using WireBound.Avalonia.Helpers;
 using WireBound.Core.Helpers;
 using WireBound.Core.Models;
 using WireBound.Core.Services;
@@ -169,20 +169,7 @@ public sealed partial class DashboardViewModel : ObservableObject, IDisposable
 
     public Axis[] XAxes { get; }
     
-    public Axis[] YAxes { get; } =
-    [
-        new Axis
-        {
-            Name = "Speed",
-            NamePaint = new SolidColorPaint(ChartColors.AxisNameColor),
-            LabelsPaint = new SolidColorPaint(ChartColors.AxisLabelColor),
-            TextSize = 11,
-            NameTextSize = 12,
-            MinLimit = 0,
-            SeparatorsPaint = new SolidColorPaint(ChartColors.GridLineColor),
-            Labeler = value => ByteFormatter.FormatSpeed((long)value)
-        }
-    ];
+    public Axis[] YAxes { get; } = ChartSeriesFactory.CreateSpeedYAxes();
 
     public DashboardViewModel(
         INetworkPollingBackgroundService pollingService,
@@ -197,61 +184,13 @@ public sealed partial class DashboardViewModel : ObservableObject, IDisposable
         // Subscribe to stats updates
         networkMonitor.StatsUpdated += OnStatsUpdated;
         
-        // Initialize X-axis
-        XAxes =
-        [
-            new DateTimeAxis(TimeSpan.FromSeconds(1), date => date.ToString("HH:mm:ss"))
-            {
-                Name = "Time",
-                NamePaint = new SolidColorPaint(ChartColors.AxisNameColor),
-                LabelsPaint = new SolidColorPaint(ChartColors.AxisLabelColor),
-                TextSize = 11,
-                NameTextSize = 12,
-                AnimationsSpeed = TimeSpan.Zero,
-                MinStep = TimeSpan.FromSeconds(2).Ticks,
-                SeparatorsPaint = new SolidColorPaint(ChartColors.GridLineColor)
-            }
-        ];
+        // Initialize X-axis using factory
+        XAxes = ChartSeriesFactory.CreateTimeXAxes();
         
         _selectedTimeRange = TimeRangeOptions[1]; // 1 minute default
 
-        // Initialize chart series
-        var downloadColor = ChartColors.DownloadAccentColor;
-        var uploadColor = ChartColors.UploadAccentColor;
-
-        SpeedSeries =
-        [
-            new LineSeries<DateTimePoint>
-            {
-                Name = "Download",
-                Values = _downloadSpeedPoints,
-                Fill = new LinearGradientPaint(
-                    [downloadColor.WithAlpha(100), downloadColor.WithAlpha(0)],
-                    new SKPoint(0.5f, 0),
-                    new SKPoint(0.5f, 1)
-                ),
-                Stroke = new SolidColorPaint(downloadColor, 2),
-                GeometryFill = null,
-                GeometryStroke = null,
-                LineSmoothness = 1,
-                AnimationsSpeed = TimeSpan.Zero
-            },
-            new LineSeries<DateTimePoint>
-            {
-                Name = "Upload",
-                Values = _uploadSpeedPoints,
-                Fill = new LinearGradientPaint(
-                    [uploadColor.WithAlpha(100), uploadColor.WithAlpha(0)],
-                    new SKPoint(0.5f, 0),
-                    new SKPoint(0.5f, 1)
-                ),
-                Stroke = new SolidColorPaint(uploadColor, 2),
-                GeometryFill = null,
-                GeometryStroke = null,
-                LineSmoothness = 1,
-                AnimationsSpeed = TimeSpan.Zero
-            }
-        ];
+        // Initialize chart series using factory
+        SpeedSeries = ChartSeriesFactory.CreateSpeedLineSeries(_downloadSpeedPoints, _uploadSpeedPoints);
 
         // Load adapters
         LoadAdapters(networkMonitor);

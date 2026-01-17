@@ -1,7 +1,7 @@
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using WireBound.Avalonia.Services;
-using WireBound.Avalonia.Views;
+using WireBound.Core.Services;
 
 namespace WireBound.Avalonia.ViewModels;
 
@@ -23,29 +23,18 @@ public partial class NavigationItem : ObservableObject
 /// <summary>
 /// Main view model handling navigation and app state
 /// </summary>
-public partial class MainViewModel : ObservableObject
+public partial class MainViewModel : ObservableObject, IDisposable
 {
     private readonly INavigationService _navigationService;
+    private readonly IViewFactory _viewFactory;
+    private bool _disposed;
 
     public MainViewModel(
         INavigationService navigationService,
-        DashboardViewModel dashboardViewModel,
-        ChartsViewModel chartsViewModel,
-        HistoryViewModel historyViewModel,
-        SettingsViewModel settingsViewModel,
-        ApplicationsViewModel applicationsViewModel)
+        IViewFactory viewFactory)
     {
         _navigationService = navigationService;
-        
-        // Store view models for navigation
-        _viewModels = new Dictionary<string, object>
-        {
-            { "Dashboard", dashboardViewModel },
-            { "Charts", chartsViewModel },
-            { "History", historyViewModel },
-            { "Settings", settingsViewModel },
-            { "Applications", applicationsViewModel }
-        };
+        _viewFactory = viewFactory;
 
         // Initialize navigation items
         NavigationItems =
@@ -58,12 +47,10 @@ public partial class MainViewModel : ObservableObject
         ];
 
         _selectedNavigationItem = NavigationItems[0];
-        _currentView = CreateViewForRoute("Dashboard");
+        _currentView = _viewFactory.CreateView("Dashboard");
 
         _navigationService.NavigationChanged += OnNavigationChanged;
     }
-
-    private readonly Dictionary<string, object> _viewModels;
 
     public List<NavigationItem> NavigationItems { get; }
 
@@ -83,25 +70,19 @@ public partial class MainViewModel : ObservableObject
 
     private void OnNavigationChanged(string route)
     {
-        CurrentView = CreateViewForRoute(route);
-    }
-
-    private object CreateViewForRoute(string route)
-    {
-        return route switch
-        {
-            "Dashboard" => new DashboardView { DataContext = _viewModels["Dashboard"] },
-            "Charts" => new ChartsView { DataContext = _viewModels["Charts"] },
-            "History" => new HistoryView { DataContext = _viewModels["History"] },
-            "Settings" => new SettingsView { DataContext = _viewModels["Settings"] },
-            "Applications" => new ApplicationsView { DataContext = _viewModels["Applications"] },
-            _ => new DashboardView { DataContext = _viewModels["Dashboard"] }
-        };
+        CurrentView = _viewFactory.CreateView(route);
     }
 
     [RelayCommand]
     private void NavigateTo(string route)
     {
         _navigationService.NavigateTo(route);
+    }
+
+    public void Dispose()
+    {
+        if (_disposed) return;
+        _disposed = true;
+        _navigationService.NavigationChanged -= OnNavigationChanged;
     }
 }

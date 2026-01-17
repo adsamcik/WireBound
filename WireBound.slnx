@@ -3,4 +3,10 @@
     <Project Path="src/WireBound.Core/WireBound.Core.csproj" />
     <Project Path="src/WireBound.Avalonia/WireBound.Avalonia.csproj" />
   </Folder>
+  <Folder Name="/src/Platform/">
+    <Project Path="src/WireBound.Platform.Abstract/WireBound.Platform.Abstract.csproj" />
+    <Project Path="src/WireBound.Platform.Stub/WireBound.Platform.Stub.csproj" />
+    <Project Path="src/WireBound.Platform.Windows/WireBound.Platform.Windows.csproj" />
+    <Project Path="src/WireBound.Platform.Linux/WireBound.Platform.Linux.csproj" />
+  </Folder>
 </Solution>

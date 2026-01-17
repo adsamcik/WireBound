@@ -9,6 +9,9 @@
     <AvaloniaUseCompiledBindingsByDefault>true</AvaloniaUseCompiledBindingsByDefault>
     <ApplicationManifest>app.manifest</ApplicationManifest>
     
+    <!-- Output executable name -->
+    <AssemblyName>WireBound</AssemblyName>
+    
     <!-- Version -->
     <Version>0.2.0</Version>
     
@@ -58,6 +61,10 @@
 
   <ItemGroup>
     <ProjectReference Include="..\WireBound.Core\WireBound.Core.csproj" />
+    <ProjectReference Include="..\WireBound.Platform.Abstract\WireBound.Platform.Abstract.csproj" />
+    <ProjectReference Include="..\WireBound.Platform.Stub\WireBound.Platform.Stub.csproj" />
+    <ProjectReference Include="..\WireBound.Platform.Windows\WireBound.Platform.Windows.csproj" />
+    <ProjectReference Include="..\WireBound.Platform.Linux\WireBound.Platform.Linux.csproj" />
   </ItemGroup>
 
 </Project>

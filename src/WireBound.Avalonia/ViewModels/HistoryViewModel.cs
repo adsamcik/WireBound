@@ -5,6 +5,7 @@ using LiveChartsCore.SkiaSharpView;
 using LiveChartsCore.SkiaSharpView.Painting;
 using SkiaSharp;
 using System.Collections.ObjectModel;
+using WireBound.Avalonia.Helpers;
 using WireBound.Core.Helpers;
 using WireBound.Core.Models;
 using WireBound.Core.Services;
@@ -156,20 +157,7 @@ public sealed partial class HistoryViewModel : ObservableObject, IDisposable
 
     public Axis[] XAxes { get; private set; }
 
-    public Axis[] YAxes { get; } =
-    [
-        new Axis
-        {
-            Name = "Usage",
-            NamePaint = new SolidColorPaint(ChartColors.AxisNameColor),
-            LabelsPaint = new SolidColorPaint(ChartColors.AxisLabelColor),
-            TextSize = 11,
-            NameTextSize = 12,
-            MinLimit = 0,
-            SeparatorsPaint = new SolidColorPaint(ChartColors.GridLineColor),
-            Labeler = value => ByteFormatter.FormatBytes((long)value)
-        }
-    ];
+    public Axis[] YAxes { get; } = ChartSeriesFactory.CreateUsageYAxes();
 
     // === Daily Data Table ===
     [ObservableProperty]
@@ -240,33 +228,9 @@ public sealed partial class HistoryViewModel : ObservableObject, IDisposable
     [ObservableProperty]
     private ISeries[] _hourlySeries = [];
 
-    public Axis[] HourlyXAxes { get; } =
-    [
-        new Axis
-        {
-            Name = "Hour",
-            NamePaint = new SolidColorPaint(ChartColors.AxisNameColor),
-            LabelsPaint = new SolidColorPaint(ChartColors.AxisLabelColor),
-            TextSize = 10,
-            NameTextSize = 11,
-            LabelsRotation = 0
-        }
-    ];
+    public Axis[] HourlyXAxes { get; } = ChartSeriesFactory.CreateHourXAxes();
 
-    public Axis[] HourlyYAxes { get; } =
-    [
-        new Axis
-        {
-            Name = "Usage",
-            NamePaint = new SolidColorPaint(ChartColors.AxisNameColor),
-            LabelsPaint = new SolidColorPaint(ChartColors.AxisLabelColor),
-            TextSize = 10,
-            NameTextSize = 11,
-            MinLimit = 0,
-            SeparatorsPaint = new SolidColorPaint(ChartColors.GridLineColor),
-            Labeler = value => ByteFormatter.FormatBytes((long)value)
-        }
-    ];
+    public Axis[] HourlyYAxes { get; } = ChartSeriesFactory.CreateHourlyYAxes();
 
     // === State ===
     [ObservableProperty]

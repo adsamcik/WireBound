@@ -6,13 +6,13 @@
     
     <Application.Styles>
         <FluentTheme />
-        <StyleInclude Source="avares://WireBound.Avalonia/Styles/Styles.axaml" />
+        <StyleInclude Source="avares://WireBound/Styles/Styles.axaml" />
     </Application.Styles>
     
     <Application.Resources>
         <ResourceDictionary>
             <ResourceDictionary.MergedDictionaries>
-                <ResourceInclude Source="avares://WireBound.Avalonia/Styles/Colors.axaml" />
+                <ResourceInclude Source="avares://WireBound/Styles/Colors.axaml" />
             </ResourceDictionary.MergedDictionaries>
             <converters:SpeedUnitConverter x:Key="SpeedUnitConverter" />
         </ResourceDictionary>

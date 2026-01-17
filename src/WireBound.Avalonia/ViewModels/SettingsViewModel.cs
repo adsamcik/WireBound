@@ -3,6 +3,8 @@ using CommunityToolkit.Mvvm.Input;
 using System.Collections.ObjectModel;
 using WireBound.Core.Models;
 using WireBound.Core.Services;
+using IStartupService = WireBound.Platform.Abstract.Services.IStartupService;
+using StartupState = WireBound.Platform.Abstract.Services.StartupState;
 
 namespace WireBound.Avalonia.ViewModels;
 
@@ -13,6 +15,7 @@ public sealed partial class SettingsViewModel : ObservableObject
 {
     private readonly IDataPersistenceService _persistence;
     private readonly INetworkMonitorService _networkMonitor;
+    private readonly IStartupService _startupService;
     private CancellationTokenSource? _autoSaveCts;
     private bool _isLoading = true;
     private const int AutoSaveDelayMs = 500;
@@ -96,10 +99,12 @@ public sealed partial class SettingsViewModel : ObservableObject
 
     public SettingsViewModel(
         IDataPersistenceService persistence,
-        INetworkMonitorService networkMonitor)
+        INetworkMonitorService networkMonitor,
+        IStartupService startupService)
     {
         _persistence = persistence;
         _networkMonitor = networkMonitor;
+        _startupService = startupService;
 
         LoadSettings();
     }
@@ -120,8 +125,10 @@ public sealed partial class SettingsViewModel : ObservableObject
         UseIpHelperApi = settings.UseIpHelperApi;
         IsPerAppTrackingEnabled = settings.IsPerAppTrackingEnabled;
         MinimizeToTray = settings.MinimizeToTray;
-        StartWithWindows = settings.StartWithWindows;
         SelectedSpeedUnit = settings.SpeedUnit;
+        
+        // Load startup state from OS (not from saved settings)
+        await LoadStartupStateAsync();
         
         // Apply speed unit setting globally
         WireBound.Core.Helpers.ByteFormatter.UseSpeedInBits = settings.SpeedUnit == SpeedUnit.BitsPerSecond;
@@ -135,6 +142,22 @@ public sealed partial class SettingsViewModel : ObservableObject
         RequiresElevation = false;
 
         _isLoading = false;
+    }
+
+    private async Task LoadStartupStateAsync()
+    {
+        if (!_startupService.IsStartupSupported)
+        {
+            StartWithWindows = false;
+            IsStartupDisabledByUser = false;
+            IsStartupDisabledByPolicy = false;
+            return;
+        }
+
+        var state = await _startupService.GetStartupStateAsync();
+        StartWithWindows = state == StartupState.Enabled;
+        IsStartupDisabledByUser = state == StartupState.DisabledByUser;
+        IsStartupDisabledByPolicy = state == StartupState.DisabledByPolicy;
     }
 
     [RelayCommand]
@@ -158,6 +181,16 @@ public sealed partial class SettingsViewModel : ObservableObject
 
         // Apply settings
         _networkMonitor.SetUseIpHelperApi(UseIpHelperApi);
+
+        // Apply startup setting to OS
+        if (_startupService.IsStartupSupported)
+        {
+            var result = await _startupService.SetStartupWithResultAsync(StartWithWindows);
+            // Update UI state based on actual result
+            StartWithWindows = result.State == StartupState.Enabled;
+            IsStartupDisabledByUser = result.State == StartupState.DisabledByUser;
+            IsStartupDisabledByPolicy = result.State == StartupState.DisabledByPolicy;
+        }
     }
 
     [RelayCommand]

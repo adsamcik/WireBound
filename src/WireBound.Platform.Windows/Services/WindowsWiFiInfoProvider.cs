@@ -1,18 +1,19 @@
-using System.Net.NetworkInformation;
+using System.Runtime.Versioning;
 using ManagedNativeWifi;
 using Microsoft.Extensions.Logging;
-using WireBound.Core.Models;
+using WireBound.Platform.Abstract.Services;
 
-namespace WireBound.Avalonia.Services;
+namespace WireBound.Platform.Windows.Services;
 
 /// <summary>
-/// Windows implementation using ManagedNativeWifi
+/// Windows implementation using ManagedNativeWifi.
 /// </summary>
-internal class WindowsWiFiInfoProvider : IWiFiInfoProvider
+[SupportedOSPlatform("windows")]
+public sealed class WindowsWiFiInfoProvider : IWiFiInfoProvider
 {
-    private readonly ILogger _logger;
+    private readonly ILogger<WindowsWiFiInfoProvider> _logger;
     
-    public WindowsWiFiInfoProvider(ILogger logger)
+    public WindowsWiFiInfoProvider(ILogger<WindowsWiFiInfoProvider> logger)
     {
         _logger = logger;
     }
@@ -104,6 +105,7 @@ internal class WindowsWiFiInfoProvider : IWiFiInfoProvider
             
             // Try to get channel/frequency from available networks
             int? channel = null;
+            int? frequencyMhz = null;
             string? frequencyBand = null;
             
             // Try to find the BSS network for more detailed info
@@ -116,6 +118,7 @@ internal class WindowsWiFiInfoProvider : IWiFiInfoProvider
                 if (bssNetworks != null)
                 {
                     channel = bssNetworks.Channel;
+                    frequencyMhz = bssNetworks.Frequency;
                     frequencyBand = bssNetworks.Band > 0 ? $"{bssNetworks.Band} GHz" : null;
                 }
             }
@@ -127,12 +130,13 @@ internal class WindowsWiFiInfoProvider : IWiFiInfoProvider
             return new WiFiInfo
             {
                 Ssid = connection.Ssid.ToString(),
-                SignalStrengthDbm = rssi,
-                SignalQualityPercent = quality,
+                SignalDbm = rssi,
+                SignalStrength = quality ?? 0,
                 LinkSpeedMbps = Math.Max(rxRate ?? 0, txRate ?? 0),
                 Channel = channel,
-                FrequencyBand = frequencyBand,
-                SecurityType = connection.AuthenticationAlgorithm.ToString()
+                FrequencyMhz = frequencyMhz,
+                Band = frequencyBand,
+                Security = connection.AuthenticationAlgorithm.ToString()
             };
         }
         catch (Exception ex)

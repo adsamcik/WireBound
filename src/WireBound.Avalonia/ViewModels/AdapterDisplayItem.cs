@@ -1,6 +1,7 @@
 using CommunityToolkit.Mvvm.ComponentModel;
 using WireBound.Core.Helpers;
 using WireBound.Core.Models;
+using WireBound.Platform.Abstract.Services;
 
 namespace WireBound.Avalonia.ViewModels;
 
@@ -48,12 +49,12 @@ public partial class AdapterDisplayItem : ObservableObject
     /// <summary>
     /// Whether this adapter has WiFi info available
     /// </summary>
-    public bool HasWiFiInfo => WiFiInfo?.IsAvailable == true;
+    public bool HasWiFiInfo => !string.IsNullOrEmpty(WiFiInfo?.Ssid);
     
     /// <summary>
     /// WiFi signal bars (1-4) based on signal quality
     /// </summary>
-    public int SignalBars => WiFiInfo?.SignalQualityPercent switch
+    public int SignalBars => WiFiInfo?.SignalStrength switch
     {
         >= 75 => 4,
         >= 50 => 3,
@@ -159,7 +160,7 @@ public partial class AdapterDisplayItem : ObservableObject
         if (IsUsbTethering) return "USB";
         if (IsBluetoothTethering) return "BT";
         if (AdapterType == NetworkAdapterType.WiFi && HasWiFiInfo) 
-            return $"{WiFiInfo!.SignalQualityPercent}%";
+            return $"{WiFiInfo!.SignalStrength}%";
         if (IsVirtual) return "VM";
         return null;
     }
@@ -176,7 +177,7 @@ public partial class AdapterDisplayItem : ObservableObject
     private string GetStatusLine()
     {
         if (HasWiFiInfo && !string.IsNullOrEmpty(WiFiInfo!.Ssid))
-            return $"{WiFiInfo.Ssid} • {WiFiInfo.FrequencyBand ?? "WiFi"}";
+            return $"{WiFiInfo.Ssid} • {WiFiInfo.Band ?? "WiFi"}";
         
         if (IsUsbTethering)
             return "USB Tethered Connection";

@@ -10,6 +10,10 @@ using WireBound.Avalonia.ViewModels;
 using WireBound.Avalonia.Views;
 using WireBound.Core.Data;
 using WireBound.Core.Services;
+using WireBound.Platform.Abstract.Services;
+using WireBound.Platform.Linux;
+using WireBound.Platform.Stub;
+using WireBound.Platform.Windows;
 
 namespace WireBound.Avalonia;
 
@@ -71,9 +75,22 @@ public partial class App : Application
         services.AddSingleton<IDataPersistenceService, DataPersistenceService>();
         services.AddSingleton<IWiFiInfoService, WiFiInfoService>();
 
+        // Register platform services (stub first, then override with platform-specific)
+        StubPlatformServices.Instance.Register(services);
+        
+        if (OperatingSystem.IsWindows())
+        {
+            WindowsPlatformServices.Instance.Register(services);
+        }
+        else if (OperatingSystem.IsLinux())
+        {
+            LinuxPlatformServices.Instance.Register(services);
+        }
+
         // Register app-specific services
         services.AddSingleton<INavigationService, NavigationService>();
         services.AddSingleton<ILocalizationService, LocalizationService>();
+        services.AddSingleton<IViewFactory, ViewFactory>();
 
         // Register background service
         services.AddSingleton<NetworkPollingBackgroundService>();
@@ -132,6 +149,7 @@ public partial class App : Application
 
         try
         {
+            // Stop background services first
             var pollingService = _serviceProvider?.GetService<NetworkPollingBackgroundService>();
             pollingService?.StopAsync(CancellationToken.None).GetAwaiter().GetResult();
         }
@@ -140,6 +158,28 @@ public partial class App : Application
             Log.Error(ex, "Error stopping background services");
         }
 
+        // Dispose ViewModels that implement IDisposable
+        DisposeViewModels();
+
         _serviceProvider?.Dispose();
+    }
+
+    private void DisposeViewModels()
+    {
+        try
+        {
+            // Dispose ViewModels that implement IDisposable
+            // MainViewModel, DashboardViewModel, ChartsViewModel, and HistoryViewModel implement IDisposable
+            _serviceProvider?.GetService<MainViewModel>()?.Dispose();
+            _serviceProvider?.GetService<DashboardViewModel>()?.Dispose();
+            _serviceProvider?.GetService<ChartsViewModel>()?.Dispose();
+            _serviceProvider?.GetService<HistoryViewModel>()?.Dispose();
+            
+            Log.Information("ViewModels disposed successfully");
+        }
+        catch (Exception ex)
+        {
+            Log.Error(ex, "Error disposing ViewModels");
+        }
     }
 }

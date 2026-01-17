@@ -140,6 +140,14 @@
                             <StackPanel Spacing="4">
                                 <TextBlock Text="Start with Windows" Classes="CardTitle" />
                                 <TextBlock Text="Launch WireBound when Windows starts" Classes="Caption" />
+                                <TextBlock Text="⚠️ Disabled in Windows Settings > Apps > Startup"
+                                           Classes="Caption"
+                                           Foreground="{DynamicResource WarningBrush}"
+                                           IsVisible="{Binding IsStartupDisabledByUser}" />
+                                <TextBlock Text="⚠️ Disabled by system policy"
+                                           Classes="Caption"
+                                           Foreground="{DynamicResource WarningBrush}"
+                                           IsVisible="{Binding IsStartupDisabledByPolicy}" />
                             </StackPanel>
                             <ToggleSwitch Grid.Column="1"
                                           IsChecked="{Binding StartWithWindows}"

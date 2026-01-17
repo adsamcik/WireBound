@@ -1,4 +1,4 @@
-using WireBound.Core.Models;
+using WireBound.Platform.Abstract.Services;
 
 namespace WireBound.Core.Services;
 

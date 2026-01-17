@@ -87,9 +87,9 @@ jobs:
         run: |
           OUTPUT_DIR="./publish/${{ matrix.runtime }}"
           if [ "${{ matrix.runtime }}" == "win-x64" ]; then
-            EXE_NAME="WireBound.Avalonia.exe"
+            EXE_NAME="WireBound.exe"
           else
-            EXE_NAME="WireBound.Avalonia"
+            EXE_NAME="WireBound"
           fi
           
           if [ ! -f "$OUTPUT_DIR/$EXE_NAME" ]; then

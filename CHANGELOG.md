@@ -7,6 +7,29 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.4.0] - 2026-01-20
+
+### Added
+
+- **Linux Startup Support** - Application can now register for autostart on Linux via XDG autostart (.desktop files)
+- **Platform Architecture** - New modular platform abstraction layer
+  - `WireBound.Platform.Abstract` - Platform interfaces
+  - `WireBound.Platform.Stub` - Fallback implementations
+  - `WireBound.Platform.Windows` - Windows-specific services
+  - `WireBound.Platform.Linux` - Linux-specific services
+
+### Changed
+
+- **Executable Renamed** - Output is now `WireBound.exe` instead of `WireBound.Avalonia.exe`
+- **Refactored Chart Logic** - Centralized chart styling via ChartSeriesFactory
+- **DI-based Views** - Views now created through IViewFactory for better testability
+- **Improved Lifecycle** - Proper disposal and event unsubscription on shutdown
+
+### Fixed
+
+- Windows startup now properly integrates with Windows Settings > Apps > Startup
+- Detects when startup is disabled by user or policy in Windows Settings
+
 ## [0.3.0] - 2026-01-16
 
 ### Added

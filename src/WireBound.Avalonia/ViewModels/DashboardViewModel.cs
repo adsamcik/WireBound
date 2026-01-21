@@ -30,6 +30,7 @@ public sealed partial class DashboardViewModel : ObservableObject, IDisposable
 {
     private readonly INetworkMonitorService _networkMonitor;
     private readonly INavigationService _navigationService;
+    private readonly IDataPersistenceService? _dataPersistence;
     private bool _disposed;
     private readonly ObservableCollection<DateTimePoint> _downloadSpeedPoints = [];
     private readonly ObservableCollection<DateTimePoint> _uploadSpeedPoints = [];
@@ -57,6 +58,24 @@ public sealed partial class DashboardViewModel : ObservableObject, IDisposable
 
     [ObservableProperty]
     private string _sessionUpload = "0 B";
+    
+    /// <summary>
+    /// Today's total downloaded bytes (from database + current session delta)
+    /// </summary>
+    [ObservableProperty]
+    private string _todayDownload = "0 B";
+    
+    /// <summary>
+    /// Today's total uploaded bytes (from database + current session delta)
+    /// </summary>
+    [ObservableProperty]
+    private string _todayUpload = "0 B";
+    
+    /// <summary>
+    /// Track today's stored bytes (from database at startup)
+    /// </summary>
+    private long _todayStoredReceived;
+    private long _todayStoredSent;
 
     [ObservableProperty]
     private string _selectedAdapterName = "All Adapters";
@@ -175,10 +194,12 @@ public sealed partial class DashboardViewModel : ObservableObject, IDisposable
         INetworkPollingBackgroundService pollingService,
         INetworkMonitorService networkMonitor,
         INavigationService navigationService,
+        IDataPersistenceService? dataPersistence = null,
         IWiFiInfoService? wifiService = null)
     {
         _networkMonitor = networkMonitor;
         _navigationService = navigationService;
+        _dataPersistence = dataPersistence;
         _wifiService = wifiService;
 
         // Subscribe to stats updates
@@ -197,6 +218,28 @@ public sealed partial class DashboardViewModel : ObservableObject, IDisposable
         
         // Initialize adapter display items
         LoadAdapterDisplayItems();
+        
+        // Load today's stored usage from database
+        _ = LoadTodayUsageAsync();
+    }
+    
+    /// <summary>
+    /// Loads today's usage from database to add to current session
+    /// </summary>
+    private async Task LoadTodayUsageAsync()
+    {
+        if (_dataPersistence == null) return;
+        
+        try
+        {
+            var (received, sent) = await _dataPersistence.GetTodayUsageAsync();
+            _todayStoredReceived = received;
+            _todayStoredSent = sent;
+        }
+        catch
+        {
+            // Ignore errors loading stored usage
+        }
     }
     
     /// <summary>
@@ -272,6 +315,12 @@ public sealed partial class DashboardViewModel : ObservableObject, IDisposable
         UploadSpeed = ByteFormatter.FormatSpeed(stats.UploadSpeedBps);
         SessionDownload = ByteFormatter.FormatBytes(stats.SessionBytesReceived);
         SessionUpload = ByteFormatter.FormatBytes(stats.SessionBytesSent);
+        
+        // Calculate today's totals (stored from previous sessions + current session)
+        var todayReceivedTotal = _todayStoredReceived + stats.SessionBytesReceived;
+        var todaySentTotal = _todayStoredSent + stats.SessionBytesSent;
+        TodayDownload = ByteFormatter.FormatBytes(todayReceivedTotal);
+        TodayUpload = ByteFormatter.FormatBytes(todaySentTotal);
         
         // Update VPN connection status
         IsVpnConnected = stats.IsVpnConnected;

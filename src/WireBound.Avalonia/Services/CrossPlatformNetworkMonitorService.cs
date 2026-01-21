@@ -643,26 +643,25 @@ public sealed class CrossPlatformNetworkMonitorService : INetworkMonitorService
             else
             {
                 // "All Adapters" mode:
-                // If VPN is active, use VPN traffic as "actual" (avoids double-counting)
-                // If no VPN, use physical adapter traffic
+                // For speed: show VPN traffic if active (avoids double-counting), otherwise physical
+                // For session totals: always show physical adapter totals (consistent, doesn't jump)
                 if (vpnDownloadSpeed > 0 || vpnUploadSpeed > 0)
                 {
-                    // VPN is active - display actual payload traffic (not counting overhead twice)
-                    // We show the VPN tunnel traffic as the "actual" speed
-                    // Physical includes this same traffic plus overhead
+                    // VPN is active - display actual payload traffic speed (not counting overhead twice)
                     displayDownloadSpeed = vpnDownloadSpeed;
                     displayUploadSpeed = vpnUploadSpeed;
-                    displaySessionReceived = vpnSessionReceived;
-                    displaySessionSent = vpnSessionSent;
                 }
                 else
                 {
                     // No VPN - just show physical adapter traffic
                     displayDownloadSpeed = physicalDownloadSpeed;
                     displayUploadSpeed = physicalUploadSpeed;
-                    displaySessionReceived = physicalSessionReceived;
-                    displaySessionSent = physicalSessionSent;
                 }
+                
+                // Session totals: always use physical adapters for consistency
+                // This prevents the "jumping" between VPN and physical totals
+                displaySessionReceived = physicalSessionReceived;
+                displaySessionSent = physicalSessionSent;
             }
             
             // Determine if we have VPN traffic to analyze

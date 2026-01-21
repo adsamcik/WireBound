@@ -189,16 +189,16 @@
                 <Grid ColumnDefinitions="*, Auto, *, Auto, *, Auto, *">
                     
                     <StackPanel Spacing="6" VerticalAlignment="Center">
-                        <TextBlock Text="TOTAL DOWNLOADED" Classes="MetricLabel" />
-                        <TextBlock Text="{Binding SessionDownload}" Classes="MediumMetric"
+                        <TextBlock Text="TODAY DOWNLOADED" Classes="MetricLabel" />
+                        <TextBlock Text="{Binding TodayDownload}" Classes="MediumMetric"
                                    Foreground="{DynamicResource DownloadBrush}" />
                     </StackPanel>
                     
                     <Rectangle Grid.Column="1" Classes="VerticalDivider" Margin="20,0" />
                     
                     <StackPanel Grid.Column="2" Spacing="6" VerticalAlignment="Center">
-                        <TextBlock Text="TOTAL UPLOADED" Classes="MetricLabel" />
-                        <TextBlock Text="{Binding SessionUpload}" Classes="MediumMetric"
+                        <TextBlock Text="TODAY UPLOADED" Classes="MetricLabel" />
+                        <TextBlock Text="{Binding TodayUpload}" Classes="MediumMetric"
                                    Foreground="{DynamicResource UploadBrush}" />
                     </StackPanel>
                     

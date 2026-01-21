@@ -149,6 +149,26 @@ public sealed class DataPersistenceService : IDataPersistenceService
         return (totals?.TotalReceived ?? 0, totals?.TotalSent ?? 0);
     }
 
+    public async Task<(long totalReceived, long totalSent)> GetTodayUsageAsync()
+    {
+        using var scope = _serviceProvider.CreateScope();
+        var db = scope.ServiceProvider.GetRequiredService<WireBoundDbContext>();
+
+        var today = DateOnly.FromDateTime(DateTime.Now);
+        var totals = await db.DailyUsages
+            .Where(d => d.Date == today)
+            .GroupBy(_ => 1)
+            .Select(g => new
+            {
+                TotalReceived = g.Sum(d => d.BytesReceived),
+                TotalSent = g.Sum(d => d.BytesSent)
+            })
+            .FirstOrDefaultAsync()
+            .ConfigureAwait(false);
+
+        return (totals?.TotalReceived ?? 0, totals?.TotalSent ?? 0);
+    }
+
     public async Task CleanupOldDataAsync(int retentionDays)
     {
         using var scope = _serviceProvider.CreateScope();

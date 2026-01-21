@@ -28,6 +28,11 @@ public interface IDataPersistenceService
     Task<(long totalReceived, long totalSent)> GetTotalUsageAsync();
 
     /// <summary>
+    /// Get today's usage statistics
+    /// </summary>
+    Task<(long totalReceived, long totalSent)> GetTodayUsageAsync();
+
+    /// <summary>
     /// Clean up old data beyond retention period
     /// </summary>
     Task CleanupOldDataAsync(int retentionDays);

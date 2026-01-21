@@ -5,6 +5,7 @@ using Avalonia.Threading;
 using WireBound.Core.Helpers;
 using WireBound.Core.Models;
 using WireBound.Core.Services;
+using WireBound.Platform.Abstract.Models;
 
 namespace WireBound.Avalonia.ViewModels;
 

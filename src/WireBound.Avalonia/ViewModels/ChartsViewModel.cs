@@ -18,6 +18,7 @@ namespace WireBound.Avalonia.ViewModels;
 public sealed partial class ChartsViewModel : ObservableObject, IDisposable
 {
     private readonly INetworkMonitorService _networkMonitor;
+    private readonly IDataPersistenceService _persistence;
     private bool _disposed;
     private readonly ObservableCollection<DateTimePoint> _downloadSpeedPoints = [];
     private readonly ObservableCollection<DateTimePoint> _uploadSpeedPoints = [];
@@ -71,9 +72,10 @@ public sealed partial class ChartsViewModel : ObservableObject, IDisposable
 
     public Axis[] YAxes { get; } = ChartSeriesFactory.CreateSpeedYAxes();
 
-    public ChartsViewModel(INetworkMonitorService networkMonitor)
+    public ChartsViewModel(INetworkMonitorService networkMonitor, IDataPersistenceService persistence)
     {
         _networkMonitor = networkMonitor;
+        _persistence = persistence;
         networkMonitor.StatsUpdated += OnStatsUpdated;
 
         _selectedTimeRange = TimeRangeOptions[1];
@@ -81,6 +83,74 @@ public sealed partial class ChartsViewModel : ObservableObject, IDisposable
         // Initialize axes and series using factory
         XAxes = ChartSeriesFactory.CreateTimeXAxes();
         SpeedSeries = ChartSeriesFactory.CreateSpeedLineSeries(_downloadSpeedPoints, _uploadSpeedPoints);
+
+        // Load historical data asynchronously
+        _ = LoadHistoryAsync();
+    }
+
+    private async Task LoadHistoryAsync()
+    {
+        try
+        {
+            // Load up to 1 hour of history (max range)
+            var since = DateTime.Now.AddHours(-1);
+            var history = await _persistence.GetSpeedHistoryAsync(since).ConfigureAwait(false);
+
+            if (history.Count == 0 || _disposed)
+                return;
+
+            // Populate buffer and calculate statistics from history
+            foreach (var snapshot in history)
+            {
+                _dataBuffer.Add((snapshot.Timestamp, snapshot.DownloadSpeedBps, snapshot.UploadSpeedBps));
+
+                if (snapshot.DownloadSpeedBps > _peakDownloadBps)
+                    _peakDownloadBps = snapshot.DownloadSpeedBps;
+                if (snapshot.UploadSpeedBps > _peakUploadBps)
+                    _peakUploadBps = snapshot.UploadSpeedBps;
+
+                _totalDownloadBps += snapshot.DownloadSpeedBps;
+                _totalUploadBps += snapshot.UploadSpeedBps;
+                _sampleCount++;
+            }
+
+            // Update UI on dispatcher thread
+            await Dispatcher.UIThread.InvokeAsync(() =>
+            {
+                if (_disposed) return;
+
+                // Update statistics display
+                PeakDownloadSpeed = ByteFormatter.FormatSpeed(_peakDownloadBps);
+                PeakUploadSpeed = ByteFormatter.FormatSpeed(_peakUploadBps);
+                if (_sampleCount > 0)
+                {
+                    AverageDownloadSpeed = ByteFormatter.FormatSpeed(_totalDownloadBps / _sampleCount);
+                    AverageUploadSpeed = ByteFormatter.FormatSpeed(_totalUploadBps / _sampleCount);
+                }
+
+                // Apply current time range to show data
+                var rangeSeconds = SelectedTimeRange?.Seconds ?? 60;
+                var cutoff = DateTime.Now.AddSeconds(-rangeSeconds);
+                var relevantData = _dataBuffer.Where(d => d.Time >= cutoff).ToList();
+
+                foreach (var d in relevantData)
+                {
+                    _downloadSpeedPoints.Add(new DateTimePoint(d.Time, d.Download));
+                    _uploadSpeedPoints.Add(new DateTimePoint(d.Time, d.Upload));
+                }
+
+                // Update axis limits
+                if (XAxes.Length > 0 && relevantData.Count > 0)
+                {
+                    XAxes[0].MinLimit = cutoff.Ticks;
+                    XAxes[0].MaxLimit = DateTime.Now.Ticks;
+                }
+            });
+        }
+        catch
+        {
+            // Ignore errors loading history - chart will still work with live data
+        }
     }
 
     private void OnStatsUpdated(object? sender, Core.Models.NetworkStats stats)

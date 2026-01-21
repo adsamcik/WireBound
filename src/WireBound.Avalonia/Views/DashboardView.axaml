@@ -66,160 +66,150 @@
         <Grid RowDefinitions="Auto, Auto, Auto, Auto, Auto"
               ColumnDefinitions="*, *">
 
-            <!-- DOWNLOAD SPEED CARD -->
+            <!-- DOWNLOAD SPEED CARD - Clean Hero Design -->
             <Border Classes="ElevatedCard" Margin="0,0,10,0">
-                <Grid RowDefinitions="Auto, Auto, Auto, Auto">
-                    <StackPanel Orientation="Horizontal" Spacing="10">
-                        <Border Background="#1500E5FF" CornerRadius="8" Width="40" Height="40">
-                            <TextBlock Text="↓" FontSize="24" 
-                                       Foreground="{DynamicResource DownloadBrush}"
-                                       HorizontalAlignment="Center"
+                <Grid RowDefinitions="Auto, Auto, Auto">
+                    <!-- Header Row -->
+                    <Grid ColumnDefinitions="Auto, *, Auto">
+                        <StackPanel Orientation="Horizontal" Spacing="8">
+                            <Border Background="#1500E5FF" CornerRadius="6" Width="28" Height="28">
+                                <TextBlock Text="↓" FontSize="16" 
+                                           Foreground="{DynamicResource DownloadBrush}"
+                                           HorizontalAlignment="Center"
+                                           VerticalAlignment="Center" />
+                            </Border>
+                            <TextBlock Text="Download" Classes="CardTitle" VerticalAlignment="Center" />
+                        </StackPanel>
+                        <!-- Peak in header, right-aligned -->
+                        <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="4" VerticalAlignment="Center">
+                            <TextBlock Text="Peak:" Classes="Caption" Opacity="0.6" VerticalAlignment="Center" />
+                            <TextBlock Text="{Binding PeakDownloadSpeed}"
+                                       FontSize="12" FontWeight="SemiBold"
+                                       Foreground="{DynamicResource DownloadColorDim}"
                                        VerticalAlignment="Center" />
-                        </Border>
-                        <StackPanel VerticalAlignment="Center">
-                            <TextBlock Text="Download" Classes="CardTitle" />
-                            <TextBlock Text="Current speed" Classes="Caption" />
+                        </StackPanel>
+                    </Grid>
+                    
+                    <!-- Hero Speed Display -->
+                    <StackPanel Grid.Row="1" HorizontalAlignment="Center" Margin="0,16,0,16">
+                        <TextBlock Text="{Binding DownloadSpeed}"
+                                   FontSize="48" FontWeight="Bold"
+                                   Foreground="{DynamicResource DownloadBrush}"
+                                   HorizontalAlignment="Center"
+                                   MinWidth="200"
+                                   TextAlignment="Center" />
+                        <!-- Trend indicator -->
+                        <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Spacing="4" Margin="0,4,0,0">
+                            <TextBlock Text="{Binding DownloadTrendIcon}"
+                                       FontSize="12"
+                                       Foreground="{DynamicResource SecondaryTextBrush}"
+                                       VerticalAlignment="Center" />
+                            <TextBlock Text="{Binding DownloadTrendText}"
+                                       FontSize="12"
+                                       Foreground="{DynamicResource SecondaryTextBrush}"
+                                       VerticalAlignment="Center" />
                         </StackPanel>
                     </StackPanel>
                     
-                    <TextBlock Grid.Row="1"
-                               Text="{Binding DownloadSpeed}"
-                               Classes="HeroSpeed"
-                               Foreground="{DynamicResource DownloadBrush}"
-                               Margin="0,12,0,0" />
-                    
-                    <Grid Grid.Row="2" RowDefinitions="Auto, 6" Margin="0,12,0,0">
-                        <Grid ColumnDefinitions="*, Auto">
-                            <TextBlock Text="Peak performance" Classes="Caption" />
-                            <TextBlock Grid.Column="1"
-                                       Text="{Binding PeakDownloadSpeed}"
-                                       Classes="Caption"
-                                       Foreground="{DynamicResource DownloadColorDim}" />
-                        </Grid>
-                        <Border Grid.Row="1" 
-                                Background="{DynamicResource BorderSubtleBrush}"
-                                CornerRadius="3"
-                                Height="6"
-                                Margin="0,6,0,0">
-                            <Border Background="{DynamicResource DownloadBrush}"
-                                    CornerRadius="3"
-                                    HorizontalAlignment="Left"
-                                    Width="120" />
-                        </Border>
-                    </Grid>
-                    
-                    <Border Grid.Row="3" 
-                            Background="{DynamicResource SurfaceElevatedColor}"
+                    <!-- Footer Stats -->
+                    <Border Grid.Row="2" 
+                            Background="{DynamicResource BorderSubtleBrush}"
                             CornerRadius="6"
-                            Padding="10,6"
-                            HorizontalAlignment="Left"
-                            Margin="0,8,0,0">
-                        <StackPanel Orientation="Horizontal" Spacing="8">
-                            <TextBlock Text="Session:" Classes="Caption" VerticalAlignment="Center" />
-                            <TextBlock Text="{Binding SessionDownload}"
-                                       FontSize="14" FontWeight="Bold"
-                                       Foreground="{DynamicResource DownloadBrush}"
-                                       VerticalAlignment="Center" />
-                        </StackPanel>
+                            Padding="12,8">
+                        <Grid ColumnDefinitions="*, Auto, *">
+                            <StackPanel Orientation="Horizontal" Spacing="4">
+                                <TextBlock Text="Today" Classes="Caption" Opacity="0.7" VerticalAlignment="Center" />
+                                <TextBlock Text="{Binding TodayDownload}"
+                                           FontSize="13" FontWeight="Bold"
+                                           Foreground="{DynamicResource DownloadBrush}"
+                                           VerticalAlignment="Center" />
+                            </StackPanel>
+                            <Border Grid.Column="1" Width="1" Background="{DynamicResource MutedTextBrush}" Opacity="0.3" Margin="8,2" />
+                            <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="4" HorizontalAlignment="Right">
+                                <TextBlock Text="Session" Classes="Caption" Opacity="0.7" VerticalAlignment="Center" />
+                                <TextBlock Text="{Binding SessionDownload}"
+                                           FontSize="13" FontWeight="Bold"
+                                           Foreground="{DynamicResource DownloadBrush}"
+                                           VerticalAlignment="Center" />
+                            </StackPanel>
+                        </Grid>
                     </Border>
                 </Grid>
             </Border>
 
-            <!-- UPLOAD SPEED CARD -->
+            <!-- UPLOAD SPEED CARD - Clean Hero Design -->
             <Border Grid.Column="1" Classes="ElevatedCard" Margin="10,0,0,0">
-                <Grid RowDefinitions="Auto, Auto, Auto, Auto">
-                    <StackPanel Orientation="Horizontal" Spacing="10">
-                        <Border Background="#15FF6B35" CornerRadius="8" Width="40" Height="40">
-                            <TextBlock Text="↑" FontSize="24" 
-                                       Foreground="{DynamicResource UploadBrush}"
-                                       HorizontalAlignment="Center"
-                                       VerticalAlignment="Center" />
-                        </Border>
-                        <StackPanel VerticalAlignment="Center">
-                            <TextBlock Text="Upload" Classes="CardTitle" />
-                            <TextBlock Text="Current speed" Classes="Caption" />
+                <Grid RowDefinitions="Auto, Auto, Auto">
+                    <!-- Header Row -->
+                    <Grid ColumnDefinitions="Auto, *, Auto">
+                        <StackPanel Orientation="Horizontal" Spacing="8">
+                            <Border Background="#15FF6B35" CornerRadius="6" Width="28" Height="28">
+                                <TextBlock Text="↑" FontSize="16" 
+                                           Foreground="{DynamicResource UploadBrush}"
+                                           HorizontalAlignment="Center"
+                                           VerticalAlignment="Center" />
+                            </Border>
+                            <TextBlock Text="Upload" Classes="CardTitle" VerticalAlignment="Center" />
                         </StackPanel>
-                    </StackPanel>
-                    
-                    <TextBlock Grid.Row="1"
-                               Text="{Binding UploadSpeed}"
-                               Classes="HeroSpeed"
-                               Foreground="{DynamicResource UploadBrush}"
-                               Margin="0,12,0,0" />
-                    
-                    <Grid Grid.Row="2" RowDefinitions="Auto, 6" Margin="0,12,0,0">
-                        <Grid ColumnDefinitions="*, Auto">
-                            <TextBlock Text="Peak performance" Classes="Caption" />
-                            <TextBlock Grid.Column="1"
-                                       Text="{Binding PeakUploadSpeed}"
-                                       Classes="Caption"
-                                       Foreground="{DynamicResource UploadColorDim}" />
-                        </Grid>
-                        <Border Grid.Row="1" 
-                                Background="{DynamicResource BorderSubtleBrush}"
-                                CornerRadius="3"
-                                Height="6"
-                                Margin="0,6,0,0">
-                            <Border Background="{DynamicResource UploadBrush}"
-                                    CornerRadius="3"
-                                    HorizontalAlignment="Left"
-                                    Width="80" />
-                        </Border>
+                        <!-- Peak in header, right-aligned -->
+                        <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="4" VerticalAlignment="Center">
+                            <TextBlock Text="Peak:" Classes="Caption" Opacity="0.6" VerticalAlignment="Center" />
+                            <TextBlock Text="{Binding PeakUploadSpeed}"
+                                       FontSize="12" FontWeight="SemiBold"
+                                       Foreground="{DynamicResource UploadColorDim}"
+                                       VerticalAlignment="Center" />
+                        </StackPanel>
                     </Grid>
                     
-                    <Border Grid.Row="3" 
-                            Background="{DynamicResource SurfaceElevatedColor}"
-                            CornerRadius="6"
-                            Padding="10,6"
-                            HorizontalAlignment="Left"
-                            Margin="0,8,0,0">
-                        <StackPanel Orientation="Horizontal" Spacing="8">
-                            <TextBlock Text="Session:" Classes="Caption" VerticalAlignment="Center" />
-                            <TextBlock Text="{Binding SessionUpload}"
-                                       FontSize="14" FontWeight="Bold"
-                                       Foreground="{DynamicResource UploadBrush}"
+                    <!-- Hero Speed Display -->
+                    <StackPanel Grid.Row="1" HorizontalAlignment="Center" Margin="0,16,0,16">
+                        <TextBlock Text="{Binding UploadSpeed}"
+                                   FontSize="48" FontWeight="Bold"
+                                   Foreground="{DynamicResource UploadBrush}"
+                                   HorizontalAlignment="Center"
+                                   MinWidth="200"
+                                   TextAlignment="Center" />
+                        <!-- Trend indicator -->
+                        <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Spacing="4" Margin="0,4,0,0">
+                            <TextBlock Text="{Binding UploadTrendIcon}"
+                                       FontSize="12"
+                                       Foreground="{DynamicResource SecondaryTextBrush}"
+                                       VerticalAlignment="Center" />
+                            <TextBlock Text="{Binding UploadTrendText}"
+                                       FontSize="12"
+                                       Foreground="{DynamicResource SecondaryTextBrush}"
                                        VerticalAlignment="Center" />
                         </StackPanel>
+                    </StackPanel>
+                    
+                    <!-- Footer Stats -->
+                    <Border Grid.Row="2" 
+                            Background="{DynamicResource BorderSubtleBrush}"
+                            CornerRadius="6"
+                            Padding="12,8">
+                        <Grid ColumnDefinitions="*, Auto, *">
+                            <StackPanel Orientation="Horizontal" Spacing="4">
+                                <TextBlock Text="Today" Classes="Caption" Opacity="0.7" VerticalAlignment="Center" />
+                                <TextBlock Text="{Binding TodayUpload}"
+                                           FontSize="13" FontWeight="Bold"
+                                           Foreground="{DynamicResource UploadBrush}"
+                                           VerticalAlignment="Center" />
+                            </StackPanel>
+                            <Border Grid.Column="1" Width="1" Background="{DynamicResource MutedTextBrush}" Opacity="0.3" Margin="8,2" />
+                            <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="4" HorizontalAlignment="Right">
+                                <TextBlock Text="Session" Classes="Caption" Opacity="0.7" VerticalAlignment="Center" />
+                                <TextBlock Text="{Binding SessionUpload}"
+                                           FontSize="13" FontWeight="Bold"
+                                           Foreground="{DynamicResource UploadBrush}"
+                                           VerticalAlignment="Center" />
+                            </StackPanel>
+                        </Grid>
                     </Border>
-                </Grid>
-            </Border>
-
-            <!-- SESSION STATS ROW -->
-            <Border Grid.Row="1" Grid.ColumnSpan="2" Classes="Card" Margin="0,20,0,0">
-                <Grid ColumnDefinitions="*, Auto, *, Auto, *, Auto, *">
-                    
-                    <StackPanel Spacing="6" VerticalAlignment="Center">
-                        <TextBlock Text="TODAY DOWNLOADED" Classes="MetricLabel" />
-                        <TextBlock Text="{Binding TodayDownload}" Classes="MediumMetric"
-                                   Foreground="{DynamicResource DownloadBrush}" />
-                    </StackPanel>
-                    
-                    <Rectangle Grid.Column="1" Classes="VerticalDivider" Margin="20,0" />
-                    
-                    <StackPanel Grid.Column="2" Spacing="6" VerticalAlignment="Center">
-                        <TextBlock Text="TODAY UPLOADED" Classes="MetricLabel" />
-                        <TextBlock Text="{Binding TodayUpload}" Classes="MediumMetric"
-                                   Foreground="{DynamicResource UploadBrush}" />
-                    </StackPanel>
-                    
-                    <Rectangle Grid.Column="3" Classes="VerticalDivider" Margin="20,0" />
-                    
-                    <StackPanel Grid.Column="4" Spacing="6" VerticalAlignment="Center">
-                        <TextBlock Text="PEAK DOWNLOAD" Classes="MetricLabel" />
-                        <TextBlock Text="{Binding PeakDownloadSpeed}" Classes="MediumMetric" />
-                    </StackPanel>
-                    
-                    <Rectangle Grid.Column="5" Classes="VerticalDivider" Margin="20,0" />
-                    
-                    <StackPanel Grid.Column="6" Spacing="6" VerticalAlignment="Center">
-                        <TextBlock Text="PEAK UPLOAD" Classes="MetricLabel" />
-                        <TextBlock Text="{Binding PeakUploadSpeed}" Classes="MediumMetric" />
-                    </StackPanel>
                 </Grid>
             </Border>
             
             <!-- VPN TRAFFIC PANEL (shown when VPN is connected) -->
-            <Border Grid.Row="2" Grid.ColumnSpan="2" 
+            <Border Grid.Row="1" Grid.ColumnSpan="2" 
                     Classes="CompactCard" 
                     Margin="0,20,0,0"
                     IsVisible="{Binding IsVpnConnected}">
@@ -289,7 +279,7 @@
             </Border>
 
             <!-- QUICK ACTIONS -->
-            <Border Grid.Row="3" Grid.ColumnSpan="2" Classes="Card" VerticalAlignment="Top" Margin="0,20,0,0">
+            <Border Grid.Row="2" Grid.ColumnSpan="2" Classes="Card" VerticalAlignment="Top" Margin="0,20,0,0">
                 <Grid ColumnDefinitions="Auto, *, Auto">
                     
                     <StackPanel Orientation="Horizontal" Spacing="12">
@@ -316,7 +306,7 @@
             </Border>
             
             <!-- ADAPTER DASHBOARD -->
-            <Border Grid.Row="4" Grid.ColumnSpan="2" 
+            <Border Grid.Row="3" Grid.ColumnSpan="2" 
                     Classes="Card" 
                     VerticalAlignment="Top" 
                     Margin="0,20,0,0"

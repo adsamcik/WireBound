@@ -12,18 +12,24 @@ public sealed class NetworkPollingBackgroundService : BackgroundService, INetwor
 {
     private readonly INetworkMonitorService _networkMonitor;
     private readonly IDataPersistenceService _persistence;
+    private readonly ITrayIconService _trayIcon;
     private readonly ILogger<NetworkPollingBackgroundService> _logger;
     private volatile int _pollIntervalMs = 1000;
     private volatile int _saveIntervalSeconds = 60;
     private readonly Stopwatch _saveStopwatch = new();
+    private readonly Stopwatch _cleanupStopwatch = new();
+    private const int CleanupIntervalMinutes = 5;
+    private static readonly TimeSpan SpeedSnapshotRetention = TimeSpan.FromHours(2);
 
     public NetworkPollingBackgroundService(
         INetworkMonitorService networkMonitor,
         IDataPersistenceService persistence,
+        ITrayIconService trayIcon,
         ILogger<NetworkPollingBackgroundService> logger)
     {
         _networkMonitor = networkMonitor;
         _persistence = persistence;
+        _trayIcon = trayIcon;
         _logger = logger;
     }
 
@@ -49,6 +55,7 @@ public sealed class NetworkPollingBackgroundService : BackgroundService, INetwor
         bool initialSaveDone = false;
         const int initialSaveDelaySeconds = 5;
         _saveStopwatch.Start();
+        _cleanupStopwatch.Start();
 
         // Use PeriodicTimer for more consistent timing than Task.Delay
         using var timer = new PeriodicTimer(TimeSpan.FromMilliseconds(_pollIntervalMs));
@@ -61,6 +68,20 @@ public sealed class NetworkPollingBackgroundService : BackgroundService, INetwor
                 {
                     // Poll network stats
                     _networkMonitor.Poll();
+                    
+                    // Update tray icon with current activity
+                    var currentStats = _networkMonitor.GetCurrentStats();
+                    _trayIcon.UpdateActivity(currentStats.DownloadSpeedBps, currentStats.UploadSpeedBps);
+
+                    // Save speed snapshot for chart history (on every poll)
+                    await _persistence.SaveSpeedSnapshotAsync(currentStats.DownloadSpeedBps, currentStats.UploadSpeedBps).ConfigureAwait(false);
+
+                    // Periodic cleanup of old speed snapshots
+                    if (_cleanupStopwatch.Elapsed.TotalMinutes >= CleanupIntervalMinutes)
+                    {
+                        await _persistence.CleanupOldSpeedSnapshotsAsync(SpeedSnapshotRetention).ConfigureAwait(false);
+                        _cleanupStopwatch.Restart();
+                    }
 
                     // Initial save after short delay
                     if (!initialSaveDone && _saveStopwatch.Elapsed.TotalSeconds >= initialSaveDelaySeconds)

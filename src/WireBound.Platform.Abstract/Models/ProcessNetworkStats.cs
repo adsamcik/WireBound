@@ -1,4 +1,4 @@
-namespace WireBound.Core.Models;
+namespace WireBound.Platform.Abstract.Models;
 
 /// <summary>
 /// Real-time network statistics for a single process

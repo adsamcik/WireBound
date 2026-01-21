@@ -16,6 +16,7 @@ public sealed class WireBoundDbContext : DbContext
     public DbSet<DailyUsage> DailyUsages { get; set; } = null!;
     public DbSet<AppSettings> Settings { get; set; } = null!;
     public DbSet<AppUsageRecord> AppUsageRecords { get; set; } = null!;
+    public DbSet<SpeedSnapshot> SpeedSnapshots { get; set; } = null!;
 
     protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
     {
@@ -63,6 +64,10 @@ public sealed class WireBoundDbContext : DbContext
 
         modelBuilder.Entity<AppUsageRecord>()
             .HasIndex(a => new { a.Granularity, a.Timestamp });
+
+        // SpeedSnapshot index for efficient time-based queries
+        modelBuilder.Entity<SpeedSnapshot>()
+            .HasIndex(s => s.Timestamp);
 
         // Seed default settings
         modelBuilder.Entity<AppSettings>().HasData(new AppSettings { Id = 1 });

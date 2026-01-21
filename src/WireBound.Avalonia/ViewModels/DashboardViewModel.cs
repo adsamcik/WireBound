@@ -2,6 +2,7 @@ using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using LiveChartsCore;
 using LiveChartsCore.Defaults;
+using LiveChartsCore.Drawing;
 using LiveChartsCore.SkiaSharpView;
 using LiveChartsCore.SkiaSharpView.Painting;
 using LiveChartsCore.SkiaSharpView.Painting.Effects;
@@ -45,6 +46,13 @@ public sealed partial class DashboardViewModel : ObservableObject, IDisposable
     private long _totalUploadBps;
     private int _sampleCount;
     
+    // Trend tracking
+    private long _previousDownloadBps;
+    private long _previousUploadBps;
+    private long _downloadMovingAvg;
+    private long _uploadMovingAvg;
+    private const double TrendAlpha = 0.3; // Smoothing factor for moving average
+    
     private readonly AdaptiveThresholdCalculator _thresholdCalculator = new(windowSize: 60, smoothingFactor: 0.1);
 
     [ObservableProperty]
@@ -52,6 +60,18 @@ public sealed partial class DashboardViewModel : ObservableObject, IDisposable
 
     [ObservableProperty]
     private string _uploadSpeed = "0 B/s";
+    
+    [ObservableProperty]
+    private string _downloadTrendIcon = "";
+    
+    [ObservableProperty]
+    private string _downloadTrendText = "stable";
+    
+    [ObservableProperty]
+    private string _uploadTrendIcon = "";
+    
+    [ObservableProperty]
+    private string _uploadTrendText = "stable";
 
     [ObservableProperty]
     private string _sessionDownload = "0 B";
@@ -183,8 +203,52 @@ public sealed partial class DashboardViewModel : ObservableObject, IDisposable
     /// WiFi service for fetching WiFi info
     /// </summary>
     private readonly IWiFiInfoService? _wifiService;
+    
+    // Sparkline data collections (separate from main chart)
+    private readonly ObservableCollection<DateTimePoint> _downloadSparklinePoints = [];
+    private readonly ObservableCollection<DateTimePoint> _uploadSparklinePoints = [];
+    private const int SparklineMaxPoints = 30; // 30 seconds of data
 
     public ISeries[] SpeedSeries { get; }
+    
+    /// <summary>
+    /// Download sparkline series for the inline card chart
+    /// </summary>
+    public ISeries[] DownloadSparklineSeries { get; }
+    
+    /// <summary>
+    /// Upload sparkline series for the inline card chart
+    /// </summary>
+    public ISeries[] UploadSparklineSeries { get; }
+    
+    /// <summary>
+    /// X-axis configuration for sparklines (hidden)
+    /// </summary>
+    public Axis[] SparklineXAxes { get; }
+    
+    /// <summary>
+    /// Y-axis configuration for download sparkline (separate to allow independent scaling)
+    /// </summary>
+    public Axis[] DownloadSparklineYAxes { get; }
+    
+    /// <summary>
+    /// Y-axis configuration for upload sparkline (separate to allow independent scaling)
+    /// </summary>
+    public Axis[] UploadSparklineYAxes { get; }
+    
+    /// <summary>
+    /// Draw margin for sparklines (minimal padding)
+    /// </summary>
+    public LiveChartsCore.Measure.Margin SparklineDrawMargin { get; } = new(0, 0, 0, 0);
+    
+    /// <summary>
+    /// Draw margin frame for sparklines (no visible frame)
+    /// </summary>
+    public DrawMarginFrame SparklineDrawMarginFrame { get; } = new()
+    {
+        Stroke = null,
+        Fill = null
+    };
 
     public Axis[] XAxes { get; }
     
@@ -212,6 +276,13 @@ public sealed partial class DashboardViewModel : ObservableObject, IDisposable
 
         // Initialize chart series using factory
         SpeedSeries = ChartSeriesFactory.CreateSpeedLineSeries(_downloadSpeedPoints, _uploadSpeedPoints);
+        
+        // Initialize sparkline series and axes (minimal inline charts)
+        DownloadSparklineSeries = ChartSeriesFactory.CreateSparklineSeries(_downloadSparklinePoints, isDownload: true);
+        UploadSparklineSeries = ChartSeriesFactory.CreateSparklineSeries(_uploadSparklinePoints, isDownload: false);
+        SparklineXAxes = ChartSeriesFactory.CreateSparklineAxes(isXAxis: true);
+        DownloadSparklineYAxes = ChartSeriesFactory.CreateSparklineAxes(isXAxis: false);
+        UploadSparklineYAxes = ChartSeriesFactory.CreateSparklineAxes(isXAxis: false);
 
         // Load adapters
         LoadAdapters(networkMonitor);
@@ -329,6 +400,9 @@ public sealed partial class DashboardViewModel : ObservableObject, IDisposable
         SessionDownload = ByteFormatter.FormatBytes(stats.SessionBytesReceived);
         SessionUpload = ByteFormatter.FormatBytes(stats.SessionBytesSent);
         
+        // Update trend indicators
+        UpdateTrendIndicators(stats.DownloadSpeedBps, stats.UploadSpeedBps);
+        
         // Calculate today's totals (stored from previous sessions + current session)
         var todayReceivedTotal = _todayStoredReceived + stats.SessionBytesReceived;
         var todaySentTotal = _todayStoredSent + stats.SessionBytesSent;
@@ -373,6 +447,109 @@ public sealed partial class DashboardViewModel : ObservableObject, IDisposable
         if (!IsUpdatesPaused)
         {
             UpdateChart(now, stats.DownloadSpeedBps, stats.UploadSpeedBps);
+        }
+        
+        // Always update sparklines (they're always visible on the dashboard)
+        UpdateSparklines(now, stats.DownloadSpeedBps, stats.UploadSpeedBps);
+    }
+    
+    private void UpdateTrendIndicators(long downloadBps, long uploadBps)
+    {
+        // Update moving averages (exponential smoothing)
+        _downloadMovingAvg = (long)(_downloadMovingAvg * (1 - TrendAlpha) + downloadBps * TrendAlpha);
+        _uploadMovingAvg = (long)(_uploadMovingAvg * (1 - TrendAlpha) + uploadBps * TrendAlpha);
+        
+        // Calculate trend for download
+        var downloadDiff = downloadBps - _previousDownloadBps;
+        var downloadThreshold = Math.Max(_downloadMovingAvg * 0.1, 100); // 10% of average or 100 B/s
+        
+        if (downloadBps == 0)
+        {
+            DownloadTrendIcon = "○";
+            DownloadTrendText = "idle";
+        }
+        else if (downloadDiff > downloadThreshold)
+        {
+            DownloadTrendIcon = "▲";
+            DownloadTrendText = "rising";
+        }
+        else if (downloadDiff < -downloadThreshold)
+        {
+            DownloadTrendIcon = "▼";
+            DownloadTrendText = "falling";
+        }
+        else
+        {
+            DownloadTrendIcon = "●";
+            DownloadTrendText = "stable";
+        }
+        
+        // Calculate trend for upload
+        var uploadDiff = uploadBps - _previousUploadBps;
+        var uploadThreshold = Math.Max(_uploadMovingAvg * 0.1, 100);
+        
+        if (uploadBps == 0)
+        {
+            UploadTrendIcon = "○";
+            UploadTrendText = "idle";
+        }
+        else if (uploadDiff > uploadThreshold)
+        {
+            UploadTrendIcon = "▲";
+            UploadTrendText = "rising";
+        }
+        else if (uploadDiff < -uploadThreshold)
+        {
+            UploadTrendIcon = "▼";
+            UploadTrendText = "falling";
+        }
+        else
+        {
+            UploadTrendIcon = "●";
+            UploadTrendText = "stable";
+        }
+        
+        // Store current values for next comparison
+        _previousDownloadBps = downloadBps;
+        _previousUploadBps = uploadBps;
+    }
+    
+    private void UpdateSparklines(DateTime now, long downloadBps, long uploadBps)
+    {
+        var cutoff = now.AddSeconds(-SparklineMaxPoints);
+        
+        // Add new points
+        _downloadSparklinePoints.Add(new DateTimePoint(now, downloadBps));
+        _uploadSparklinePoints.Add(new DateTimePoint(now, uploadBps));
+        
+        // Remove old points
+        while (_downloadSparklinePoints.Count > 0 && _downloadSparklinePoints[0].DateTime < cutoff)
+        {
+            _downloadSparklinePoints.RemoveAt(0);
+        }
+        while (_uploadSparklinePoints.Count > 0 && _uploadSparklinePoints[0].DateTime < cutoff)
+        {
+            _uploadSparklinePoints.RemoveAt(0);
+        }
+        
+        // Update X-axis range for sparklines
+        if (SparklineXAxes.Length > 0)
+        {
+            SparklineXAxes[0].MinLimit = cutoff.Ticks;
+            SparklineXAxes[0].MaxLimit = now.Ticks;
+        }
+        
+        // Update Y-axis max to be based on peak (prevents constant resizing)
+        // Use a stable max: the session peak + 20% headroom
+        if (DownloadSparklineYAxes.Length > 0)
+        {
+            var downloadMax = Math.Max(_peakDownloadBps * 1.2, 1024); // At least 1 KB/s scale
+            DownloadSparklineYAxes[0].MaxLimit = downloadMax;
+        }
+        if (UploadSparklineYAxes.Length > 0)
+        {
+            var uploadMax = Math.Max(_peakUploadBps * 1.2, 1024); // At least 1 KB/s scale
+            UploadSparklineYAxes[0].MaxLimit = uploadMax;
         }
     }
 

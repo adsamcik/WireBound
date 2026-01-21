@@ -67,4 +67,9 @@
     <ProjectReference Include="..\WireBound.Platform.Linux\WireBound.Platform.Linux.csproj" />
   </ItemGroup>
 
+  <ItemGroup>
+    <!-- App icon for tray -->
+    <AvaloniaResource Include="Assets\**" />
+  </ItemGroup>
+
 </Project>

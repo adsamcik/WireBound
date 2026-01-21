@@ -3,6 +3,7 @@ using Microsoft.Extensions.DependencyInjection;
 using WireBound.Core.Data;
 using WireBound.Core.Models;
 using WireBound.Core.Services;
+using WireBound.Platform.Abstract.Models;
 
 namespace WireBound.Avalonia.Services;
 
@@ -443,5 +444,44 @@ public sealed class DataPersistenceService : IDataPersistenceService
 
         var cutoffDate = DateTime.Now.AddDays(-retentionDays);
         await db.AppUsageRecords.Where(a => a.Timestamp < cutoffDate).ExecuteDeleteAsync().ConfigureAwait(false);
+    }
+
+    public async Task SaveSpeedSnapshotAsync(long downloadSpeedBps, long uploadSpeedBps)
+    {
+        using var scope = _serviceProvider.CreateScope();
+        var db = scope.ServiceProvider.GetRequiredService<WireBoundDbContext>();
+
+        db.SpeedSnapshots.Add(new SpeedSnapshot
+        {
+            Timestamp = DateTime.Now,
+            DownloadSpeedBps = downloadSpeedBps,
+            UploadSpeedBps = uploadSpeedBps
+        });
+
+        await db.SaveChangesAsync().ConfigureAwait(false);
+    }
+
+    public async Task<List<SpeedSnapshot>> GetSpeedHistoryAsync(DateTime since)
+    {
+        using var scope = _serviceProvider.CreateScope();
+        var db = scope.ServiceProvider.GetRequiredService<WireBoundDbContext>();
+
+        return await db.SpeedSnapshots
+            .Where(s => s.Timestamp >= since)
+            .OrderBy(s => s.Timestamp)
+            .ToListAsync()
+            .ConfigureAwait(false);
+    }
+
+    public async Task CleanupOldSpeedSnapshotsAsync(TimeSpan maxAge)
+    {
+        using var scope = _serviceProvider.CreateScope();
+        var db = scope.ServiceProvider.GetRequiredService<WireBoundDbContext>();
+
+        var cutoff = DateTime.Now - maxAge;
+        await db.SpeedSnapshots
+            .Where(s => s.Timestamp < cutoff)
+            .ExecuteDeleteAsync()
+            .ConfigureAwait(false);
     }
 }

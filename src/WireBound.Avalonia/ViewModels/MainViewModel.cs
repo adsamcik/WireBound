@@ -1,3 +1,4 @@
+using System.Reflection;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using WireBound.Avalonia.Services;
@@ -28,6 +29,26 @@ public partial class MainViewModel : ObservableObject, IDisposable
     private readonly INavigationService _navigationService;
     private readonly IViewFactory _viewFactory;
     private bool _disposed;
+
+    /// <summary>
+    /// Gets the application version from the assembly
+    /// </summary>
+    public string Version { get; } = GetAppVersion();
+
+    private static string GetAppVersion()
+    {
+        var version = Assembly.GetExecutingAssembly()
+            .GetCustomAttribute<AssemblyInformationalVersionAttribute>()?.InformationalVersion
+            ?? Assembly.GetExecutingAssembly().GetName().Version?.ToString()
+            ?? "Unknown";
+        
+        // Remove any metadata after '+' (e.g., commit hash)
+        var plusIndex = version.IndexOf('+');
+        if (plusIndex > 0)
+            version = version[..plusIndex];
+        
+        return $"v{version}";
+    }
 
     public MainViewModel(
         INavigationService navigationService,

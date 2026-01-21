@@ -45,10 +45,14 @@ public partial class App : Application
         {
             // Create main window with navigation
             var mainViewModel = _serviceProvider.GetRequiredService<MainViewModel>();
-            desktop.MainWindow = new MainWindow
+            var mainWindow = new MainWindow
             {
                 DataContext = mainViewModel
             };
+            desktop.MainWindow = mainWindow;
+
+            // Initialize tray icon service
+            InitializeTrayIcon(mainWindow);
 
             desktop.ShutdownRequested += OnShutdownRequested;
 
@@ -91,6 +95,7 @@ public partial class App : Application
         services.AddSingleton<INavigationService, NavigationService>();
         services.AddSingleton<ILocalizationService, LocalizationService>();
         services.AddSingleton<IViewFactory, ViewFactory>();
+        services.AddSingleton<ITrayIconService, TrayIconService>();
 
         // Register background service
         services.AddSingleton<NetworkPollingBackgroundService>();
@@ -143,12 +148,46 @@ public partial class App : Application
         }
     }
 
+    private void InitializeTrayIcon(MainWindow mainWindow)
+    {
+        if (_serviceProvider is null) return;
+        
+        try
+        {
+            // Load settings to get minimize to tray preference
+            var persistence = _serviceProvider.GetRequiredService<IDataPersistenceService>();
+            var settings = persistence.GetSettingsAsync().GetAwaiter().GetResult();
+            
+            var trayIconService = (TrayIconService)_serviceProvider.GetRequiredService<ITrayIconService>();
+            trayIconService.Initialize(mainWindow, settings.MinimizeToTray);
+            
+            // Subscribe to settings changes
+            var settingsViewModel = _serviceProvider.GetRequiredService<SettingsViewModel>();
+            settingsViewModel.PropertyChanged += (_, e) =>
+            {
+                if (e.PropertyName == nameof(SettingsViewModel.MinimizeToTray))
+                {
+                    trayIconService.MinimizeToTray = settingsViewModel.MinimizeToTray;
+                }
+            };
+            
+            Log.Information("Tray icon initialized with MinimizeToTray={MinimizeToTray}", settings.MinimizeToTray);
+        }
+        catch (Exception ex)
+        {
+            Log.Error(ex, "Failed to initialize tray icon");
+        }
+    }
+
     private void OnShutdownRequested(object? sender, ShutdownRequestedEventArgs e)
     {
         Log.Information("Application shutting down...");
 
         try
         {
+            // Dispose tray icon service
+            _serviceProvider?.GetService<ITrayIconService>()?.Dispose();
+            
             // Stop background services first
             var pollingService = _serviceProvider?.GetService<NetworkPollingBackgroundService>();
             pollingService?.StopAsync(CancellationToken.None).GetAwaiter().GetResult();

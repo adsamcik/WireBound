@@ -130,7 +130,7 @@
                     </StackPanel>
                     
                     <!-- Version -->
-                    <TextBlock Text="v2.0.0"
+                    <TextBlock Text="{Binding Version}"
                                FontSize="11"
                                Foreground="{DynamicResource MutedTextBrush}" />
                 </StackPanel>

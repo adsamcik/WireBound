@@ -235,4 +235,75 @@ public static class ChartSeriesFactory
             }
         ];
     }
+    
+    /// <summary>
+    /// Creates a minimal sparkline series for inline card charts.
+    /// </summary>
+    /// <param name="points">Observable collection for data points.</param>
+    /// <param name="isDownload">Whether this is a download (cyan) or upload (orange) sparkline.</param>
+    /// <returns>Array containing a single LineSeries for the sparkline.</returns>
+    public static ISeries[] CreateSparklineSeries(
+        ObservableCollection<DateTimePoint> points,
+        bool isDownload)
+    {
+        var color = isDownload ? ChartColors.DownloadAccentColor : ChartColors.UploadAccentColor;
+
+        return
+        [
+            new LineSeries<DateTimePoint>
+            {
+                Values = points,
+                Fill = new LinearGradientPaint(
+                    [color.WithAlpha(80), color.WithAlpha(0)],
+                    new SKPoint(0.5f, 0),
+                    new SKPoint(0.5f, 1)
+                ),
+                Stroke = new SolidColorPaint(color, 2),
+                GeometryFill = null,
+                GeometryStroke = null,
+                LineSmoothness = 0.65,
+                AnimationsSpeed = TimeSpan.Zero
+            }
+        ];
+    }
+    
+    /// <summary>
+    /// Creates hidden axes for sparkline charts (no labels, no gridlines).
+    /// </summary>
+    /// <param name="isXAxis">Whether to create X-axis (time) or Y-axis (value).</param>
+    /// <returns>Array containing a single hidden Axis.</returns>
+    public static Axis[] CreateSparklineAxes(bool isXAxis)
+    {
+        if (isXAxis)
+        {
+            return
+            [
+                new DateTimeAxis(TimeSpan.FromSeconds(1), _ => string.Empty)
+                {
+                    ShowSeparatorLines = false,
+                    LabelsPaint = null,
+                    NamePaint = null,
+                    TicksPaint = null,
+                    SubticksPaint = null,
+                    SeparatorsPaint = null,
+                    AnimationsSpeed = TimeSpan.Zero
+                }
+            ];
+        }
+        
+        return
+        [
+            new Axis
+            {
+                ShowSeparatorLines = false,
+                LabelsPaint = null,
+                NamePaint = null,
+                TicksPaint = null,
+                SubticksPaint = null,
+                SeparatorsPaint = null,
+                MinLimit = 0,
+                AnimationsSpeed = TimeSpan.Zero
+            }
+        ];
+    }
 }

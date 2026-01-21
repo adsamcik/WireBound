@@ -1,4 +1,5 @@
 using WireBound.Core.Models;
+using WireBound.Platform.Abstract.Models;
 
 namespace WireBound.Core.Services;
 
@@ -83,4 +84,21 @@ public interface IDataPersistenceService
     /// Clean up old app data beyond retention period
     /// </summary>
     Task CleanupOldAppDataAsync(int retentionDays);
+
+    // === Speed Snapshot Methods ===
+
+    /// <summary>
+    /// Save a speed snapshot for chart history
+    /// </summary>
+    Task SaveSpeedSnapshotAsync(long downloadSpeedBps, long uploadSpeedBps);
+
+    /// <summary>
+    /// Get speed history for a time range
+    /// </summary>
+    Task<List<SpeedSnapshot>> GetSpeedHistoryAsync(DateTime since);
+
+    /// <summary>
+    /// Clean up old speed snapshots beyond retention period
+    /// </summary>
+    Task CleanupOldSpeedSnapshotsAsync(TimeSpan maxAge);
 }

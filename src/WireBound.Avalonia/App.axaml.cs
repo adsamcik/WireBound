@@ -91,6 +91,9 @@ public partial class App : Application
             LinuxPlatformServices.Instance.Register(services);
         }
 
+        // Register per-app network tracking service (adapts platform providers)
+        services.AddSingleton<IProcessNetworkService, ProcessNetworkService>();
+
         // Register app-specific services
         services.AddSingleton<INavigationService, NavigationService>();
         services.AddSingleton<ILocalizationService, LocalizationService>();

@@ -58,22 +58,42 @@ public sealed partial class ApplicationsViewModel : ObservableObject
 
     public ApplicationsViewModel(
         IDataPersistenceService persistence,
-        IServiceProvider serviceProvider)
+        IProcessNetworkService processNetworkService)
     {
         _persistence = persistence;
-        _processNetworkService = serviceProvider.GetService(typeof(IProcessNetworkService)) as IProcessNetworkService;
+        _processNetworkService = processNetworkService;
 
-        // Per-app network tracking requires IProcessNetworkService which is not yet implemented cross-platform
-        IsPlatformSupported = _processNetworkService != null;
+        // Per-app network tracking requires IProcessNetworkService which is now implemented
+        IsPlatformSupported = _processNetworkService?.IsPlatformSupported ?? false;
         IsPerAppTrackingEnabled = _processNetworkService?.IsRunning == true;
-        RequiresElevation = false;
+        RequiresElevation = !(_processNetworkService?.HasRequiredPrivileges ?? true);
 
         if (_processNetworkService != null)
         {
             _processNetworkService.StatsUpdated += OnProcessStatsUpdated;
+            _processNetworkService.ErrorOccurred += OnProcessErrorOccurred;
+            
+            // Start monitoring if not already running
+            _ = StartMonitoringAsync();
         }
 
         _ = LoadDataAsync();
+    }
+
+    private async Task StartMonitoringAsync()
+    {
+        if (_processNetworkService == null) return;
+        
+        var started = await _processNetworkService.StartAsync();
+        IsPerAppTrackingEnabled = started;
+    }
+
+    private void OnProcessErrorOccurred(object? sender, ProcessNetworkErrorEventArgs e)
+    {
+        Dispatcher.UIThread.Post(() =>
+        {
+            RequiresElevation = e.RequiresElevation;
+        });
     }
 
     private void OnProcessStatsUpdated(object? sender, ProcessStatsUpdatedEventArgs e)

@@ -33,6 +33,11 @@ public interface IDataPersistenceService
     Task<(long totalReceived, long totalSent)> GetTodayUsageAsync();
 
     /// <summary>
+    /// Get today's usage statistics per adapter
+    /// </summary>
+    Task<Dictionary<string, (long received, long sent)>> GetTodayUsageByAdapterAsync();
+
+    /// <summary>
     /// Clean up old data beyond retention period
     /// </summary>
     Task CleanupOldDataAsync(int retentionDays);

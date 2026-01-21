@@ -175,9 +175,9 @@ public sealed partial class DashboardViewModel : ObservableObject, IDisposable
     private ObservableCollection<AdapterDisplayItem> _adapterDisplayItems = [];
     
     /// <summary>
-    /// Cache for tracking per-adapter session bytes
+    /// Cache for tracking per-adapter today's stored bytes (from database at startup)
     /// </summary>
-    private readonly ConcurrentDictionary<string, (long Download, long Upload)> _adapterSessionBytes = new();
+    private readonly ConcurrentDictionary<string, (long Download, long Upload)> _adapterTodayStoredBytes = new();
     
     /// <summary>
     /// WiFi service for fetching WiFi info
@@ -232,9 +232,17 @@ public sealed partial class DashboardViewModel : ObservableObject, IDisposable
         
         try
         {
+            // Load total today's usage
             var (received, sent) = await _dataPersistence.GetTodayUsageAsync();
             _todayStoredReceived = received;
             _todayStoredSent = sent;
+            
+            // Load per-adapter today's usage
+            var adapterUsage = await _dataPersistence.GetTodayUsageByAdapterAsync();
+            foreach (var (adapterId, (download, upload)) in adapterUsage)
+            {
+                _adapterTodayStoredBytes[adapterId] = (download, upload);
+            }
         }
         catch
         {
@@ -286,11 +294,16 @@ public sealed partial class DashboardViewModel : ObservableObject, IDisposable
         {
             if (allStats.TryGetValue(item.Id, out var stats))
             {
+                // Get stored today's bytes for this adapter (from database at startup)
+                _adapterTodayStoredBytes.TryGetValue(item.Id, out var storedToday);
+                
                 item.UpdateTraffic(
                     stats.DownloadSpeedBps,
                     stats.UploadSpeedBps,
                     stats.SessionBytesReceived,
-                    stats.SessionBytesSent
+                    stats.SessionBytesSent,
+                    storedToday.Download,
+                    storedToday.Upload
                 );
             }
         }

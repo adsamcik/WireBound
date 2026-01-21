@@ -169,6 +169,23 @@ public sealed class DataPersistenceService : IDataPersistenceService
         return (totals?.TotalReceived ?? 0, totals?.TotalSent ?? 0);
     }
 
+    public async Task<Dictionary<string, (long received, long sent)>> GetTodayUsageByAdapterAsync()
+    {
+        using var scope = _serviceProvider.CreateScope();
+        var db = scope.ServiceProvider.GetRequiredService<WireBoundDbContext>();
+
+        var today = DateOnly.FromDateTime(DateTime.Now);
+        var usages = await db.DailyUsages
+            .Where(d => d.Date == today)
+            .ToListAsync()
+            .ConfigureAwait(false);
+
+        return usages.ToDictionary(
+            u => u.AdapterId,
+            u => (u.BytesReceived, u.BytesSent)
+        );
+    }
+
     public async Task CleanupOldDataAsync(int retentionDays)
     {
         using var scope = _serviceProvider.CreateScope();

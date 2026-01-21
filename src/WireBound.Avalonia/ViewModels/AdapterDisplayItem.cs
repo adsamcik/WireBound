@@ -88,16 +88,16 @@ public partial class AdapterDisplayItem : ObservableObject
     private string _uploadSpeed = "0 B/s";
     
     /// <summary>
-    /// Session download total
+    /// Today's download total
     /// </summary>
     [ObservableProperty]
-    private string _sessionDownload = "0 B";
+    private string _todayDownload = "0 B";
     
     /// <summary>
-    /// Session upload total
+    /// Today's upload total
     /// </summary>
     [ObservableProperty]
-    private string _sessionUpload = "0 B";
+    private string _todayUpload = "0 B";
     
     /// <summary>
     /// Raw download bytes per second for sorting
@@ -127,14 +127,14 @@ public partial class AdapterDisplayItem : ObservableObject
     /// <summary>
     /// Update traffic stats from network stats
     /// </summary>
-    public void UpdateTraffic(long downloadBps, long uploadBps, long sessionDownload, long sessionUpload)
+    public void UpdateTraffic(long downloadBps, long uploadBps, long sessionDownload, long sessionUpload, long storedTodayDownload = 0, long storedTodayUpload = 0)
     {
         DownloadBps = downloadBps;
         UploadBps = uploadBps;
         DownloadSpeed = ByteFormatter.FormatSpeed(downloadBps);
         UploadSpeed = ByteFormatter.FormatSpeed(uploadBps);
-        SessionDownload = ByteFormatter.FormatBytes(sessionDownload);
-        SessionUpload = ByteFormatter.FormatBytes(sessionUpload);
+        TodayDownload = ByteFormatter.FormatBytes(storedTodayDownload + sessionDownload);
+        TodayUpload = ByteFormatter.FormatBytes(storedTodayUpload + sessionUpload);
         OnPropertyChanged(nameof(HasTraffic));
     }
     

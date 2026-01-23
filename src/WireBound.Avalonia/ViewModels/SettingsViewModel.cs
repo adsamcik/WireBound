@@ -52,6 +52,42 @@ public sealed partial class SettingsViewModel : ObservableObject
     private SpeedUnit _selectedSpeedUnit = SpeedUnit.BytesPerSecond;
     
     public SpeedUnit[] SpeedUnits { get; } = Enum.GetValues<SpeedUnit>();
+    
+    // Dashboard Customization
+    [ObservableProperty]
+    private bool _showSystemMetricsInHeader = true;
+    
+    [ObservableProperty]
+    private bool _showCpuOverlayByDefault;
+    
+    [ObservableProperty]
+    private bool _showMemoryOverlayByDefault;
+    
+    [ObservableProperty]
+    private bool _showGpuMetrics = true;
+    
+    [ObservableProperty]
+    private string _defaultTimeRange = "FiveMinutes";
+    
+    public List<string> TimeRangeOptions { get; } = ["OneMinute", "FiveMinutes", "FifteenMinutes", "OneHour"];
+    
+    // Performance Mode
+    [ObservableProperty]
+    private bool _performanceModeEnabled;
+    
+    [ObservableProperty]
+    private int _chartUpdateIntervalMs = 1000;
+    
+    public List<int> ChartUpdateIntervals { get; } = [500, 750, 1000, 1500, 2000, 3000, 5000];
+    
+    // Insights Page
+    [ObservableProperty]
+    private string _defaultInsightsPeriod = "ThisWeek";
+    
+    public List<string> InsightsPeriodOptions { get; } = ["Today", "ThisWeek", "ThisMonth"];
+    
+    [ObservableProperty]
+    private bool _showCorrelationInsights = true;
 
     [ObservableProperty]
     private bool _isElevated;
@@ -78,6 +114,17 @@ public sealed partial class SettingsViewModel : ObservableObject
     partial void OnMinimizeToTrayChanged(bool value) => ScheduleAutoSave();
     partial void OnStartMinimizedChanged(bool value) => ScheduleAutoSave();
     partial void OnSelectedSpeedUnitChanged(SpeedUnit value) => ScheduleAutoSave();
+    
+    // Dashboard Customization auto-save handlers
+    partial void OnShowSystemMetricsInHeaderChanged(bool value) => ScheduleAutoSave();
+    partial void OnShowCpuOverlayByDefaultChanged(bool value) => ScheduleAutoSave();
+    partial void OnShowMemoryOverlayByDefaultChanged(bool value) => ScheduleAutoSave();
+    partial void OnShowGpuMetricsChanged(bool value) => ScheduleAutoSave();
+    partial void OnDefaultTimeRangeChanged(string value) => ScheduleAutoSave();
+    partial void OnPerformanceModeEnabledChanged(bool value) => ScheduleAutoSave();
+    partial void OnChartUpdateIntervalMsChanged(int value) => ScheduleAutoSave();
+    partial void OnDefaultInsightsPeriodChanged(string value) => ScheduleAutoSave();
+    partial void OnShowCorrelationInsightsChanged(bool value) => ScheduleAutoSave();
 
     private void ScheduleAutoSave()
     {
@@ -140,6 +187,21 @@ public sealed partial class SettingsViewModel : ObservableObject
         StartMinimized = settings.StartMinimized;
         SelectedSpeedUnit = settings.SpeedUnit;
         
+        // Dashboard Customization
+        ShowSystemMetricsInHeader = settings.ShowSystemMetricsInHeader;
+        ShowCpuOverlayByDefault = settings.ShowCpuOverlayByDefault;
+        ShowMemoryOverlayByDefault = settings.ShowMemoryOverlayByDefault;
+        ShowGpuMetrics = settings.ShowGpuMetrics;
+        DefaultTimeRange = settings.DefaultTimeRange;
+        
+        // Performance Mode
+        PerformanceModeEnabled = settings.PerformanceModeEnabled;
+        ChartUpdateIntervalMs = settings.ChartUpdateIntervalMs;
+        
+        // Insights Page
+        DefaultInsightsPeriod = settings.DefaultInsightsPeriod;
+        ShowCorrelationInsights = settings.ShowCorrelationInsights;
+        
         // Load startup state from OS (not from saved settings)
         await LoadStartupStateAsync();
         
@@ -184,7 +246,22 @@ public sealed partial class SettingsViewModel : ObservableObject
             MinimizeToTray = MinimizeToTray,
             StartMinimized = StartMinimized,
             StartWithWindows = StartWithWindows,
-            SpeedUnit = SelectedSpeedUnit
+            SpeedUnit = SelectedSpeedUnit,
+            
+            // Dashboard Customization
+            ShowSystemMetricsInHeader = ShowSystemMetricsInHeader,
+            ShowCpuOverlayByDefault = ShowCpuOverlayByDefault,
+            ShowMemoryOverlayByDefault = ShowMemoryOverlayByDefault,
+            ShowGpuMetrics = ShowGpuMetrics,
+            DefaultTimeRange = DefaultTimeRange,
+            
+            // Performance Mode
+            PerformanceModeEnabled = PerformanceModeEnabled,
+            ChartUpdateIntervalMs = ChartUpdateIntervalMs,
+            
+            // Insights Page
+            DefaultInsightsPeriod = DefaultInsightsPeriod,
+            ShowCorrelationInsights = ShowCorrelationInsights
         };
         
         // Apply speed unit setting globally

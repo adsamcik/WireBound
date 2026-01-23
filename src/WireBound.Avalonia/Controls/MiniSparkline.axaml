@@ -1,0 +1,46 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:controls="using:WireBound.Avalonia.Controls"
+             x:Class="WireBound.Avalonia.Controls.MiniSparkline"
+             x:DataType="controls:MiniSparkline"
+             ClipToBounds="True"
+             Height="20"
+             MinWidth="40">
+    
+    <UserControl.Styles>
+        <!-- Size variant styles -->
+        <Style Selector="controls|MiniSparkline.Compact">
+            <Setter Property="Height" Value="16" />
+            <Setter Property="MinWidth" Value="60" />
+        </Style>
+        <Style Selector="controls|MiniSparkline.Normal">
+            <Setter Property="Height" Value="20" />
+            <Setter Property="MinWidth" Value="80" />
+        </Style>
+        <Style Selector="controls|MiniSparkline.Large">
+            <Setter Property="Height" Value="32" />
+            <Setter Property="MinWidth" Value="120" />
+        </Style>
+    </UserControl.Styles>
+    
+    <Canvas x:Name="SparklineCanvas"
+            Background="Transparent"
+            HorizontalAlignment="Stretch"
+            VerticalAlignment="Stretch">
+        
+        <!-- Gradient fill below the line -->
+        <Polygon x:Name="FillPolygon"
+                 Points="{Binding FillPoints, RelativeSource={RelativeSource AncestorType=controls:MiniSparkline}}"
+                 Fill="{Binding FillColor, RelativeSource={RelativeSource AncestorType=controls:MiniSparkline}}"
+                 IsVisible="{Binding ShowFill, RelativeSource={RelativeSource AncestorType=controls:MiniSparkline}}" />
+        
+        <!-- The sparkline itself -->
+        <Polyline x:Name="SparklinePolyline"
+                  Points="{Binding LinePoints, RelativeSource={RelativeSource AncestorType=controls:MiniSparkline}}"
+                  Stroke="{Binding StrokeColor, RelativeSource={RelativeSource AncestorType=controls:MiniSparkline}}"
+                  StrokeThickness="{Binding StrokeThickness, RelativeSource={RelativeSource AncestorType=controls:MiniSparkline}}"
+                  StrokeLineCap="Round" />
+        
+    </Canvas>
+    
+</UserControl>

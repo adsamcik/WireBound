@@ -122,6 +122,9 @@ public partial class App : Application
         // Register system monitoring service (CPU, RAM)
         services.AddSingleton<ISystemMonitorService, SystemMonitorService>();
 
+        // Register system history service for historical stats tracking
+        services.AddSingleton<ISystemHistoryService, SystemHistoryService>();
+
         // Register DNS resolver service for reverse lookups
         services.AddSingleton<IDnsResolverService, DnsResolverService>();
 
@@ -138,18 +141,18 @@ public partial class App : Application
 
         // Register ViewModels
         services.AddSingleton<MainViewModel>();
-        services.AddSingleton<DashboardViewModel>();
+        services.AddSingleton<OverviewViewModel>();
         services.AddSingleton<ChartsViewModel>();
-        services.AddSingleton<HistoryViewModel>();
+        services.AddSingleton<InsightsViewModel>();
         services.AddSingleton<SettingsViewModel>();
         services.AddSingleton<ApplicationsViewModel>();
         services.AddSingleton<ConnectionsViewModel>();
         services.AddSingleton<SystemViewModel>();
 
         // Register View factory for navigation
-        services.AddTransient<DashboardView>();
+        services.AddTransient<OverviewView>();
         services.AddTransient<ChartsView>();
-        services.AddTransient<HistoryView>();
+        services.AddTransient<InsightsView>();
         services.AddTransient<SettingsView>();
         services.AddTransient<ApplicationsView>();
         services.AddTransient<ConnectionsView>();

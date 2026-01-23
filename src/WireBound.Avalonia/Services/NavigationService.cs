@@ -8,7 +8,7 @@ namespace WireBound.Avalonia.Services;
 /// </summary>
 public sealed class NavigationService : INavigationService
 {
-    public string CurrentView { get; private set; } = Routes.Dashboard;
+    public string CurrentView { get; private set; } = Routes.Overview;
 
     public event Action<string>? NavigationChanged;
 

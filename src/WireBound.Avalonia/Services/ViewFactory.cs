@@ -22,21 +22,21 @@ public sealed class ViewFactory : IViewFactory
     {
         return route switch
         {
-            Routes.Dashboard => CreateDashboardView(),
+            Routes.Overview => CreateOverviewView(),
             Routes.Charts => CreateChartsView(),
-            Routes.History => CreateHistoryView(),
+            Routes.Insights => CreateInsightsView(),
             Routes.Settings => CreateSettingsView(),
             Routes.Applications => CreateApplicationsView(),
             Routes.Connections => CreateConnectionsView(),
             Routes.System => CreateSystemView(),
-            _ => CreateDashboardView()
+            _ => CreateOverviewView()
         };
     }
 
-    private Control CreateDashboardView()
+    private Control CreateOverviewView()
     {
-        var view = _serviceProvider.GetRequiredService<DashboardView>();
-        view.DataContext = _serviceProvider.GetRequiredService<DashboardViewModel>();
+        var view = _serviceProvider.GetRequiredService<OverviewView>();
+        view.DataContext = _serviceProvider.GetRequiredService<OverviewViewModel>();
         return view;
     }
 
@@ -47,10 +47,10 @@ public sealed class ViewFactory : IViewFactory
         return view;
     }
 
-    private Control CreateHistoryView()
+    private Control CreateInsightsView()
     {
-        var view = _serviceProvider.GetRequiredService<HistoryView>();
-        view.DataContext = _serviceProvider.GetRequiredService<HistoryViewModel>();
+        var view = _serviceProvider.GetRequiredService<InsightsView>();
+        view.DataContext = _serviceProvider.GetRequiredService<InsightsViewModel>();
         return view;
     }
 

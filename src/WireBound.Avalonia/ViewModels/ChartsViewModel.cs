@@ -3,6 +3,7 @@ using LiveChartsCore;
 using LiveChartsCore.Defaults;
 using LiveChartsCore.SkiaSharpView;
 using LiveChartsCore.SkiaSharpView.Painting;
+using LiveChartsCore.SkiaSharpView.Painting.Effects;
 using Microsoft.Extensions.Logging;
 using SkiaSharp;
 using System.Collections.ObjectModel;
@@ -20,11 +21,20 @@ public sealed partial class ChartsViewModel : ObservableObject, IDisposable
 {
     private readonly INetworkMonitorService _networkMonitor;
     private readonly IDataPersistenceService _persistence;
+    private readonly ISystemMonitorService? _systemMonitorService;
     private readonly ILogger<ChartsViewModel>? _logger;
     private bool _disposed;
     private readonly ChartDataManager _chartDataManager = new(maxBufferSize: 3600, maxDisplayPoints: 300);
     private readonly ObservableCollection<DateTimePoint> _downloadSpeedPoints = [];
     private readonly ObservableCollection<DateTimePoint> _uploadSpeedPoints = [];
+    
+    // CPU/Memory history for overlay
+    private readonly ObservableCollection<DateTimePoint> _cpuHistoryPoints = [];
+    private readonly ObservableCollection<DateTimePoint> _memoryHistoryPoints = [];
+    
+    // Overlay series (created once, added/removed from chart as needed)
+    private readonly LineSeries<DateTimePoint> _cpuOverlaySeries;
+    private readonly LineSeries<DateTimePoint> _memoryOverlaySeries;
 
     [ObservableProperty]
     private string _downloadSpeed = "0 B/s";
@@ -53,6 +63,13 @@ public sealed partial class ChartsViewModel : ObservableObject, IDisposable
     [ObservableProperty]
     private string _pauseStatusText = "";
 
+    // Layer toggle properties for multi-metric overlays
+    [ObservableProperty]
+    private bool _showCpuOverlay;
+
+    [ObservableProperty]
+    private bool _showMemoryOverlay;
+
     public ObservableCollection<TimeRangeOption> TimeRangeOptions { get; } =
     [
         new() { Label = "30s", Seconds = 30, Description = "Last 30 seconds" },
@@ -62,19 +79,27 @@ public sealed partial class ChartsViewModel : ObservableObject, IDisposable
         new() { Label = "1h", Seconds = 3600, Description = "Last 1 hour" }
     ];
 
-    public ISeries[] SpeedSeries { get; }
+    public ObservableCollection<ISeries> SpeedSeries { get; } = [];
 
     public Axis[] XAxes { get; }
 
     public Axis[] YAxes { get; } = ChartSeriesFactory.CreateSpeedYAxes();
 
+    /// <summary>
+    /// Secondary Y-axis for percentage values (0-100%) when CPU/Memory overlays are shown.
+    /// Positioned on the right side of the chart.
+    /// </summary>
+    public Axis[] SecondaryYAxes { get; } = ChartSeriesFactory.CreatePercentageYAxes();
+
     public ChartsViewModel(
         INetworkMonitorService networkMonitor,
         IDataPersistenceService persistence,
+        ISystemMonitorService? systemMonitorService = null,
         ILogger<ChartsViewModel>? logger = null)
     {
         _networkMonitor = networkMonitor;
         _persistence = persistence;
+        _systemMonitorService = systemMonitorService;
         _logger = logger;
         networkMonitor.StatsUpdated += OnStatsUpdated;
 
@@ -82,7 +107,23 @@ public sealed partial class ChartsViewModel : ObservableObject, IDisposable
 
         // Initialize axes and series using factory
         XAxes = ChartSeriesFactory.CreateTimeXAxes();
-        SpeedSeries = ChartSeriesFactory.CreateSpeedLineSeries(_downloadSpeedPoints, _uploadSpeedPoints);
+        
+        // Add base network speed series
+        var baseSeries = ChartSeriesFactory.CreateSpeedLineSeries(_downloadSpeedPoints, _uploadSpeedPoints);
+        foreach (var series in baseSeries)
+            SpeedSeries.Add(series);
+
+        // Create overlay series (dashed lines for CPU/Memory)
+        _cpuOverlaySeries = ChartSeriesFactory.CreateOverlayLineSeries(
+            "CPU %", _cpuHistoryPoints, ChartColors.CpuColor, useDashedLine: true);
+        _memoryOverlaySeries = ChartSeriesFactory.CreateOverlayLineSeries(
+            "Memory %", _memoryHistoryPoints, ChartColors.MemoryColor, useDashedLine: true);
+
+        // Subscribe to system stats if service is available
+        if (_systemMonitorService != null)
+        {
+            _systemMonitorService.StatsUpdated += OnSystemStatsUpdated;
+        }
 
         // Load historical data asynchronously
         _ = LoadHistoryAsync();
@@ -201,10 +242,83 @@ public sealed partial class ChartsViewModel : ObservableObject, IDisposable
             _uploadSpeedPoints.Add(point);
     }
 
+    /// <summary>
+    /// Handles system stats updates for CPU/Memory overlays
+    /// </summary>
+    private void OnSystemStatsUpdated(object? sender, Core.Models.SystemStats stats)
+    {
+        if (_disposed || (!ShowCpuOverlay && !ShowMemoryOverlay)) return;
+
+        Dispatcher.UIThread.Post(() =>
+        {
+            if (_disposed) return;
+            UpdateSystemOverlays(stats);
+        });
+    }
+
+    private void UpdateSystemOverlays(Core.Models.SystemStats stats)
+    {
+        var now = DateTime.Now;
+        var rangeSeconds = SelectedTimeRange?.Seconds ?? 60;
+        var cutoff = now.AddSeconds(-rangeSeconds);
+
+        if (ShowCpuOverlay)
+        {
+            _cpuHistoryPoints.Add(new DateTimePoint(now, stats.Cpu.UsagePercent));
+            while (_cpuHistoryPoints.Count > 0 && _cpuHistoryPoints[0].DateTime < cutoff)
+                _cpuHistoryPoints.RemoveAt(0);
+        }
+
+        if (ShowMemoryOverlay)
+        {
+            _memoryHistoryPoints.Add(new DateTimePoint(now, stats.Memory.UsagePercent));
+            while (_memoryHistoryPoints.Count > 0 && _memoryHistoryPoints[0].DateTime < cutoff)
+                _memoryHistoryPoints.RemoveAt(0);
+        }
+    }
+
+    /// <summary>
+    /// Called when ShowCpuOverlay property changes - adds/removes CPU series from chart
+    /// </summary>
+    partial void OnShowCpuOverlayChanged(bool value)
+    {
+        if (value)
+        {
+            if (!SpeedSeries.Contains(_cpuOverlaySeries))
+                SpeedSeries.Add(_cpuOverlaySeries);
+        }
+        else
+        {
+            SpeedSeries.Remove(_cpuOverlaySeries);
+            _cpuHistoryPoints.Clear();
+        }
+    }
+
+    /// <summary>
+    /// Called when ShowMemoryOverlay property changes - adds/removes Memory series from chart
+    /// </summary>
+    partial void OnShowMemoryOverlayChanged(bool value)
+    {
+        if (value)
+        {
+            if (!SpeedSeries.Contains(_memoryOverlaySeries))
+                SpeedSeries.Add(_memoryOverlaySeries);
+        }
+        else
+        {
+            SpeedSeries.Remove(_memoryOverlaySeries);
+            _memoryHistoryPoints.Clear();
+        }
+    }
+
     public void Dispose()
     {
         if (_disposed) return;
         _disposed = true;
         _networkMonitor.StatsUpdated -= OnStatsUpdated;
+        if (_systemMonitorService != null)
+        {
+            _systemMonitorService.StatsUpdated -= OnSystemStatsUpdated;
+        }
     }
 }

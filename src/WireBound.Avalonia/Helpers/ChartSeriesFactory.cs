@@ -2,6 +2,7 @@ using LiveChartsCore;
 using LiveChartsCore.Defaults;
 using LiveChartsCore.SkiaSharpView;
 using LiveChartsCore.SkiaSharpView.Painting;
+using LiveChartsCore.SkiaSharpView.Painting.Effects;
 using SkiaSharp;
 using System.Collections.ObjectModel;
 using WireBound.Core.Helpers;
@@ -104,6 +105,66 @@ public static class ChartSeriesFactory
                 Labeler = value => ByteFormatter.FormatSpeed((long)value)
             }
         ];
+    }
+
+    /// <summary>
+    /// Creates a secondary Y-axis for percentage values (0-100%), positioned on the right side.
+    /// Used for CPU/Memory overlay series.
+    /// </summary>
+    /// <returns>Array containing a single Axis for percentage values.</returns>
+    public static Axis[] CreatePercentageYAxes()
+    {
+        return
+        [
+            new Axis
+            {
+                Name = "%",
+                NamePaint = new SolidColorPaint(ChartColors.AxisNameColor),
+                LabelsPaint = new SolidColorPaint(ChartColors.AxisLabelColor),
+                TextSize = 11,
+                NameTextSize = 12,
+                MinLimit = 0,
+                MaxLimit = 100,
+                Position = LiveChartsCore.Measure.AxisPosition.End,
+                SeparatorsPaint = null, // No gridlines for secondary axis
+                Labeler = value => $"{value:F0}%"
+            }
+        ];
+    }
+
+    /// <summary>
+    /// Creates an overlay line series for system metrics (CPU, Memory).
+    /// Uses dashed lines to distinguish from primary network series.
+    /// </summary>
+    /// <param name="name">Series name for legend/tooltip.</param>
+    /// <param name="points">Observable collection for data points.</param>
+    /// <param name="color">The color for the series.</param>
+    /// <param name="useDashedLine">Whether to use dashed line style.</param>
+    /// <returns>A LineSeries configured for overlay display.</returns>
+    public static LineSeries<DateTimePoint> CreateOverlayLineSeries(
+        string name,
+        ObservableCollection<DateTimePoint> points,
+        SKColor color,
+        bool useDashedLine = true)
+    {
+        var stroke = new SolidColorPaint(color, 2);
+        if (useDashedLine)
+        {
+            stroke.PathEffect = new DashEffect([6, 4]);
+        }
+
+        return new LineSeries<DateTimePoint>
+        {
+            Name = name,
+            Values = points,
+            Fill = null, // No fill for overlay lines
+            Stroke = stroke,
+            GeometryFill = null,
+            GeometryStroke = null,
+            LineSmoothness = 0.5,
+            AnimationsSpeed = TimeSpan.Zero,
+            ScalesYAt = 1 // Use secondary Y-axis (index 1)
+        };
     }
 
     /// <summary>

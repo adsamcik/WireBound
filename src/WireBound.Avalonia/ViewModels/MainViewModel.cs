@@ -61,17 +61,17 @@ public partial class MainViewModel : ObservableObject, IDisposable
         // Initialize navigation items
         NavigationItems =
         [
-            new NavigationItem { Title = "Dashboard", Icon = "📊", Route = Routes.Dashboard },
+            new NavigationItem { Title = "Overview", Icon = "📊", Route = Routes.Overview },
             new NavigationItem { Title = "Live Chart", Icon = "📈", Route = Routes.Charts },
             new NavigationItem { Title = "System", Icon = "💻", Route = Routes.System },
             new NavigationItem { Title = "Applications", Icon = "📱", Route = Routes.Applications },
             new NavigationItem { Title = "Connections", Icon = "🔗", Route = Routes.Connections },
-            new NavigationItem { Title = "History", Icon = "📜", Route = Routes.History },
+            new NavigationItem { Title = "Insights", Icon = "💡", Route = Routes.Insights },
             new NavigationItem { Title = "Settings", Icon = "⚙️", Route = Routes.Settings }
         ];
 
         _selectedNavigationItem = NavigationItems[0];
-        _currentView = _viewFactory.CreateView(Routes.Dashboard);
+        _currentView = _viewFactory.CreateView(Routes.Overview);
 
         _navigationService.NavigationChanged += OnNavigationChanged;
     }

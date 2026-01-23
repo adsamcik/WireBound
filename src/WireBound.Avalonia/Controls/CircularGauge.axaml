@@ -1,0 +1,73 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:controls="using:WireBound.Avalonia.Controls"
+             x:Class="WireBound.Avalonia.Controls.CircularGauge"
+             x:DataType="controls:CircularGauge"
+             ClipToBounds="False">
+    
+    <UserControl.Styles>
+        <!-- Size-specific styles -->
+        <Style Selector="controls|CircularGauge.Compact">
+            <Setter Property="Width" Value="40" />
+            <Setter Property="Height" Value="56" />
+        </Style>
+        <Style Selector="controls|CircularGauge.Normal">
+            <Setter Property="Width" Value="64" />
+            <Setter Property="Height" Value="84" />
+        </Style>
+        <Style Selector="controls|CircularGauge.Large">
+            <Setter Property="Width" Value="96" />
+            <Setter Property="Height" Value="120" />
+        </Style>
+    </UserControl.Styles>
+    
+    <Grid RowDefinitions="Auto,Auto">
+        <!-- The gauge canvas -->
+        <Canvas x:Name="GaugeCanvas"
+                Grid.Row="0"
+                Width="{Binding GaugeDiameter, RelativeSource={RelativeSource AncestorType=controls:CircularGauge}}"
+                Height="{Binding GaugeDiameter, RelativeSource={RelativeSource AncestorType=controls:CircularGauge}}"
+                HorizontalAlignment="Center">
+            
+            <!-- Background arc (full circle) -->
+            <Arc x:Name="BackgroundArc"
+                 StartAngle="-90"
+                 SweepAngle="360"
+                 Stroke="{Binding BackgroundColor, RelativeSource={RelativeSource AncestorType=controls:CircularGauge}}"
+                 StrokeThickness="{Binding RingThickness, RelativeSource={RelativeSource AncestorType=controls:CircularGauge}}"
+                 StrokeLineCap="Round"
+                 Width="{Binding GaugeDiameter, RelativeSource={RelativeSource AncestorType=controls:CircularGauge}}"
+                 Height="{Binding GaugeDiameter, RelativeSource={RelativeSource AncestorType=controls:CircularGauge}}" />
+            
+            <!-- Progress arc -->
+            <Arc x:Name="ProgressArc"
+                 StartAngle="-90"
+                 SweepAngle="{Binding SweepAngle, RelativeSource={RelativeSource AncestorType=controls:CircularGauge}}"
+                 Stroke="{Binding GaugeColor, RelativeSource={RelativeSource AncestorType=controls:CircularGauge}}"
+                 StrokeThickness="{Binding RingThickness, RelativeSource={RelativeSource AncestorType=controls:CircularGauge}}"
+                 StrokeLineCap="Round"
+                 Width="{Binding GaugeDiameter, RelativeSource={RelativeSource AncestorType=controls:CircularGauge}}"
+                 Height="{Binding GaugeDiameter, RelativeSource={RelativeSource AncestorType=controls:CircularGauge}}" />
+            
+            <!-- Percentage text in center -->
+            <TextBlock Text="{Binding PercentageText, RelativeSource={RelativeSource AncestorType=controls:CircularGauge}}"
+                       Foreground="{DynamicResource PrimaryTextBrush}"
+                       FontWeight="SemiBold"
+                       FontSize="{Binding PercentageFontSize, RelativeSource={RelativeSource AncestorType=controls:CircularGauge}}"
+                       HorizontalAlignment="Center"
+                       VerticalAlignment="Center"
+                       Canvas.Left="{Binding TextCenterX, RelativeSource={RelativeSource AncestorType=controls:CircularGauge}}"
+                       Canvas.Top="{Binding TextCenterY, RelativeSource={RelativeSource AncestorType=controls:CircularGauge}}" />
+        </Canvas>
+        
+        <!-- Optional label below -->
+        <TextBlock Grid.Row="1"
+                   Text="{Binding Label, RelativeSource={RelativeSource AncestorType=controls:CircularGauge}}"
+                   IsVisible="{Binding ShowLabel, RelativeSource={RelativeSource AncestorType=controls:CircularGauge}}"
+                   Foreground="{DynamicResource SecondaryTextBrush}"
+                   FontSize="{Binding LabelFontSize, RelativeSource={RelativeSource AncestorType=controls:CircularGauge}}"
+                   HorizontalAlignment="Center"
+                   Margin="0,4,0,0" />
+    </Grid>
+    
+</UserControl>

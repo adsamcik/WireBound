@@ -25,6 +25,20 @@ public static class ChartColors
     public static SKColor UploadDimColor => new(204, 85, 41);      // #CC5529 - Upload dim
     
     // ═══════════════════════════════════════════════════════════════════════
+    // SYSTEM RESOURCE OVERLAY COLORS
+    // ═══════════════════════════════════════════════════════════════════════
+    
+    // CPU: Sapphire Blue
+    public static SKColor CpuColor => new(59, 130, 246);           // #3B82F6 - Primary CPU
+    public static SKColor CpuAccentColor => new(96, 165, 250);     // #60A5FA - CPU accent
+    public static SKColor CpuDimColor => new(37, 99, 235);         // #2563EB - CPU dim
+    
+    // Memory: Amethyst Purple
+    public static SKColor MemoryColor => new(168, 85, 247);        // #A855F7 - Primary Memory
+    public static SKColor MemoryAccentColor => new(192, 132, 252); // #C084FC - Memory accent
+    public static SKColor MemoryDimColor => new(147, 51, 234);     // #9333EA - Memory dim
+    
+    // ═══════════════════════════════════════════════════════════════════════
     // CHART AXIS & GRID COLORS
     // ═══════════════════════════════════════════════════════════════════════
     

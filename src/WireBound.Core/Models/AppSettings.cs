@@ -78,4 +78,55 @@ public class AppSettings
     /// Helps reduce database size while preserving long-term trends.
     /// </summary>
     public int AppDataAggregateAfterDays { get; set; } = 7;
+    
+    // === Dashboard Customization ===
+    
+    /// <summary>
+    /// Whether to show system metrics (CPU, Memory, GPU) in the dashboard header.
+    /// </summary>
+    public bool ShowSystemMetricsInHeader { get; set; } = true;
+    
+    /// <summary>
+    /// Whether to show CPU overlay on the dashboard chart by default.
+    /// </summary>
+    public bool ShowCpuOverlayByDefault { get; set; } = false;
+    
+    /// <summary>
+    /// Whether to show memory overlay on the dashboard chart by default.
+    /// </summary>
+    public bool ShowMemoryOverlayByDefault { get; set; } = false;
+    
+    /// <summary>
+    /// Whether to show GPU metrics in the system health strip.
+    /// </summary>
+    public bool ShowGpuMetrics { get; set; } = true;
+    
+    /// <summary>
+    /// Default time range for the dashboard chart (OneMinute, FiveMinutes, FifteenMinutes, OneHour).
+    /// </summary>
+    public string DefaultTimeRange { get; set; } = "FiveMinutes";
+    
+    // === Performance Mode ===
+    
+    /// <summary>
+    /// Whether performance mode is enabled (reduces UI update frequency).
+    /// </summary>
+    public bool PerformanceModeEnabled { get; set; } = false;
+    
+    /// <summary>
+    /// Chart update interval in milliseconds (500-5000ms).
+    /// </summary>
+    public int ChartUpdateIntervalMs { get; set; } = 1000;
+    
+    // === Insights Page ===
+    
+    /// <summary>
+    /// Default period for the insights page (Today, ThisWeek, ThisMonth).
+    /// </summary>
+    public string DefaultInsightsPeriod { get; set; } = "ThisWeek";
+    
+    /// <summary>
+    /// Whether to show correlation insights between network and system metrics.
+    /// </summary>
+    public bool ShowCorrelationInsights { get; set; } = true;
 }

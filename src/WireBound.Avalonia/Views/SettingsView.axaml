@@ -200,6 +200,189 @@
                 </StackPanel>
             </Border>
 
+            <!-- Dashboard Customization -->
+            <Border Classes="ElevatedCard">
+                <StackPanel Spacing="24">
+                    
+                    <StackPanel Orientation="Horizontal" Spacing="12">
+                        <Border Background="{DynamicResource AccentBgTintBrush}" CornerRadius="8" Width="40" Height="40">
+                            <TextBlock Text="📊" FontSize="20"
+                                       HorizontalAlignment="Center" VerticalAlignment="Center" />
+                        </Border>
+                        <StackPanel VerticalAlignment="Center">
+                            <TextBlock Text="Dashboard Customization" Classes="SectionHeader" />
+                            <TextBlock Text="Customize dashboard appearance and behavior" Classes="Caption" />
+                        </StackPanel>
+                    </StackPanel>
+                    
+                    <!-- Show System Metrics in Header -->
+                    <Border Background="{DynamicResource BorderSubtleBrush}" CornerRadius="12" Padding="16">
+                        <Grid ColumnDefinitions="*, Auto">
+                            <StackPanel Spacing="4">
+                                <TextBlock Text="Show System Metrics in Header" Classes="CardTitle" />
+                                <TextBlock Text="Display CPU, Memory, and GPU in the dashboard header" Classes="Caption" />
+                            </StackPanel>
+                            <ToggleSwitch Grid.Column="1"
+                                          IsChecked="{Binding ShowSystemMetricsInHeader}"
+                                          VerticalAlignment="Center"
+                                          AutomationProperties.Name="Show System Metrics in Header" />
+                        </Grid>
+                    </Border>
+                    
+                    <!-- Show GPU Metrics -->
+                    <Border Background="{DynamicResource BorderSubtleBrush}" CornerRadius="12" Padding="16">
+                        <Grid ColumnDefinitions="*, Auto">
+                            <StackPanel Spacing="4">
+                                <TextBlock Text="Show GPU Metrics" Classes="CardTitle" />
+                                <TextBlock Text="Display GPU usage in the system health strip" Classes="Caption" />
+                            </StackPanel>
+                            <ToggleSwitch Grid.Column="1"
+                                          IsChecked="{Binding ShowGpuMetrics}"
+                                          VerticalAlignment="Center"
+                                          AutomationProperties.Name="Show GPU Metrics" />
+                        </Grid>
+                    </Border>
+                    
+                    <!-- Default Time Range -->
+                    <Border Background="{DynamicResource BorderSubtleBrush}" CornerRadius="12" Padding="16">
+                        <Grid ColumnDefinitions="*, Auto">
+                            <StackPanel Spacing="4">
+                                <TextBlock Text="Default Time Range" Classes="CardTitle" />
+                                <TextBlock Text="Initial time range for the dashboard chart" Classes="Caption" />
+                            </StackPanel>
+                            <ComboBox Grid.Column="1"
+                                      ItemsSource="{Binding TimeRangeOptions}"
+                                      SelectedItem="{Binding DefaultTimeRange}"
+                                      Width="160"
+                                      VerticalAlignment="Center"
+                                      AutomationProperties.Name="Default Time Range" />
+                        </Grid>
+                    </Border>
+                    
+                    <!-- Show CPU Overlay by Default -->
+                    <Border Background="{DynamicResource BorderSubtleBrush}" CornerRadius="12" Padding="16">
+                        <Grid ColumnDefinitions="*, Auto">
+                            <StackPanel Spacing="4">
+                                <TextBlock Text="Show CPU Overlay by Default" Classes="CardTitle" />
+                                <TextBlock Text="Automatically show CPU usage on the chart" Classes="Caption" />
+                            </StackPanel>
+                            <ToggleSwitch Grid.Column="1"
+                                          IsChecked="{Binding ShowCpuOverlayByDefault}"
+                                          VerticalAlignment="Center"
+                                          AutomationProperties.Name="Show CPU Overlay by Default" />
+                        </Grid>
+                    </Border>
+                    
+                    <!-- Show Memory Overlay by Default -->
+                    <Border Background="{DynamicResource BorderSubtleBrush}" CornerRadius="12" Padding="16">
+                        <Grid ColumnDefinitions="*, Auto">
+                            <StackPanel Spacing="4">
+                                <TextBlock Text="Show Memory Overlay by Default" Classes="CardTitle" />
+                                <TextBlock Text="Automatically show memory usage on the chart" Classes="Caption" />
+                            </StackPanel>
+                            <ToggleSwitch Grid.Column="1"
+                                          IsChecked="{Binding ShowMemoryOverlayByDefault}"
+                                          VerticalAlignment="Center"
+                                          AutomationProperties.Name="Show Memory Overlay by Default" />
+                        </Grid>
+                    </Border>
+                </StackPanel>
+            </Border>
+
+            <!-- Performance Settings -->
+            <Border Classes="ElevatedCard">
+                <StackPanel Spacing="24">
+                    
+                    <StackPanel Orientation="Horizontal" Spacing="12">
+                        <Border Background="{DynamicResource SuccessBgTintBrush}" CornerRadius="8" Width="40" Height="40">
+                            <TextBlock Text="⚡" FontSize="20"
+                                       HorizontalAlignment="Center" VerticalAlignment="Center" />
+                        </Border>
+                        <StackPanel VerticalAlignment="Center">
+                            <TextBlock Text="Performance" Classes="SectionHeader" />
+                            <TextBlock Text="Optimize application performance" Classes="Caption" />
+                        </StackPanel>
+                    </StackPanel>
+                    
+                    <!-- Performance Mode -->
+                    <Border Background="{DynamicResource BorderSubtleBrush}" CornerRadius="12" Padding="16">
+                        <Grid ColumnDefinitions="*, Auto">
+                            <StackPanel Spacing="4">
+                                <TextBlock Text="Performance Mode" Classes="CardTitle" />
+                                <TextBlock Text="Reduce CPU usage by lowering update frequency" Classes="Caption" />
+                            </StackPanel>
+                            <ToggleSwitch Grid.Column="1"
+                                          IsChecked="{Binding PerformanceModeEnabled}"
+                                          VerticalAlignment="Center"
+                                          AutomationProperties.Name="Performance Mode" />
+                        </Grid>
+                    </Border>
+                    
+                    <!-- Chart Update Interval -->
+                    <Border Background="{DynamicResource BorderSubtleBrush}" CornerRadius="12" Padding="16">
+                        <Grid ColumnDefinitions="*, Auto">
+                            <StackPanel Spacing="4">
+                                <TextBlock Text="Chart Update Interval" Classes="CardTitle" />
+                                <TextBlock Text="How often the chart refreshes (in milliseconds)" Classes="Caption" />
+                            </StackPanel>
+                            <ComboBox Grid.Column="1"
+                                      ItemsSource="{Binding ChartUpdateIntervals}"
+                                      SelectedItem="{Binding ChartUpdateIntervalMs}"
+                                      Width="120"
+                                      VerticalAlignment="Center"
+                                      AutomationProperties.Name="Chart Update Interval" />
+                        </Grid>
+                    </Border>
+                </StackPanel>
+            </Border>
+
+            <!-- Insights Settings -->
+            <Border Classes="ElevatedCard">
+                <StackPanel Spacing="24">
+                    
+                    <StackPanel Orientation="Horizontal" Spacing="12">
+                        <Border Background="{DynamicResource DownloadBgTintBrush}" CornerRadius="8" Width="40" Height="40">
+                            <TextBlock Text="💡" FontSize="20"
+                                       HorizontalAlignment="Center" VerticalAlignment="Center" />
+                        </Border>
+                        <StackPanel VerticalAlignment="Center">
+                            <TextBlock Text="Insights Page" Classes="SectionHeader" />
+                            <TextBlock Text="Configure insights and analytics display" Classes="Caption" />
+                        </StackPanel>
+                    </StackPanel>
+                    
+                    <!-- Default Insights Period -->
+                    <Border Background="{DynamicResource BorderSubtleBrush}" CornerRadius="12" Padding="16">
+                        <Grid ColumnDefinitions="*, Auto">
+                            <StackPanel Spacing="4">
+                                <TextBlock Text="Default Insights Period" Classes="CardTitle" />
+                                <TextBlock Text="Initial time period for insights data" Classes="Caption" />
+                            </StackPanel>
+                            <ComboBox Grid.Column="1"
+                                      ItemsSource="{Binding InsightsPeriodOptions}"
+                                      SelectedItem="{Binding DefaultInsightsPeriod}"
+                                      Width="140"
+                                      VerticalAlignment="Center"
+                                      AutomationProperties.Name="Default Insights Period" />
+                        </Grid>
+                    </Border>
+                    
+                    <!-- Show Correlation Insights -->
+                    <Border Background="{DynamicResource BorderSubtleBrush}" CornerRadius="12" Padding="16">
+                        <Grid ColumnDefinitions="*, Auto">
+                            <StackPanel Spacing="4">
+                                <TextBlock Text="Show Correlation Insights" Classes="CardTitle" />
+                                <TextBlock Text="Display correlations between network and system metrics" Classes="Caption" />
+                            </StackPanel>
+                            <ToggleSwitch Grid.Column="1"
+                                          IsChecked="{Binding ShowCorrelationInsights}"
+                                          VerticalAlignment="Center"
+                                          AutomationProperties.Name="Show Correlation Insights" />
+                        </Grid>
+                    </Border>
+                </StackPanel>
+            </Border>
+
             <!-- Elevation Status -->
             <Border Classes="ElevatedCard">
                 <StackPanel Spacing="24">

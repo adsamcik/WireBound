@@ -52,6 +52,28 @@
     <Color x:Key="ChartTertiaryColor">#A855F7</Color>
     
     <!-- ═══════════════════════════════════════════════════════════════════ -->
+    <!-- SYSTEM METRIC COLORS                                                 -->
+    <!-- ═══════════════════════════════════════════════════════════════════ -->
+    
+    <!-- CPU Colors (Sapphire Blue) -->
+    <Color x:Key="CpuColor">#3B82F6</Color>
+    <Color x:Key="CpuColorLight">#60A5FA</Color>
+    <Color x:Key="CpuColorDark">#2563EB</Color>
+    <Color x:Key="CpuBgTint">#103B82F6</Color>
+    
+    <!-- Memory Colors (Amethyst Purple) -->
+    <Color x:Key="MemoryColor">#A855F7</Color>
+    <Color x:Key="MemoryColorLight">#C084FC</Color>
+    <Color x:Key="MemoryColorDark">#9333EA</Color>
+    <Color x:Key="MemoryBgTint">#10A855F7</Color>
+    
+    <!-- GPU Colors (Emerald Green) -->
+    <Color x:Key="GpuColor">#10B981</Color>
+    <Color x:Key="GpuColorLight">#34D399</Color>
+    <Color x:Key="GpuColorDark">#059669</Color>
+    <Color x:Key="GpuBgTint">#1010B981</Color>
+    
+    <!-- ═══════════════════════════════════════════════════════════════════ -->
     <!-- TEXT COLORS                                                          -->
     <!-- ═══════════════════════════════════════════════════════════════════ -->
     
@@ -184,5 +206,27 @@
     <!-- Selection brushes -->
     <SolidColorBrush x:Key="SelectionBgBrush" Color="{StaticResource SelectionBgColor}" />
     <SolidColorBrush x:Key="SelectionBorderBrush" Color="{StaticResource SelectionBorderColor}" />
+    
+    <!-- ═══════════════════════════════════════════════════════════════════ -->
+    <!-- SYSTEM METRIC BRUSHES                                                -->
+    <!-- ═══════════════════════════════════════════════════════════════════ -->
+    
+    <!-- CPU Brushes -->
+    <SolidColorBrush x:Key="CpuBrush" Color="{StaticResource CpuColor}" />
+    <SolidColorBrush x:Key="CpuLightBrush" Color="{StaticResource CpuColorLight}" />
+    <SolidColorBrush x:Key="CpuDarkBrush" Color="{StaticResource CpuColorDark}" />
+    <SolidColorBrush x:Key="CpuBgTintBrush" Color="{StaticResource CpuBgTint}" />
+    
+    <!-- Memory Brushes -->
+    <SolidColorBrush x:Key="MemoryBrush" Color="{StaticResource MemoryColor}" />
+    <SolidColorBrush x:Key="MemoryLightBrush" Color="{StaticResource MemoryColorLight}" />
+    <SolidColorBrush x:Key="MemoryDarkBrush" Color="{StaticResource MemoryColorDark}" />
+    <SolidColorBrush x:Key="MemoryBgTintBrush" Color="{StaticResource MemoryBgTint}" />
+    
+    <!-- GPU Brushes -->
+    <SolidColorBrush x:Key="GpuBrush" Color="{StaticResource GpuColor}" />
+    <SolidColorBrush x:Key="GpuLightBrush" Color="{StaticResource GpuColorLight}" />
+    <SolidColorBrush x:Key="GpuDarkBrush" Color="{StaticResource GpuColorDark}" />
+    <SolidColorBrush x:Key="GpuBgTintBrush" Color="{StaticResource GpuBgTint}" />
 
 </ResourceDictionary>

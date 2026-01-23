@@ -6,6 +6,7 @@ using LiveChartsCore.Drawing;
 using LiveChartsCore.SkiaSharpView;
 using LiveChartsCore.SkiaSharpView.Painting;
 using LiveChartsCore.SkiaSharpView.Painting.Effects;
+using Microsoft.Extensions.Logging;
 using SkiaSharp;
 using System.Collections.ObjectModel;
 using Avalonia.Threading;
@@ -32,12 +33,13 @@ public sealed partial class DashboardViewModel : ObservableObject, IDisposable
     private readonly INetworkMonitorService _networkMonitor;
     private readonly INavigationService _navigationService;
     private readonly IDataPersistenceService? _dataPersistence;
+    private readonly ILogger<DashboardViewModel>? _logger;
     private bool _disposed;
     private readonly ObservableCollection<DateTimePoint> _downloadSpeedPoints = [];
     private readonly ObservableCollection<DateTimePoint> _uploadSpeedPoints = [];
     
-    private readonly List<(DateTime Time, long Download, long Upload)> _dataBuffer = [];
     private const int MaxBufferSize = 3600;
+    private readonly CircularBuffer<(DateTime Time, long Download, long Upload)> _dataBuffer = new(MaxBufferSize);
     private const int MaxDisplayPoints = 300;
     
     private long _peakDownloadBps;
@@ -259,12 +261,14 @@ public sealed partial class DashboardViewModel : ObservableObject, IDisposable
         INetworkMonitorService networkMonitor,
         INavigationService navigationService,
         IDataPersistenceService? dataPersistence = null,
-        IWiFiInfoService? wifiService = null)
+        IWiFiInfoService? wifiService = null,
+        ILogger<DashboardViewModel>? logger = null)
     {
         _networkMonitor = networkMonitor;
         _navigationService = navigationService;
         _dataPersistence = dataPersistence;
         _wifiService = wifiService;
+        _logger = logger;
 
         // Subscribe to stats updates
         networkMonitor.StatsUpdated += OnStatsUpdated;
@@ -315,9 +319,9 @@ public sealed partial class DashboardViewModel : ObservableObject, IDisposable
                 _adapterTodayStoredBytes[adapterId] = (download, upload);
             }
         }
-        catch
+        catch (Exception ex)
         {
-            // Ignore errors loading stored usage
+            _logger?.LogDebug(ex, "Failed to load stored usage data");
         }
     }
     
@@ -344,9 +348,9 @@ public sealed partial class DashboardViewModel : ObservableObject, IDisposable
                     var wifiInfo = _wifiService.GetWiFiInfo(adapter.Id);
                     displayItem.WiFiInfo = wifiInfo;
                 }
-                catch
+                catch (Exception ex)
                 {
-                    // Ignore WiFi info fetch errors
+                    _logger?.LogDebug(ex, "Failed to fetch WiFi info for adapter {AdapterId}", adapter.Id);
                 }
             }
             
@@ -433,12 +437,8 @@ public sealed partial class DashboardViewModel : ObservableObject, IDisposable
             UpdateAdapterDisplayItems();
         }
 
-        // Add to buffer
+        // Add to buffer (CircularBuffer auto-evicts oldest when full)
         _dataBuffer.Add((now, stats.DownloadSpeedBps, stats.UploadSpeedBps));
-        if (_dataBuffer.Count > MaxBufferSize)
-        {
-            _dataBuffer.RemoveAt(0);
-        }
 
         // Update statistics
         UpdateStatistics(stats.DownloadSpeedBps, stats.UploadSpeedBps);
@@ -684,7 +684,7 @@ public sealed partial class DashboardViewModel : ObservableObject, IDisposable
         if (SelectedTimeRange == null) return;
 
         var cutoff = DateTime.Now.AddSeconds(-SelectedTimeRange.Seconds);
-        var relevantData = _dataBuffer.Where(d => d.Time >= cutoff).ToList();
+        var relevantData = _dataBuffer.AsEnumerable().Where(d => d.Time >= cutoff).ToList();
 
         var downloadPoints = relevantData.Select(d => new DateTimePoint(d.Time, d.Download)).ToList();
         var uploadPoints = relevantData.Select(d => new DateTimePoint(d.Time, d.Upload)).ToList();

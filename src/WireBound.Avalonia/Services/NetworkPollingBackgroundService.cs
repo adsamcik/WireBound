@@ -18,6 +18,9 @@ public sealed class NetworkPollingBackgroundService : BackgroundService, INetwor
     private volatile int _saveIntervalSeconds = 60;
     private readonly Stopwatch _saveStopwatch = new();
     private readonly Stopwatch _cleanupStopwatch = new();
+    private readonly Stopwatch _snapshotFlushStopwatch = new();
+    private readonly List<(long download, long upload, DateTime time)> _snapshotBuffer = new(30);
+    private const int SnapshotFlushIntervalSeconds = 30;
     private const int CleanupIntervalMinutes = 5;
     private static readonly TimeSpan SpeedSnapshotRetention = TimeSpan.FromHours(2);
 
@@ -56,6 +59,7 @@ public sealed class NetworkPollingBackgroundService : BackgroundService, INetwor
         const int initialSaveDelaySeconds = 5;
         _saveStopwatch.Start();
         _cleanupStopwatch.Start();
+        _snapshotFlushStopwatch.Start();
 
         // Use PeriodicTimer for more consistent timing than Task.Delay
         using var timer = new PeriodicTimer(TimeSpan.FromMilliseconds(_pollIntervalMs));
@@ -73,8 +77,15 @@ public sealed class NetworkPollingBackgroundService : BackgroundService, INetwor
                     var currentStats = _networkMonitor.GetCurrentStats();
                     _trayIcon.UpdateActivity(currentStats.DownloadSpeedBps, currentStats.UploadSpeedBps);
 
-                    // Save speed snapshot for chart history (on every poll)
-                    await _persistence.SaveSpeedSnapshotAsync(currentStats.DownloadSpeedBps, currentStats.UploadSpeedBps).ConfigureAwait(false);
+                    // Buffer speed snapshot for chart history
+                    _snapshotBuffer.Add((currentStats.DownloadSpeedBps, currentStats.UploadSpeedBps, DateTime.Now));
+
+                    // Flush snapshot buffer periodically (every 30 seconds)
+                    if (_snapshotFlushStopwatch.Elapsed.TotalSeconds >= SnapshotFlushIntervalSeconds)
+                    {
+                        await FlushSnapshotBufferAsync().ConfigureAwait(false);
+                        _snapshotFlushStopwatch.Restart();
+                    }
 
                     // Periodic cleanup of old speed snapshots
                     if (_cleanupStopwatch.Elapsed.TotalMinutes >= CleanupIntervalMinutes)
@@ -112,6 +123,16 @@ public sealed class NetworkPollingBackgroundService : BackgroundService, INetwor
         }
 
         _logger.LogInformation("Network polling service stopping");
+
+        // Flush any remaining buffered snapshots
+        try
+        {
+            await FlushSnapshotBufferAsync().ConfigureAwait(false);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Failed to flush snapshot buffer on shutdown");
+        }
 
         // Final save before shutdown
         try
@@ -158,5 +179,21 @@ public sealed class NetworkPollingBackgroundService : BackgroundService, INetwor
 
         _saveIntervalSeconds = seconds;
         _logger.LogInformation("Save interval updated to {Interval}s", seconds);
+    }
+
+    /// <summary>
+    /// Flushes the buffered speed snapshots to the database.
+    /// </summary>
+    private async Task FlushSnapshotBufferAsync()
+    {
+        if (_snapshotBuffer.Count == 0)
+            return;
+
+        // Copy and clear buffer atomically
+        var snapshots = _snapshotBuffer.ToList();
+        _snapshotBuffer.Clear();
+
+        await _persistence.SaveSpeedSnapshotBatchAsync(snapshots).ConfigureAwait(false);
+        _logger.LogDebug("Flushed {Count} speed snapshots to database", snapshots.Count);
     }
 }

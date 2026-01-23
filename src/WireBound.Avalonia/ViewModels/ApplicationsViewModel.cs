@@ -1,5 +1,6 @@
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
+using Microsoft.Extensions.Logging;
 using System.Collections.ObjectModel;
 using Avalonia.Threading;
 using WireBound.Core.Helpers;
@@ -16,6 +17,7 @@ public sealed partial class ApplicationsViewModel : ObservableObject
 {
     private readonly IDataPersistenceService _persistence;
     private readonly IProcessNetworkService? _processNetworkService;
+    private readonly ILogger<ApplicationsViewModel>? _logger;
 
     [ObservableProperty]
     private bool _isLoading;
@@ -58,10 +60,12 @@ public sealed partial class ApplicationsViewModel : ObservableObject
 
     public ApplicationsViewModel(
         IDataPersistenceService persistence,
-        IProcessNetworkService processNetworkService)
+        IProcessNetworkService processNetworkService,
+        ILogger<ApplicationsViewModel>? logger = null)
     {
         _persistence = persistence;
         _processNetworkService = processNetworkService;
+        _logger = logger;
 
         // Per-app network tracking requires IProcessNetworkService which is now implemented
         IsPlatformSupported = _processNetworkService?.IsPlatformSupported ?? false;
@@ -171,9 +175,9 @@ public sealed partial class ApplicationsViewModel : ObservableObject
             Environment.Exit(0);
 #endif
         }
-        catch
+        catch (Exception ex)
         {
-            // Failed to elevate
+            _logger?.LogWarning(ex, "Failed to elevate application to administrator privileges");
         }
         finally
         {

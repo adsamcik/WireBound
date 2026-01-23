@@ -160,4 +160,67 @@ public sealed class LinuxStartupService : IStartupService
                !string.IsNullOrEmpty(Environment.GetEnvironmentVariable("DISPLAY")) ||
                !string.IsNullOrEmpty(Environment.GetEnvironmentVariable("WAYLAND_DISPLAY"));
     }
+
+    public Task<bool> EnsureStartupPathUpdatedAsync()
+    {
+        try
+        {
+            var desktopFilePath = GetDesktopFilePath();
+            if (!File.Exists(desktopFilePath))
+            {
+                // Startup not enabled, nothing to update
+                return Task.FromResult(true);
+            }
+
+            var currentExePath = Environment.ProcessPath;
+            if (string.IsNullOrEmpty(currentExePath))
+            {
+                Log.Warning("Could not determine current executable path");
+                return Task.FromResult(false);
+            }
+
+            var content = File.ReadAllText(desktopFilePath);
+            var expectedExecLine = $"Exec=\"{currentExePath}\" --minimized";
+
+            // Check if the Exec line matches the current executable
+            // Parse the Exec line from the desktop file
+            var lines = content.Split('\n');
+            var execLineIndex = -1;
+            var currentExecLine = string.Empty;
+
+            for (var i = 0; i < lines.Length; i++)
+            {
+                if (lines[i].StartsWith("Exec=", StringComparison.Ordinal))
+                {
+                    execLineIndex = i;
+                    currentExecLine = lines[i].TrimEnd();
+                    break;
+                }
+            }
+
+            if (execLineIndex == -1)
+            {
+                Log.Warning("Desktop file exists but has no Exec line");
+                return Task.FromResult(false);
+            }
+
+            if (!string.Equals(currentExecLine, expectedExecLine, StringComparison.Ordinal))
+            {
+                Log.Information(
+                    "Updating autostart desktop file Exec line from '{OldExec}' to '{NewExec}'",
+                    currentExecLine, expectedExecLine);
+
+                lines[execLineIndex] = expectedExecLine;
+                File.WriteAllText(desktopFilePath, string.Join('\n', lines));
+                Log.Information("Startup path updated successfully");
+            }
+
+            return Task.FromResult(true);
+        }
+        catch (Exception ex)
+        {
+            Log.Error(ex, "Failed to ensure startup path is updated");
+            return Task.FromResult(false);
+        }
+    }
 }

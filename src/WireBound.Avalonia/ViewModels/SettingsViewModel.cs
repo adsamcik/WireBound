@@ -42,6 +42,9 @@ public sealed partial class SettingsViewModel : ObservableObject
     private bool _minimizeToTray = true;
     
     [ObservableProperty]
+    private bool _startMinimized;
+    
+    [ObservableProperty]
     private SpeedUnit _selectedSpeedUnit = SpeedUnit.BytesPerSecond;
     
     public SpeedUnit[] SpeedUnits { get; } = Enum.GetValues<SpeedUnit>();
@@ -69,6 +72,7 @@ public sealed partial class SettingsViewModel : ObservableObject
     partial void OnIsPerAppTrackingEnabledChanged(bool value) => ScheduleAutoSave();
     partial void OnStartWithWindowsChanged(bool value) => ScheduleAutoSave();
     partial void OnMinimizeToTrayChanged(bool value) => ScheduleAutoSave();
+    partial void OnStartMinimizedChanged(bool value) => ScheduleAutoSave();
     partial void OnSelectedSpeedUnitChanged(SpeedUnit value) => ScheduleAutoSave();
 
     private void ScheduleAutoSave()
@@ -125,6 +129,7 @@ public sealed partial class SettingsViewModel : ObservableObject
         UseIpHelperApi = settings.UseIpHelperApi;
         IsPerAppTrackingEnabled = settings.IsPerAppTrackingEnabled;
         MinimizeToTray = settings.MinimizeToTray;
+        StartMinimized = settings.StartMinimized;
         SelectedSpeedUnit = settings.SpeedUnit;
         
         // Load startup state from OS (not from saved settings)
@@ -170,6 +175,7 @@ public sealed partial class SettingsViewModel : ObservableObject
             UseIpHelperApi = UseIpHelperApi,
             IsPerAppTrackingEnabled = IsPerAppTrackingEnabled,
             MinimizeToTray = MinimizeToTray,
+            StartMinimized = StartMinimized,
             StartWithWindows = StartWithWindows,
             SpeedUnit = SelectedSpeedUnit
         };

@@ -167,6 +167,19 @@
                                           VerticalAlignment="Center" />
                         </Grid>
                     </Border>
+                    
+                    <!-- Start Minimized -->
+                    <Border Background="{DynamicResource BorderSubtleBrush}" CornerRadius="12" Padding="16">
+                        <Grid ColumnDefinitions="*, Auto">
+                            <StackPanel Spacing="4">
+                                <TextBlock Text="Start Minimized" Classes="CardTitle" />
+                                <TextBlock Text="Start the application minimized to system tray" Classes="Caption" />
+                            </StackPanel>
+                            <ToggleSwitch Grid.Column="1"
+                                          IsChecked="{Binding StartMinimized}"
+                                          VerticalAlignment="Center" />
+                        </Grid>
+                    </Border>
                 </StackPanel>
             </Border>
 

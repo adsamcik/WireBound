@@ -31,6 +31,11 @@ public class AppSettings
     public bool MinimizeToTray { get; set; } = true;
     
     /// <summary>
+    /// Whether to start the application minimized to the system tray
+    /// </summary>
+    public bool StartMinimized { get; set; } = false;
+    
+    /// <summary>
     /// Whether to use IP Helper API for more accurate stats (Windows-specific)
     /// </summary>
     public bool UseIpHelperApi { get; set; } = false;

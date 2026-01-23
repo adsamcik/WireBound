@@ -34,6 +34,14 @@ public interface IStartupService
     /// Gets the current startup state with detailed status information.
     /// </summary>
     Task<StartupState> GetStartupStateAsync();
+
+    /// <summary>
+    /// Ensures that if startup is enabled, it points to the current executable path.
+    /// This cleans up old startup entries that may point to outdated installation paths
+    /// (e.g., after an update that changed the installation folder).
+    /// </summary>
+    /// <returns>True if startup was updated or was already correct, false if there was an error.</returns>
+    Task<bool> EnsureStartupPathUpdatedAsync();
 }
 
 /// <summary>

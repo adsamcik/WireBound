@@ -48,6 +48,11 @@ public interface IProcessNetworkService : IDisposable
     IReadOnlyList<ProcessNetworkStats> GetTopProcesses(int count);
     
     /// <summary>
+    /// Get current connection statistics (per remote address)
+    /// </summary>
+    Task<IReadOnlyList<Platform.Abstract.Models.ConnectionStats>> GetConnectionStatsAsync();
+    
+    /// <summary>
     /// Raised when process statistics are updated
     /// </summary>
     event EventHandler<ProcessStatsUpdatedEventArgs>? StatsUpdated;

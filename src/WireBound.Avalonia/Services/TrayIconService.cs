@@ -452,11 +452,31 @@ public sealed class TrayIconService : ITrayIconService
 
         // Handle window closing to minimize to tray instead of closing
         _mainWindow.Closing += OnWindowClosing;
+        
+        // Handle window state changes to hide to tray when minimized
+        _mainWindow.PropertyChanged += OnWindowPropertyChanged;
+    }
+
+    private void OnWindowPropertyChanged(object? sender, AvaloniaPropertyChangedEventArgs e)
+    {
+        // Only handle minimize-to-tray if tray is actually supported
+        if (e.Property == Window.WindowStateProperty && 
+            e.NewValue is WindowState newState && 
+            newState == WindowState.Minimized &&
+            _minimizeToTray && 
+            _isTraySupported &&
+            _trayIcon != null &&
+            !_isDisposed)
+        {
+            // Hide to tray when minimized (Task Manager behavior)
+            HideMainWindow();
+        }
     }
 
     private void OnWindowClosing(object? sender, WindowClosingEventArgs e)
     {
-        if (_minimizeToTray && !_isDisposed)
+        // Only minimize to tray if tray is actually supported
+        if (_minimizeToTray && _isTraySupported && _trayIcon != null && !_isDisposed)
         {
             e.Cancel = true;
             HideMainWindow();
@@ -467,13 +487,27 @@ public sealed class TrayIconService : ITrayIconService
     public void HideMainWindow()
     {
         if (_mainWindow == null) return;
-
-        _mainWindow.Hide();
         
-        if (_trayIcon != null)
+        // If tray is not supported, don't hide - just minimize normally
+        if (!_isTraySupported || _trayIcon == null)
         {
-            _trayIcon.IsVisible = true;
+            Log.Debug("Tray not supported, minimizing to taskbar instead");
+            _mainWindow.WindowState = WindowState.Minimized;
+            return;
         }
+
+        // Hide from taskbar (may not work on all Linux DEs)
+        try
+        {
+            _mainWindow.ShowInTaskbar = false;
+        }
+        catch (Exception ex)
+        {
+            Log.Debug(ex, "ShowInTaskbar not supported on this platform");
+        }
+        
+        _mainWindow.Hide();
+        _trayIcon.IsVisible = true;
         
         Log.Debug("Main window hidden to tray");
     }
@@ -483,9 +517,28 @@ public sealed class TrayIconService : ITrayIconService
     {
         if (_mainWindow == null) return;
 
+        // Restore taskbar visibility
+        try
+        {
+            _mainWindow.ShowInTaskbar = true;
+        }
+        catch (Exception ex)
+        {
+            Log.Debug(ex, "ShowInTaskbar not supported on this platform");
+        }
+        
         _mainWindow.Show();
         _mainWindow.WindowState = WindowState.Normal;
-        _mainWindow.Activate();
+        
+        // Activate/focus the window (platform-specific behavior)
+        try
+        {
+            _mainWindow.Activate();
+        }
+        catch (Exception ex)
+        {
+            Log.Debug(ex, "Window.Activate not fully supported on this platform");
+        }
         
         // Keep icon visible if activity graph is enabled
         if (_trayIcon != null && !_minimizeToTray && !_showActivityGraph)
@@ -533,6 +586,7 @@ public sealed class TrayIconService : ITrayIconService
         if (_mainWindow != null)
         {
             _mainWindow.Closing -= OnWindowClosing;
+            _mainWindow.PropertyChanged -= OnWindowPropertyChanged;
         }
 
         if (_trayIcon != null)

@@ -19,5 +19,6 @@ public sealed class StubPlatformServices : IPlatformServices
     {
         services.AddSingleton<IStartupService, StubStartupService>();
         services.AddSingleton<IWiFiInfoProvider, StubWiFiInfoProvider>();
+        services.AddSingleton<IProcessNetworkProviderFactory, StubProcessNetworkProviderFactory>();
     }
 }

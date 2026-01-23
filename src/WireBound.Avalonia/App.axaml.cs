@@ -1,6 +1,8 @@
 using Avalonia;
+using Avalonia.Controls;
 using Avalonia.Controls.ApplicationLifetimes;
 using Avalonia.Markup.Xaml;
+using Avalonia.Threading;
 using LiveChartsCore;
 using LiveChartsCore.SkiaSharpView;
 using Microsoft.Extensions.DependencyInjection;
@@ -38,7 +40,7 @@ public partial class App : Application
         ConfigureServices(services);
         _serviceProvider = services.BuildServiceProvider();
 
-        // Initialize database
+        // Initialize database (synchronous, fast operation)
         InitializeDatabase();
 
         if (ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop)
@@ -51,18 +53,41 @@ public partial class App : Application
             };
             desktop.MainWindow = mainWindow;
 
-            // Initialize tray icon service
-            InitializeTrayIcon(mainWindow);
-
             desktop.ShutdownRequested += OnShutdownRequested;
 
-            // Start background services
-            StartBackgroundServices();
+            // Fire and forget async initialization - avoids blocking UI thread
+            _ = InitializeAsyncServicesAsync(mainWindow);
 
             Log.Information("WireBound Avalonia application started successfully");
         }
 
         base.OnFrameworkInitializationCompleted();
+    }
+
+    /// <summary>
+    /// Handles all async initialization to avoid blocking the UI thread.
+    /// Uses fire-and-forget pattern with proper error handling.
+    /// </summary>
+    private async Task InitializeAsyncServicesAsync(MainWindow mainWindow)
+    {
+        try
+        {
+            // Ensure startup entry points to current executable (handles updates that change install path)
+            await EnsureStartupPathUpdatedAsync();
+
+            // Initialize tray icon and apply settings
+            await InitializeTrayIconAsync(mainWindow);
+
+            // Check if we should start minimized
+            await ApplyStartMinimizedSettingAsync(mainWindow);
+
+            // Start background services
+            await StartBackgroundServicesAsync();
+        }
+        catch (Exception ex)
+        {
+            Log.Error(ex, "Failed to complete async initialization");
+        }
     }
 
     private void ConfigureServices(IServiceCollection services)
@@ -94,6 +119,9 @@ public partial class App : Application
         // Register per-app network tracking service (adapts platform providers)
         services.AddSingleton<IProcessNetworkService, ProcessNetworkService>();
 
+        // Register DNS resolver service for reverse lookups
+        services.AddSingleton<IDnsResolverService, DnsResolverService>();
+
         // Register app-specific services
         services.AddSingleton<INavigationService, NavigationService>();
         services.AddSingleton<ILocalizationService, LocalizationService>();
@@ -112,6 +140,7 @@ public partial class App : Application
         services.AddSingleton<HistoryViewModel>();
         services.AddSingleton<SettingsViewModel>();
         services.AddSingleton<ApplicationsViewModel>();
+        services.AddSingleton<ConnectionsViewModel>();
 
         // Register View factory for navigation
         services.AddTransient<DashboardView>();
@@ -119,6 +148,7 @@ public partial class App : Application
         services.AddTransient<HistoryView>();
         services.AddTransient<SettingsView>();
         services.AddTransient<ApplicationsView>();
+        services.AddTransient<ConnectionsView>();
     }
 
     private void InitializeDatabase()
@@ -137,12 +167,34 @@ public partial class App : Application
         }
     }
 
-    private void StartBackgroundServices()
+    private async Task EnsureStartupPathUpdatedAsync()
+    {
+        try
+        {
+            var startupService = _serviceProvider!.GetRequiredService<IStartupService>();
+            if (!startupService.IsStartupSupported)
+            {
+                return;
+            }
+
+            var result = await startupService.EnsureStartupPathUpdatedAsync();
+            if (!result)
+            {
+                Log.Warning("Failed to ensure startup path is updated");
+            }
+        }
+        catch (Exception ex)
+        {
+            Log.Error(ex, "Failed to ensure startup path is updated");
+        }
+    }
+
+    private async Task StartBackgroundServicesAsync()
     {
         try
         {
             var pollingService = _serviceProvider!.GetRequiredService<NetworkPollingBackgroundService>();
-            _ = pollingService.StartAsync(CancellationToken.None);
+            await pollingService.StartAsync(CancellationToken.None);
             Log.Information("Background polling service started");
         }
         catch (Exception ex)
@@ -151,7 +203,7 @@ public partial class App : Application
         }
     }
 
-    private void InitializeTrayIcon(MainWindow mainWindow)
+    private async Task InitializeTrayIconAsync(MainWindow mainWindow)
     {
         if (_serviceProvider is null) return;
         
@@ -159,10 +211,15 @@ public partial class App : Application
         {
             // Load settings to get minimize to tray preference
             var persistence = _serviceProvider.GetRequiredService<IDataPersistenceService>();
-            var settings = persistence.GetSettingsAsync().GetAwaiter().GetResult();
+            var settings = await persistence.GetSettingsAsync();
             
             var trayIconService = (TrayIconService)_serviceProvider.GetRequiredService<ITrayIconService>();
-            trayIconService.Initialize(mainWindow, settings.MinimizeToTray);
+            
+            // Tray icon initialization may touch UI, ensure we're on UI thread
+            await Dispatcher.UIThread.InvokeAsync(() =>
+            {
+                trayIconService.Initialize(mainWindow, settings.MinimizeToTray);
+            });
             
             // Subscribe to settings changes
             var settingsViewModel = _serviceProvider.GetRequiredService<SettingsViewModel>();
@@ -182,6 +239,34 @@ public partial class App : Application
         }
     }
 
+    private async Task ApplyStartMinimizedSettingAsync(MainWindow mainWindow)
+    {
+        if (_serviceProvider is null) return;
+
+        try
+        {
+            var persistence = _serviceProvider.GetRequiredService<IDataPersistenceService>();
+            var settings = await persistence.GetSettingsAsync();
+
+            if (settings.StartMinimized)
+            {
+                // Use the tray service to hide properly (handles cross-platform differences)
+                // UI operations must be on UI thread
+                await Dispatcher.UIThread.InvokeAsync(() =>
+                {
+                    var trayService = _serviceProvider.GetRequiredService<ITrayIconService>();
+                    trayService.HideMainWindow();
+                });
+                
+                Log.Information("Application started minimized to tray");
+            }
+        }
+        catch (Exception ex)
+        {
+            Log.Error(ex, "Failed to apply start minimized setting");
+        }
+    }
+
     private void OnShutdownRequested(object? sender, ShutdownRequestedEventArgs e)
     {
         Log.Information("Application shutting down...");
@@ -191,9 +276,14 @@ public partial class App : Application
             // Dispose tray icon service
             _serviceProvider?.GetService<ITrayIconService>()?.Dispose();
             
-            // Stop background services first
+            // Stop background services - use async void pattern for shutdown
+            // This is acceptable here as the app is terminating
             var pollingService = _serviceProvider?.GetService<NetworkPollingBackgroundService>();
-            pollingService?.StopAsync(CancellationToken.None).GetAwaiter().GetResult();
+            if (pollingService is not null)
+            {
+                // Fire and forget with a reasonable timeout
+                _ = StopBackgroundServicesAsync(pollingService);
+            }
         }
         catch (Exception ex)
         {
@@ -204,6 +294,23 @@ public partial class App : Application
         DisposeViewModels();
 
         _serviceProvider?.Dispose();
+    }
+
+    private static async Task StopBackgroundServicesAsync(NetworkPollingBackgroundService pollingService)
+    {
+        try
+        {
+            using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
+            await pollingService.StopAsync(cts.Token);
+        }
+        catch (OperationCanceledException)
+        {
+            Log.Warning("Background service stop timed out during shutdown");
+        }
+        catch (Exception ex)
+        {
+            Log.Error(ex, "Error stopping background services during shutdown");
+        }
     }
 
     private void DisposeViewModels()

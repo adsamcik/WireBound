@@ -127,4 +127,51 @@ public sealed class WindowsStartupService : IStartupService
             return Task.FromResult(StartupState.Error);
         }
     }
+
+    public Task<bool> EnsureStartupPathUpdatedAsync()
+    {
+        try
+        {
+            using var key = Registry.CurrentUser.OpenSubKey(RegistryKeyPath, writable: true);
+            if (key == null)
+            {
+                Log.Warning("Could not open registry key for startup path validation");
+                return Task.FromResult(false);
+            }
+
+            var currentValue = key.GetValue(AppName) as string;
+            if (string.IsNullOrEmpty(currentValue))
+            {
+                // Startup not enabled, nothing to update
+                return Task.FromResult(true);
+            }
+
+            var currentExePath = Environment.ProcessPath;
+            if (string.IsNullOrEmpty(currentExePath))
+            {
+                Log.Warning("Could not determine current executable path");
+                return Task.FromResult(false);
+            }
+
+            var expectedValue = $"\"{currentExePath}\" --minimized";
+
+            // Check if the current registry value matches the expected value
+            if (!string.Equals(currentValue, expectedValue, StringComparison.OrdinalIgnoreCase))
+            {
+                Log.Information(
+                    "Updating startup registry entry from '{OldPath}' to '{NewPath}'",
+                    currentValue, expectedValue);
+                
+                key.SetValue(AppName, expectedValue);
+                Log.Information("Startup path updated successfully");
+            }
+
+            return Task.FromResult(true);
+        }
+        catch (Exception ex)
+        {
+            Log.Error(ex, "Failed to ensure startup path is updated");
+            return Task.FromResult(false);
+        }
+    }
 }

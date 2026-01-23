@@ -93,6 +93,11 @@ public interface IDataPersistenceService
     Task SaveSpeedSnapshotAsync(long downloadSpeedBps, long uploadSpeedBps);
 
     /// <summary>
+    /// Save a batch of speed snapshots for chart history (more efficient than individual saves)
+    /// </summary>
+    Task SaveSpeedSnapshotBatchAsync(IEnumerable<(long downloadBps, long uploadBps, DateTime timestamp)> snapshots);
+
+    /// <summary>
     /// Get speed history for a time range
     /// </summary>
     Task<List<SpeedSnapshot>> GetSpeedHistoryAsync(DateTime since);

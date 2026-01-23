@@ -72,7 +72,7 @@
                                         XAxes="{Binding XAxes}"
                                         YAxes="{Binding YAxes}"
                                         TooltipPosition="Top"
-                                        Background="Transparent" />
+                                        Background="{DynamicResource CardBrush}" />
                 </Grid>
             </Border>
 

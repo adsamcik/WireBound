@@ -3,6 +3,7 @@ using CommunityToolkit.Mvvm.Input;
 using LiveChartsCore;
 using LiveChartsCore.SkiaSharpView;
 using LiveChartsCore.SkiaSharpView.Painting;
+using Microsoft.Extensions.Logging;
 using SkiaSharp;
 using System.Collections.ObjectModel;
 using WireBound.Avalonia.Helpers;
@@ -109,6 +110,7 @@ public sealed class HourlyUsageItem
 public sealed partial class HistoryViewModel : ObservableObject, IDisposable
 {
     private readonly IDataPersistenceService _persistence;
+    private readonly ILogger<HistoryViewModel>? _logger;
     private CancellationTokenSource? _loadCts;
     private CancellationTokenSource? _hourlyCts;
     private bool _disposed;
@@ -255,9 +257,12 @@ public sealed partial class HistoryViewModel : ObservableObject, IDisposable
     [ObservableProperty]
     private string _exportStatusMessage = string.Empty;
 
-    public HistoryViewModel(IDataPersistenceService persistence)
+    public HistoryViewModel(
+        IDataPersistenceService persistence,
+        ILogger<HistoryViewModel>? logger = null)
     {
         _persistence = persistence;
+        _logger = logger;
         _selectedPeriod = PeriodOptions[1]; // Default to 30 days
         
         XAxes =
@@ -732,9 +737,9 @@ public sealed partial class HistoryViewModel : ObservableObject, IDisposable
         {
             // Cancelled, ignore
         }
-        catch
+        catch (Exception ex)
         {
-            // Failed to load hourly data - panel will show empty
+            _logger?.LogDebug(ex, "Failed to load hourly data - panel will show empty");
             ShowHourlyPanel = true;
         }
     }

@@ -461,6 +461,26 @@ public sealed class DataPersistenceService : IDataPersistenceService
         await db.SaveChangesAsync().ConfigureAwait(false);
     }
 
+    public async Task SaveSpeedSnapshotBatchAsync(IEnumerable<(long downloadBps, long uploadBps, DateTime timestamp)> snapshots)
+    {
+        var snapshotList = snapshots.ToList();
+        if (snapshotList.Count == 0)
+            return;
+
+        using var scope = _serviceProvider.CreateScope();
+        var db = scope.ServiceProvider.GetRequiredService<WireBoundDbContext>();
+
+        var entities = snapshotList.Select(s => new SpeedSnapshot
+        {
+            Timestamp = s.timestamp,
+            DownloadSpeedBps = s.downloadBps,
+            UploadSpeedBps = s.uploadBps
+        });
+
+        db.SpeedSnapshots.AddRange(entities);
+        await db.SaveChangesAsync().ConfigureAwait(false);
+    }
+
     public async Task<List<SpeedSnapshot>> GetSpeedHistoryAsync(DateTime since)
     {
         using var scope = _serviceProvider.CreateScope();

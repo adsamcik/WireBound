@@ -90,6 +90,16 @@ public sealed class ProcessNetworkService : IProcessNetworkService
         }
     }
 
+    public async Task<IReadOnlyList<Platform.Abstract.Models.ConnectionStats>> GetConnectionStatsAsync()
+    {
+        if (_currentProvider == null)
+        {
+            _currentProvider = _providerFactory.GetProvider();
+        }
+        
+        return await _currentProvider.GetConnectionStatsAsync();
+    }
+
     private void OnProviderStatsUpdated(object? sender, ProcessNetworkProviderEventArgs e)
     {
         lock (_statsLock)

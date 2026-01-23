@@ -26,6 +26,7 @@ public sealed class ViewFactory : IViewFactory
             "History" => CreateHistoryView(),
             "Settings" => CreateSettingsView(),
             "Applications" => CreateApplicationsView(),
+            "Connections" => CreateConnectionsView(),
             _ => CreateDashboardView()
         };
     }
@@ -62,6 +63,13 @@ public sealed class ViewFactory : IViewFactory
     {
         var view = _serviceProvider.GetRequiredService<ApplicationsView>();
         view.DataContext = _serviceProvider.GetRequiredService<ApplicationsViewModel>();
+        return view;
+    }
+
+    private Control CreateConnectionsView()
+    {
+        var view = _serviceProvider.GetRequiredService<ConnectionsView>();
+        view.DataContext = _serviceProvider.GetRequiredService<ConnectionsViewModel>();
         return view;
     }
 }

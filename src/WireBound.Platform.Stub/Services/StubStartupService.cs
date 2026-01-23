@@ -18,4 +18,7 @@ public sealed class StubStartupService : IStartupService
 
     public Task<StartupState> GetStartupStateAsync() =>
         Task.FromResult(StartupState.NotSupported);
+
+    public Task<bool> EnsureStartupPathUpdatedAsync() =>
+        Task.FromResult(true);
 }

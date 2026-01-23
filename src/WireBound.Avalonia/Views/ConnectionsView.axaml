@@ -1,0 +1,336 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:WireBound.Avalonia.ViewModels"
+             x:Class="WireBound.Avalonia.Views.ConnectionsView"
+             x:DataType="vm:ConnectionsViewModel"
+             Background="{DynamicResource BackgroundBrush}">
+
+    <Grid RowDefinitions="Auto, *">
+        
+        <!-- Loading Overlay -->
+        <Border Grid.RowSpan="2"
+                IsVisible="{Binding IsLoading}"
+                Background="{DynamicResource OverlayColor}"
+                ZIndex="100">
+            <Border Background="{DynamicResource CardBrush}"
+                    CornerRadius="16"
+                    Padding="32"
+                    HorizontalAlignment="Center"
+                    VerticalAlignment="Center">
+                <StackPanel Spacing="16">
+                    <ProgressBar IsIndeterminate="True"
+                                 Width="48" Height="8"
+                                 HorizontalAlignment="Center" />
+                    <TextBlock Text="Loading connections..."
+                               Classes="Subtitle"
+                               HorizontalAlignment="Center" />
+                </StackPanel>
+            </Border>
+        </Border>
+
+        <ScrollViewer Grid.Row="1" Margin="28">
+            <StackPanel Spacing="24">
+
+                <!-- Page Header -->
+                <Grid ColumnDefinitions="*, Auto">
+                    <StackPanel Spacing="4">
+                        <TextBlock Text="Connections" Classes="PageTitle" />
+                        <TextBlock Text="Active network connections by IP address" Classes="Subtitle" />
+                    </StackPanel>
+                    
+                    <!-- Refresh Button -->
+                    <Button Grid.Column="1" 
+                            Command="{Binding RefreshCommand}"
+                            Padding="16,10"
+                            VerticalAlignment="Center">
+                        <StackPanel Orientation="Horizontal" Spacing="8">
+                            <TextBlock Text="🔄" FontSize="14" />
+                            <TextBlock Text="Refresh" FontSize="13" />
+                        </StackPanel>
+                    </Button>
+                </Grid>
+
+                <!-- Platform Warning -->
+                <Border Classes="Card"
+                        Background="{DynamicResource WarningBannerColor}"
+                        IsVisible="{Binding !IsPlatformSupported}">
+                    <StackPanel Orientation="Horizontal" Spacing="16">
+                        <Border Background="#25FFB627" CornerRadius="10" Width="48" Height="48">
+                            <TextBlock Text="⚠️" FontSize="24"
+                                       HorizontalAlignment="Center" VerticalAlignment="Center" />
+                        </Border>
+                        <StackPanel VerticalAlignment="Center">
+                            <TextBlock Text="Feature Not Available"
+                                       FontSize="16" FontWeight="Bold"
+                                       Foreground="{DynamicResource WarningBrush}" />
+                            <TextBlock Text="Connection tracking is not available on this platform."
+                                       Classes="Subtitle" />
+                        </StackPanel>
+                    </StackPanel>
+                </Border>
+
+                <!-- Error Banner -->
+                <Border Classes="Card"
+                        Background="{DynamicResource ErrorBannerColor}"
+                        IsVisible="{Binding HasError}">
+                    <StackPanel Orientation="Horizontal" Spacing="16">
+                        <Border Background="#25F45B69" CornerRadius="10" Width="48" Height="48">
+                            <TextBlock Text="❌" FontSize="24"
+                                       HorizontalAlignment="Center" VerticalAlignment="Center" />
+                        </Border>
+                        <StackPanel VerticalAlignment="Center" Spacing="4">
+                            <TextBlock Text="Error"
+                                       FontSize="16" FontWeight="Bold"
+                                       Foreground="{DynamicResource ErrorBrush}" />
+                            <TextBlock Text="{Binding ErrorMessage}"
+                                       Classes="Subtitle"
+                                       TextWrapping="Wrap" />
+                        </StackPanel>
+                    </StackPanel>
+                </Border>
+
+                <!-- Elevation Required Banner -->
+                <Border Classes="Card"
+                        Background="{DynamicResource InfoBannerColor}"
+                        IsVisible="{Binding RequiresElevation}">
+                    <StackPanel Orientation="Horizontal" Spacing="16">
+                        <Border Background="#2500E5FF" CornerRadius="10" Width="48" Height="48">
+                            <TextBlock Text="🔐" FontSize="24"
+                                       HorizontalAlignment="Center" VerticalAlignment="Center" />
+                        </Border>
+                        <StackPanel VerticalAlignment="Center">
+                            <TextBlock Text="Elevation Required"
+                                       FontSize="16" FontWeight="Bold"
+                                       Foreground="{DynamicResource PrimaryBrush}" />
+                            <TextBlock Text="Full byte tracking requires administrator privileges."
+                                       Classes="Subtitle" />
+                        </StackPanel>
+                    </StackPanel>
+                </Border>
+
+                <!-- Summary Cards -->
+                <Grid ColumnDefinitions="*, *, *, *">
+                    <Border Grid.Column="0" Classes="ElevatedCard" Margin="0,0,10,0">
+                        <StackPanel Spacing="8">
+                            <StackPanel Orientation="Horizontal" Spacing="8">
+                                <TextBlock Text="🔗" FontSize="16" />
+                                <TextBlock Text="CONNECTIONS" Classes="MetricLabel" />
+                            </StackPanel>
+                            <TextBlock Text="{Binding ConnectionCount}"
+                                       FontSize="32" FontWeight="Bold" />
+                        </StackPanel>
+                    </Border>
+                    <Border Grid.Column="1" Classes="ElevatedCard" Margin="10,0">
+                        <StackPanel Spacing="8">
+                            <StackPanel Orientation="Horizontal" Spacing="8">
+                                <TextBlock Text="📡" FontSize="16" />
+                                <TextBlock Text="TCP / UDP" Classes="MetricLabel" />
+                            </StackPanel>
+                            <StackPanel Orientation="Horizontal" Spacing="8">
+                                <TextBlock Text="{Binding TcpCount}"
+                                           FontSize="24" FontWeight="Bold" />
+                                <TextBlock Text="/"
+                                           FontSize="24" FontWeight="Bold"
+                                           Foreground="{DynamicResource SecondaryTextBrush}" />
+                                <TextBlock Text="{Binding UdpCount}"
+                                           FontSize="24" FontWeight="Bold" />
+                            </StackPanel>
+                        </StackPanel>
+                    </Border>
+                    <Border Grid.Column="2" Classes="ElevatedCard" Margin="10,0">
+                        <StackPanel Spacing="8">
+                            <StackPanel Orientation="Horizontal" Spacing="8">
+                                <TextBlock Text="⬇️" FontSize="16" />
+                                <TextBlock Text="RECEIVED" Classes="MetricLabel" />
+                            </StackPanel>
+                            <TextBlock Text="{Binding TotalReceived}"
+                                       FontSize="24" FontWeight="Bold"
+                                       Foreground="{DynamicResource DownloadBrush}" />
+                        </StackPanel>
+                    </Border>
+                    <Border Grid.Column="3" Classes="ElevatedCard" Margin="10,0,0,0">
+                        <StackPanel Spacing="8">
+                            <StackPanel Orientation="Horizontal" Spacing="8">
+                                <TextBlock Text="⬆️" FontSize="16" />
+                                <TextBlock Text="SENT" Classes="MetricLabel" />
+                            </StackPanel>
+                            <TextBlock Text="{Binding TotalSent}"
+                                       FontSize="24" FontWeight="Bold"
+                                       Foreground="{DynamicResource UploadBrush}" />
+                        </StackPanel>
+                    </Border>
+                </Grid>
+
+                <!-- Search Box -->
+                <Border Classes="Card" Padding="16">
+                    <Grid ColumnDefinitions="Auto, *">
+                        <TextBlock Text="🔍" FontSize="16" VerticalAlignment="Center" Margin="0,0,12,0" />
+                        <TextBox Grid.Column="1"
+                                 Text="{Binding SearchText}"
+                                 Watermark="Search by IP, hostname, or process..."
+                                 Classes="SearchBox" />
+                    </Grid>
+                </Border>
+
+                <!-- Connections Table -->
+                <Border Classes="ElevatedCard">
+                    <Grid RowDefinitions="Auto, Auto, *">
+                        
+                        <!-- Section Header -->
+                        <StackPanel Orientation="Horizontal" Spacing="12">
+                            <Border Background="#1500E5FF" CornerRadius="8" Width="40" Height="40">
+                                <TextBlock Text="🌐" FontSize="20"
+                                           HorizontalAlignment="Center" VerticalAlignment="Center" />
+                            </Border>
+                            <StackPanel VerticalAlignment="Center">
+                                <TextBlock Text="Active Connections" Classes="SectionHeader" />
+                                <TextBlock Text="Live view of network connections" Classes="Caption" />
+                            </StackPanel>
+                        </StackPanel>
+                        
+                        <!-- Table Header -->
+                        <Border Grid.Row="1"
+                                Background="{DynamicResource BorderSubtleBrush}"
+                                CornerRadius="8"
+                                Padding="16,12"
+                                Margin="0,16,0,0">
+                            <Grid ColumnDefinitions="0.5*, 2*, 1.5*, 0.8*, 1*, 1*">
+                                <Button Command="{Binding SortByCommand}" CommandParameter="Protocol"
+                                        Background="Transparent" Padding="0" Cursor="Hand"
+                                        HorizontalAlignment="Left">
+                                    <TextBlock Text="PROTOCOL" Classes="MetricLabel" FontWeight="Bold" />
+                                </Button>
+                                <Button Grid.Column="1" Command="{Binding SortByCommand}" CommandParameter="Remote"
+                                        Background="Transparent" Padding="0" Cursor="Hand"
+                                        HorizontalAlignment="Left">
+                                    <TextBlock Text="REMOTE ADDRESS" Classes="MetricLabel" FontWeight="Bold" />
+                                </Button>
+                                <Button Grid.Column="2" Command="{Binding SortByCommand}" CommandParameter="Process"
+                                        Background="Transparent" Padding="0" Cursor="Hand"
+                                        HorizontalAlignment="Left">
+                                    <TextBlock Text="PROCESS" Classes="MetricLabel" FontWeight="Bold" />
+                                </Button>
+                                <Button Grid.Column="3" Command="{Binding SortByCommand}" CommandParameter="State"
+                                        Background="Transparent" Padding="0" Cursor="Hand"
+                                        HorizontalAlignment="Left">
+                                    <TextBlock Text="STATE" Classes="MetricLabel" FontWeight="Bold" />
+                                </Button>
+                                <TextBlock Grid.Column="4" Text="RECEIVED" Classes="MetricLabel" FontWeight="Bold" HorizontalAlignment="Right" />
+                                <TextBlock Grid.Column="5" Text="SENT" Classes="MetricLabel" FontWeight="Bold" HorizontalAlignment="Right" />
+                            </Grid>
+                        </Border>
+                        
+                        <!-- Connection List -->
+                        <ScrollViewer Grid.Row="2" MaxHeight="500" Margin="0,8,0,0">
+                            <ItemsControl ItemsSource="{Binding Connections}">
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate x:DataType="vm:ConnectionDisplayItem">
+                                        <Border Background="Transparent"
+                                                CornerRadius="8"
+                                                Padding="16,12"
+                                                Margin="0,2">
+                                            <Border.Styles>
+                                                <Style Selector="Border:pointerover">
+                                                    <Setter Property="Background" Value="{DynamicResource FlyoutItemHoverColor}" />
+                                                </Style>
+                                            </Border.Styles>
+                                            <Grid ColumnDefinitions="0.5*, 2*, 1.5*, 0.8*, 1*, 1*">
+                                                <!-- Protocol Badge -->
+                                                <Border Background="{DynamicResource BorderSubtleBrush}"
+                                                        CornerRadius="4"
+                                                        Padding="8,4"
+                                                        HorizontalAlignment="Left">
+                                                    <TextBlock Text="{Binding Protocol}"
+                                                               FontSize="11" FontWeight="Bold"
+                                                               Foreground="{DynamicResource PrimaryBrush}" />
+                                                </Border>
+                                                
+                                                <!-- Remote Address -->
+                                                <StackPanel Grid.Column="1" Spacing="2">
+                                                    <TextBlock Text="{Binding DisplayName}"
+                                                               FontSize="13" FontWeight="Bold"
+                                                               TextTrimming="CharacterEllipsis" />
+                                                    <TextBlock Text="{Binding RemoteEndpoint}"
+                                                               FontSize="11"
+                                                               Foreground="{DynamicResource SecondaryTextBrush}"
+                                                               TextTrimming="CharacterEllipsis"
+                                                               IsVisible="{Binding RemoteHostname, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
+                                                </StackPanel>
+                                                
+                                                <!-- Process -->
+                                                <StackPanel Grid.Column="2" Spacing="2">
+                                                    <TextBlock Text="{Binding ProcessName}"
+                                                               FontSize="13"
+                                                               TextTrimming="CharacterEllipsis" />
+                                                    <TextBlock Text="{Binding ProcessId, StringFormat='PID: {0}'}"
+                                                               FontSize="11"
+                                                               Foreground="{DynamicResource SecondaryTextBrush}" />
+                                                </StackPanel>
+                                                
+                                                <!-- State -->
+                                                <TextBlock Grid.Column="3"
+                                                           Text="{Binding State}"
+                                                           FontSize="12"
+                                                           VerticalAlignment="Center" />
+                                                
+                                                <!-- Received -->
+                                                <StackPanel Grid.Column="4" HorizontalAlignment="Right" Spacing="2">
+                                                    <TextBlock Text="{Binding BytesReceived}"
+                                                               FontSize="13"
+                                                               Foreground="{DynamicResource DownloadBrush}"
+                                                               HorizontalAlignment="Right" />
+                                                    <TextBlock Text="{Binding ReceiveSpeed}"
+                                                               FontSize="11"
+                                                               Foreground="{DynamicResource SecondaryTextBrush}"
+                                                               HorizontalAlignment="Right"
+                                                               IsVisible="{Binding HasByteCounters}" />
+                                                </StackPanel>
+                                                
+                                                <!-- Sent -->
+                                                <StackPanel Grid.Column="5" HorizontalAlignment="Right" Spacing="2">
+                                                    <TextBlock Text="{Binding BytesSent}"
+                                                               FontSize="13"
+                                                               Foreground="{DynamicResource UploadBrush}"
+                                                               HorizontalAlignment="Right" />
+                                                    <TextBlock Text="{Binding SendSpeed}"
+                                                               FontSize="11"
+                                                               Foreground="{DynamicResource SecondaryTextBrush}"
+                                                               HorizontalAlignment="Right"
+                                                               IsVisible="{Binding HasByteCounters}" />
+                                                </StackPanel>
+                                            </Grid>
+                                        </Border>
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
+                        </ScrollViewer>
+                        
+                        <!-- Empty State -->
+                        <Border Grid.Row="2"
+                                Background="{DynamicResource BorderSubtleBrush}"
+                                CornerRadius="12"
+                                Padding="40"
+                                Margin="0,16,0,0"
+                                IsVisible="{Binding !ConnectionCount}">
+                            <StackPanel HorizontalAlignment="Center" Spacing="12">
+                                <Border Background="{DynamicResource SurfaceBrush}"
+                                        CornerRadius="20"
+                                        Width="80" Height="80">
+                                    <TextBlock Text="🔌" FontSize="36"
+                                               HorizontalAlignment="Center" VerticalAlignment="Center" />
+                                </Border>
+                                <TextBlock Text="No active connections"
+                                           FontSize="18" FontWeight="Bold"
+                                           HorizontalAlignment="Center" />
+                                <TextBlock Text="Connections will appear when network activity is detected"
+                                           Classes="Subtitle"
+                                           HorizontalAlignment="Center" />
+                            </StackPanel>
+                        </Border>
+                    </Grid>
+                </Border>
+
+            </StackPanel>
+        </ScrollViewer>
+    </Grid>
+</UserControl>

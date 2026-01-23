@@ -63,6 +63,7 @@ public partial class MainViewModel : ObservableObject, IDisposable
             new NavigationItem { Title = "Dashboard", Icon = "📊", Route = "Dashboard" },
             new NavigationItem { Title = "Live Chart", Icon = "📈", Route = "Charts" },
             new NavigationItem { Title = "Applications", Icon = "📱", Route = "Applications" },
+            new NavigationItem { Title = "Connections", Icon = "🔗", Route = "Connections" },
             new NavigationItem { Title = "History", Icon = "📜", Route = "History" },
             new NavigationItem { Title = "Settings", Icon = "⚙️", Route = "Settings" }
         ];

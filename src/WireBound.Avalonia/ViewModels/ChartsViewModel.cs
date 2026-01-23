@@ -3,6 +3,7 @@ using LiveChartsCore;
 using LiveChartsCore.Defaults;
 using LiveChartsCore.SkiaSharpView;
 using LiveChartsCore.SkiaSharpView.Painting;
+using Microsoft.Extensions.Logging;
 using SkiaSharp;
 using System.Collections.ObjectModel;
 using Avalonia.Threading;
@@ -19,10 +20,12 @@ public sealed partial class ChartsViewModel : ObservableObject, IDisposable
 {
     private readonly INetworkMonitorService _networkMonitor;
     private readonly IDataPersistenceService _persistence;
+    private readonly ILogger<ChartsViewModel>? _logger;
     private bool _disposed;
+    private const int MaxBufferSize = 3600;
     private readonly ObservableCollection<DateTimePoint> _downloadSpeedPoints = [];
     private readonly ObservableCollection<DateTimePoint> _uploadSpeedPoints = [];
-    private readonly List<(DateTime Time, long Download, long Upload)> _dataBuffer = [];
+    private readonly CircularBuffer<(DateTime Time, long Download, long Upload)> _dataBuffer = new(MaxBufferSize);
     
     private long _peakDownloadBps;
     private long _peakUploadBps;
@@ -72,10 +75,14 @@ public sealed partial class ChartsViewModel : ObservableObject, IDisposable
 
     public Axis[] YAxes { get; } = ChartSeriesFactory.CreateSpeedYAxes();
 
-    public ChartsViewModel(INetworkMonitorService networkMonitor, IDataPersistenceService persistence)
+    public ChartsViewModel(
+        INetworkMonitorService networkMonitor,
+        IDataPersistenceService persistence,
+        ILogger<ChartsViewModel>? logger = null)
     {
         _networkMonitor = networkMonitor;
         _persistence = persistence;
+        _logger = logger;
         networkMonitor.StatsUpdated += OnStatsUpdated;
 
         _selectedTimeRange = TimeRangeOptions[1];
@@ -131,7 +138,7 @@ public sealed partial class ChartsViewModel : ObservableObject, IDisposable
                 // Apply current time range to show data
                 var rangeSeconds = SelectedTimeRange?.Seconds ?? 60;
                 var cutoff = DateTime.Now.AddSeconds(-rangeSeconds);
-                var relevantData = _dataBuffer.Where(d => d.Time >= cutoff).ToList();
+                var relevantData = _dataBuffer.AsEnumerable().Where(d => d.Time >= cutoff).ToList();
 
                 foreach (var d in relevantData)
                 {
@@ -147,9 +154,9 @@ public sealed partial class ChartsViewModel : ObservableObject, IDisposable
                 }
             });
         }
-        catch
+        catch (Exception ex)
         {
-            // Ignore errors loading history - chart will still work with live data
+            _logger?.LogDebug(ex, "Failed to load history data for chart - chart will still work with live data");
         }
     }
 
@@ -193,10 +200,8 @@ public sealed partial class ChartsViewModel : ObservableObject, IDisposable
             AverageUploadSpeed = ByteFormatter.FormatSpeed(_totalUploadBps / _sampleCount);
         }
 
-        // Add to buffer
+        // Add to buffer (CircularBuffer auto-evicts oldest when full)
         _dataBuffer.Add((now, stats.DownloadSpeedBps, stats.UploadSpeedBps));
-        if (_dataBuffer.Count > 3600)
-            _dataBuffer.RemoveAt(0);
 
         if (!IsUpdatesPaused)
         {
@@ -206,6 +211,7 @@ public sealed partial class ChartsViewModel : ObservableObject, IDisposable
             _downloadSpeedPoints.Add(new DateTimePoint(now, stats.DownloadSpeedBps));
             _uploadSpeedPoints.Add(new DateTimePoint(now, stats.UploadSpeedBps));
 
+            // Remove old points from display collections
             while (_downloadSpeedPoints.Count > 0 && _downloadSpeedPoints[0].DateTime < cutoff)
                 _downloadSpeedPoints.RemoveAt(0);
             while (_uploadSpeedPoints.Count > 0 && _uploadSpeedPoints[0].DateTime < cutoff)
@@ -224,7 +230,7 @@ public sealed partial class ChartsViewModel : ObservableObject, IDisposable
         if (value == null) return;
 
         var cutoff = DateTime.Now.AddSeconds(-value.Seconds);
-        var relevantData = _dataBuffer.Where(d => d.Time >= cutoff).ToList();
+        var relevantData = _dataBuffer.AsEnumerable().Where(d => d.Time >= cutoff).ToList();
 
         _downloadSpeedPoints.Clear();
         _uploadSpeedPoints.Clear();

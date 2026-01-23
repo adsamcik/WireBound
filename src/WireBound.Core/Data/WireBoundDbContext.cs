@@ -97,8 +97,56 @@ public sealed class WireBoundDbContext : DbContext
         }
     }
 
+    /// <summary>
+    /// Validates that a SQL identifier (table name, column name) contains only safe characters.
+    /// This prevents SQL injection attacks when identifiers must be used in dynamic SQL.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// SECURITY WARNING: SQLite does not support parameterized identifiers (table/column names).
+    /// This validation ensures identifiers only contain alphanumeric characters and underscores,
+    /// which are safe for direct interpolation into SQL statements.
+    /// </para>
+    /// <para>
+    /// Always call this method before using any identifier in string-interpolated SQL.
+    /// </para>
+    /// </remarks>
+    /// <param name="identifier">The SQL identifier to validate.</param>
+    /// <param name="parameterName">The name of the parameter for error messages.</param>
+    /// <exception cref="ArgumentException">Thrown when the identifier is null, empty, or contains invalid characters.</exception>
+    private static void ValidateSqlIdentifier(string identifier, string parameterName)
+    {
+        if (string.IsNullOrWhiteSpace(identifier))
+            throw new ArgumentException($"{parameterName} cannot be null or empty", parameterName);
+
+        // SQLite identifiers should only contain alphanumeric characters and underscores,
+        // and must start with a letter or underscore (not a digit)
+        if (!System.Text.RegularExpressions.Regex.IsMatch(identifier, @"^[a-zA-Z_][a-zA-Z0-9_]*$"))
+            throw new ArgumentException($"{parameterName} contains invalid characters. Only alphanumeric and underscore allowed, must start with letter or underscore.", parameterName);
+    }
+
+    /// <summary>
+    /// Adds a column to a table if it doesn't already exist.
+    /// Used for incremental schema migrations.
+    /// </summary>
+    /// <remarks>
+    /// SECURITY NOTE: This method uses string interpolation for SQL identifiers because
+    /// SQLite does not support parameterized table/column names. All identifiers are
+    /// validated using <see cref="ValidateSqlIdentifier"/> before use to prevent SQL injection.
+    /// Only call this method with hardcoded, trusted identifier values.
+    /// </remarks>
+    /// <param name="connection">The database connection.</param>
+    /// <param name="table">The table name (must be alphanumeric/underscore only).</param>
+    /// <param name="column">The column name (must be alphanumeric/underscore only).</param>
+    /// <param name="definition">The column definition (type and constraints).</param>
     private static void AddColumnIfNotExists(System.Data.Common.DbConnection connection, string table, string column, string definition)
     {
+        // Validate identifiers to prevent SQL injection
+        // Even though we currently only call this with hardcoded values,
+        // validation provides defense-in-depth and protects against future misuse
+        ValidateSqlIdentifier(table, nameof(table));
+        ValidateSqlIdentifier(column, nameof(column));
+
         using var command = connection.CreateCommand();
         command.CommandText = $"PRAGMA table_info({table})";
 

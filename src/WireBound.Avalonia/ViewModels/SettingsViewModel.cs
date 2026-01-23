@@ -1,8 +1,10 @@
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
+using Microsoft.Extensions.Logging;
 using System.Collections.ObjectModel;
 using WireBound.Core.Models;
 using WireBound.Core.Services;
+using WireBound.Platform.Abstract.Services;
 using IStartupService = WireBound.Platform.Abstract.Services.IStartupService;
 using StartupState = WireBound.Platform.Abstract.Services.StartupState;
 
@@ -16,6 +18,8 @@ public sealed partial class SettingsViewModel : ObservableObject
     private readonly IDataPersistenceService _persistence;
     private readonly INetworkMonitorService _networkMonitor;
     private readonly IStartupService _startupService;
+    private readonly IElevationService _elevationService;
+    private readonly ILogger<SettingsViewModel>? _logger;
     private CancellationTokenSource? _autoSaveCts;
     private bool _isLoading = true;
     private const int AutoSaveDelayMs = 500;
@@ -104,11 +108,15 @@ public sealed partial class SettingsViewModel : ObservableObject
     public SettingsViewModel(
         IDataPersistenceService persistence,
         INetworkMonitorService networkMonitor,
-        IStartupService startupService)
+        IStartupService startupService,
+        IElevationService elevationService,
+        ILogger<SettingsViewModel>? logger = null)
     {
         _persistence = persistence;
         _networkMonitor = networkMonitor;
         _startupService = startupService;
+        _elevationService = elevationService;
+        _logger = logger;
 
         LoadSettings();
     }
@@ -141,10 +149,9 @@ public sealed partial class SettingsViewModel : ObservableObject
         // Find matching adapter
         SelectedAdapter = Adapters.FirstOrDefault(a => a.Id == settings.SelectedAdapterId);
 
-        // Check elevation status
-        // TODO: Add cross-platform elevation helper
-        IsElevated = false;
-        RequiresElevation = false;
+        // Check elevation status using the platform service
+        IsElevated = _elevationService.IsElevated;
+        RequiresElevation = _elevationService.RequiresElevation && _elevationService.IsElevationSupported;
 
         _isLoading = false;
     }
@@ -202,25 +209,36 @@ public sealed partial class SettingsViewModel : ObservableObject
     [RelayCommand]
     private async Task RequestElevationAsync()
     {
+        if (!_elevationService.IsElevationSupported)
+        {
+            _logger?.LogWarning("Elevation requested but not supported on this platform");
+            return;
+        }
+
         IsRequestingElevation = true;
         try
         {
-#if WINDOWS
-            // Restart with elevation
-            var info = new System.Diagnostics.ProcessStartInfo
+            _logger?.LogInformation("User requested application elevation from Settings");
+            
+            var result = await _elevationService.TryElevateAsync();
+            
+            if (result.IsSuccess)
             {
-                FileName = Environment.ProcessPath,
-                UseShellExecute = true,
-                Verb = "runas"
-            };
-            System.Diagnostics.Process.Start(info);
-            Environment.Exit(0);
-#endif
-            await Task.CompletedTask;
+                _logger?.LogInformation("Elevation successful, exiting current process");
+                _elevationService.ExitAfterElevation();
+            }
+            else if (result.Status == ElevationStatus.Cancelled)
+            {
+                _logger?.LogInformation("User cancelled elevation request");
+            }
+            else
+            {
+                _logger?.LogWarning("Elevation failed: {Error}", result.ErrorMessage);
+            }
         }
-        catch
+        catch (Exception ex)
         {
-            // Elevation failed - user may have cancelled UAC prompt
+            _logger?.LogError(ex, "Unexpected error during elevation request");
         }
         finally
         {

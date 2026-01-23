@@ -7,6 +7,7 @@ using WireBound.Core.Helpers;
 using WireBound.Core.Models;
 using WireBound.Core.Services;
 using WireBound.Platform.Abstract.Models;
+using WireBound.Platform.Abstract.Services;
 
 namespace WireBound.Avalonia.ViewModels;
 
@@ -17,6 +18,7 @@ public sealed partial class ApplicationsViewModel : ObservableObject
 {
     private readonly IDataPersistenceService _persistence;
     private readonly IProcessNetworkService? _processNetworkService;
+    private readonly IElevationService _elevationService;
     private readonly ILogger<ApplicationsViewModel>? _logger;
 
     [ObservableProperty]
@@ -61,16 +63,19 @@ public sealed partial class ApplicationsViewModel : ObservableObject
     public ApplicationsViewModel(
         IDataPersistenceService persistence,
         IProcessNetworkService processNetworkService,
+        IElevationService elevationService,
         ILogger<ApplicationsViewModel>? logger = null)
     {
         _persistence = persistence;
         _processNetworkService = processNetworkService;
+        _elevationService = elevationService;
         _logger = logger;
 
         // Per-app network tracking requires IProcessNetworkService which is now implemented
         IsPlatformSupported = _processNetworkService?.IsPlatformSupported ?? false;
         IsPerAppTrackingEnabled = _processNetworkService?.IsRunning == true;
-        RequiresElevation = !(_processNetworkService?.HasRequiredPrivileges ?? true);
+        RequiresElevation = _elevationService.RequiresElevationFor(ElevatedFeature.PerProcessNetworkMonitoring) 
+                            && _elevationService.IsElevationSupported;
 
         if (_processNetworkService != null)
         {
@@ -96,7 +101,11 @@ public sealed partial class ApplicationsViewModel : ObservableObject
     {
         Dispatcher.UIThread.Post(() =>
         {
-            RequiresElevation = e.RequiresElevation;
+            // Update elevation requirement based on error, but respect platform support
+            if (e.RequiresElevation && _elevationService.IsElevationSupported)
+            {
+                RequiresElevation = true;
+            }
         });
     }
 
@@ -161,23 +170,36 @@ public sealed partial class ApplicationsViewModel : ObservableObject
     [RelayCommand]
     private async Task RequestElevationAsync()
     {
+        if (!_elevationService.IsElevationSupported)
+        {
+            _logger?.LogWarning("Elevation requested but not supported on this platform");
+            return;
+        }
+
         IsRequestingElevation = true;
         try
         {
-#if WINDOWS
-            var info = new System.Diagnostics.ProcessStartInfo
+            _logger?.LogInformation("User requested application elevation from Applications view");
+            
+            var result = await _elevationService.TryElevateAsync();
+            
+            if (result.IsSuccess)
             {
-                FileName = Environment.ProcessPath,
-                UseShellExecute = true,
-                Verb = "runas"
-            };
-            System.Diagnostics.Process.Start(info);
-            Environment.Exit(0);
-#endif
+                _logger?.LogInformation("Elevation successful, exiting current process");
+                _elevationService.ExitAfterElevation();
+            }
+            else if (result.Status == ElevationStatus.Cancelled)
+            {
+                _logger?.LogInformation("User cancelled elevation request");
+            }
+            else
+            {
+                _logger?.LogWarning("Elevation failed: {Error}", result.ErrorMessage);
+            }
         }
         catch (Exception ex)
         {
-            _logger?.LogWarning(ex, "Failed to elevate application to administrator privileges");
+            _logger?.LogError(ex, "Unexpected error during elevation request");
         }
         finally
         {

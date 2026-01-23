@@ -38,15 +38,7 @@ public sealed partial class DashboardViewModel : ObservableObject, IDisposable
     private readonly ObservableCollection<DateTimePoint> _downloadSpeedPoints = [];
     private readonly ObservableCollection<DateTimePoint> _uploadSpeedPoints = [];
     
-    private const int MaxBufferSize = 3600;
-    private readonly CircularBuffer<(DateTime Time, long Download, long Upload)> _dataBuffer = new(MaxBufferSize);
-    private const int MaxDisplayPoints = 300;
-    
-    private long _peakDownloadBps;
-    private long _peakUploadBps;
-    private long _totalDownloadBps;
-    private long _totalUploadBps;
-    private int _sampleCount;
+    private readonly ChartDataManager _chartDataManager = new(maxBufferSize: 3600, maxDisplayPoints: 300);
     
     // Trend tracking
     private long _previousDownloadBps;
@@ -437,11 +429,11 @@ public sealed partial class DashboardViewModel : ObservableObject, IDisposable
             UpdateAdapterDisplayItems();
         }
 
-        // Add to buffer (CircularBuffer auto-evicts oldest when full)
-        _dataBuffer.Add((now, stats.DownloadSpeedBps, stats.UploadSpeedBps));
+        // Add to buffer and update statistics via ChartDataManager
+        _chartDataManager.AddDataPoint(now, stats.DownloadSpeedBps, stats.UploadSpeedBps);
 
-        // Update statistics
-        UpdateStatistics(stats.DownloadSpeedBps, stats.UploadSpeedBps);
+        // Update statistics display
+        UpdateStatisticsDisplay();
 
         // Update chart if not paused
         if (!IsUpdatesPaused)
@@ -543,12 +535,12 @@ public sealed partial class DashboardViewModel : ObservableObject, IDisposable
         // Use a stable max: the session peak + 20% headroom
         if (DownloadSparklineYAxes.Length > 0)
         {
-            var downloadMax = Math.Max(_peakDownloadBps * 1.2, 1024); // At least 1 KB/s scale
+            var downloadMax = Math.Max(_chartDataManager.PeakDownloadBps * 1.2, 1024); // At least 1 KB/s scale
             DownloadSparklineYAxes[0].MaxLimit = downloadMax;
         }
         if (UploadSparklineYAxes.Length > 0)
         {
-            var uploadMax = Math.Max(_peakUploadBps * 1.2, 1024); // At least 1 KB/s scale
+            var uploadMax = Math.Max(_chartDataManager.PeakUploadBps * 1.2, 1024); // At least 1 KB/s scale
             UploadSparklineYAxes[0].MaxLimit = uploadMax;
         }
     }
@@ -580,30 +572,14 @@ public sealed partial class DashboardViewModel : ObservableObject, IDisposable
         }
     }
 
-    private void UpdateStatistics(long downloadBps, long uploadBps)
+    private void UpdateStatisticsDisplay()
     {
-        if (downloadBps > _peakDownloadBps)
-        {
-            _peakDownloadBps = downloadBps;
-            PeakDownloadSpeed = ByteFormatter.FormatSpeed(_peakDownloadBps);
-        }
-        if (uploadBps > _peakUploadBps)
-        {
-            _peakUploadBps = uploadBps;
-            PeakUploadSpeed = ByteFormatter.FormatSpeed(_peakUploadBps);
-        }
+        PeakDownloadSpeed = ByteFormatter.FormatSpeed(_chartDataManager.PeakDownloadBps);
+        PeakUploadSpeed = ByteFormatter.FormatSpeed(_chartDataManager.PeakUploadBps);
+        AverageDownloadSpeed = ByteFormatter.FormatSpeed(_chartDataManager.AverageDownloadBps);
+        AverageUploadSpeed = ByteFormatter.FormatSpeed(_chartDataManager.AverageUploadBps);
 
-        _totalDownloadBps += downloadBps;
-        _totalUploadBps += uploadBps;
-        _sampleCount++;
-
-        if (_sampleCount > 0)
-        {
-            AverageDownloadSpeed = ByteFormatter.FormatSpeed(_totalDownloadBps / _sampleCount);
-            AverageUploadSpeed = ByteFormatter.FormatSpeed(_totalUploadBps / _sampleCount);
-        }
-
-        UpdateAdaptiveThresholds(Math.Max(downloadBps, uploadBps));
+        UpdateAdaptiveThresholds(Math.Max(_chartDataManager.PeakDownloadBps, _chartDataManager.PeakUploadBps));
     }
 
     private void UpdateAdaptiveThresholds(long maxSpeedBps)
@@ -683,17 +659,7 @@ public sealed partial class DashboardViewModel : ObservableObject, IDisposable
     {
         if (SelectedTimeRange == null) return;
 
-        var cutoff = DateTime.Now.AddSeconds(-SelectedTimeRange.Seconds);
-        var relevantData = _dataBuffer.AsEnumerable().Where(d => d.Time >= cutoff).ToList();
-
-        var downloadPoints = relevantData.Select(d => new DateTimePoint(d.Time, d.Download)).ToList();
-        var uploadPoints = relevantData.Select(d => new DateTimePoint(d.Time, d.Upload)).ToList();
-
-        if (downloadPoints.Count > MaxDisplayPoints)
-        {
-            downloadPoints = LttbDownsampler.Downsample(downloadPoints, MaxDisplayPoints);
-            uploadPoints = LttbDownsampler.Downsample(uploadPoints, MaxDisplayPoints);
-        }
+        var (downloadPoints, uploadPoints) = _chartDataManager.GetDisplayData(SelectedTimeRange.Seconds);
 
         _downloadSpeedPoints.Clear();
         _uploadSpeedPoints.Clear();
@@ -708,17 +674,12 @@ public sealed partial class DashboardViewModel : ObservableObject, IDisposable
     {
         _downloadSpeedPoints.Clear();
         _uploadSpeedPoints.Clear();
-        _dataBuffer.Clear();
-        ResetStatistics();
+        _chartDataManager.Clear();
+        ResetStatisticsDisplay();
     }
 
-    private void ResetStatistics()
+    private void ResetStatisticsDisplay()
     {
-        _peakDownloadBps = 0;
-        _peakUploadBps = 0;
-        _totalDownloadBps = 0;
-        _totalUploadBps = 0;
-        _sampleCount = 0;
         PeakDownloadSpeed = "0 B/s";
         PeakUploadSpeed = "0 B/s";
         AverageDownloadSpeed = "0 B/s";

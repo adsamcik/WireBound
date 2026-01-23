@@ -22,16 +22,9 @@ public sealed partial class ChartsViewModel : ObservableObject, IDisposable
     private readonly IDataPersistenceService _persistence;
     private readonly ILogger<ChartsViewModel>? _logger;
     private bool _disposed;
-    private const int MaxBufferSize = 3600;
+    private readonly ChartDataManager _chartDataManager = new(maxBufferSize: 3600, maxDisplayPoints: 300);
     private readonly ObservableCollection<DateTimePoint> _downloadSpeedPoints = [];
     private readonly ObservableCollection<DateTimePoint> _uploadSpeedPoints = [];
-    private readonly CircularBuffer<(DateTime Time, long Download, long Upload)> _dataBuffer = new(MaxBufferSize);
-    
-    private long _peakDownloadBps;
-    private long _peakUploadBps;
-    private long _totalDownloadBps;
-    private long _totalUploadBps;
-    private int _sampleCount;
 
     [ObservableProperty]
     private string _downloadSpeed = "0 B/s";
@@ -106,49 +99,33 @@ public sealed partial class ChartsViewModel : ObservableObject, IDisposable
             if (history.Count == 0 || _disposed)
                 return;
 
-            // Populate buffer and calculate statistics from history
-            foreach (var snapshot in history)
-            {
-                _dataBuffer.Add((snapshot.Timestamp, snapshot.DownloadSpeedBps, snapshot.UploadSpeedBps));
-
-                if (snapshot.DownloadSpeedBps > _peakDownloadBps)
-                    _peakDownloadBps = snapshot.DownloadSpeedBps;
-                if (snapshot.UploadSpeedBps > _peakUploadBps)
-                    _peakUploadBps = snapshot.UploadSpeedBps;
-
-                _totalDownloadBps += snapshot.DownloadSpeedBps;
-                _totalUploadBps += snapshot.UploadSpeedBps;
-                _sampleCount++;
-            }
+            // Load history into ChartDataManager (populates buffer and updates statistics)
+            _chartDataManager.LoadHistory(history.Select(s => (s.Timestamp, s.DownloadSpeedBps, s.UploadSpeedBps)));
 
             // Update UI on dispatcher thread
             await Dispatcher.UIThread.InvokeAsync(() =>
             {
                 if (_disposed) return;
 
-                // Update statistics display
-                PeakDownloadSpeed = ByteFormatter.FormatSpeed(_peakDownloadBps);
-                PeakUploadSpeed = ByteFormatter.FormatSpeed(_peakUploadBps);
-                if (_sampleCount > 0)
-                {
-                    AverageDownloadSpeed = ByteFormatter.FormatSpeed(_totalDownloadBps / _sampleCount);
-                    AverageUploadSpeed = ByteFormatter.FormatSpeed(_totalUploadBps / _sampleCount);
-                }
+                // Update statistics display from ChartDataManager
+                PeakDownloadSpeed = ByteFormatter.FormatSpeed(_chartDataManager.PeakDownloadBps);
+                PeakUploadSpeed = ByteFormatter.FormatSpeed(_chartDataManager.PeakUploadBps);
+                AverageDownloadSpeed = ByteFormatter.FormatSpeed(_chartDataManager.AverageDownloadBps);
+                AverageUploadSpeed = ByteFormatter.FormatSpeed(_chartDataManager.AverageUploadBps);
 
                 // Apply current time range to show data
                 var rangeSeconds = SelectedTimeRange?.Seconds ?? 60;
-                var cutoff = DateTime.Now.AddSeconds(-rangeSeconds);
-                var relevantData = _dataBuffer.AsEnumerable().Where(d => d.Time >= cutoff).ToList();
+                var (downloadPoints, uploadPoints) = _chartDataManager.GetDisplayData(rangeSeconds);
 
-                foreach (var d in relevantData)
-                {
-                    _downloadSpeedPoints.Add(new DateTimePoint(d.Time, d.Download));
-                    _uploadSpeedPoints.Add(new DateTimePoint(d.Time, d.Upload));
-                }
+                foreach (var point in downloadPoints)
+                    _downloadSpeedPoints.Add(point);
+                foreach (var point in uploadPoints)
+                    _uploadSpeedPoints.Add(point);
 
                 // Update axis limits
-                if (XAxes.Length > 0 && relevantData.Count > 0)
+                if (XAxes.Length > 0 && downloadPoints.Count > 0)
                 {
+                    var cutoff = DateTime.Now.AddSeconds(-rangeSeconds);
                     XAxes[0].MinLimit = cutoff.Ticks;
                     XAxes[0].MaxLimit = DateTime.Now.Ticks;
                 }
@@ -178,30 +155,14 @@ public sealed partial class ChartsViewModel : ObservableObject, IDisposable
         DownloadSpeed = ByteFormatter.FormatSpeed(stats.DownloadSpeedBps);
         UploadSpeed = ByteFormatter.FormatSpeed(stats.UploadSpeedBps);
 
-        // Update statistics
-        if (stats.DownloadSpeedBps > _peakDownloadBps)
-        {
-            _peakDownloadBps = stats.DownloadSpeedBps;
-            PeakDownloadSpeed = ByteFormatter.FormatSpeed(_peakDownloadBps);
-        }
-        if (stats.UploadSpeedBps > _peakUploadBps)
-        {
-            _peakUploadBps = stats.UploadSpeedBps;
-            PeakUploadSpeed = ByteFormatter.FormatSpeed(_peakUploadBps);
-        }
+        // Add to buffer and update statistics via ChartDataManager
+        _chartDataManager.AddDataPoint(now, stats.DownloadSpeedBps, stats.UploadSpeedBps);
 
-        _totalDownloadBps += stats.DownloadSpeedBps;
-        _totalUploadBps += stats.UploadSpeedBps;
-        _sampleCount++;
-
-        if (_sampleCount > 0)
-        {
-            AverageDownloadSpeed = ByteFormatter.FormatSpeed(_totalDownloadBps / _sampleCount);
-            AverageUploadSpeed = ByteFormatter.FormatSpeed(_totalUploadBps / _sampleCount);
-        }
-
-        // Add to buffer (CircularBuffer auto-evicts oldest when full)
-        _dataBuffer.Add((now, stats.DownloadSpeedBps, stats.UploadSpeedBps));
+        // Update statistics display
+        PeakDownloadSpeed = ByteFormatter.FormatSpeed(_chartDataManager.PeakDownloadBps);
+        PeakUploadSpeed = ByteFormatter.FormatSpeed(_chartDataManager.PeakUploadBps);
+        AverageDownloadSpeed = ByteFormatter.FormatSpeed(_chartDataManager.AverageDownloadBps);
+        AverageUploadSpeed = ByteFormatter.FormatSpeed(_chartDataManager.AverageUploadBps);
 
         if (!IsUpdatesPaused)
         {
@@ -229,17 +190,15 @@ public sealed partial class ChartsViewModel : ObservableObject, IDisposable
     {
         if (value == null) return;
 
-        var cutoff = DateTime.Now.AddSeconds(-value.Seconds);
-        var relevantData = _dataBuffer.AsEnumerable().Where(d => d.Time >= cutoff).ToList();
+        var (downloadPoints, uploadPoints) = _chartDataManager.GetDisplayData(value.Seconds);
 
         _downloadSpeedPoints.Clear();
         _uploadSpeedPoints.Clear();
 
-        foreach (var d in relevantData)
-        {
-            _downloadSpeedPoints.Add(new DateTimePoint(d.Time, d.Download));
-            _uploadSpeedPoints.Add(new DateTimePoint(d.Time, d.Upload));
-        }
+        foreach (var point in downloadPoints)
+            _downloadSpeedPoints.Add(point);
+        foreach (var point in uploadPoints)
+            _uploadSpeedPoints.Add(point);
     }
 
     public void Dispose()

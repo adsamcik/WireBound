@@ -119,6 +119,9 @@ public partial class App : Application
         // Register per-app network tracking service (adapts platform providers)
         services.AddSingleton<IProcessNetworkService, ProcessNetworkService>();
 
+        // Register system monitoring service (CPU, RAM)
+        services.AddSingleton<ISystemMonitorService, SystemMonitorService>();
+
         // Register DNS resolver service for reverse lookups
         services.AddSingleton<IDnsResolverService, DnsResolverService>();
 
@@ -141,6 +144,7 @@ public partial class App : Application
         services.AddSingleton<SettingsViewModel>();
         services.AddSingleton<ApplicationsViewModel>();
         services.AddSingleton<ConnectionsViewModel>();
+        services.AddSingleton<SystemViewModel>();
 
         // Register View factory for navigation
         services.AddTransient<DashboardView>();
@@ -149,6 +153,7 @@ public partial class App : Application
         services.AddTransient<SettingsView>();
         services.AddTransient<ApplicationsView>();
         services.AddTransient<ConnectionsView>();
+        services.AddTransient<SystemView>();
     }
 
     private void InitializeDatabase()

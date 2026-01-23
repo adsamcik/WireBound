@@ -1,0 +1,296 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:WireBound.Avalonia.ViewModels"
+             xmlns:lvc="using:LiveChartsCore.SkiaSharpView.Avalonia"
+             x:Class="WireBound.Avalonia.Views.SystemView"
+             x:DataType="vm:SystemViewModel"
+             Background="{DynamicResource BackgroundBrush}"
+             AutomationProperties.Name="System View">
+
+    <ScrollViewer VerticalScrollBarVisibility="Auto">
+        <Grid RowDefinitions="Auto, Auto, Auto" Margin="28">
+        
+            <!-- PAGE HEADER -->
+            <StackPanel Spacing="4" Margin="0,0,0,24">
+                <TextBlock Text="System" Classes="PageTitle" />
+                <TextBlock Text="CPU and memory monitoring" Classes="Subtitle" />
+            </StackPanel>
+
+            <!-- CPU SECTION -->
+            <Border Grid.Row="1" Classes="ElevatedCard" Margin="0,0,0,20">
+                <Grid RowDefinitions="Auto, Auto, Auto, Auto">
+                    
+                    <!-- Header -->
+                    <Grid ColumnDefinitions="Auto, *, Auto">
+                        <StackPanel Orientation="Horizontal" Spacing="12">
+                            <Border Background="{DynamicResource InfoBgTintBrush}" 
+                                    CornerRadius="10" 
+                                    Width="48" Height="48"
+                                    VerticalAlignment="Center">
+                                <TextBlock Text="🖥️" FontSize="24"
+                                           HorizontalAlignment="Center"
+                                           VerticalAlignment="Center" />
+                            </Border>
+                            <StackPanel VerticalAlignment="Center" Spacing="2">
+                                <TextBlock Text="CPU" 
+                                           FontSize="18" FontWeight="Bold"
+                                           Foreground="{DynamicResource PrimaryTextBrush}" />
+                                <TextBlock Text="{Binding ProcessorName}" 
+                                           Classes="Caption"
+                                           MaxWidth="400"
+                                           TextTrimming="CharacterEllipsis" />
+                            </StackPanel>
+                        </StackPanel>
+                        
+                        <!-- Processor Info -->
+                        <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="16" VerticalAlignment="Center">
+                            <Border Background="{DynamicResource BorderSubtleBrush}" 
+                                    CornerRadius="8" 
+                                    Padding="12,6">
+                                <StackPanel Orientation="Horizontal" Spacing="6">
+                                    <TextBlock Text="🔢" FontSize="12" VerticalAlignment="Center" />
+                                    <TextBlock Text="{Binding ProcessorCount, StringFormat='{}{0} Cores'}"
+                                               FontSize="12" FontWeight="SemiBold"
+                                               Foreground="{DynamicResource SecondaryTextBrush}"
+                                               VerticalAlignment="Center" />
+                                </StackPanel>
+                            </Border>
+                            <Border Background="{DynamicResource BorderSubtleBrush}" 
+                                    CornerRadius="8" 
+                                    Padding="12,6"
+                                    IsVisible="{Binding CpuFrequencyMhz, Converter={x:Static ObjectConverters.IsNotNull}}">
+                                <StackPanel Orientation="Horizontal" Spacing="6">
+                                    <TextBlock Text="⚡" FontSize="12" VerticalAlignment="Center" />
+                                    <TextBlock Text="{Binding CpuFrequencyMhz, StringFormat='{}{0:F0} MHz'}"
+                                               FontSize="12" FontWeight="SemiBold"
+                                               Foreground="{DynamicResource SecondaryTextBrush}"
+                                               VerticalAlignment="Center" />
+                                </StackPanel>
+                            </Border>
+                            <Border Background="{DynamicResource WarningBgTintBrush}" 
+                                    CornerRadius="8" 
+                                    Padding="12,6"
+                                    IsVisible="{Binding IsCpuTemperatureAvailable}">
+                                <StackPanel Orientation="Horizontal" Spacing="6">
+                                    <TextBlock Text="🌡️" FontSize="12" VerticalAlignment="Center" />
+                                    <TextBlock Text="{Binding CpuTemperature, StringFormat='{}{0:F1}°C'}"
+                                               FontSize="12" FontWeight="SemiBold"
+                                               Foreground="{DynamicResource WarningBrush}"
+                                               VerticalAlignment="Center" />
+                                </StackPanel>
+                            </Border>
+                        </StackPanel>
+                    </Grid>
+                    
+                    <!-- Usage Display and Progress -->
+                    <Grid Grid.Row="1" ColumnDefinitions="Auto, *" Margin="0,24,0,0">
+                        <!-- Large Percentage -->
+                        <StackPanel VerticalAlignment="Center" Margin="0,0,32,0">
+                            <TextBlock Text="{Binding CpuUsageFormatted}"
+                                       FontSize="56" FontWeight="Bold"
+                                       Foreground="{DynamicResource PrimaryBrush}"
+                                       HorizontalAlignment="Center" />
+                            <TextBlock Text="CPU Usage" 
+                                       Classes="Caption"
+                                       HorizontalAlignment="Center" />
+                        </StackPanel>
+                        
+                        <!-- Progress Bar -->
+                        <Grid Grid.Column="1" VerticalAlignment="Center">
+                            <ProgressBar Value="{Binding CpuUsagePercent}"
+                                         Minimum="0"
+                                         Maximum="100"
+                                         Height="24"
+                                         CornerRadius="12"
+                                         Background="{DynamicResource SurfaceBrush}"
+                                         Foreground="{DynamicResource PrimaryBrush}" />
+                            <TextBlock Text="{Binding CpuUsagePercent, StringFormat='{}{0:F1}%'}"
+                                       FontSize="11" FontWeight="Bold"
+                                       Foreground="{DynamicResource PrimaryTextBrush}"
+                                       HorizontalAlignment="Center"
+                                       VerticalAlignment="Center" />
+                        </Grid>
+                    </Grid>
+                    
+                    <!-- Per-Core Usage (if available) -->
+                    <Border Grid.Row="2" 
+                            Background="{DynamicResource BorderSubtleBrush}" 
+                            CornerRadius="12" 
+                            Padding="16,12"
+                            Margin="0,16,0,0"
+                            IsVisible="{Binding PerCoreUsage.Count}">
+                        <StackPanel Spacing="8">
+                            <TextBlock Text="Per-Core Usage" 
+                                       Classes="MetricLabel" 
+                                       Margin="0,0,0,4" />
+                            <ItemsControl ItemsSource="{Binding PerCoreUsage}">
+                                <ItemsControl.ItemsPanel>
+                                    <ItemsPanelTemplate>
+                                        <WrapPanel Orientation="Horizontal" />
+                                    </ItemsPanelTemplate>
+                                </ItemsControl.ItemsPanel>
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate>
+                                        <Border Background="{DynamicResource SurfaceBrush}"
+                                                CornerRadius="6"
+                                                Padding="8,4"
+                                                Margin="0,0,8,8"
+                                                MinWidth="50">
+                                            <TextBlock Text="{Binding StringFormat='{}{0:F0}%'}"
+                                                       FontSize="11" FontWeight="SemiBold"
+                                                       Foreground="{DynamicResource PrimaryBrush}"
+                                                       HorizontalAlignment="Center" />
+                                        </Border>
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
+                        </StackPanel>
+                    </Border>
+                    
+                    <!-- CPU Chart -->
+                    <Grid Grid.Row="3" RowDefinitions="Auto, 200" Margin="0,20,0,0">
+                        <StackPanel Orientation="Horizontal" Spacing="10" Margin="0,0,0,8">
+                            <Border Background="{DynamicResource PrimaryBrush}"
+                                    Width="20" Height="4"
+                                    CornerRadius="2"
+                                    VerticalAlignment="Center" />
+                            <TextBlock Text="CPU Usage History (1 minute)" 
+                                       FontSize="12" FontWeight="SemiBold" 
+                                       VerticalAlignment="Center" />
+                        </StackPanel>
+                        <lvc:CartesianChart Grid.Row="1"
+                                            Series="{Binding CpuSeries}"
+                                            XAxes="{Binding CpuXAxes}"
+                                            YAxes="{Binding CpuYAxes}"
+                                            ZoomMode="X"
+                                            TooltipPosition="Top"
+                                            Background="{DynamicResource SurfaceBrush}"
+                                            AutomationProperties.Name="CPU Usage Chart"
+                                            AutomationProperties.HelpText="Chart showing CPU usage over the last minute" />
+                    </Grid>
+                </Grid>
+            </Border>
+
+            <!-- MEMORY SECTION -->
+            <Border Grid.Row="2" Classes="ElevatedCard">
+                <Grid RowDefinitions="Auto, Auto, Auto, Auto">
+                    
+                    <!-- Header -->
+                    <Grid ColumnDefinitions="Auto, *">
+                        <StackPanel Orientation="Horizontal" Spacing="12">
+                            <Border Background="{DynamicResource AccentBgTintBrush}" 
+                                    CornerRadius="10" 
+                                    Width="48" Height="48"
+                                    VerticalAlignment="Center">
+                                <TextBlock Text="💾" FontSize="24"
+                                           HorizontalAlignment="Center"
+                                           VerticalAlignment="Center" />
+                            </Border>
+                            <StackPanel VerticalAlignment="Center" Spacing="2">
+                                <TextBlock Text="Memory" 
+                                           FontSize="18" FontWeight="Bold"
+                                           Foreground="{DynamicResource PrimaryTextBrush}" />
+                                <TextBlock Text="System RAM usage" 
+                                           Classes="Caption" />
+                            </StackPanel>
+                        </StackPanel>
+                    </Grid>
+                    
+                    <!-- Usage Display and Progress -->
+                    <Grid Grid.Row="1" ColumnDefinitions="Auto, *" Margin="0,24,0,0">
+                        <!-- Large Percentage -->
+                        <StackPanel VerticalAlignment="Center" Margin="0,0,32,0">
+                            <TextBlock Text="{Binding MemoryUsageFormatted}"
+                                       FontSize="56" FontWeight="Bold"
+                                       Foreground="#A855F7"
+                                       HorizontalAlignment="Center" />
+                            <TextBlock Text="Memory Usage" 
+                                       Classes="Caption"
+                                       HorizontalAlignment="Center" />
+                        </StackPanel>
+                        
+                        <!-- Progress Bar -->
+                        <Grid Grid.Column="1" VerticalAlignment="Center">
+                            <ProgressBar Value="{Binding MemoryUsagePercent}"
+                                         Minimum="0"
+                                         Maximum="100"
+                                         Height="24"
+                                         CornerRadius="12"
+                                         Background="{DynamicResource SurfaceBrush}"
+                                         Foreground="#A855F7" />
+                            <TextBlock Text="{Binding MemoryUsagePercent, StringFormat='{}{0:F1}%'}"
+                                       FontSize="11" FontWeight="Bold"
+                                       Foreground="{DynamicResource PrimaryTextBrush}"
+                                       HorizontalAlignment="Center"
+                                       VerticalAlignment="Center" />
+                        </Grid>
+                    </Grid>
+                    
+                    <!-- Memory Stats -->
+                    <Grid Grid.Row="2" ColumnDefinitions="*, *, *" Margin="0,16,0,0">
+                        <Border Background="{DynamicResource BorderSubtleBrush}" 
+                                CornerRadius="12" 
+                                Padding="16,12"
+                                Margin="0,0,8,0">
+                            <StackPanel HorizontalAlignment="Center" Spacing="4">
+                                <TextBlock Text="USED" Classes="MetricLabel" HorizontalAlignment="Center" />
+                                <TextBlock Text="{Binding MemoryUsed}"
+                                           FontSize="20" FontWeight="Bold"
+                                           Foreground="#A855F7"
+                                           HorizontalAlignment="Center" />
+                            </StackPanel>
+                        </Border>
+                        <Border Grid.Column="1" 
+                                Background="{DynamicResource BorderSubtleBrush}" 
+                                CornerRadius="12" 
+                                Padding="16,12"
+                                Margin="8,0">
+                            <StackPanel HorizontalAlignment="Center" Spacing="4">
+                                <TextBlock Text="TOTAL" Classes="MetricLabel" HorizontalAlignment="Center" />
+                                <TextBlock Text="{Binding MemoryTotal}"
+                                           FontSize="20" FontWeight="Bold"
+                                           Foreground="{DynamicResource PrimaryTextBrush}"
+                                           HorizontalAlignment="Center" />
+                            </StackPanel>
+                        </Border>
+                        <Border Grid.Column="2" 
+                                Background="{DynamicResource BorderSubtleBrush}" 
+                                CornerRadius="12" 
+                                Padding="16,12"
+                                Margin="8,0,0,0">
+                            <StackPanel HorizontalAlignment="Center" Spacing="4">
+                                <TextBlock Text="AVAILABLE" Classes="MetricLabel" HorizontalAlignment="Center" />
+                                <TextBlock Text="{Binding MemoryAvailable}"
+                                           FontSize="20" FontWeight="Bold"
+                                           Foreground="{DynamicResource SuccessBrush}"
+                                           HorizontalAlignment="Center" />
+                            </StackPanel>
+                        </Border>
+                    </Grid>
+                    
+                    <!-- Memory Chart -->
+                    <Grid Grid.Row="3" RowDefinitions="Auto, 200" Margin="0,20,0,0">
+                        <StackPanel Orientation="Horizontal" Spacing="10" Margin="0,0,0,8">
+                            <Border Background="#A855F7"
+                                    Width="20" Height="4"
+                                    CornerRadius="2"
+                                    VerticalAlignment="Center" />
+                            <TextBlock Text="Memory Usage History (1 minute)" 
+                                       FontSize="12" FontWeight="SemiBold" 
+                                       VerticalAlignment="Center" />
+                        </StackPanel>
+                        <lvc:CartesianChart Grid.Row="1"
+                                            Series="{Binding MemorySeries}"
+                                            XAxes="{Binding MemoryXAxes}"
+                                            YAxes="{Binding MemoryYAxes}"
+                                            ZoomMode="X"
+                                            TooltipPosition="Top"
+                                            Background="{DynamicResource SurfaceBrush}"
+                                            AutomationProperties.Name="Memory Usage Chart"
+                                            AutomationProperties.HelpText="Chart showing memory usage over the last minute" />
+                    </Grid>
+                </Grid>
+            </Border>
+        </Grid>
+    </ScrollViewer>
+</UserControl>

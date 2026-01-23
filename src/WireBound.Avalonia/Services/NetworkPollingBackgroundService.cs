@@ -6,11 +6,12 @@ using WireBound.Core.Services;
 namespace WireBound.Avalonia.Services;
 
 /// <summary>
-/// Background service that polls network statistics at regular intervals
+/// Background service that polls network and system statistics at regular intervals
 /// </summary>
 public sealed class NetworkPollingBackgroundService : BackgroundService, INetworkPollingBackgroundService
 {
     private readonly INetworkMonitorService _networkMonitor;
+    private readonly ISystemMonitorService _systemMonitor;
     private readonly IDataPersistenceService _persistence;
     private readonly ITrayIconService _trayIcon;
     private readonly ILogger<NetworkPollingBackgroundService> _logger;
@@ -26,11 +27,13 @@ public sealed class NetworkPollingBackgroundService : BackgroundService, INetwor
 
     public NetworkPollingBackgroundService(
         INetworkMonitorService networkMonitor,
+        ISystemMonitorService systemMonitor,
         IDataPersistenceService persistence,
         ITrayIconService trayIcon,
         ILogger<NetworkPollingBackgroundService> logger)
     {
         _networkMonitor = networkMonitor;
+        _systemMonitor = systemMonitor;
         _persistence = persistence;
         _trayIcon = trayIcon;
         _logger = logger;
@@ -72,6 +75,9 @@ public sealed class NetworkPollingBackgroundService : BackgroundService, INetwor
                 {
                     // Poll network stats
                     _networkMonitor.Poll();
+                    
+                    // Poll system stats (CPU, RAM)
+                    _systemMonitor.Poll();
                     
                     // Update tray icon with current activity
                     var currentStats = _networkMonitor.GetCurrentStats();

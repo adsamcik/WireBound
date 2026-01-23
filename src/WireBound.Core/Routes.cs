@@ -10,6 +10,7 @@ public static class Routes
     public const string History = "History";
     public const string Applications = "Applications";
     public const string Connections = "Connections";
+    public const string System = "System";
     public const string Settings = "Settings";
 
     /// <summary>
@@ -17,6 +18,6 @@ public static class Routes
     /// </summary>
     public static IReadOnlyList<string> All { get; } = new[]
     {
-        Dashboard, Charts, History, Applications, Connections, Settings
+        Dashboard, Charts, History, Applications, Connections, System, Settings
     };
 }

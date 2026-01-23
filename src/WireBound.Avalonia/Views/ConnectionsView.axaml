@@ -58,7 +58,7 @@
                         Background="{DynamicResource WarningBannerColor}"
                         IsVisible="{Binding !IsPlatformSupported}">
                     <StackPanel Orientation="Horizontal" Spacing="16">
-                        <Border Background="#25FFB627" CornerRadius="10" Width="48" Height="48">
+                        <Border Background="{DynamicResource WarningBgTintBrush}" CornerRadius="10" Width="48" Height="48">
                             <TextBlock Text="⚠️" FontSize="24"
                                        HorizontalAlignment="Center" VerticalAlignment="Center" />
                         </Border>
@@ -77,7 +77,7 @@
                         Background="{DynamicResource ErrorBannerColor}"
                         IsVisible="{Binding HasError}">
                     <StackPanel Orientation="Horizontal" Spacing="16">
-                        <Border Background="#25F45B69" CornerRadius="10" Width="48" Height="48">
+                        <Border Background="{DynamicResource ErrorBgTintBrush}" CornerRadius="10" Width="48" Height="48">
                             <TextBlock Text="❌" FontSize="24"
                                        HorizontalAlignment="Center" VerticalAlignment="Center" />
                         </Border>
@@ -97,7 +97,7 @@
                         Background="{DynamicResource InfoBannerColor}"
                         IsVisible="{Binding RequiresElevation}">
                     <StackPanel Orientation="Horizontal" Spacing="16">
-                        <Border Background="#2500E5FF" CornerRadius="10" Width="48" Height="48">
+                        <Border Background="{DynamicResource InfoBgTintBrush}" CornerRadius="10" Width="48" Height="48">
                             <TextBlock Text="🔐" FontSize="24"
                                        HorizontalAlignment="Center" VerticalAlignment="Center" />
                         </Border>
@@ -183,7 +183,7 @@
                         
                         <!-- Section Header -->
                         <StackPanel Orientation="Horizontal" Spacing="12">
-                            <Border Background="#1500E5FF" CornerRadius="8" Width="40" Height="40">
+                            <Border Background="{DynamicResource DownloadBgTintBrush}" CornerRadius="8" Width="40" Height="40">
                                 <TextBlock Text="🌐" FontSize="20"
                                            HorizontalAlignment="Center" VerticalAlignment="Center" />
                             </Border>

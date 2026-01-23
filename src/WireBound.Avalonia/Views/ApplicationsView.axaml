@@ -45,7 +45,7 @@
                         Background="{DynamicResource WarningBannerColor}"
                         IsVisible="{Binding !IsPlatformSupported}">
                     <StackPanel Orientation="Horizontal" Spacing="16">
-                        <Border Background="#25FFB627" CornerRadius="10" Width="48" Height="48">
+                        <Border Background="{DynamicResource WarningBgTintBrush}" CornerRadius="10" Width="48" Height="48">
                             <TextBlock Text="⚠️" FontSize="24"
                                        HorizontalAlignment="Center" VerticalAlignment="Center" />
                         </Border>
@@ -64,7 +64,7 @@
                         Background="{DynamicResource InfoBannerColor}"
                         IsVisible="{Binding !IsPerAppTrackingEnabled}">
                     <StackPanel Orientation="Horizontal" Spacing="16">
-                        <Border Background="#2500E5FF" CornerRadius="10" Width="48" Height="48">
+                        <Border Background="{DynamicResource InfoBgTintBrush}" CornerRadius="10" Width="48" Height="48">
                             <TextBlock Text="ℹ️" FontSize="24"
                                        HorizontalAlignment="Center" VerticalAlignment="Center" />
                         </Border>
@@ -171,7 +171,7 @@
                                             CornerRadius="12">
                                         <Grid ColumnDefinitions="Auto, *, Auto, Auto, Auto">
                                             <Border Width="48" Height="48"
-                                                    Background="#15A855F7"
+                                                    Background="{DynamicResource AccentBgTintBrush}"
                                                     CornerRadius="12"
                                                     Margin="0,0,20,0">
                                                 <TextBlock Text="📦" FontSize="22"

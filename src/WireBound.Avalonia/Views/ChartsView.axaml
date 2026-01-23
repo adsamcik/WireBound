@@ -152,7 +152,7 @@
                 
                 <!-- Download -->
                 <StackPanel Orientation="Horizontal" Spacing="16" HorizontalAlignment="Center" Margin="0,0,12,0">
-                    <Border Background="#1500E5FF" CornerRadius="10" Width="48" Height="48" VerticalAlignment="Center">
+                    <Border Background="{DynamicResource DownloadBgTintBrush}" CornerRadius="10" Width="48" Height="48" VerticalAlignment="Center">
                         <TextBlock Text="↓" FontSize="28" FontWeight="Bold"
                                    Foreground="{DynamicResource DownloadBrush}"
                                    HorizontalAlignment="Center" VerticalAlignment="Center" />
@@ -169,7 +169,7 @@
                 
                 <!-- Upload -->
                 <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="16" HorizontalAlignment="Center" Margin="12,0,0,0">
-                    <Border Background="#15FF6B35" CornerRadius="10" Width="48" Height="48" VerticalAlignment="Center">
+                    <Border Background="{DynamicResource UploadBgTintBrush}" CornerRadius="10" Width="48" Height="48" VerticalAlignment="Center">
                         <TextBlock Text="↑" FontSize="28" FontWeight="Bold"
                                    Foreground="{DynamicResource UploadBrush}"
                                    HorizontalAlignment="Center" VerticalAlignment="Center" />

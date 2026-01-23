@@ -20,7 +20,7 @@
                 <StackPanel Spacing="24">
                     
                     <StackPanel Orientation="Horizontal" Spacing="12">
-                        <Border Background="#1500E5FF" CornerRadius="8" Width="40" Height="40">
+                        <Border Background="{DynamicResource DownloadBgTintBrush}" CornerRadius="8" Width="40" Height="40">
                             <TextBlock Text="📡" FontSize="20"
                                        HorizontalAlignment="Center" VerticalAlignment="Center" />
                         </Border>
@@ -135,7 +135,7 @@
                 <StackPanel Spacing="24">
                     
                     <StackPanel Orientation="Horizontal" Spacing="12">
-                        <Border Background="#15FF6B35" CornerRadius="8" Width="40" Height="40">
+                        <Border Background="{DynamicResource UploadBgTintBrush}" CornerRadius="8" Width="40" Height="40">
                             <TextBlock Text="🖥️" FontSize="20"
                                        HorizontalAlignment="Center" VerticalAlignment="Center" />
                         </Border>
@@ -205,7 +205,7 @@
                 <StackPanel Spacing="24">
                     
                     <StackPanel Orientation="Horizontal" Spacing="12">
-                        <Border Background="#15FFB627" CornerRadius="8" Width="40" Height="40">
+                        <Border Background="{DynamicResource WarningBgTintBrush}" CornerRadius="8" Width="40" Height="40">
                             <TextBlock Text="🛡️" FontSize="20"
                                        HorizontalAlignment="Center" VerticalAlignment="Center" />
                         </Border>

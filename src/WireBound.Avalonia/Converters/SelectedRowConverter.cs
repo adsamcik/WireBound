@@ -22,7 +22,9 @@ public class SelectedRowBackgroundConverter : IMultiValueConverter
         
         if (currentDate.HasValue && selectedDate.HasValue && currentDate.Value == selectedDate.Value)
         {
-            // Selected row background - subtle cyan tint
+            // Selected row background - use theme resource
+            if (Application.Current?.TryFindResource("SelectionBgBrush", out var brush) == true && brush is IBrush b)
+                return b;
             return new SolidColorBrush(Color.Parse("#1500E5FF"));
         }
         
@@ -46,7 +48,9 @@ public class SelectedRowBorderConverter : IMultiValueConverter
         
         if (currentDate.HasValue && selectedDate.HasValue && currentDate.Value == selectedDate.Value)
         {
-            // Selected row border - cyan accent
+            // Selected row border - use theme resource
+            if (Application.Current?.TryFindResource("SelectionBorderBrush", out var brush) == true && brush is IBrush b)
+                return b;
             return new SolidColorBrush(Color.Parse("#5000E5FF"));
         }
         

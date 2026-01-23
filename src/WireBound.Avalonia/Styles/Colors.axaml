@@ -135,9 +135,22 @@
     <Color x:Key="GlowSuccessColor">#4000C9A7</Color>
     
     <!-- ═══════════════════════════════════════════════════════════════════ -->
-    <!-- SOLID COLOR BRUSHES (for easy binding)                               -->
+    <!-- TINTED BACKGROUNDS (for icon containers)                             -->
     <!-- ═══════════════════════════════════════════════════════════════════ -->
     
+    <Color x:Key="DownloadBgTint">#1500E5FF</Color>
+    <Color x:Key="UploadBgTint">#15FF6B35</Color>
+    <Color x:Key="WarningBgTint">#25FFB627</Color>
+    <Color x:Key="ErrorBgTint">#25F45B69</Color>
+    <Color x:Key="AccentBgTint">#15A855F7</Color>
+    <Color x:Key="InfoBgTint">#2500E5FF</Color>
+    
+    <!-- Selection colors (for row highlighting) -->
+    <Color x:Key="SelectionBgColor">#1500E5FF</Color>
+    <Color x:Key="SelectionBorderColor">#5000E5FF</Color>
+    
+    <!-- BoxShadow glow color -->
+    <Color x:Key="PrimaryGlowColor">#8000E5FF</Color>
     <SolidColorBrush x:Key="BackgroundBrush" Color="{StaticResource BackgroundColor}" />
     <SolidColorBrush x:Key="SurfaceBrush" Color="{StaticResource SurfaceColor}" />
     <SolidColorBrush x:Key="CardBrush" Color="{StaticResource CardColor}" />
@@ -159,5 +172,17 @@
     <SolidColorBrush x:Key="FlyoutItemHoverBrush" Color="{StaticResource FlyoutItemHoverColor}" />
     <SolidColorBrush x:Key="ButtonBackgroundBrush" Color="{StaticResource ButtonBackgroundColor}" />
     <SolidColorBrush x:Key="SecondaryButtonBackgroundBrush" Color="{StaticResource SecondaryButtonBackgroundColor}" />
+    
+    <!-- Tinted background brushes -->
+    <SolidColorBrush x:Key="DownloadBgTintBrush" Color="{StaticResource DownloadBgTint}" />
+    <SolidColorBrush x:Key="UploadBgTintBrush" Color="{StaticResource UploadBgTint}" />
+    <SolidColorBrush x:Key="WarningBgTintBrush" Color="{StaticResource WarningBgTint}" />
+    <SolidColorBrush x:Key="ErrorBgTintBrush" Color="{StaticResource ErrorBgTint}" />
+    <SolidColorBrush x:Key="AccentBgTintBrush" Color="{StaticResource AccentBgTint}" />
+    <SolidColorBrush x:Key="InfoBgTintBrush" Color="{StaticResource InfoBgTint}" />
+    
+    <!-- Selection brushes -->
+    <SolidColorBrush x:Key="SelectionBgBrush" Color="{StaticResource SelectionBgColor}" />
+    <SolidColorBrush x:Key="SelectionBorderBrush" Color="{StaticResource SelectionBorderColor}" />
 
 </ResourceDictionary>

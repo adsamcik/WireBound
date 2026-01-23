@@ -1,3 +1,4 @@
+using WireBound.Core;
 using WireBound.Core.Services;
 
 namespace WireBound.Avalonia.Services;
@@ -7,7 +8,7 @@ namespace WireBound.Avalonia.Services;
 /// </summary>
 public sealed class NavigationService : INavigationService
 {
-    public string CurrentView { get; private set; } = "Dashboard";
+    public string CurrentView { get; private set; } = Routes.Dashboard;
 
     public event Action<string>? NavigationChanged;
 

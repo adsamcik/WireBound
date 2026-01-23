@@ -2,6 +2,7 @@ using System.Reflection;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using WireBound.Avalonia.Services;
+using WireBound.Core;
 using WireBound.Core.Services;
 
 namespace WireBound.Avalonia.ViewModels;
@@ -60,16 +61,16 @@ public partial class MainViewModel : ObservableObject, IDisposable
         // Initialize navigation items
         NavigationItems =
         [
-            new NavigationItem { Title = "Dashboard", Icon = "📊", Route = "Dashboard" },
-            new NavigationItem { Title = "Live Chart", Icon = "📈", Route = "Charts" },
-            new NavigationItem { Title = "Applications", Icon = "📱", Route = "Applications" },
-            new NavigationItem { Title = "Connections", Icon = "🔗", Route = "Connections" },
-            new NavigationItem { Title = "History", Icon = "📜", Route = "History" },
-            new NavigationItem { Title = "Settings", Icon = "⚙️", Route = "Settings" }
+            new NavigationItem { Title = "Dashboard", Icon = "📊", Route = Routes.Dashboard },
+            new NavigationItem { Title = "Live Chart", Icon = "📈", Route = Routes.Charts },
+            new NavigationItem { Title = "Applications", Icon = "📱", Route = Routes.Applications },
+            new NavigationItem { Title = "Connections", Icon = "🔗", Route = Routes.Connections },
+            new NavigationItem { Title = "History", Icon = "📜", Route = Routes.History },
+            new NavigationItem { Title = "Settings", Icon = "⚙️", Route = Routes.Settings }
         ];
 
         _selectedNavigationItem = NavigationItems[0];
-        _currentView = _viewFactory.CreateView("Dashboard");
+        _currentView = _viewFactory.CreateView(Routes.Dashboard);
 
         _navigationService.NavigationChanged += OnNavigationChanged;
     }

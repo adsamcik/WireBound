@@ -2,6 +2,7 @@ using Avalonia.Controls;
 using Microsoft.Extensions.DependencyInjection;
 using WireBound.Avalonia.ViewModels;
 using WireBound.Avalonia.Views;
+using WireBound.Core;
 
 namespace WireBound.Avalonia.Services;
 
@@ -21,12 +22,12 @@ public sealed class ViewFactory : IViewFactory
     {
         return route switch
         {
-            "Dashboard" => CreateDashboardView(),
-            "Charts" => CreateChartsView(),
-            "History" => CreateHistoryView(),
-            "Settings" => CreateSettingsView(),
-            "Applications" => CreateApplicationsView(),
-            "Connections" => CreateConnectionsView(),
+            Routes.Dashboard => CreateDashboardView(),
+            Routes.Charts => CreateChartsView(),
+            Routes.History => CreateHistoryView(),
+            Routes.Settings => CreateSettingsView(),
+            Routes.Applications => CreateApplicationsView(),
+            Routes.Connections => CreateConnectionsView(),
             _ => CreateDashboardView()
         };
     }

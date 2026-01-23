@@ -4,7 +4,8 @@
              xmlns:models="using:WireBound.Core.Models"
              x:Class="WireBound.Avalonia.Views.ApplicationsView"
              x:DataType="vm:ApplicationsViewModel"
-             Background="{DynamicResource BackgroundBrush}">
+             Background="{DynamicResource BackgroundBrush}"
+             AutomationProperties.Name="Applications View">
 
     <Grid RowDefinitions="Auto, *">
         
@@ -125,22 +126,30 @@
                             <TextBox Watermark="🔍 Search applications..."
                                      Text="{Binding SearchText}"
                                      Background="Transparent"
-                                     BorderThickness="0" />
+                                     BorderThickness="0"
+                                     AutomationProperties.Name="Search Applications"
+                                     AutomationProperties.HelpText="Filter applications by name" />
                         </Border>
                         <CalendarDatePicker Grid.Column="1"
                                             SelectedDate="{Binding StartDate}"
-                                            Margin="0,0,16,0" />
+                                            Margin="0,0,16,0"
+                                            AutomationProperties.Name="Start Date"
+                                            AutomationProperties.HelpText="Select the start date for filtering application usage" />
                         <TextBlock Grid.Column="2" Text="→" VerticalAlignment="Center"
                                    Foreground="{DynamicResource MutedTextBrush}"
                                    Margin="0,0,16,0" />
                         <CalendarDatePicker Grid.Column="3"
                                             SelectedDate="{Binding EndDate}"
-                                            Margin="0,0,16,0" />
+                                            Margin="0,0,16,0"
+                                            AutomationProperties.Name="End Date"
+                                            AutomationProperties.HelpText="Select the end date for filtering application usage" />
                         <Button Grid.Column="4"
                                 Content="🔄 Refresh"
                                 Command="{Binding RefreshCommand}"
                                 Classes="Primary"
-                                Padding="16,10" />
+                                Padding="16,10"
+                                AutomationProperties.Name="Refresh Application Data"
+                                AutomationProperties.HelpText="Reload application usage data for the selected date range" />
                     </Grid>
                 </Border>
 
@@ -152,7 +161,9 @@
                     </StackPanel>
                     
                     <Border Classes="Card">
-                        <ItemsControl ItemsSource="{Binding AllApps}">
+                        <ItemsControl ItemsSource="{Binding AllApps}"
+                                      AutomationProperties.Name="Application Usage List"
+                                      AutomationProperties.HelpText="List of applications with their network usage statistics">
                             <ItemsControl.ItemTemplate>
                                 <DataTemplate x:DataType="models:AppUsageRecord">
                                     <Border Padding="16" Margin="0,0,0,8"

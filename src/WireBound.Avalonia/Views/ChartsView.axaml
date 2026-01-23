@@ -4,7 +4,8 @@
              xmlns:lvc="using:LiveChartsCore.SkiaSharpView.Avalonia"
              x:Class="WireBound.Avalonia.Views.ChartsView"
              x:DataType="vm:ChartsViewModel"
-             Background="{DynamicResource BackgroundBrush}">
+             Background="{DynamicResource BackgroundBrush}"
+             AutomationProperties.Name="Live Chart View">
 
     <Grid RowDefinitions="Auto, Auto, *, Auto" Margin="28">
         
@@ -23,7 +24,9 @@
                     <ComboBox ItemsSource="{Binding TimeRangeOptions}"
                               SelectedItem="{Binding SelectedTimeRange}"
                               Width="100"
-                              VerticalAlignment="Center">
+                              VerticalAlignment="Center"
+                              AutomationProperties.Name="Chart Time Range"
+                              AutomationProperties.HelpText="Select the time period to display in the chart">
                         <ComboBox.ItemTemplate>
                             <DataTemplate>
                                 <TextBlock Text="{Binding Label}" />
@@ -122,7 +125,9 @@
                                     YAxes="{Binding YAxes}"
                                     ZoomMode="X"
                                     TooltipPosition="Top"
-                                    Background="{DynamicResource SurfaceBrush}" />
+                                    Background="{DynamicResource SurfaceBrush}"
+                                    AutomationProperties.Name="Network Speed Chart"
+                                    AutomationProperties.HelpText="Real-time chart showing download and upload speeds. Use scroll to zoom and drag to pan." />
                 
                 <!-- Hint -->
                 <Border Grid.Row="2"

@@ -5,6 +5,7 @@
         x:Class="WireBound.Avalonia.Views.MainWindow"
         x:DataType="vm:MainViewModel"
         Title="WireBound - Network Traffic Monitor"
+        AutomationProperties.Name="WireBound Network Traffic Monitor"
         Width="1200" Height="800"
         MinWidth="900" MinHeight="650"
         Background="{DynamicResource BackgroundBrush}"
@@ -31,7 +32,8 @@
                 <StackPanel Margin="20,24,20,16" Spacing="16">
                     
                     <!-- App Logo & Title -->
-                    <StackPanel Orientation="Horizontal" Spacing="14">
+                    <StackPanel Orientation="Horizontal" Spacing="14"
+                                AutomationProperties.Name="WireBound Application Logo">
                         <Border Background="{DynamicResource PrimaryBrush}"
                                 CornerRadius="12"
                                 Width="48" Height="48"
@@ -74,7 +76,9 @@
                          ItemsSource="{Binding NavigationItems}"
                          SelectedItem="{Binding SelectedNavigationItem}"
                          Background="Transparent"
-                         Margin="8,0">
+                         Margin="8,0"
+                         AutomationProperties.Name="Navigation Menu"
+                         AutomationProperties.HelpText="Select a page to navigate to">
                     <ListBox.Styles>
                         <Style Selector="ListBoxItem">
                             <Setter Property="Padding" Value="16,14" />
@@ -90,7 +94,8 @@
                     </ListBox.Styles>
                     <ListBox.ItemTemplate>
                         <DataTemplate x:DataType="vm:NavigationItem">
-                            <StackPanel Orientation="Horizontal" Spacing="12">
+                            <StackPanel Orientation="Horizontal" Spacing="12"
+                                        AutomationProperties.Name="{Binding Title}">
                                 <TextBlock Text="{Binding Icon}" FontSize="16" />
                                 <TextBlock Text="{Binding Title}" 
                                            FontSize="14"
@@ -119,7 +124,9 @@
                     </Grid>
                     
                     <!-- Status Indicator -->
-                    <StackPanel Orientation="Horizontal" Spacing="10">
+                    <StackPanel Orientation="Horizontal" Spacing="10"
+                                AutomationProperties.Name="Monitoring Status: Active"
+                                AutomationProperties.HelpText="Network monitoring is currently running">
                         <Ellipse Width="10" Height="10"
                                  Fill="{DynamicResource SuccessBrush}"
                                  VerticalAlignment="Center" />
@@ -142,7 +149,9 @@
         <!-- ═══════════════════════════════════════════════════════════════ -->
         
         <ContentControl Grid.Column="1"
-                        Content="{Binding CurrentView}" />
+                        Content="{Binding CurrentView}"
+                        AutomationProperties.Name="Main Content Area"
+                        AutomationProperties.HelpText="Displays the currently selected page" />
         
     </Grid>
 </Window>

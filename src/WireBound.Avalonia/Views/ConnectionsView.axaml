@@ -3,7 +3,8 @@
              xmlns:vm="using:WireBound.Avalonia.ViewModels"
              x:Class="WireBound.Avalonia.Views.ConnectionsView"
              x:DataType="vm:ConnectionsViewModel"
-             Background="{DynamicResource BackgroundBrush}">
+             Background="{DynamicResource BackgroundBrush}"
+             AutomationProperties.Name="Connections View">
 
     <Grid RowDefinitions="Auto, *">
         
@@ -42,7 +43,9 @@
                     <Button Grid.Column="1" 
                             Command="{Binding RefreshCommand}"
                             Padding="16,10"
-                            VerticalAlignment="Center">
+                            VerticalAlignment="Center"
+                            AutomationProperties.Name="Refresh Connections"
+                            AutomationProperties.HelpText="Reload the list of active network connections">
                         <StackPanel Orientation="Horizontal" Spacing="8">
                             <TextBlock Text="🔄" FontSize="14" />
                             <TextBlock Text="Refresh" FontSize="13" />
@@ -168,7 +171,9 @@
                         <TextBox Grid.Column="1"
                                  Text="{Binding SearchText}"
                                  Watermark="Search by IP, hostname, or process..."
-                                 Classes="SearchBox" />
+                                 Classes="SearchBox"
+                                 AutomationProperties.Name="Search Connections"
+                                 AutomationProperties.HelpText="Filter connections by IP address, hostname, or process name" />
                     </Grid>
                 </Border>
 
@@ -197,22 +202,26 @@
                             <Grid ColumnDefinitions="0.5*, 2*, 1.5*, 0.8*, 1*, 1*">
                                 <Button Command="{Binding SortByCommand}" CommandParameter="Protocol"
                                         Background="Transparent" Padding="0" Cursor="Hand"
-                                        HorizontalAlignment="Left">
+                                        HorizontalAlignment="Left"
+                                        AutomationProperties.Name="Sort by Protocol">
                                     <TextBlock Text="PROTOCOL" Classes="MetricLabel" FontWeight="Bold" />
                                 </Button>
                                 <Button Grid.Column="1" Command="{Binding SortByCommand}" CommandParameter="Remote"
                                         Background="Transparent" Padding="0" Cursor="Hand"
-                                        HorizontalAlignment="Left">
+                                        HorizontalAlignment="Left"
+                                        AutomationProperties.Name="Sort by Remote Address">
                                     <TextBlock Text="REMOTE ADDRESS" Classes="MetricLabel" FontWeight="Bold" />
                                 </Button>
                                 <Button Grid.Column="2" Command="{Binding SortByCommand}" CommandParameter="Process"
                                         Background="Transparent" Padding="0" Cursor="Hand"
-                                        HorizontalAlignment="Left">
+                                        HorizontalAlignment="Left"
+                                        AutomationProperties.Name="Sort by Process">
                                     <TextBlock Text="PROCESS" Classes="MetricLabel" FontWeight="Bold" />
                                 </Button>
                                 <Button Grid.Column="3" Command="{Binding SortByCommand}" CommandParameter="State"
                                         Background="Transparent" Padding="0" Cursor="Hand"
-                                        HorizontalAlignment="Left">
+                                        HorizontalAlignment="Left"
+                                        AutomationProperties.Name="Sort by State">
                                     <TextBlock Text="STATE" Classes="MetricLabel" FontWeight="Bold" />
                                 </Button>
                                 <TextBlock Grid.Column="4" Text="RECEIVED" Classes="MetricLabel" FontWeight="Bold" HorizontalAlignment="Right" />
@@ -222,7 +231,9 @@
                         
                         <!-- Connection List -->
                         <ScrollViewer Grid.Row="2" MaxHeight="500" Margin="0,8,0,0">
-                            <ItemsControl ItemsSource="{Binding Connections}">
+                            <ItemsControl ItemsSource="{Binding Connections}"
+                                          AutomationProperties.Name="Active Connections List"
+                                          AutomationProperties.HelpText="List of active network connections with details">
                                 <ItemsControl.ItemTemplate>
                                     <DataTemplate x:DataType="vm:ConnectionDisplayItem">
                                         <Border Background="Transparent"

@@ -4,7 +4,8 @@
              xmlns:lvc="using:LiveChartsCore.SkiaSharpView.Avalonia"
              x:Class="WireBound.Avalonia.Views.DashboardView"
              x:DataType="vm:DashboardViewModel"
-             Background="{DynamicResource BackgroundBrush}">
+             Background="{DynamicResource BackgroundBrush}"
+             AutomationProperties.Name="Dashboard View">
 
     <Grid RowDefinitions="Auto, *" Margin="28">
         
@@ -38,7 +39,9 @@
                               SelectedItem="{Binding SelectedAdapter}"
                               Width="220"
                               VerticalAlignment="Center"
-                              Margin="12,0,0,0">
+                              Margin="12,0,0,0"
+                              AutomationProperties.Name="Network Adapter Selection"
+                              AutomationProperties.HelpText="Select which network adapter to monitor">
                         <ComboBox.ItemTemplate>
                             <DataTemplate>
                                 <TextBlock Text="{Binding DisplayName}" />
@@ -50,7 +53,9 @@
                                   ToolTip.Tip="Show VM and container adapters (Hyper-V, Docker, WSL)"
                                   Margin="8,0,0,0"
                                   Padding="8,6"
-                                  VerticalAlignment="Center">
+                                  VerticalAlignment="Center"
+                                  AutomationProperties.Name="Show Advanced Adapters"
+                                  AutomationProperties.HelpText="Toggle visibility of virtual machine and container network adapters">
                         <StackPanel Orientation="Horizontal" Spacing="4">
                             <TextBlock Text="⚙️" FontSize="14" />
                             <TextBlock Text="All" FontSize="12" 
@@ -297,10 +302,14 @@
                     <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="12">
                         <Button Content="📈 View Chart"
                                 Classes="Secondary"
-                                Command="{Binding NavigateToChartsCommand}" />
+                                Command="{Binding NavigateToChartsCommand}"
+                                AutomationProperties.Name="View Chart"
+                                AutomationProperties.HelpText="Navigate to the live chart view" />
                         <Button Content="📜 View History"
                                 Classes="Secondary"
-                                Command="{Binding NavigateToHistoryCommand}" />
+                                Command="{Binding NavigateToHistoryCommand}"
+                                AutomationProperties.Name="View History"
+                                AutomationProperties.HelpText="Navigate to the history view" />
                     </StackPanel>
                 </Grid>
             </Border>
@@ -326,7 +335,9 @@
                         <ToggleButton Grid.Column="1"
                                       IsChecked="{Binding ShowAdapterDashboard}"
                                       ToolTip.Tip="Toggle adapter dashboard"
-                                      Padding="8,4">
+                                      Padding="8,4"
+                                      AutomationProperties.Name="Toggle Adapter Dashboard"
+                                      AutomationProperties.HelpText="Show or hide the network adapters list">
                             <TextBlock Text="▼" FontSize="10" />
                         </ToggleButton>
                     </Grid>

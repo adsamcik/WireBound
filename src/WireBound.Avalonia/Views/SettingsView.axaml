@@ -3,7 +3,8 @@
              xmlns:vm="using:WireBound.Avalonia.ViewModels"
              x:Class="WireBound.Avalonia.Views.SettingsView"
              x:DataType="vm:SettingsViewModel"
-             Background="{DynamicResource BackgroundBrush}">
+             Background="{DynamicResource BackgroundBrush}"
+             AutomationProperties.Name="Settings View">
 
     <ScrollViewer Margin="28">
         <StackPanel Spacing="24">
@@ -40,7 +41,9 @@
                                       ItemsSource="{Binding Adapters}"
                                       SelectedItem="{Binding SelectedAdapter}"
                                       Width="220"
-                                      VerticalAlignment="Center">
+                                      VerticalAlignment="Center"
+                                      AutomationProperties.Name="Network Adapter"
+                                      AutomationProperties.HelpText="Select which network adapter to monitor">
                                 <ComboBox.ItemTemplate>
                                     <DataTemplate>
                                         <TextBlock Text="{Binding Name}" />
@@ -61,7 +64,9 @@
                                       ItemsSource="{Binding PollingIntervals}"
                                       SelectedItem="{Binding PollingIntervalMs}"
                                       Width="120"
-                                      VerticalAlignment="Center" />
+                                      VerticalAlignment="Center"
+                                      AutomationProperties.Name="Polling Interval"
+                                      AutomationProperties.HelpText="How frequently network data is sampled" />
                         </Grid>
                     </Border>
                     
@@ -76,7 +81,9 @@
                                       ItemsSource="{Binding SpeedUnits}"
                                       SelectedItem="{Binding SelectedSpeedUnit}"
                                       Width="160"
-                                      VerticalAlignment="Center">
+                                      VerticalAlignment="Center"
+                                      AutomationProperties.Name="Speed Unit"
+                                      AutomationProperties.HelpText="Choose to display speeds in bits per second or bytes per second">
                                 <ComboBox.ItemTemplate>
                                     <DataTemplate>
                                         <TextBlock Text="{Binding Converter={StaticResource SpeedUnitConverter}}" />
@@ -95,7 +102,9 @@
                             </StackPanel>
                             <ToggleSwitch Grid.Column="1"
                                           IsChecked="{Binding UseIpHelperApi}"
-                                          VerticalAlignment="Center" />
+                                          VerticalAlignment="Center"
+                                          AutomationProperties.Name="Use IP Helper API"
+                                          AutomationProperties.HelpText="Enable more accurate network readings, may require administrator privileges" />
                         </Grid>
                     </Border>
                     
@@ -113,7 +122,9 @@
                             <ToggleSwitch Grid.Column="1"
                                           IsChecked="{Binding IsPerAppTrackingEnabled}"
                                           IsEnabled="{Binding IsElevated}"
-                                          VerticalAlignment="Center" />
+                                          VerticalAlignment="Center"
+                                          AutomationProperties.Name="Per-App Network Tracking"
+                                          AutomationProperties.HelpText="Track network usage for individual applications. Requires administrator privileges." />
                         </Grid>
                     </Border>
                 </StackPanel>
@@ -151,7 +162,9 @@
                             </StackPanel>
                             <ToggleSwitch Grid.Column="1"
                                           IsChecked="{Binding StartWithWindows}"
-                                          VerticalAlignment="Center" />
+                                          VerticalAlignment="Center"
+                                          AutomationProperties.Name="Start with Windows"
+                                          AutomationProperties.HelpText="Launch WireBound automatically when Windows starts" />
                         </Grid>
                     </Border>
                     
@@ -164,7 +177,9 @@
                             </StackPanel>
                             <ToggleSwitch Grid.Column="1"
                                           IsChecked="{Binding MinimizeToTray}"
-                                          VerticalAlignment="Center" />
+                                          VerticalAlignment="Center"
+                                          AutomationProperties.Name="Minimize to System Tray"
+                                          AutomationProperties.HelpText="Keep the application running in the background when minimized" />
                         </Grid>
                     </Border>
                     
@@ -177,7 +192,9 @@
                             </StackPanel>
                             <ToggleSwitch Grid.Column="1"
                                           IsChecked="{Binding StartMinimized}"
-                                          VerticalAlignment="Center" />
+                                          VerticalAlignment="Center"
+                                          AutomationProperties.Name="Start Minimized"
+                                          AutomationProperties.HelpText="Start the application minimized to the system tray" />
                         </Grid>
                     </Border>
                 </StackPanel>
@@ -228,7 +245,9 @@
                                     IsEnabled="{Binding !IsRequestingElevation}"
                                     IsVisible="{Binding RequiresElevation}"
                                     Classes="Warning"
-                                    VerticalAlignment="Center" />
+                                    VerticalAlignment="Center"
+                                    AutomationProperties.Name="Elevate to Administrator"
+                                    AutomationProperties.HelpText="Restart the application with administrator privileges" />
                         </Grid>
                     </Border>
                 </StackPanel>

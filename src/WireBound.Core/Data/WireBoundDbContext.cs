@@ -20,8 +20,29 @@ public sealed class WireBoundDbContext : DbContext
     public DbSet<HourlySystemStats> HourlySystemStats { get; set; } = null!;
     public DbSet<DailySystemStats> DailySystemStats { get; set; } = null!;
 
+    /// <summary>
+    /// Creates a new instance of WireBoundDbContext with default options.
+    /// Uses SQLite database stored in LocalApplicationData folder.
+    /// </summary>
+    public WireBoundDbContext()
+    {
+    }
+
+    /// <summary>
+    /// Creates a new instance of WireBoundDbContext with the specified options.
+    /// Use this constructor for testing with in-memory database.
+    /// </summary>
+    /// <param name="options">The options to configure the context.</param>
+    public WireBoundDbContext(DbContextOptions<WireBoundDbContext> options) : base(options)
+    {
+    }
+
     protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
     {
+        // Skip if options are already configured (e.g., for testing with in-memory database)
+        if (optionsBuilder.IsConfigured)
+            return;
+
         var dbPath = Path.Combine(
             Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
             "WireBound",

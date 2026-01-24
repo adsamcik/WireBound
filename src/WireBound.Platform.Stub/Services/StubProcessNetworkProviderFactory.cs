@@ -12,7 +12,9 @@ public sealed class StubProcessNetworkProviderFactory : IProcessNetworkProviderF
 
     public bool HasElevatedProvider => false;
 
+#pragma warning disable CS0067 // Event is never used (required by interface)
     public event EventHandler<ProviderChangedEventArgs>? ProviderChanged;
+#pragma warning restore CS0067
 
     public IProcessNetworkProvider GetProvider() => _provider;
 

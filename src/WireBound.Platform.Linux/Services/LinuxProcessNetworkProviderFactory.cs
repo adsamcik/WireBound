@@ -15,7 +15,9 @@ public sealed class LinuxProcessNetworkProviderFactory : IProcessNetworkProvider
 
     public bool HasElevatedProvider => _hasElevatedProvider;
 
+#pragma warning disable CS0067 // Event is never used (required by interface, future elevation support)
     public event EventHandler<ProviderChangedEventArgs>? ProviderChanged;
+#pragma warning restore CS0067
 
     public IProcessNetworkProvider GetProvider() => _provider;
 

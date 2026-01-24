@@ -9,4 +9,7 @@
     <Project Path="src/WireBound.Platform.Windows/WireBound.Platform.Windows.csproj" />
     <Project Path="src/WireBound.Platform.Linux/WireBound.Platform.Linux.csproj" />
   </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/WireBound.Tests/WireBound.Tests.csproj" />
+  </Folder>
 </Solution>

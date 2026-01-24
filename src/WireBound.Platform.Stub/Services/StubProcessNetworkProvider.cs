@@ -12,8 +12,10 @@ public sealed class StubProcessNetworkProvider : IProcessNetworkProvider
     public ProcessNetworkCapabilities Capabilities => ProcessNetworkCapabilities.None;
     public bool IsMonitoring => false;
 
+#pragma warning disable CS0067 // Event is never used (required by interface)
     public event EventHandler<ProcessNetworkProviderEventArgs>? StatsUpdated;
     public event EventHandler<ProcessNetworkProviderErrorEventArgs>? ErrorOccurred;
+#pragma warning restore CS0067
 
     public Task<bool> StartMonitoringAsync(CancellationToken cancellationToken = default)
     {

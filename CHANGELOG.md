@@ -7,6 +7,49 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.5.0] - 2026-01-24
+
+### Added
+
+- **Unified Monitoring Dashboard** - Major redesign with CPU, Memory, and GPU monitoring
+  - New Overview view combining network and system metrics in one dashboard
+  - New Insights view with tabbed interface for Network Usage, System Trends, and Correlations
+  - CircularGauge control for compact radial progress visualization
+  - MiniSparkline control for inline trend visualization
+  - SystemHealthStrip header showing CPU/RAM/GPU at a glance
+- **CPU and RAM Monitoring** - Real-time system resource tracking
+  - Windows: PerformanceCounter and GlobalMemoryStatusEx APIs
+  - Linux: /proc/stat and /proc/meminfo parsing
+  - Platform-specific providers with stub fallback
+- **System History Service** - Historical tracking with hourly/daily aggregation
+  - HourlySystemStats and DailySystemStats database tables
+  - Correlation analysis between network and system metrics
+- **Per-App Network Tracking Infrastructure** - Foundation for per-application monitoring
+  - IProcessNetworkProvider interface for platform-specific network monitoring
+  - Windows: IP Helper API (GetExtendedTcpTable/GetExtendedUdpTable)
+  - Linux: /proc/net/* and /proc/[pid]/fd parsing
+  - ProcessPollingBackgroundService for coordinating per-app polling
+- **Comprehensive Test Suite** - 311 tests for unified monitoring features
+  - OverviewViewModelTests, InsightsViewModelTests, SystemHistoryServiceTests
+  - ChartColorsTests, ByteFormatterTests, HourlySystemStatsTests
+- **Accessibility** - AutomationProperties added to all interactive elements across views
+- **Theme System** - Tinted background colors and selection colors extracted to resources
+
+### Changed
+
+- **Navigation Renamed** - Dashboard → Overview, History → Insights
+- **Chart Data Management** - New ChartDataManager class with CircularBuffer for O(1) performance
+- **Elevation Service** - Moved to Platform.Abstract with improved security patterns
+- **Routes Constants** - Eliminated magic strings in navigation with Routes class
+- **Today's Usage Display** - Dashboard shows cumulative daily totals instead of session-only
+- **Adapter Selector** - Simplified compact horizontal layout
+
+### Fixed
+
+- Database migrations for missing AppSettings columns (StartMinimized, IsPerAppTrackingEnabled, etc.)
+- Session totals no longer randomly switch between VPN and physical adapter
+- Chart data buffer performance with CircularBuffer replacing List.RemoveAt(0)
+
 ## [0.4.0] - 2026-01-20
 
 ### Added

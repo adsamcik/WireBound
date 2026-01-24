@@ -18,54 +18,29 @@
                 <TextBlock Text="Real-time network and system monitoring" Classes="Subtitle" />
             </StackPanel>
             
-            <!-- Adapter Selector -->
-            <Border Grid.Column="1" Classes="CompactCard" VerticalAlignment="Center" Padding="16,12" Margin="24,0">
-                <Grid ColumnDefinitions="Auto, *, Auto, Auto">
-                    <Border Background="{DynamicResource PrimaryBrush}"
-                            Margin="0,0,12,0"
-                            CornerRadius="8"
-                            Width="36" Height="36"
-                            VerticalAlignment="Center">
-                        <TextBlock Text="🌐" FontSize="18"
-                                   HorizontalAlignment="Center"
-                                   VerticalAlignment="Center" />
-                    </Border>
-                    <StackPanel Grid.Column="1" VerticalAlignment="Center" Spacing="1">
-                        <TextBlock Text="Active Adapter" Classes="Caption" />
-                        <TextBlock Text="{Binding SelectedAdapter.DisplayName, FallbackValue='Select adapter'}"
-                                   FontSize="13" FontWeight="Bold"
-                                   Foreground="{DynamicResource PrimaryTextBrush}" />
-                    </StackPanel>
-                    <ComboBox Grid.Column="2"
-                              ItemsSource="{Binding Adapters}"
-                              SelectedItem="{Binding SelectedAdapter}"
-                              Width="220"
+            <!-- Adapter Selector - Compact -->
+            <StackPanel Grid.Column="1" Orientation="Horizontal" 
+                        HorizontalAlignment="Center" VerticalAlignment="Center" Spacing="8">
+                <ComboBox ItemsSource="{Binding Adapters}"
+                          SelectedItem="{Binding SelectedAdapter}"
+                          MinWidth="280"
+                          VerticalAlignment="Center"
+                          AutomationProperties.Name="Network Adapter Selection"
+                          AutomationProperties.HelpText="Select which network adapter to monitor">
+                    <ComboBox.ItemTemplate>
+                        <DataTemplate>
+                            <TextBlock Text="{Binding DisplayName}" />
+                        </DataTemplate>
+                    </ComboBox.ItemTemplate>
+                </ComboBox>
+                <ToggleButton IsChecked="{Binding ShowAdvancedAdapters}"
+                              ToolTip.Tip="Show VM and container adapters"
+                              Padding="8,6"
                               VerticalAlignment="Center"
-                              Margin="12,0,0,0"
-                              AutomationProperties.Name="Network Adapter Selection"
-                              AutomationProperties.HelpText="Select which network adapter to monitor">
-                        <ComboBox.ItemTemplate>
-                            <DataTemplate>
-                                <TextBlock Text="{Binding DisplayName}" />
-                            </DataTemplate>
-                        </ComboBox.ItemTemplate>
-                    </ComboBox>
-                    <ToggleButton Grid.Column="3"
-                                  IsChecked="{Binding ShowAdvancedAdapters}"
-                                  ToolTip.Tip="Show VM and container adapters (Hyper-V, Docker, WSL)"
-                                  Margin="8,0,0,0"
-                                  Padding="8,6"
-                                  VerticalAlignment="Center"
-                                  AutomationProperties.Name="Show Advanced Adapters"
-                                  AutomationProperties.HelpText="Toggle visibility of virtual machine and container network adapters">
-                        <StackPanel Orientation="Horizontal" Spacing="4">
-                            <TextBlock Text="⚙️" FontSize="14" />
-                            <TextBlock Text="All" FontSize="12" 
-                                       IsVisible="{Binding ShowAdvancedAdapters}" />
-                        </StackPanel>
-                    </ToggleButton>
-                </Grid>
-            </Border>
+                              AutomationProperties.Name="Show Advanced Adapters">
+                    <TextBlock Text="⚙️" FontSize="14" />
+                </ToggleButton>
+            </StackPanel>
             
             <!-- Quick System Strip -->
             <controls:SystemHealthStrip Grid.Column="2"

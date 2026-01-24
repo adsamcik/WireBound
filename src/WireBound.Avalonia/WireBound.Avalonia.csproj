@@ -35,6 +35,9 @@
     <PackageReference Include="Avalonia.Desktop" />
     <PackageReference Include="Avalonia.Themes.Fluent" />
     <PackageReference Include="Avalonia.Fonts.Inter" />
+    
+    <!-- MVVM -->
+    <PackageReference Include="CommunityToolkit.Mvvm" />
     <!-- Charts (Avalonia version) -->
     <PackageReference Include="LiveChartsCore.SkiaSharpView.Avalonia" />
     <PackageReference Include="ManagedNativeWifi" />

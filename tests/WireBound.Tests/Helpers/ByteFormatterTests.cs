@@ -1,4 +1,4 @@
-using FluentAssertions;
+using AwesomeAssertions;
 using WireBound.Core.Helpers;
 
 namespace WireBound.Tests.Helpers;

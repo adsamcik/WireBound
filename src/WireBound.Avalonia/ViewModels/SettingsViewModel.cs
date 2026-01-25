@@ -13,7 +13,7 @@ namespace WireBound.Avalonia.ViewModels;
 /// <summary>
 /// ViewModel for the Settings page
 /// </summary>
-public sealed partial class SettingsViewModel : ObservableObject
+public sealed partial class SettingsViewModel : ObservableObject, IDisposable
 {
     private readonly IDataPersistenceService _persistence;
     private readonly INetworkMonitorService _networkMonitor;
@@ -366,5 +366,17 @@ public sealed partial class SettingsViewModel : ObservableObject
         {
             IsRequestingElevation = false;
         }
+    }
+
+    /// <summary>
+    /// Disposes resources and unsubscribes from events.
+    /// </summary>
+    public void Dispose()
+    {
+        _autoSaveCts?.Cancel();
+        _autoSaveCts?.Dispose();
+        _autoSaveCts = null;
+        
+        _elevationService.HelperConnectionStateChanged -= OnHelperConnectionStateChanged;
     }
 }

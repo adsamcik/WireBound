@@ -14,7 +14,7 @@ namespace WireBound.Avalonia.ViewModels;
 /// <summary>
 /// ViewModel for the Applications page
 /// </summary>
-public sealed partial class ApplicationsViewModel : ObservableObject
+public sealed partial class ApplicationsViewModel : ObservableObject, IDisposable
 {
     private readonly IDataPersistenceService _persistence;
     private readonly IProcessNetworkService? _processNetworkService;
@@ -246,5 +246,19 @@ public sealed partial class ApplicationsViewModel : ObservableObject
     partial void OnSearchTextChanged(string value)
     {
         _ = LoadDataAsync();
+    }
+
+    /// <summary>
+    /// Disposes resources and unsubscribes from events.
+    /// </summary>
+    public void Dispose()
+    {
+        if (_processNetworkService != null)
+        {
+            _processNetworkService.StatsUpdated -= OnProcessStatsUpdated;
+            _processNetworkService.ErrorOccurred -= OnProcessErrorOccurred;
+        }
+        
+        _elevationService.HelperConnectionStateChanged -= OnHelperConnectionStateChanged;
     }
 }

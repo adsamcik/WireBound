@@ -32,7 +32,7 @@ public class AdaptiveThresholdCalculator
     {
         // Add to rolling buffer
         _rollingMaxBuffer.Enqueue(value);
-        
+
         // Trim buffer to window size
         while (_rollingMaxBuffer.Count > _windowSize)
         {

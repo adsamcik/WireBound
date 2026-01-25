@@ -13,58 +13,58 @@ public static class ChartColors
     // ═══════════════════════════════════════════════════════════════════════
     // NETWORK ACTIVITY COLORS (matching new design system)
     // ═══════════════════════════════════════════════════════════════════════
-    
+
     // Download: Electric Cyan
     public static SKColor DownloadColor => new(0, 229, 255);       // #00E5FF - Primary download
     public static SKColor DownloadAccentColor => new(0, 212, 255); // #00D4FF - Download glow
     public static SKColor DownloadDimColor => new(0, 153, 170);    // #0099AA - Download dim
-    
+
     // Upload: Coral Orange (new high-contrast choice)
     public static SKColor UploadColor => new(255, 107, 53);        // #FF6B35 - Primary upload
     public static SKColor UploadAccentColor => new(255, 140, 90);  // #FF8C5A - Upload glow
     public static SKColor UploadDimColor => new(204, 85, 41);      // #CC5529 - Upload dim
-    
+
     // ═══════════════════════════════════════════════════════════════════════
     // SYSTEM RESOURCE OVERLAY COLORS
     // ═══════════════════════════════════════════════════════════════════════
-    
+
     // CPU: Sapphire Blue
     public static SKColor CpuColor => new(59, 130, 246);           // #3B82F6 - Primary CPU
     public static SKColor CpuAccentColor => new(96, 165, 250);     // #60A5FA - CPU accent
     public static SKColor CpuDimColor => new(37, 99, 235);         // #2563EB - CPU dim
-    
+
     // Memory: Amethyst Purple
     public static SKColor MemoryColor => new(168, 85, 247);        // #A855F7 - Primary Memory
     public static SKColor MemoryAccentColor => new(192, 132, 252); // #C084FC - Memory accent
     public static SKColor MemoryDimColor => new(147, 51, 234);     // #9333EA - Memory dim
-    
+
     // ═══════════════════════════════════════════════════════════════════════
     // CHART AXIS & GRID COLORS
     // ═══════════════════════════════════════════════════════════════════════
-    
+
     public static SKColor AxisLabelColor => new(160, 168, 184);    // #A0A8B8 - matches SecondaryTextColor
     public static SKColor AxisNameColor => new(240, 235, 216);     // #F0EBD8 - matches PrimaryTextColor
     public static SKColor GridLineColor => new(42, 58, 94, 100);   // #2A3A5E with alpha - matches BorderColor
-    
+
     // ═══════════════════════════════════════════════════════════════════════
     // SECTION & THRESHOLD COLORS
     // ═══════════════════════════════════════════════════════════════════════
-    
+
     public static SKColor SectionStrokeColor => new(42, 58, 94, 150);   // BorderColor with more alpha
     public static SKColor WarningSectionColor => new(255, 182, 39, 60); // #FFB627 (WarningColor) with alpha
-    
+
     // ═══════════════════════════════════════════════════════════════════════
     // BACKGROUND & TOOLTIP COLORS
     // ═══════════════════════════════════════════════════════════════════════
-    
+
     public static SKColor ChartBackgroundColor => new(29, 45, 68);      // #1D2D44 - matches SurfaceColor
     public static SKColor TooltipBackgroundColor => new(15, 22, 32);    // #0F1620 - matches SidebarColor
     public static SKColor TooltipTextColor => new(240, 235, 216);       // #F0EBD8 - matches PrimaryTextColor
-    
+
     // ═══════════════════════════════════════════════════════════════════════
     // MULTI-SERIES PALETTE
     // ═══════════════════════════════════════════════════════════════════════
-    
+
     /// <summary>
     /// A palette of colors for multi-series charts (e.g., per-app usage).
     /// Designed to be distinguishable on dark backgrounds.

@@ -28,12 +28,12 @@ public interface IProcessNetworkProviderFactory
     /// returns a basic provider with limited capabilities.
     /// </remarks>
     IProcessNetworkProvider GetProvider();
-    
+
     /// <summary>
     /// Check if an elevated provider is available (helper is connected).
     /// </summary>
     bool HasElevatedProvider { get; }
-    
+
     /// <summary>
     /// Event raised when the provider changes (e.g., when helper connects/disconnects).
     /// </summary>
@@ -49,12 +49,12 @@ public class ProviderChangedEventArgs : EventArgs
     /// The new provider that is now active.
     /// </summary>
     public IProcessNetworkProvider NewProvider { get; }
-    
+
     /// <summary>
     /// The capabilities of the new provider.
     /// </summary>
     public ProcessNetworkCapabilities NewCapabilities { get; }
-    
+
     public ProviderChangedEventArgs(IProcessNetworkProvider newProvider)
     {
         NewProvider = newProvider;

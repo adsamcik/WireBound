@@ -28,11 +28,11 @@ public sealed partial class ChartsViewModel : ObservableObject, IDisposable
     private readonly ChartDataManager _chartDataManager = new(maxBufferSize: 3600, maxDisplayPoints: 300);
     private readonly ObservableCollection<DateTimePoint> _downloadSpeedPoints = [];
     private readonly ObservableCollection<DateTimePoint> _uploadSpeedPoints = [];
-    
+
     // CPU/Memory history for overlay
     private readonly ObservableCollection<DateTimePoint> _cpuHistoryPoints = [];
     private readonly ObservableCollection<DateTimePoint> _memoryHistoryPoints = [];
-    
+
     // Overlay series (created once, added/removed from chart as needed)
     private readonly LineSeries<DateTimePoint> _cpuOverlaySeries;
     private readonly LineSeries<DateTimePoint> _memoryOverlaySeries;
@@ -108,7 +108,7 @@ public sealed partial class ChartsViewModel : ObservableObject, IDisposable
 
         // Initialize axes and series using factory
         XAxes = ChartSeriesFactory.CreateTimeXAxes();
-        
+
         // Add base network speed series
         var baseSeries = ChartSeriesFactory.CreateSpeedLineSeries(_downloadSpeedPoints, _uploadSpeedPoints);
         foreach (var series in baseSeries)

@@ -17,17 +17,17 @@ public interface IAppUsageRepository
     /// Get per-app usage records for a specific app in a date range.
     /// </summary>
     Task<List<AppUsageRecord>> GetAppUsageAsync(
-        string appIdentifier, 
-        DateOnly startDate, 
-        DateOnly endDate, 
+        string appIdentifier,
+        DateOnly startDate,
+        DateOnly endDate,
         UsageGranularity? granularity = null);
 
     /// <summary>
     /// Get all per-app usage records for a date range.
     /// </summary>
     Task<List<AppUsageRecord>> GetAllAppUsageAsync(
-        DateOnly startDate, 
-        DateOnly endDate, 
+        DateOnly startDate,
+        DateOnly endDate,
         UsageGranularity? granularity = null);
 
     /// <summary>

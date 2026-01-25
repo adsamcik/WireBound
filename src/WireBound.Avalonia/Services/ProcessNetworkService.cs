@@ -96,7 +96,7 @@ public sealed class ProcessNetworkService : IProcessNetworkService
         {
             _currentProvider = _providerFactory.GetProvider();
         }
-        
+
         return await _currentProvider.GetConnectionStatsAsync();
     }
 

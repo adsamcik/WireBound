@@ -16,10 +16,10 @@ namespace WireBound.Core.Services;
 /// <item><see cref="ISpeedSnapshotRepository"/> for chart history data</item>
 /// </list>
 /// </remarks>
-public interface IDataPersistenceService : 
-    INetworkUsageRepository, 
-    IAppUsageRepository, 
-    ISettingsRepository, 
+public interface IDataPersistenceService :
+    INetworkUsageRepository,
+    IAppUsageRepository,
+    ISettingsRepository,
     ISpeedSnapshotRepository
 {
     // All members are inherited from the composed interfaces.

@@ -44,11 +44,11 @@ public class TrendIndicatorCalculator
     private readonly double _thresholdPercent;
     private readonly long _minimumThreshold;
     private readonly TrendIconStyle _iconStyle;
-    
+
     private long _movingAverage;
     private long _previousValue;
     private bool _initialized;
-    
+
     /// <summary>
     /// Creates a new trend indicator calculator.
     /// </summary>
@@ -67,7 +67,7 @@ public class TrendIndicatorCalculator
         _minimumThreshold = Math.Max(minimumThreshold, 1);
         _iconStyle = iconStyle;
     }
-    
+
     /// <summary>
     /// Updates the trend with a new value and returns the calculated trend.
     /// </summary>
@@ -82,14 +82,14 @@ public class TrendIndicatorCalculator
             _initialized = true;
             return CreateResult(TrendDirection.Stable);
         }
-        
+
         // Update exponential moving average
         _movingAverage = (long)(_movingAverage * (1 - _alpha) + currentValue * _alpha);
-        
+
         // Calculate change from previous value
         var diff = currentValue - _previousValue;
         var threshold = Math.Max((long)(_movingAverage * _thresholdPercent), _minimumThreshold);
-        
+
         // Determine trend direction
         TrendDirection direction;
         if (currentValue == 0)
@@ -108,13 +108,13 @@ public class TrendIndicatorCalculator
         {
             direction = TrendDirection.Stable;
         }
-        
+
         // Store for next comparison
         _previousValue = currentValue;
-        
+
         return CreateResult(direction);
     }
-    
+
     /// <summary>
     /// Resets the calculator state.
     /// </summary>
@@ -124,31 +124,31 @@ public class TrendIndicatorCalculator
         _previousValue = 0;
         _initialized = false;
     }
-    
+
     /// <summary>
     /// Gets the current moving average.
     /// </summary>
     public long MovingAverage => _movingAverage;
-    
+
     private TrendResult CreateResult(TrendDirection direction)
     {
         var (icon, text) = direction switch
         {
-            TrendDirection.Idle => _iconStyle == TrendIconStyle.Geometric 
-                ? ("○", "idle") 
+            TrendDirection.Idle => _iconStyle == TrendIconStyle.Geometric
+                ? ("○", "idle")
                 : ("○", "idle"),
-            TrendDirection.Rising => _iconStyle == TrendIconStyle.Geometric 
-                ? ("▲", "rising") 
+            TrendDirection.Rising => _iconStyle == TrendIconStyle.Geometric
+                ? ("▲", "rising")
                 : ("↑", "increasing"),
-            TrendDirection.Falling => _iconStyle == TrendIconStyle.Geometric 
-                ? ("▼", "falling") 
+            TrendDirection.Falling => _iconStyle == TrendIconStyle.Geometric
+                ? ("▼", "falling")
                 : ("↓", "decreasing"),
-            TrendDirection.Stable => _iconStyle == TrendIconStyle.Geometric 
-                ? ("●", "stable") 
+            TrendDirection.Stable => _iconStyle == TrendIconStyle.Geometric
+                ? ("●", "stable")
                 : ("→", "stable"),
             _ => ("●", "stable")
         };
-        
+
         return new TrendResult(direction, icon, text);
     }
 }

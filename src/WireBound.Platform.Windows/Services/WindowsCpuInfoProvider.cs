@@ -23,17 +23,17 @@ public sealed class WindowsCpuInfoProvider : ICpuInfoProvider, IDisposable
     {
         _processorCount = Environment.ProcessorCount;
         _processorName = GetProcessorNameFromRegistry();
-        
+
         // Initialize performance counters
         _cpuCounter = new PerformanceCounter("Processor", "% Processor Time", "_Total", true);
-        
+
         // Initialize per-core counters
         _perCoreCounters = new PerformanceCounter[_processorCount];
         for (int i = 0; i < _processorCount; i++)
         {
             _perCoreCounters[i] = new PerformanceCounter("Processor", "% Processor Time", i.ToString(), true);
         }
-        
+
         // First call to NextValue() returns 0, need to prime the counters
         _ = _cpuCounter.NextValue();
         foreach (var counter in _perCoreCounters)
@@ -62,15 +62,15 @@ public sealed class WindowsCpuInfoProvider : ICpuInfoProvider, IDisposable
     public CpuInfoData GetCpuInfo()
     {
         ObjectDisposedException.ThrowIf(_disposed, this);
-        
+
         var totalUsage = _cpuCounter.NextValue();
         var perCoreUsage = new double[_processorCount];
-        
+
         for (int i = 0; i < _processorCount; i++)
         {
             perCoreUsage[i] = _perCoreCounters[i].NextValue();
         }
-        
+
         return new CpuInfoData
         {
             UsagePercent = totalUsage,
@@ -97,7 +97,7 @@ public sealed class WindowsCpuInfoProvider : ICpuInfoProvider, IDisposable
         {
             // Ignore errors
         }
-        
+
         return null;
     }
 
@@ -108,13 +108,13 @@ public sealed class WindowsCpuInfoProvider : ICpuInfoProvider, IDisposable
     public void Dispose()
     {
         if (_disposed) return;
-        
+
         _cpuCounter.Dispose();
         foreach (var counter in _perCoreCounters)
         {
             counter.Dispose();
         }
-        
+
         _disposed = true;
     }
 }

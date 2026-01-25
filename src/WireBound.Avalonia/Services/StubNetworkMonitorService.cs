@@ -44,7 +44,7 @@ public sealed class StubNetworkMonitorService : INetworkMonitorService
     {
         return _currentStats;
     }
-    
+
     public IReadOnlyDictionary<string, NetworkStats> GetAllAdapterStats()
     {
         // Return a single stub adapter

@@ -34,10 +34,10 @@ public sealed class CrossPlatformNetworkMonitorService : INetworkMonitorService
         lock (_lock)
         {
             _adapterStates.Clear();
-            
+
             foreach (var nic in NetworkInterface.GetAllNetworkInterfaces())
             {
-                if (nic.OperationalStatus == OperationalStatus.Up && 
+                if (nic.OperationalStatus == OperationalStatus.Up &&
                     nic.NetworkInterfaceType != NetworkInterfaceType.Loopback &&
                     !IsFilterOrSystemAdapter(nic))
                 {
@@ -46,7 +46,7 @@ public sealed class CrossPlatformNetworkMonitorService : INetworkMonitorService
                         // Use GetIPStatistics() to include both IPv4 and IPv6 traffic
                         var stats = nic.GetIPStatistics();
                         var isVirtual = IsVirtualAdapter(nic);
-                        
+
                         _adapterStates[nic.Id] = new AdapterState
                         {
                             Adapter = MapAdapter(nic, isVirtual),
@@ -80,18 +80,18 @@ public sealed class CrossPlatformNetworkMonitorService : INetworkMonitorService
     private static bool IsFilterOrSystemAdapter(NetworkInterface nic)
     {
         var name = nic.Name;
-        
+
         // All WFP filters, QoS schedulers, and extension filters end with -0000
         // Examples: "Ethernet-WFP 802.3 MAC Layer LightWeight Filter-0000"
         //           "Ethernet-QoS Packet Scheduler-0000"
         //           "vSwitch (Default Switch)-Hyper-V Virtual Switch Extension Filter-0000"
         if (name.EndsWith("-0000"))
             return true;
-        
+
         // Local Area Connection* numbered adapters (bridge/WFP components)
         if (name.StartsWith("Local Area Connection*"))
             return true;
-        
+
         return false;
     }
 
@@ -104,111 +104,111 @@ public sealed class CrossPlatformNetworkMonitorService : INetworkMonitorService
         var name = nic.Name.ToLowerInvariant();
         var description = nic.Description.ToLowerInvariant();
         var type = nic.NetworkInterfaceType;
-        
+
         // WireGuard (generic)
         if (name.StartsWith("wg") || name.StartsWith("wt") || description.Contains("wireguard"))
             return "WireGuard";
-        
+
         // NordVPN (NordLynx is WireGuard-based)
         if (description.Contains("nordvpn") || description.Contains("nordlynx"))
             return "NordVPN";
-        
+
         // ExpressVPN (Lightway protocol)
         if (description.Contains("expressvpn") || description.Contains("lightway"))
             return "ExpressVPN";
-        
+
         // Surfshark
         if (description.Contains("surfshark"))
             return "Surfshark";
-        
+
         // ProtonVPN
         if (description.Contains("protonvpn") || description.Contains("proton vpn"))
             return "ProtonVPN";
-        
+
         // Private Internet Access (PIA)
         if (description.Contains("private internet access"))
             return "Private Internet Access";
-        
+
         // CyberGhost
         if (description.Contains("cyberghost"))
             return "CyberGhost";
-        
+
         // Mullvad
         if (description.Contains("mullvad"))
             return "Mullvad";
-        
+
         // Cloudflare WARP
         if (description.Contains("cloudflare") || description.Contains("warp"))
             return "Cloudflare WARP";
-        
+
         // Tailscale (mesh VPN)
         if (description.Contains("tailscale"))
             return "Tailscale";
-        
+
         // ZeroTier (mesh VPN)
         if (description.Contains("zerotier"))
             return "ZeroTier";
-        
+
         // OpenVPN
         if (description.Contains("openvpn") || description.Contains("tap-windows") ||
             name.StartsWith("tap-") || name.StartsWith("tun"))
             return "OpenVPN";
-        
+
         // Cisco AnyConnect
         if (description.Contains("cisco") || description.Contains("anyconnect"))
             return "Cisco AnyConnect";
-        
+
         // GlobalProtect (Palo Alto)
         if (description.Contains("globalprotect") || description.Contains("palo alto"))
             return "GlobalProtect";
-        
+
         // Fortinet/FortiClient
         if (description.Contains("fortinet") || description.Contains("forticlient"))
             return "FortiClient";
-        
+
         // Pulse Secure / Ivanti
         if (description.Contains("pulse secure") || description.Contains("ivanti"))
             return "Pulse Secure";
-        
+
         // Juniper VPN
         if (description.Contains("juniper"))
             return "Juniper VPN";
-        
+
         // SoftEther VPN
         if (description.Contains("softether"))
             return "SoftEther";
-        
+
         // Hamachi (LogMeIn)
         if (description.Contains("hamachi") || description.Contains("logmein"))
             return "Hamachi";
-        
+
         // IPVanish
         if (description.Contains("ipvanish"))
             return "IPVanish";
-        
+
         // HideMyAss (HMA)
         if (description.Contains("hidemyass") || description.Contains("hma"))
             return "HideMyAss";
-        
+
         // Windscribe
         if (description.Contains("windscribe"))
             return "Windscribe";
-        
+
         // TunnelBear
         if (description.Contains("tunnelbear"))
             return "TunnelBear";
-        
+
         // Hotspot Shield
         if (description.Contains("hotspot shield") || description.Contains("anchorfree"))
             return "Hotspot Shield";
-        
+
         // Generic VPN/Tunnel detection
         if (type == NetworkInterfaceType.Tunnel || type == NetworkInterfaceType.Ppp)
             return "VPN";
-        
+
         if (description.Contains("vpn adapter") || description.Contains("tunnel adapter"))
             return "VPN";
-        
+
         return null;
     }
 
@@ -220,37 +220,37 @@ public sealed class CrossPlatformNetworkMonitorService : INetworkMonitorService
     {
         var name = nic.Name.ToLowerInvariant();
         var description = nic.Description.ToLowerInvariant();
-        
+
         // Hyper-V virtual adapters
         if (name.StartsWith("vethernet") || name.StartsWith("vswitch") ||
             description.Contains("hyper-v"))
             return true;
-        
+
         // VMware adapters
         if (description.Contains("vmware") || description.Contains("vmnet"))
             return true;
-        
+
         // VirtualBox adapters
         if (description.Contains("virtualbox") || description.Contains("vbox"))
             return true;
-        
+
         // Parallels adapters (macOS)
         if (description.Contains("parallels"))
             return true;
-        
+
         // WSL adapters
         if (name.Contains("wsl") || description.Contains("wsl"))
             return true;
-        
+
         // Docker/Container adapters
         if (name.Contains("docker") || description.Contains("docker") ||
             name.Contains("podman") || description.Contains("podman"))
             return true;
-        
+
         // QEMU/KVM
         if (description.Contains("qemu") || description.Contains("virtio"))
             return true;
-        
+
         return false;
     }
 
@@ -263,14 +263,14 @@ public sealed class CrossPlatformNetworkMonitorService : INetworkMonitorService
         // VPNs are "virtual" for traffic aggregation purposes
         if (DetectVpnProvider(nic) != null)
             return true;
-        
+
         // VM and container adapters
         if (IsVmOrContainerAdapter(nic))
             return true;
-        
+
         return false;
     }
-    
+
     /// <summary>
     /// Gets the category for display grouping in the UI
     /// </summary>
@@ -279,27 +279,27 @@ public sealed class CrossPlatformNetworkMonitorService : INetworkMonitorService
         // Check for VPN first
         if (DetectVpnProvider(nic) != null)
             return "VPN";
-        
+
         var name = nic.Name.ToLowerInvariant();
         var description = nic.Description.ToLowerInvariant();
-        
+
         // Virtual Machine detection
         if (name.StartsWith("vethernet") || name.StartsWith("vswitch") ||
             description.Contains("hyper-v") || description.Contains("vmware") ||
             description.Contains("virtualbox") || description.Contains("parallels") ||
             description.Contains("qemu") || description.Contains("virtio"))
             return "Virtual Machine";
-        
+
         // Container detection
         if (name.Contains("docker") || description.Contains("docker") ||
             name.Contains("wsl") || description.Contains("wsl") ||
             name.Contains("podman"))
             return "Container";
-        
+
         // Physical adapter
         return "Physical";
     }
-    
+
     /// <summary>
     /// Generates a friendly display name for the adapter.
     /// For VPNs, includes the provider name. For VMs, includes the VM type.
@@ -308,12 +308,12 @@ public sealed class CrossPlatformNetworkMonitorService : INetworkMonitorService
     {
         var name = nic.Name;
         var description = nic.Description.ToLowerInvariant();
-        
+
         // Check for VPN provider
         var vpnProvider = DetectVpnProvider(nic);
         if (vpnProvider != null)
             return $"{name} ({vpnProvider})";
-        
+
         // Check for tethering
         var (isUsb, isBluetooth) = DetectTethering(nic);
         if (isUsb)
@@ -324,7 +324,7 @@ public sealed class CrossPlatformNetworkMonitorService : INetworkMonitorService
         }
         if (isBluetooth)
             return $"{name} (Bluetooth)";
-        
+
         // Check for VM type
         if (description.Contains("hyper-v"))
             return $"{name} (Hyper-V)";
@@ -336,7 +336,7 @@ public sealed class CrossPlatformNetworkMonitorService : INetworkMonitorService
             return $"{name} (Parallels)";
         if (description.Contains("qemu") || description.Contains("virtio"))
             return $"{name} (QEMU/KVM)";
-        
+
         // Check for container
         if (description.Contains("docker") || nic.Name.ToLowerInvariant().Contains("docker"))
             return $"{name} (Docker)";
@@ -344,7 +344,7 @@ public sealed class CrossPlatformNetworkMonitorService : INetworkMonitorService
             return $"{name} (WSL)";
         if (description.Contains("podman") || nic.Name.ToLowerInvariant().Contains("podman"))
             return $"{name} (Podman)";
-        
+
         // Physical adapter - just the name
         return name;
     }
@@ -353,7 +353,7 @@ public sealed class CrossPlatformNetworkMonitorService : INetworkMonitorService
     {
         var vpnProvider = DetectVpnProvider(nic);
         var (isUsbTethering, isBluetoothTethering) = DetectTethering(nic);
-        
+
         return new NetworkAdapter
         {
             Id = nic.Id,
@@ -370,7 +370,7 @@ public sealed class CrossPlatformNetworkMonitorService : INetworkMonitorService
             Category = GetAdapterCategory(nic)
         };
     }
-    
+
     /// <summary>
     /// Detects if the adapter is a USB or Bluetooth tethering connection
     /// </summary>
@@ -378,7 +378,7 @@ public sealed class CrossPlatformNetworkMonitorService : INetworkMonitorService
     {
         var description = nic.Description.ToLowerInvariant();
         var name = nic.Name.ToLowerInvariant();
-        
+
         // USB Tethering detection
         // Android: "Remote NDIS based Internet Sharing Device" or "RNDIS"
         // iPhone: "Apple Mobile Device Ethernet"
@@ -387,15 +387,15 @@ public sealed class CrossPlatformNetworkMonitorService : INetworkMonitorService
                      description.Contains("apple mobile device ethernet") ||
                      description.Contains("android usb ethernet") ||
                      name.Contains("usb") && (name.Contains("eth") || name.Contains("net"));
-        
+
         // Bluetooth tethering detection
         // Look for Bluetooth PAN (Personal Area Network) adapters
-        bool isBluetooth = description.Contains("bluetooth") && 
-                           (description.Contains("network") || 
+        bool isBluetooth = description.Contains("bluetooth") &&
+                           (description.Contains("network") ||
                             description.Contains("pan") ||
                             nic.NetworkInterfaceType == NetworkInterfaceType.Ethernet) ||
                            name.Contains("bnep"); // Linux Bluetooth network interface
-        
+
         return (isUsb, isBluetooth);
     }
 
@@ -413,13 +413,13 @@ public sealed class CrossPlatformNetworkMonitorService : INetworkMonitorService
         lock (_lock)
         {
             var adapters = _adapterStates.Values.Select(s => s.Adapter);
-            
+
             if (!includeVirtual)
             {
                 // Simple mode: show physical adapters AND known VPNs
                 adapters = adapters.Where(a => !a.IsVirtual || a.IsKnownVpn);
             }
-            
+
             return adapters.ToList();
         }
     }
@@ -510,25 +510,25 @@ public sealed class CrossPlatformNetworkMonitorService : INetworkMonitorService
         lock (_lock)
         {
             var nowMs = _pollStopwatch.ElapsedMilliseconds;
-            
+
             // Physical adapter totals
             long physicalDownloadSpeed = 0;
             long physicalUploadSpeed = 0;
             long physicalSessionReceived = 0;
             long physicalSessionSent = 0;
-            
+
             // VPN adapter totals (for overhead calculation)
             long vpnDownloadSpeed = 0;
             long vpnUploadSpeed = 0;
             long vpnSessionReceived = 0;
             long vpnSessionSent = 0;
-            
+
             // Selected adapter totals (when specific adapter is selected)
             long selectedDownloadSpeed = 0;
             long selectedUploadSpeed = 0;
             long selectedSessionReceived = 0;
             long selectedSessionSent = 0;
-            
+
             // Track active VPN adapters
             var activeVpnAdapters = new List<string>();
             var connectedVpnAdapters = new List<string>();
@@ -541,7 +541,7 @@ public sealed class CrossPlatformNetworkMonitorService : INetworkMonitorService
 
                 if (nic.OperationalStatus != OperationalStatus.Up)
                     continue;
-                
+
                 // Track connected VPN adapters (regardless of traffic)
                 if (state.Adapter.IsKnownVpn)
                 {
@@ -554,7 +554,7 @@ public sealed class CrossPlatformNetworkMonitorService : INetworkMonitorService
                     // This matches what Task Manager shows
                     var stats = nic.GetIPStatistics();
                     var elapsedMs = nowMs - state.LastPollTimestampMs;
-                    
+
                     // Only calculate if we have meaningful elapsed time (at least 100ms)
                     if (elapsedMs >= 100)
                     {
@@ -568,23 +568,23 @@ public sealed class CrossPlatformNetworkMonitorService : INetworkMonitorService
                         // Calculate bytes per second: (bytes * 1000) / elapsedMs
                         state.DownloadSpeedBps = bytesReceivedDelta * 1000 / elapsedMs;
                         state.UploadSpeedBps = bytesSentDelta * 1000 / elapsedMs;
-                        
+
                         // Debug logging to diagnose speed calculation
                         if (state.DownloadSpeedBps > 100000 || state.UploadSpeedBps > 100000) // Only log significant traffic
                         {
                             _logger.LogDebug(
                                 "Adapter {Name}: elapsed={ElapsedMs}ms, rxDelta={RxDelta}, txDelta={TxDelta}, rxSpeed={RxSpeed} B/s, txSpeed={TxSpeed} B/s",
-                                state.Adapter.Name, elapsedMs, bytesReceivedDelta, bytesSentDelta, 
+                                state.Adapter.Name, elapsedMs, bytesReceivedDelta, bytesSentDelta,
                                 state.DownloadSpeedBps, state.UploadSpeedBps);
                         }
-                        
+
                         state.LastBytesReceived = stats.BytesReceived;
                         state.LastBytesSent = stats.BytesSent;
                         state.LastPollTimestampMs = nowMs;
-                        
+
                         var sessionReceived = stats.BytesReceived - state.SessionStartReceived;
                         var sessionSent = stats.BytesSent - state.SessionStartSent;
-                        
+
                         // If a specific adapter is selected, track it
                         if (hasSelectedAdapter && _selectedAdapterId == nic.Id)
                         {
@@ -593,7 +593,7 @@ public sealed class CrossPlatformNetworkMonitorService : INetworkMonitorService
                             selectedSessionReceived = sessionReceived;
                             selectedSessionSent = sessionSent;
                         }
-                        
+
                         // Always categorize traffic for VPN analysis
                         if (state.Adapter.IsKnownVpn)
                         {
@@ -602,7 +602,7 @@ public sealed class CrossPlatformNetworkMonitorService : INetworkMonitorService
                             vpnUploadSpeed += state.UploadSpeedBps;
                             vpnSessionReceived += sessionReceived;
                             vpnSessionSent += sessionSent;
-                            
+
                             // Track active VPN adapters (those with traffic)
                             if (state.DownloadSpeedBps > 0 || state.UploadSpeedBps > 0)
                             {
@@ -625,13 +625,13 @@ public sealed class CrossPlatformNetworkMonitorService : INetworkMonitorService
                     _logger.LogWarning(ex, "Error reading stats for adapter {AdapterId}", nic.Id);
                 }
             }
-            
+
             // Determine what to display based on selection
             long displayDownloadSpeed;
             long displayUploadSpeed;
             long displaySessionReceived;
             long displaySessionSent;
-            
+
             if (hasSelectedAdapter)
             {
                 // Specific adapter selected - show its traffic
@@ -657,15 +657,15 @@ public sealed class CrossPlatformNetworkMonitorService : INetworkMonitorService
                     displayDownloadSpeed = physicalDownloadSpeed;
                     displayUploadSpeed = physicalUploadSpeed;
                 }
-                
+
                 // Session totals: always use physical adapters for consistency
                 // This prevents the "jumping" between VPN and physical totals
                 displaySessionReceived = physicalSessionReceived;
                 displaySessionSent = physicalSessionSent;
             }
-            
+
             // Determine if we have VPN traffic to analyze
-            bool hasVpnTraffic = (vpnDownloadSpeed > 0 || vpnUploadSpeed > 0) && 
+            bool hasVpnTraffic = (vpnDownloadSpeed > 0 || vpnUploadSpeed > 0) &&
                                  (physicalDownloadSpeed > 0 || physicalUploadSpeed > 0);
             bool isVpnConnected = connectedVpnAdapters.Count > 0;
 
@@ -677,7 +677,7 @@ public sealed class CrossPlatformNetworkMonitorService : INetworkMonitorService
                 SessionBytesReceived = displaySessionReceived,
                 SessionBytesSent = displaySessionSent,
                 AdapterId = _selectedAdapterId,
-                
+
                 // VPN analysis data
                 IsVpnConnected = isVpnConnected,
                 HasVpnTraffic = hasVpnTraffic,

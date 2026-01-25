@@ -50,7 +50,7 @@ public sealed class LinuxCpuInfoProvider : ICpuInfoProvider
         {
             // Ignore errors
         }
-        
+
         return "Unknown Processor";
     }
 
@@ -70,25 +70,25 @@ public sealed class LinuxCpuInfoProvider : ICpuInfoProvider
             if (File.Exists("/proc/stat"))
             {
                 var lines = File.ReadAllLines("/proc/stat");
-                
+
                 foreach (var line in lines)
                 {
                     if (line.StartsWith("cpu ", StringComparison.Ordinal))
                     {
                         // Total CPU usage
                         var (_, idle, total) = ParseCpuLine(line);
-                        
+
                         if (_previousTotalSum > 0)
                         {
                             var idleDelta = idle - _previousTotalIdle;
                             var totalDelta = total - _previousTotalSum;
-                            
+
                             if (totalDelta > 0)
                             {
                                 usagePercent = (1.0 - (double)idleDelta / totalDelta) * 100.0;
                             }
                         }
-                        
+
                         _previousTotalIdle = idle;
                         _previousTotalSum = total;
                     }
@@ -99,18 +99,18 @@ public sealed class LinuxCpuInfoProvider : ICpuInfoProvider
                         if (int.TryParse(coreIdStr, out var coreId) && coreId < _processorCount)
                         {
                             var (_, idle, total) = ParseCpuLine(line);
-                            
+
                             if (_previousTotal[coreId] > 0)
                             {
                                 var idleDelta = idle - _previousIdle[coreId];
                                 var totalDelta = total - _previousTotal[coreId];
-                                
+
                                 if (totalDelta > 0)
                                 {
                                     perCoreUsage[coreId] = (1.0 - (double)idleDelta / totalDelta) * 100.0;
                                 }
                             }
-                            
+
                             _previousIdle[coreId] = idle;
                             _previousTotal[coreId] = total;
                         }
@@ -125,7 +125,7 @@ public sealed class LinuxCpuInfoProvider : ICpuInfoProvider
 
         frequencyMhz = GetCurrentFrequency();
         temperatureCelsius = GetTemperature();
-        
+
         return new CpuInfoData
         {
             UsagePercent = usagePercent,
@@ -140,10 +140,10 @@ public sealed class LinuxCpuInfoProvider : ICpuInfoProvider
     {
         // Format: cpu user nice system idle iowait irq softirq steal guest guest_nice
         var parts = line.Split(' ', StringSplitOptions.RemoveEmptyEntries);
-        
+
         if (parts.Length < 5)
             return (0, 0, 0);
-        
+
         long user = long.Parse(parts[1], CultureInfo.InvariantCulture);
         long nice = long.Parse(parts[2], CultureInfo.InvariantCulture);
         long system = long.Parse(parts[3], CultureInfo.InvariantCulture);
@@ -152,10 +152,10 @@ public sealed class LinuxCpuInfoProvider : ICpuInfoProvider
         long irq = parts.Length > 6 ? long.Parse(parts[6], CultureInfo.InvariantCulture) : 0;
         long softirq = parts.Length > 7 ? long.Parse(parts[7], CultureInfo.InvariantCulture) : 0;
         long steal = parts.Length > 8 ? long.Parse(parts[8], CultureInfo.InvariantCulture) : 0;
-        
+
         long total = user + nice + system + idle + iowait + irq + softirq + steal;
         long idleTotal = idle + iowait;
-        
+
         return (0, idleTotal, total);
     }
 
@@ -175,7 +175,7 @@ public sealed class LinuxCpuInfoProvider : ICpuInfoProvider
         {
             // Ignore errors
         }
-        
+
         return null;
     }
 
@@ -190,7 +190,7 @@ public sealed class LinuxCpuInfoProvider : ICpuInfoProvider
                 "/sys/class/hwmon/hwmon0/temp1_input",
                 "/sys/class/hwmon/hwmon1/temp1_input"
             ];
-            
+
             foreach (var path in thermalPaths)
             {
                 if (File.Exists(path))
@@ -204,7 +204,7 @@ public sealed class LinuxCpuInfoProvider : ICpuInfoProvider
         {
             // Ignore errors
         }
-        
+
         return null;
     }
 

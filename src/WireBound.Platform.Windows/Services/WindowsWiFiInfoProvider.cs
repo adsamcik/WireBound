@@ -12,26 +12,26 @@ namespace WireBound.Platform.Windows.Services;
 public sealed class WindowsWiFiInfoProvider : IWiFiInfoProvider
 {
     private readonly ILogger<WindowsWiFiInfoProvider> _logger;
-    
+
     public WindowsWiFiInfoProvider(ILogger<WindowsWiFiInfoProvider> logger)
     {
         _logger = logger;
     }
-    
+
     public bool IsSupported => true;
-    
+
     public WiFiInfo? GetWiFiInfo(string adapterId)
     {
         try
         {
             // Find the interface by matching adapter ID
             var interfaces = NativeWifi.EnumerateInterfaceConnections();
-            
+
             foreach (var iface in interfaces)
             {
                 // Try to match by interface GUID or description
                 var guidString = iface.Id.ToString();
-                
+
                 // adapterId from NetworkInterface might contain the GUID
                 if (adapterId.Contains(guidString, StringComparison.OrdinalIgnoreCase) ||
                     guidString.Contains(adapterId.Replace("{", "").Replace("}", ""), StringComparison.OrdinalIgnoreCase))
@@ -39,7 +39,7 @@ public sealed class WindowsWiFiInfoProvider : IWiFiInfoProvider
                     return GetWiFiInfoForInterface(iface);
                 }
             }
-            
+
             return null;
         }
         catch (Exception ex)
@@ -48,20 +48,20 @@ public sealed class WindowsWiFiInfoProvider : IWiFiInfoProvider
             return null;
         }
     }
-    
+
     public Dictionary<string, WiFiInfo> GetAllWiFiInfo()
     {
         var result = new Dictionary<string, WiFiInfo>();
-        
+
         try
         {
             var interfaces = NativeWifi.EnumerateInterfaceConnections();
-            
+
             foreach (var iface in interfaces)
             {
                 if (!iface.IsConnected)
                     continue;
-                    
+
                 var info = GetWiFiInfoForInterface(iface);
                 if (info != null)
                 {
@@ -74,22 +74,22 @@ public sealed class WindowsWiFiInfoProvider : IWiFiInfoProvider
         {
             _logger.LogDebug(ex, "Failed to enumerate WiFi interfaces");
         }
-        
+
         return result;
     }
-    
+
     private WiFiInfo? GetWiFiInfoForInterface(InterfaceConnectionInfo iface)
     {
         try
         {
             if (!iface.IsConnected)
                 return null;
-            
+
             // Get current connection info
             var (result, connection) = NativeWifi.GetCurrentConnection(iface.Id);
             if (result != ActionResult.Success || connection == null)
                 return null;
-            
+
             // Get signal strength (RSSI)
             int? rssi = null;
             var (rssiResult, rssiValue) = NativeWifi.GetRssi(iface.Id);
@@ -97,24 +97,24 @@ public sealed class WindowsWiFiInfoProvider : IWiFiInfoProvider
             {
                 rssi = rssiValue;
             }
-            
+
             // Get quality and link speed from connection info
             int? quality = connection.SignalQuality;
             int? rxRate = connection.RxRate / 1000; // Convert Kbps to Mbps
             int? txRate = connection.TxRate / 1000;
-            
+
             // Try to get channel/frequency from available networks
             int? channel = null;
             int? frequencyMhz = null;
             string? frequencyBand = null;
-            
+
             // Try to find the BSS network for more detailed info
             try
             {
                 var bssNetworks = NativeWifi.EnumerateBssNetworks()
                     .Where(n => n.InterfaceInfo.Id == iface.Id && n.Ssid.ToString() == connection.Ssid.ToString())
                     .FirstOrDefault();
-                    
+
                 if (bssNetworks != null)
                 {
                     channel = bssNetworks.Channel;
@@ -126,7 +126,7 @@ public sealed class WindowsWiFiInfoProvider : IWiFiInfoProvider
             {
                 // BSS enumeration might fail, continue without channel info
             }
-            
+
             return new WiFiInfo
             {
                 Ssid = connection.Ssid.ToString(),

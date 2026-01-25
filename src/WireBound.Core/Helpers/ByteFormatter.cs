@@ -9,7 +9,7 @@ public static class ByteFormatter
     /// Current speed display mode. When true, displays in bits (Mbps). When false, displays in bytes (MB/s).
     /// </summary>
     public static bool UseSpeedInBits { get; set; } = false;
-    
+
     /// <summary>
     /// Formats bytes per second into a human-readable speed string.
     /// Uses the current UseSpeedInBits setting to determine the unit.
@@ -20,7 +20,7 @@ public static class ByteFormatter
     {
         return UseSpeedInBits ? FormatSpeedInBits(bytesPerSecond) : FormatSpeedInBytes(bytesPerSecond);
     }
-    
+
     /// <summary>
     /// Formats bytes per second into bytes-based speed string (KB/s, MB/s, GB/s)
     /// </summary>
@@ -34,7 +34,7 @@ public static class ByteFormatter
             _ => $"{bytesPerSecond} B/s"
         };
     }
-    
+
     /// <summary>
     /// Formats bytes per second into bits-based speed string (Kbps, Mbps, Gbps)
     /// </summary>

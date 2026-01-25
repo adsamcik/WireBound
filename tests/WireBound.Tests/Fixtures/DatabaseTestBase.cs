@@ -12,25 +12,25 @@ public abstract class DatabaseTestBase : IDisposable
 {
     protected readonly IServiceProvider ServiceProvider;
     protected readonly string DatabaseName;
-    
+
     protected DatabaseTestBase()
     {
         DatabaseName = Guid.NewGuid().ToString();
-        
+
         var services = new ServiceCollection();
         services.AddDbContext<WireBoundDbContext>(options =>
             options.UseInMemoryDatabase(databaseName: DatabaseName));
-        
+
         ConfigureServices(services);
-        
+
         ServiceProvider = services.BuildServiceProvider();
-        
+
         // Initialize the database
         using var scope = ServiceProvider.CreateScope();
         var context = scope.ServiceProvider.GetRequiredService<WireBoundDbContext>();
         context.Database.EnsureCreated();
     }
-    
+
     /// <summary>
     /// Override to register additional services for testing.
     /// </summary>
@@ -38,7 +38,7 @@ public abstract class DatabaseTestBase : IDisposable
     {
         // Base implementation does nothing
     }
-    
+
     /// <summary>
     /// Gets a fresh database context for assertions.
     /// Remember to dispose the scope when done.
@@ -48,7 +48,7 @@ public abstract class DatabaseTestBase : IDisposable
         var scope = ServiceProvider.CreateScope();
         return scope.ServiceProvider.GetRequiredService<WireBoundDbContext>();
     }
-    
+
     /// <summary>
     /// Creates a scoped database context for operations that need explicit scope management.
     /// </summary>

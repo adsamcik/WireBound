@@ -27,7 +27,7 @@ public interface INetworkMonitorService
     /// Get stats for a specific adapter
     /// </summary>
     NetworkStats GetStats(string adapterId);
-    
+
     /// <summary>
     /// Get current stats for all active adapters
     /// </summary>

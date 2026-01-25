@@ -46,12 +46,12 @@ public sealed class DailyUsageItem
     public required long BytesSent { get; init; }
     public required long PeakDownloadSpeed { get; init; }
     public required long PeakUploadSpeed { get; init; }
-    
+
     /// <summary>
     /// Percentage change from previous day's total (-100 to +∞)
     /// </summary>
     public double? TrendPercent { get; init; }
-    
+
     public string DateFormatted => Date.ToString("ddd, MMM d");
     public string DownloadFormatted => ByteFormatter.FormatBytes(BytesReceived);
     public string UploadFormatted => ByteFormatter.FormatBytes(BytesSent);
@@ -59,7 +59,7 @@ public sealed class DailyUsageItem
     public string PeakDownloadFormatted => ByteFormatter.FormatSpeed(PeakDownloadSpeed);
     public string PeakUploadFormatted => ByteFormatter.FormatSpeed(PeakUploadSpeed);
     public long TotalBytes => BytesReceived + BytesSent;
-    
+
     public string TrendIndicator => TrendPercent switch
     {
         null => "",
@@ -67,7 +67,7 @@ public sealed class DailyUsageItem
         < -10 => "↓",
         _ => "→"
     };
-    
+
     public string TrendColor => TrendPercent switch
     {
         null => "#A0A8B8",
@@ -75,7 +75,7 @@ public sealed class DailyUsageItem
         < -10 => "#00C9A7", // Success color - less usage
         _ => "#A0A8B8"      // Secondary text - stable
     };
-    
+
     public string TrendTooltip => TrendPercent switch
     {
         null => "No previous data",
@@ -95,7 +95,7 @@ public sealed class HourlyUsageItem
     public required long BytesSent { get; init; }
     public required long PeakDownloadSpeed { get; init; }
     public required long PeakUploadSpeed { get; init; }
-    
+
     public string HourFormatted => Hour.ToString("h tt");
     public string DownloadFormatted => ByteFormatter.FormatBytes(BytesReceived);
     public string UploadFormatted => ByteFormatter.FormatBytes(BytesSent);
@@ -264,7 +264,7 @@ public sealed partial class HistoryViewModel : ObservableObject, IDisposable
         _persistence = persistence;
         _logger = logger;
         _selectedPeriod = PeriodOptions[1]; // Default to 30 days
-        
+
         XAxes =
         [
             new Axis
@@ -277,7 +277,7 @@ public sealed partial class HistoryViewModel : ObservableObject, IDisposable
                 LabelsRotation = -45
             }
         ];
-        
+
         _ = LoadDataAsync();
     }
 
@@ -329,7 +329,7 @@ public sealed partial class HistoryViewModel : ObservableObject, IDisposable
     {
         var sorted = SortColumn switch
         {
-            SortColumn.Date => SortAscending 
+            SortColumn.Date => SortAscending
                 ? DailyUsages.OrderBy(x => x.Date).ToList()
                 : DailyUsages.OrderByDescending(x => x.Date).ToList(),
             SortColumn.Download => SortAscending
@@ -412,7 +412,7 @@ public sealed partial class HistoryViewModel : ObservableObject, IDisposable
             CloseHourlyPanel();
             return;
         }
-        
+
         SelectedDay = day;
         _ = LoadHourlyDataAsync(day.Date);
     }
@@ -464,10 +464,10 @@ public sealed partial class HistoryViewModel : ObservableObject, IDisposable
             }
 
             await File.WriteAllLinesAsync(filePath, lines);
-            
+
             ExportSuccess = true;
             ExportStatusMessage = $"Exported to {fileName}";
-            
+
             // Try to open the file location
             try
             {
@@ -545,23 +545,23 @@ public sealed partial class HistoryViewModel : ObservableObject, IDisposable
             // Load current and previous period data in parallel
             var usagesTask = _persistence.GetDailyUsageAsync(startDate, endDate);
             var previousUsagesTask = _persistence.GetDailyUsageAsync(previousPeriodStart, startDate.AddDays(-1));
-            
+
             await Task.WhenAll(usagesTask, previousUsagesTask);
-            
+
             ct.ThrowIfCancellationRequested();
-            
+
             var usages = await usagesTask;
             var previousUsages = await previousUsagesTask;
 
             // Build daily items with trends
             DailyUsages.Clear();
             DailyUsageItem? previousItem = null;
-            
+
             foreach (var usage in usages.OrderByDescending(u => u.Date))
             {
                 var currentTotal = usage.BytesReceived + usage.BytesSent;
                 double? trendPercent = null;
-                
+
                 if (previousItem != null && previousItem.TotalBytes > 0)
                 {
                     trendPercent = ((double)currentTotal / previousItem.TotalBytes - 1) * 100;
@@ -576,7 +576,7 @@ public sealed partial class HistoryViewModel : ObservableObject, IDisposable
                     PeakUploadSpeed = usage.PeakUploadSpeed,
                     TrendPercent = trendPercent
                 };
-                
+
                 DailyUsages.Add(item);
                 previousItem = item;
             }
@@ -590,7 +590,7 @@ public sealed partial class HistoryViewModel : ObservableObject, IDisposable
                 var totalUp = usages.Sum(u => u.BytesSent);
                 var total = totalDown + totalUp;
                 var activeDays = usages.Count;
-                
+
                 TotalDownload = ByteFormatter.FormatBytes(totalDown);
                 TotalUpload = ByteFormatter.FormatBytes(totalUp);
                 TotalUsage = ByteFormatter.FormatBytes(total);
@@ -609,8 +609,8 @@ public sealed partial class HistoryViewModel : ObservableObject, IDisposable
                 {
                     var trendPercent = ((double)total / previousTotal - 1) * 100;
                     TrendIsPositive = trendPercent >= 0;
-                    TrendVsPreviousPeriod = trendPercent >= 0 
-                        ? $"+{trendPercent:F0}%" 
+                    TrendVsPreviousPeriod = trendPercent >= 0
+                        ? $"+{trendPercent:F0}%"
                         : $"{trendPercent:F0}%";
                 }
                 else
@@ -672,7 +672,7 @@ public sealed partial class HistoryViewModel : ObservableObject, IDisposable
         var uploadColor = ChartColors.UploadColor;
 
         var labels = usages.Select(u => u.Date.ToString("M/d")).ToArray();
-        
+
         // Update X axis labels
         XAxes[0].Labels = labels;
 
@@ -709,21 +709,21 @@ public sealed partial class HistoryViewModel : ObservableObject, IDisposable
         try
         {
             var hourlyData = await _persistence.GetHourlyUsageAsync(date);
-            
+
             ct.ThrowIfCancellationRequested();
-        
-        HourlyUsages.Clear();
-        foreach (var hour in hourlyData.OrderBy(h => h.Hour))
-        {
-            HourlyUsages.Add(new HourlyUsageItem
+
+            HourlyUsages.Clear();
+            foreach (var hour in hourlyData.OrderBy(h => h.Hour))
             {
-                Hour = hour.Hour,
-                BytesReceived = hour.BytesReceived,
-                BytesSent = hour.BytesSent,
-                PeakDownloadSpeed = hour.PeakDownloadSpeed,
-                PeakUploadSpeed = hour.PeakUploadSpeed
-            });
-        }
+                HourlyUsages.Add(new HourlyUsageItem
+                {
+                    Hour = hour.Hour,
+                    BytesReceived = hour.BytesReceived,
+                    BytesSent = hour.BytesSent,
+                    PeakDownloadSpeed = hour.PeakDownloadSpeed,
+                    PeakUploadSpeed = hour.PeakUploadSpeed
+                });
+            }
 
             // Build hourly chart
             if (HourlyUsages.Count > 0)
@@ -748,7 +748,7 @@ public sealed partial class HistoryViewModel : ObservableObject, IDisposable
     {
         if (_disposed) return;
         _disposed = true;
-        
+
         _loadCts?.Cancel();
         _loadCts?.Dispose();
         _hourlyCts?.Cancel();

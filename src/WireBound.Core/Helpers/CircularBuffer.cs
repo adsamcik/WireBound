@@ -23,7 +23,7 @@ public class CircularBuffer<T>
     {
         _buffer[_head] = item;
         _head = (_head + 1) % _buffer.Length;
-        
+
         if (_count == _buffer.Length)
             _tail = (_tail + 1) % _buffer.Length;
         else

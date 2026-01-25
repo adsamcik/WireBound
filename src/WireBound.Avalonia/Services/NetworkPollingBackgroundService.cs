@@ -81,14 +81,14 @@ public sealed class NetworkPollingBackgroundService : BackgroundService, INetwor
                 {
                     // Poll network stats
                     _networkMonitor.Poll();
-                    
+
                     // Poll system stats (CPU, RAM)
                     _systemMonitor.Poll();
-                    
+
                     // Record system stats sample for historical tracking
                     var systemStats = _systemMonitor.GetCurrentStats();
                     await _systemHistory.RecordSampleAsync(systemStats).ConfigureAwait(false);
-                    
+
                     // Update tray icon with current activity
                     var currentStats = _networkMonitor.GetCurrentStats();
                     _trayIcon.UpdateActivity(currentStats.DownloadSpeedBps, currentStats.UploadSpeedBps);
@@ -102,7 +102,7 @@ public sealed class NetworkPollingBackgroundService : BackgroundService, INetwor
                         await FlushSnapshotBufferAsync().ConfigureAwait(false);
                         _snapshotFlushStopwatch.Restart();
                     }
-                    
+
                     // Aggregate system stats periodically (every 5 minutes)
                     if (_systemStatsAggregationStopwatch.Elapsed.TotalMinutes >= SystemStatsAggregationIntervalMinutes)
                     {

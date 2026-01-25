@@ -32,7 +32,7 @@ public sealed class WindowsMemoryInfoProvider : IMemoryInfoProvider
     public MemoryInfoData GetMemoryInfo()
     {
         var memStatus = new MEMORYSTATUSEX { dwLength = (uint)Marshal.SizeOf<MEMORYSTATUSEX>() };
-        
+
         if (!GlobalMemoryStatusEx(ref memStatus))
         {
             // Fallback to GC memory info if native call fails
@@ -46,7 +46,7 @@ public sealed class WindowsMemoryInfoProvider : IMemoryInfoProvider
                 UsedVirtualBytes = 0
             };
         }
-        
+
         return new MemoryInfoData
         {
             TotalBytes = (long)memStatus.ullTotalPhys,
@@ -60,12 +60,12 @@ public sealed class WindowsMemoryInfoProvider : IMemoryInfoProvider
     public long GetTotalPhysicalMemory()
     {
         var memStatus = new MEMORYSTATUSEX { dwLength = (uint)Marshal.SizeOf<MEMORYSTATUSEX>() };
-        
+
         if (GlobalMemoryStatusEx(ref memStatus))
         {
             return (long)memStatus.ullTotalPhys;
         }
-        
+
         return GC.GetGCMemoryInfo().TotalAvailableMemoryBytes;
     }
 

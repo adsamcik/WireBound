@@ -13,9 +13,9 @@ namespace WireBound.Platform.Windows;
 public sealed class WindowsPlatformServices : IPlatformServices
 {
     public static readonly WindowsPlatformServices Instance = new();
-    
+
     private WindowsPlatformServices() { }
-    
+
     public void Register(IServiceCollection services)
     {
         services.AddSingleton<IStartupService, WindowsStartupService>();

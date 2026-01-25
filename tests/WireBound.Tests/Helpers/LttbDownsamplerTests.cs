@@ -146,7 +146,7 @@ public class LttbDownsamplerTests
         // First point should match
         result.First().DateTime.Should().Be(data.First().DateTime);
         result.First().Value.Should().Be(data.First().Value);
-        
+
         // Last point should match
         result.Last().DateTime.Should().Be(data.Last().DateTime);
         result.Last().Value.Should().Be(data.Last().Value);
@@ -181,16 +181,16 @@ public class LttbDownsamplerTests
         // Arrange - Create data with a clear peak
         var baseTime = DateTime.Now;
         var data = new List<DateTimePoint>();
-        
+
         // Build up to peak
         for (int i = 0; i < 50; i++)
         {
             data.Add(new DateTimePoint(baseTime.AddSeconds(i), i * 2));
         }
-        
+
         // Peak at index 50
         data.Add(new DateTimePoint(baseTime.AddSeconds(50), 1000));
-        
+
         // Fall back down
         for (int i = 51; i < 100; i++)
         {
@@ -210,16 +210,16 @@ public class LttbDownsamplerTests
         // Arrange - Create data with a clear valley
         var baseTime = DateTime.Now;
         var data = new List<DateTimePoint>();
-        
+
         // Start high
         for (int i = 0; i < 50; i++)
         {
             data.Add(new DateTimePoint(baseTime.AddSeconds(i), 100 - i));
         }
-        
+
         // Valley at index 50
         data.Add(new DateTimePoint(baseTime.AddSeconds(50), -100));
-        
+
         // Rise back up
         for (int i = 51; i < 100; i++)
         {
@@ -251,10 +251,10 @@ public class LttbDownsamplerTests
         // Original max should be ~100, min should be ~-100
         var originalMax = data.Max(p => p.Value ?? 0);
         var originalMin = data.Min(p => p.Value ?? 0);
-        
+
         var resultMax = result.Max(p => p.Value ?? 0);
         var resultMin = result.Min(p => p.Value ?? 0);
-        
+
         // Downsampled should preserve extremes with some tolerance
         resultMax.Should().BeGreaterThan(originalMax * 0.9);
         resultMin.Should().BeLessThan(originalMin * 0.9);
@@ -376,7 +376,7 @@ public class LttbDownsamplerTests
         // Arrange - Step function: 0,0,0...100,100,100...0,0,0
         var baseTime = DateTime.Now;
         var data = new List<DateTimePoint>();
-        
+
         for (int i = 0; i < 30; i++)
             data.Add(new DateTimePoint(baseTime.AddSeconds(i), 0));
         for (int i = 30; i < 60; i++)
@@ -399,7 +399,7 @@ public class LttbDownsamplerTests
         // Arrange - Mostly flat with occasional spikes
         var baseTime = DateTime.Now;
         var data = new List<DateTimePoint>();
-        
+
         for (int i = 0; i < 100; i++)
         {
             var value = (i % 25 == 0) ? 1000 : 10; // Spike every 25 points

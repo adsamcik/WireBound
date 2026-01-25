@@ -64,7 +64,7 @@ public sealed class DnsResolverService : IDnsResolverService, IDisposable
 
                 var entry = await Dns.GetHostEntryAsync(ipAddress, cancellationToken);
                 hostname = entry.HostName;
-                
+
                 // Don't cache if hostname is same as IP (failed resolution)
                 if (hostname != ipAddress)
                 {
@@ -75,7 +75,7 @@ public sealed class DnsResolverService : IDnsResolverService, IDisposable
                 {
                     AddToCache(ipAddress, null);
                 }
-                
+
                 return hostname != ipAddress ? hostname : null;
             }
             finally
@@ -156,7 +156,7 @@ public sealed class DnsResolverService : IDnsResolverService, IDisposable
         }
 
         _cache[ipAddress] = new DnsCacheEntry(hostname, DateTime.UtcNow);
-        
+
         lock (_lruLock)
         {
             _lruList.AddFirst(ipAddress);

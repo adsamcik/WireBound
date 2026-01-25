@@ -46,7 +46,7 @@ public static class LttbDownsampler
 
             double avgX = 0, avgY = 0;
             int nextBucketCount = nextBucketEnd - nextBucketStart;
-            
+
             if (nextBucketCount > 0)
             {
                 for (int j = nextBucketStart; j < nextBucketEnd; j++)

@@ -120,15 +120,15 @@ public sealed class WireBoundDbContext : DbContext
         {
             // Check and add SpeedUnit column to Settings table if missing (replaces old UseSpeedInBits)
             AddColumnIfNotExists(connection, "Settings", "SpeedUnit", "INTEGER NOT NULL DEFAULT 0");
-            
+
             // Add StartMinimized column if missing
             AddColumnIfNotExists(connection, "Settings", "StartMinimized", "INTEGER NOT NULL DEFAULT 0");
-            
+
             // Add per-app tracking columns if missing
             AddColumnIfNotExists(connection, "Settings", "IsPerAppTrackingEnabled", "INTEGER NOT NULL DEFAULT 0");
             AddColumnIfNotExists(connection, "Settings", "AppDataRetentionDays", "INTEGER NOT NULL DEFAULT 0");
             AddColumnIfNotExists(connection, "Settings", "AppDataAggregateAfterDays", "INTEGER NOT NULL DEFAULT 7");
-            
+
             // Legacy: remove UseSpeedInBits if it exists and SpeedUnit exists
             // (handled by SQLite ignoring non-existent columns on DROP)
         }

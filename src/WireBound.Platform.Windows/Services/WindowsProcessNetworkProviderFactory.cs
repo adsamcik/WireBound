@@ -5,27 +5,59 @@ namespace WireBound.Platform.Windows.Services;
 
 /// <summary>
 /// Windows implementation of IProcessNetworkProviderFactory.
-/// Manages the Windows process network provider and handles elevation requests.
 /// </summary>
+/// <remarks>
+/// <para>
+/// This factory creates the appropriate network provider based on helper connection state.
+/// Elevation is handled by <see cref="IElevationService"/> - this factory does NOT
+/// perform any elevation itself.
+/// </para>
+/// <para>
+/// When the helper is connected, the factory can provide an elevated provider
+/// that communicates with the helper via named pipes.
+/// </para>
+/// </remarks>
 [SupportedOSPlatform("windows")]
 public sealed class WindowsProcessNetworkProviderFactory : IProcessNetworkProviderFactory
 {
-    private readonly WindowsProcessNetworkProvider _provider = new();
-    private bool _hasElevatedProvider;
+    private readonly WindowsProcessNetworkProvider _basicProvider = new();
+    private readonly IElevationService? _elevationService;
+    private IProcessNetworkProvider? _elevatedProvider;
 
-    public bool HasElevatedProvider => _hasElevatedProvider;
-
-#pragma warning disable CS0067 // Event is never used (required by interface, future elevation support)
-    public event EventHandler<ProviderChangedEventArgs>? ProviderChanged;
-#pragma warning restore CS0067
-
-    public IProcessNetworkProvider GetProvider() => _provider;
-
-    public Task<bool> TryElevateAsync(CancellationToken cancellationToken = default)
+    public WindowsProcessNetworkProviderFactory(IElevationService? elevationService = null)
     {
-        // TODO: Implement elevation via helper process
-        // For now, we just indicate we don't have elevated capabilities
-        _hasElevatedProvider = false;
-        return Task.FromResult(false);
+        _elevationService = elevationService;
+        if (_elevationService != null)
+        {
+            _elevationService.HelperConnectionStateChanged += OnHelperConnectionStateChanged;
+        }
+    }
+
+    public bool HasElevatedProvider => _elevationService?.IsHelperConnected == true;
+
+    public event EventHandler<ProviderChangedEventArgs>? ProviderChanged;
+
+    public IProcessNetworkProvider GetProvider()
+    {
+        // Return elevated provider if helper is connected, otherwise basic provider
+        if (HasElevatedProvider && _elevatedProvider != null)
+        {
+            return _elevatedProvider;
+        }
+        return _basicProvider;
+    }
+
+    private void OnHelperConnectionStateChanged(object? sender, HelperConnectionStateChangedEventArgs e)
+    {
+        if (e.IsConnected)
+        {
+            // TODO: Create elevated provider that uses helper connection
+            // _elevatedProvider = new WindowsElevatedProcessNetworkProvider(_elevationService!.GetHelperConnection()!);
+        }
+        else
+        {
+            _elevatedProvider = null;
+        }
+        ProviderChanged?.Invoke(this, new ProviderChangedEventArgs(GetProvider()));
     }
 }

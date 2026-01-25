@@ -293,25 +293,6 @@ public sealed class LinuxElevationService : IElevationService, IAsyncDisposable
         HelperConnectionStateChanged?.Invoke(this, new HelperConnectionStateChangedEventArgs(isConnected, reason));
     }
 
-    // === Legacy Methods (Full App Elevation) ===
-    // These are for backwards compatibility. On Linux, full app elevation is not supported.
-
-    /// <inheritdoc />
-    public Task<ElevationResult> TryElevateAsync()
-    {
-        // Linux doesn't support full app elevation like Windows UAC
-        // Use the helper process approach instead
-        _logger?.LogInformation("Full app elevation not supported on Linux. Use helper process instead.");
-        return Task.FromResult(ElevationResult.NotSupported());
-    }
-
-    /// <inheritdoc />
-    public void ExitAfterElevation()
-    {
-        // No-op on Linux
-        _logger?.LogWarning("ExitAfterElevation called on Linux - this is a no-op");
-    }
-
     public async ValueTask DisposeAsync()
     {
         if (_disposed) return;

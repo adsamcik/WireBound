@@ -124,50 +124,6 @@ public interface IElevationService
     /// Event raised when the helper connection state changes.
     /// </summary>
     event EventHandler<HelperConnectionStateChangedEventArgs>? HelperConnectionStateChanged;
-    
-    // === Legacy Methods (Full App Elevation) ===
-    // These methods are for the current implementation where the entire app is elevated.
-    // They will be deprecated when the helper process architecture is fully implemented.
-    
-    /// <summary>
-    /// Attempts to restart the application with elevated privileges.
-    /// </summary>
-    /// <remarks>
-    /// <para>
-    /// <b>IMPORTANT:</b> The caller should display a confirmation dialog BEFORE calling
-    /// this method. This method does not provide its own confirmation UI.
-    /// </para>
-    /// <para>
-    /// On Windows, this triggers a UAC prompt. On Linux, this would use pkexec or similar.
-    /// </para>
-    /// <para>
-    /// If successful on Windows, the caller should call <see cref="ExitAfterElevation"/>
-    /// to cleanly exit the current process.
-    /// </para>
-    /// <para>
-    /// <b>Note:</b> This method will be deprecated in favor of <see cref="StartHelperAsync"/>
-    /// when the helper process architecture is fully implemented.
-    /// </para>
-    /// </remarks>
-    /// <returns>
-    /// A result indicating success, failure, or cancellation.
-    /// Success means a new elevated process was started.
-    /// </returns>
-    Task<ElevationResult> TryElevateAsync();
-
-    /// <summary>
-    /// Cleanly exits the current process after successful elevation.
-    /// Only call this after <see cref="TryElevateAsync"/> returns <see cref="ElevationStatus.Success"/>.
-    /// </summary>
-    /// <remarks>
-    /// This is separated from TryElevateAsync to give the caller control over
-    /// when to exit, allowing for proper cleanup if needed.
-    /// <para>
-    /// <b>Note:</b> This method will be deprecated when the helper process architecture
-    /// is fully implemented, as the main process will no longer need to restart.
-    /// </para>
-    /// </remarks>
-    void ExitAfterElevation();
 }
 
 /// <summary>

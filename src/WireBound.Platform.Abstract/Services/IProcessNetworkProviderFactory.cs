@@ -2,30 +2,40 @@ namespace WireBound.Platform.Abstract.Services;
 
 /// <summary>
 /// Factory for creating process network providers.
-/// Handles runtime switching between elevated and non-elevated providers.
 /// </summary>
+/// <remarks>
+/// <para>
+/// <b>Elevation Model:</b> This factory does NOT handle elevation directly.
+/// Elevation is managed exclusively by <see cref="IElevationService"/> which
+/// starts a minimal helper process. Once the helper is connected, this factory
+/// can provide an elevated provider that communicates with the helper.
+/// </para>
+/// <para>
+/// To get elevated capabilities:
+/// <list type="number">
+/// <item>Call <see cref="IElevationService.StartHelperAsync"/> to start the helper</item>
+/// <item>Once connected, call <see cref="GetProvider"/> to get the elevated provider</item>
+/// </list>
+/// </para>
+/// </remarks>
 public interface IProcessNetworkProviderFactory
 {
     /// <summary>
-    /// Get the current provider based on the current elevation state.
+    /// Get the current provider based on the current helper connection state.
     /// </summary>
+    /// <remarks>
+    /// Returns an elevated provider if the helper is connected, otherwise
+    /// returns a basic provider with limited capabilities.
+    /// </remarks>
     IProcessNetworkProvider GetProvider();
     
     /// <summary>
-    /// Check if an elevated provider is available.
+    /// Check if an elevated provider is available (helper is connected).
     /// </summary>
     bool HasElevatedProvider { get; }
     
     /// <summary>
-    /// Attempt to switch to an elevated provider.
-    /// This may trigger a UAC prompt on Windows or sudo on Linux.
-    /// </summary>
-    /// <param name="cancellationToken">Cancellation token</param>
-    /// <returns>True if elevation succeeded and provider was switched</returns>
-    Task<bool> TryElevateAsync(CancellationToken cancellationToken = default);
-    
-    /// <summary>
-    /// Event raised when the provider changes (e.g., after elevation).
+    /// Event raised when the provider changes (e.g., when helper connects/disconnects).
     /// </summary>
     event EventHandler<ProviderChangedEventArgs>? ProviderChanged;
 }

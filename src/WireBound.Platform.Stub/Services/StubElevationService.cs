@@ -58,16 +58,4 @@ public sealed class StubElevationService : IElevationService
     {
         return false;
     }
-
-    /// <inheritdoc />
-    public Task<ElevationResult> TryElevateAsync()
-    {
-        return Task.FromResult(ElevationResult.NotSupported());
-    }
-
-    /// <inheritdoc />
-    public void ExitAfterElevation()
-    {
-        // No-op in stub implementation
-    }
 }

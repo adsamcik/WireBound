@@ -74,19 +74,46 @@ public sealed partial class ApplicationsViewModel : ObservableObject
         // Per-app network tracking requires IProcessNetworkService which is now implemented
         IsPlatformSupported = _processNetworkService?.IsPlatformSupported ?? false;
         IsPerAppTrackingEnabled = _processNetworkService?.IsRunning == true;
+        
+        // Check if helper is needed but not connected
         RequiresElevation = _elevationService.RequiresElevationFor(ElevatedFeature.PerProcessNetworkMonitoring) 
-                            && _elevationService.IsElevationSupported;
+                            && _elevationService.IsElevationSupported
+                            && !_elevationService.IsHelperConnected;
 
         if (_processNetworkService != null)
         {
             _processNetworkService.StatsUpdated += OnProcessStatsUpdated;
             _processNetworkService.ErrorOccurred += OnProcessErrorOccurred;
-            
-            // Start monitoring if not already running
-            _ = StartMonitoringAsync();
         }
+        
+        // Subscribe to helper state changes
+        _elevationService.HelperConnectionStateChanged += OnHelperConnectionStateChanged;
 
-        _ = LoadDataAsync();
+        _ = InitializeAsync();
+    }
+    
+    private void OnHelperConnectionStateChanged(object? sender, HelperConnectionStateChangedEventArgs e)
+    {
+        Dispatcher.UIThread.Post(() =>
+        {
+            RequiresElevation = !e.IsConnected 
+                               && _elevationService.IsElevationSupported 
+                               && _elevationService.RequiresElevationFor(ElevatedFeature.PerProcessNetworkMonitoring);
+        });
+    }
+    
+    private async Task InitializeAsync()
+    {
+        // Load settings to check if per-app tracking is enabled
+        var settings = await _persistence.GetSettingsAsync();
+        
+        if (settings.IsPerAppTrackingEnabled && _processNetworkService != null)
+        {
+            // Only start monitoring if the setting is enabled
+            await StartMonitoringAsync();
+        }
+        
+        await LoadDataAsync();
     }
 
     private async Task StartMonitoringAsync()
@@ -176,30 +203,39 @@ public sealed partial class ApplicationsViewModel : ObservableObject
             return;
         }
 
+        if (_elevationService.IsHelperConnected)
+        {
+            _logger?.LogDebug("Helper already connected, no elevation needed");
+            return;
+        }
+
         IsRequestingElevation = true;
         try
         {
-            _logger?.LogInformation("User requested application elevation from Applications view");
+            _logger?.LogInformation("User requested to start elevated helper from Applications view");
             
-            var result = await _elevationService.TryElevateAsync();
+            // Start the minimal helper process (NOT elevate the entire app)
+            var result = await _elevationService.StartHelperAsync();
             
             if (result.IsSuccess)
             {
-                _logger?.LogInformation("Elevation successful, exiting current process");
-                _elevationService.ExitAfterElevation();
+                _logger?.LogInformation("Helper process started successfully");
+                RequiresElevation = false;
+                // Restart monitoring now that we have elevated access
+                await StartMonitoringAsync();
             }
             else if (result.Status == ElevationStatus.Cancelled)
             {
-                _logger?.LogInformation("User cancelled elevation request");
+                _logger?.LogInformation("User cancelled helper elevation request");
             }
             else
             {
-                _logger?.LogWarning("Elevation failed: {Error}", result.ErrorMessage);
+                _logger?.LogWarning("Failed to start helper: {Error}", result.ErrorMessage);
             }
         }
         catch (Exception ex)
         {
-            _logger?.LogError(ex, "Unexpected error during elevation request");
+            _logger?.LogError(ex, "Unexpected error during helper start request");
         }
         finally
         {

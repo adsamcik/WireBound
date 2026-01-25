@@ -15,6 +15,10 @@ public sealed class StubElevationService : IElevationService
 {
     /// <inheritdoc />
     /// <remarks>Always returns false in stub implementation.</remarks>
+    public bool IsHelperConnected => false;
+
+    /// <inheritdoc />
+    /// <remarks>Always returns false in stub implementation.</remarks>
     public bool IsElevated => false;
 
     /// <inheritdoc />
@@ -26,6 +30,36 @@ public sealed class StubElevationService : IElevationService
     public bool IsElevationSupported => false;
 
     /// <inheritdoc />
+#pragma warning disable CS0067 // Event is never used in stub
+    public event EventHandler<HelperConnectionStateChangedEventArgs>? HelperConnectionStateChanged;
+#pragma warning restore CS0067
+
+    /// <inheritdoc />
+    public Task<ElevationResult> StartHelperAsync(CancellationToken cancellationToken = default)
+    {
+        return Task.FromResult(ElevationResult.NotSupported());
+    }
+
+    /// <inheritdoc />
+    public Task StopHelperAsync()
+    {
+        return Task.CompletedTask;
+    }
+
+    /// <inheritdoc />
+    public IHelperConnection? GetHelperConnection()
+    {
+        return null;
+    }
+
+    /// <inheritdoc />
+    /// <remarks>Always returns false since no features require elevation in stub.</remarks>
+    public bool RequiresElevationFor(ElevatedFeature feature)
+    {
+        return false;
+    }
+
+    /// <inheritdoc />
     public Task<ElevationResult> TryElevateAsync()
     {
         return Task.FromResult(ElevationResult.NotSupported());
@@ -35,12 +69,5 @@ public sealed class StubElevationService : IElevationService
     public void ExitAfterElevation()
     {
         // No-op in stub implementation
-    }
-
-    /// <inheritdoc />
-    /// <remarks>Always returns false since no features require elevation in stub.</remarks>
-    public bool RequiresElevationFor(ElevatedFeature feature)
-    {
-        return false;
     }
 }

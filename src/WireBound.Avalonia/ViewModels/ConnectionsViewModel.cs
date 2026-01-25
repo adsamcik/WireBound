@@ -97,6 +97,7 @@ public sealed partial class ConnectionsViewModel : ObservableObject, IDisposable
 {
     private readonly IProcessNetworkService? _processNetworkService;
     private readonly IDnsResolverService? _dnsResolver;
+    private readonly IElevationService _elevationService;
     private readonly Dictionary<string, ConnectionDisplayItem> _connectionMap = new();
     private readonly System.Timers.Timer _refreshTimer;
     private bool _disposed;
@@ -151,14 +152,17 @@ public sealed partial class ConnectionsViewModel : ObservableObject, IDisposable
 
     public ConnectionsViewModel(
         IProcessNetworkService processNetworkService,
-        IDnsResolverService dnsResolver)
+        IDnsResolverService dnsResolver,
+        IElevationService elevationService)
     {
         _processNetworkService = processNetworkService;
         _dnsResolver = dnsResolver;
+        _elevationService = elevationService;
 
         IsPlatformSupported = _processNetworkService?.IsPlatformSupported ?? false;
         IsMonitoring = _processNetworkService?.IsRunning == true;
-        RequiresElevation = !(_processNetworkService?.HasRequiredPrivileges ?? true);
+        RequiresElevation = _elevationService.RequiresElevationFor(ElevatedFeature.PerProcessNetworkMonitoring) 
+                            && _elevationService.IsElevationSupported;
 
         // Set up refresh timer (2 seconds)
         _refreshTimer = new System.Timers.Timer(2000);

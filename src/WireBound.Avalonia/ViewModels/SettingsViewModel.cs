@@ -19,6 +19,7 @@ public sealed partial class SettingsViewModel : ObservableObject
     private readonly INetworkMonitorService _networkMonitor;
     private readonly IStartupService _startupService;
     private readonly IElevationService _elevationService;
+    private readonly IProcessNetworkService _processNetworkService;
     private readonly ILogger<SettingsViewModel>? _logger;
     private CancellationTokenSource? _autoSaveCts;
     private bool _isLoading = true;
@@ -109,7 +110,29 @@ public sealed partial class SettingsViewModel : ObservableObject
     partial void OnSelectedAdapterChanged(NetworkAdapter? value) => ScheduleAutoSave();
     partial void OnPollingIntervalMsChanged(int value) => ScheduleAutoSave();
     partial void OnUseIpHelperApiChanged(bool value) => ScheduleAutoSave();
-    partial void OnIsPerAppTrackingEnabledChanged(bool value) => ScheduleAutoSave();
+    partial void OnIsPerAppTrackingEnabledChanged(bool value)
+    {
+        ScheduleAutoSave();
+        _ = ApplyPerAppTrackingSettingAsync(value);
+    }
+    
+    private async Task ApplyPerAppTrackingSettingAsync(bool enabled)
+    {
+        if (_isLoading) return;
+        
+        if (enabled)
+        {
+            var started = await _processNetworkService.StartAsync();
+            if (!started)
+            {
+                _logger?.LogWarning("Failed to start per-app network tracking service");
+            }
+        }
+        else
+        {
+            await _processNetworkService.StopAsync();
+        }
+    }
     partial void OnStartWithWindowsChanged(bool value) => ScheduleAutoSave();
     partial void OnMinimizeToTrayChanged(bool value) => ScheduleAutoSave();
     partial void OnStartMinimizedChanged(bool value) => ScheduleAutoSave();
@@ -157,12 +180,14 @@ public sealed partial class SettingsViewModel : ObservableObject
         INetworkMonitorService networkMonitor,
         IStartupService startupService,
         IElevationService elevationService,
+        IProcessNetworkService processNetworkService,
         ILogger<SettingsViewModel>? logger = null)
     {
         _persistence = persistence;
         _networkMonitor = networkMonitor;
         _startupService = startupService;
         _elevationService = elevationService;
+        _processNetworkService = processNetworkService;
         _logger = logger;
 
         LoadSettings();
@@ -212,10 +237,21 @@ public sealed partial class SettingsViewModel : ObservableObject
         SelectedAdapter = Adapters.FirstOrDefault(a => a.Id == settings.SelectedAdapterId);
 
         // Check elevation status using the platform service
-        IsElevated = _elevationService.IsElevated;
+        // IsElevated reflects whether the helper is connected (NOT whether the main app is elevated)
+        IsElevated = _elevationService.IsHelperConnected;
         RequiresElevation = _elevationService.RequiresElevation && _elevationService.IsElevationSupported;
+        
+        // Subscribe to helper state changes
+        _elevationService.HelperConnectionStateChanged += OnHelperConnectionStateChanged;
 
         _isLoading = false;
+    }
+    
+    private void OnHelperConnectionStateChanged(object? sender, HelperConnectionStateChangedEventArgs e)
+    {
+        // Update UI state when helper connection changes
+        IsElevated = e.IsConnected;
+        RequiresElevation = !e.IsConnected && _elevationService.IsElevationSupported;
     }
 
     private async Task LoadStartupStateAsync()
@@ -292,30 +328,39 @@ public sealed partial class SettingsViewModel : ObservableObject
             return;
         }
 
+        if (_elevationService.IsHelperConnected)
+        {
+            _logger?.LogDebug("Helper already connected, no elevation needed");
+            return;
+        }
+
         IsRequestingElevation = true;
         try
         {
-            _logger?.LogInformation("User requested application elevation from Settings");
+            _logger?.LogInformation("User requested to start elevated helper from Settings");
             
-            var result = await _elevationService.TryElevateAsync();
+            // Start the minimal helper process (NOT elevate the entire app)
+            var result = await _elevationService.StartHelperAsync();
             
             if (result.IsSuccess)
             {
-                _logger?.LogInformation("Elevation successful, exiting current process");
-                _elevationService.ExitAfterElevation();
+                _logger?.LogInformation("Helper process started successfully");
+                // Update elevation status
+                IsElevated = _elevationService.IsHelperConnected;
+                RequiresElevation = _elevationService.RequiresElevation;
             }
             else if (result.Status == ElevationStatus.Cancelled)
             {
-                _logger?.LogInformation("User cancelled elevation request");
+                _logger?.LogInformation("User cancelled helper elevation request");
             }
             else
             {
-                _logger?.LogWarning("Elevation failed: {Error}", result.ErrorMessage);
+                _logger?.LogWarning("Failed to start helper: {Error}", result.ErrorMessage);
             }
         }
         catch (Exception ex)
         {
-            _logger?.LogError(ex, "Unexpected error during elevation request");
+            _logger?.LogError(ex, "Unexpected error during helper start request");
         }
         finally
         {

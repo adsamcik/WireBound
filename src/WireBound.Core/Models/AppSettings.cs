@@ -64,7 +64,7 @@ public class AppSettings
     
     /// <summary>
     /// Whether per-application network tracking is enabled.
-    /// This feature requires elevated privileges on Windows and triggers UAC when enabled.
+    /// This feature requires the elevated helper process to be connected.
     /// </summary>
     public bool IsPerAppTrackingEnabled { get; set; } = false;
     

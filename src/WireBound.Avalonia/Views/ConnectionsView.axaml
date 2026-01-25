@@ -102,10 +102,10 @@
                                        HorizontalAlignment="Center" VerticalAlignment="Center" />
                         </Border>
                         <StackPanel VerticalAlignment="Center">
-                            <TextBlock Text="Elevation Required"
+                            <TextBlock Text="Helper Connection Required"
                                        FontSize="16" FontWeight="Bold"
                                        Foreground="{DynamicResource PrimaryBrush}" />
-                            <TextBlock Text="Full byte tracking requires administrator privileges."
+                            <TextBlock Text="Full byte tracking requires elevated helper."
                                        Classes="Subtitle" />
                         </StackPanel>
                     </StackPanel>

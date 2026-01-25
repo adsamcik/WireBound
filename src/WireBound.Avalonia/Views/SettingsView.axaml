@@ -98,13 +98,13 @@
                         <Grid ColumnDefinitions="*, Auto">
                             <StackPanel Spacing="4">
                                 <TextBlock Text="Use IP Helper API" Classes="CardTitle" />
-                                <TextBlock Text="More accurate readings but may require elevation" Classes="Caption" />
+                                <TextBlock Text="More accurate readings but may require elevated helper" Classes="Caption" />
                             </StackPanel>
                             <ToggleSwitch Grid.Column="1"
                                           IsChecked="{Binding UseIpHelperApi}"
                                           VerticalAlignment="Center"
                                           AutomationProperties.Name="Use IP Helper API"
-                                          AutomationProperties.HelpText="Enable more accurate network readings, may require administrator privileges" />
+                                          AutomationProperties.HelpText="Enable more accurate network readings, may require elevated helper" />
                         </Grid>
                     </Border>
                     
@@ -114,7 +114,7 @@
                             <StackPanel Spacing="4">
                                 <TextBlock Text="Per-App Network Tracking" Classes="CardTitle" />
                                 <TextBlock Text="Track network usage for individual applications" Classes="Caption" />
-                                <TextBlock Text="⚠️ Requires administrator privileges"
+                                <TextBlock Text="⚠️ Requires elevated helper"
                                            Classes="Caption"
                                            Foreground="{DynamicResource WarningBrush}"
                                            IsVisible="{Binding RequiresElevation}" />
@@ -124,7 +124,7 @@
                                           IsEnabled="{Binding IsElevated}"
                                           VerticalAlignment="Center"
                                           AutomationProperties.Name="Per-App Network Tracking"
-                                          AutomationProperties.HelpText="Track network usage for individual applications. Requires administrator privileges." />
+                                          AutomationProperties.HelpText="Track network usage for individual applications. Requires elevated helper." />
                         </Grid>
                     </Border>
                 </StackPanel>
@@ -393,8 +393,8 @@
                                        HorizontalAlignment="Center" VerticalAlignment="Center" />
                         </Border>
                         <StackPanel VerticalAlignment="Center">
-                            <TextBlock Text="Administrator Privileges" Classes="SectionHeader" />
-                            <TextBlock Text="Elevation status for advanced features" Classes="Caption" />
+                            <TextBlock Text="Elevated Helper" Classes="SectionHeader" />
+                            <TextBlock Text="Helper process status for advanced features" Classes="Caption" />
                         </StackPanel>
                     </StackPanel>
                     
@@ -403,18 +403,18 @@
                             <StackPanel Spacing="4">
                                 <StackPanel Orientation="Horizontal" Spacing="8">
                                     <TextBlock Text="Current Status:" Classes="CardTitle" />
-                                    <TextBlock Text="Running as Administrator"
+                                    <TextBlock Text="Helper Connected"
                                                Foreground="{DynamicResource SuccessBrush}"
                                                FontWeight="Bold"
                                                IsVisible="{Binding IsElevated}"
                                                VerticalAlignment="Center" />
-                                    <TextBlock Text="Standard User"
+                                    <TextBlock Text="Helper Not Connected"
                                                Foreground="{DynamicResource WarningBrush}"
                                                FontWeight="Bold"
                                                IsVisible="{Binding !IsElevated}"
                                                VerticalAlignment="Center" />
                                 </StackPanel>
-                                <TextBlock Text="Per-app network tracking requires administrator privileges"
+                                <TextBlock Text="Per-app network tracking requires elevated helper"
                                            Classes="Caption"
                                            IsVisible="{Binding RequiresElevation}" />
                                 <TextBlock Text="All features are available"
@@ -423,14 +423,14 @@
                                            IsVisible="{Binding IsElevated}" />
                             </StackPanel>
                             <Button Grid.Column="1"
-                                    Content="🛡️ Elevate"
+                                    Content="🛡️ Start Helper"
                                     Command="{Binding RequestElevationCommand}"
                                     IsEnabled="{Binding !IsRequestingElevation}"
                                     IsVisible="{Binding RequiresElevation}"
                                     Classes="Warning"
                                     VerticalAlignment="Center"
-                                    AutomationProperties.Name="Elevate to Administrator"
-                                    AutomationProperties.HelpText="Restart the application with administrator privileges" />
+                                    AutomationProperties.Name="Start Elevated Helper"
+                                    AutomationProperties.HelpText="Start a minimal elevated helper process for advanced features" />
                         </Grid>
                     </Border>
                 </StackPanel>

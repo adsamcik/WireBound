@@ -1,86 +1,117 @@
 namespace WireBound.Platform.Abstract.Services;
 
 /// <summary>
-/// Service for checking and requesting elevated (administrator/root) privileges.
+/// Service for checking elevation status and managing elevated helper process.
 /// </summary>
 /// <remarks>
 /// <para>
 /// <b>Security Model:</b>
 /// </para>
 /// <para>
-/// The current implementation uses a "full app elevation" pattern where the entire
-/// application is restarted with elevated privileges. While this works, it is not
-/// the ideal security pattern because the entire UI runs with elevated privileges.
+/// This service uses a "minimal helper process" pattern where only a small, tightly-scoped
+/// helper process runs with elevated privileges. The main UI application NEVER runs elevated.
+/// This isolates privileged operations from the UI, following the principle of least privilege.
 /// </para>
 /// <para>
-/// <b>Future Work:</b> The preferred approach is to use a separate helper process
-/// that runs with elevated privileges and communicates with the main UI process
-/// via IPC (named pipes on Windows, Unix domain sockets on Linux). This isolates
-/// privileged operations from the UI. See docs/DESIGN_PER_ADDRESS_TRACKING.md for
-/// the full helper process architecture.
-/// </para>
-/// <para>
-/// <b>Security Measures (Current Implementation):</b>
+/// <b>Helper Process Architecture:</b>
 /// <list type="bullet">
-/// <item>Validates that the process path is a valid, non-empty path</item>
-/// <item>Logs all elevation attempts for audit purposes</item>
-/// <item>Returns success/failure instead of auto-exiting, allowing UI to handle confirmation</item>
-/// <item>Caller should confirm with user before calling TryElevateAsync</item>
+/// <item>Helper is a separate, minimal executable with limited functionality</item>
+/// <item>Helper only exposes specific, well-defined operations (ETW/eBPF data collection)</item>
+/// <item>Communication via IPC (named pipes on Windows, Unix sockets on Linux)</item>
+/// <item>Helper validates client identity before accepting connections</item>
+/// <item>Session-based with automatic timeout (max 8 hours)</item>
+/// <item>Rate-limited to prevent abuse</item>
 /// </list>
+/// </para>
+/// <para>
+/// <b>Security Measures:</b>
+/// <list type="bullet">
+/// <item>Main application NEVER runs with elevated privileges</item>
+/// <item>Helper process is minimal and only provides data collection APIs</item>
+/// <item>Helper validates that client is the legitimate WireBound application</item>
+/// <item>All IPC messages are authenticated with HMAC signatures</item>
+/// <item>Helper has no UI, no network access, no file system write access</item>
+/// <item>All elevation attempts are logged for audit purposes</item>
+/// </list>
+/// </para>
+/// <para>
+/// See docs/DESIGN_PER_ADDRESS_TRACKING.md for the full helper process architecture.
 /// </para>
 /// </remarks>
 public interface IElevationService
 {
     /// <summary>
+    /// Whether the elevated helper process is currently running and connected.
+    /// The main UI application should NEVER be elevated itself.
+    /// </summary>
+    bool IsHelperConnected { get; }
+
+    /// <summary>
     /// Whether the current process is running with elevated privileges.
     /// On Windows, this checks for administrator token.
     /// On Linux, this checks if running as root (uid 0).
     /// </summary>
+    /// <remarks>
+    /// <b>IMPORTANT:</b> If this returns true for the main UI process, it indicates
+    /// a security concern - the UI should not be running elevated. The proper pattern
+    /// is to use the helper process for elevated operations.
+    /// </remarks>
     bool IsElevated { get; }
 
     /// <summary>
-    /// Whether elevation is required for advanced features but not currently available.
-    /// This is true when <see cref="IsElevated"/> is false and the platform supports elevation.
+    /// Whether elevation is required for advanced features but helper is not connected.
     /// </summary>
     bool RequiresElevation { get; }
 
     /// <summary>
-    /// Whether this platform supports elevation requests.
-    /// Returns false for platforms where elevation is not implemented.
+    /// Whether this platform supports the elevated helper process.
+    /// Returns false for platforms where the helper is not implemented.
     /// </summary>
     bool IsElevationSupported { get; }
 
     /// <summary>
-    /// Attempts to restart the application with elevated privileges.
+    /// Attempts to start the minimal elevated helper process.
     /// </summary>
     /// <remarks>
     /// <para>
-    /// <b>IMPORTANT:</b> The caller should display a confirmation dialog BEFORE calling
-    /// this method. This method does not provide its own confirmation UI.
+    /// <b>IMPORTANT:</b> This does NOT elevate the current application. It starts
+    /// a separate, minimal helper process that runs with elevated privileges.
     /// </para>
     /// <para>
-    /// On Windows, this triggers a UAC prompt. On Linux, this would use pkexec or similar.
+    /// On Windows, this triggers a UAC prompt for the helper executable only.
+    /// On Linux, this uses pkexec or polkit for the helper.
     /// </para>
     /// <para>
-    /// If successful on Windows, the caller should call <see cref="ExitAfterElevation"/>
-    /// to cleanly exit the current process.
+    /// The helper process:
+    /// <list type="bullet">
+    /// <item>Is a separate, minimal executable</item>
+    /// <item>Only provides specific data collection APIs</item>
+    /// <item>Validates the calling application before accepting connections</item>
+    /// <item>Has strict rate limiting and session management</item>
+    /// </list>
     /// </para>
     /// </remarks>
+    /// <param name="cancellationToken">Cancellation token</param>
     /// <returns>
     /// A result indicating success, failure, or cancellation.
-    /// Success means a new elevated process was started.
+    /// Success means the helper process was started and connection established.
     /// </returns>
-    Task<ElevationResult> TryElevateAsync();
+    Task<ElevationResult> StartHelperAsync(CancellationToken cancellationToken = default);
 
     /// <summary>
-    /// Cleanly exits the current process after successful elevation.
-    /// Only call this after <see cref="TryElevateAsync"/> returns <see cref="ElevationStatus.Success"/>.
+    /// Stops the elevated helper process.
     /// </summary>
     /// <remarks>
-    /// This is separated from TryElevateAsync to give the caller control over
-    /// cleanup and timing of the exit.
+    /// This gracefully shuts down the helper process. It should be called
+    /// when elevated features are no longer needed, or when the application exits.
     /// </remarks>
-    void ExitAfterElevation();
+    Task StopHelperAsync();
+
+    /// <summary>
+    /// Gets the connection to the elevated helper process, if connected.
+    /// </summary>
+    /// <returns>The helper connection, or null if not connected.</returns>
+    IHelperConnection? GetHelperConnection();
 
     /// <summary>
     /// Checks if elevation is required for a specific feature.
@@ -88,6 +119,33 @@ public interface IElevationService
     /// <param name="feature">The feature requiring elevation.</param>
     /// <returns>True if elevation is needed for the specified feature.</returns>
     bool RequiresElevationFor(ElevatedFeature feature);
+
+    /// <summary>
+    /// Event raised when the helper connection state changes.
+    /// </summary>
+    event EventHandler<HelperConnectionStateChangedEventArgs>? HelperConnectionStateChanged;
+}
+
+/// <summary>
+/// Event args for helper connection state changes.
+/// </summary>
+public class HelperConnectionStateChangedEventArgs : EventArgs
+{
+    /// <summary>
+    /// Whether the helper is now connected.
+    /// </summary>
+    public bool IsConnected { get; }
+
+    /// <summary>
+    /// Reason for the state change.
+    /// </summary>
+    public string Reason { get; }
+
+    public HelperConnectionStateChangedEventArgs(bool isConnected, string reason)
+    {
+        IsConnected = isConnected;
+        Reason = reason;
+    }
 }
 
 /// <summary>

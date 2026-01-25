@@ -12,6 +12,7 @@ public sealed class NetworkPollingBackgroundService : BackgroundService, INetwor
 {
     private readonly INetworkMonitorService _networkMonitor;
     private readonly ISystemMonitorService _systemMonitor;
+    private readonly ISystemHistoryService _systemHistory;
     private readonly IDataPersistenceService _persistence;
     private readonly ITrayIconService _trayIcon;
     private readonly ILogger<NetworkPollingBackgroundService> _logger;
@@ -20,20 +21,24 @@ public sealed class NetworkPollingBackgroundService : BackgroundService, INetwor
     private readonly Stopwatch _saveStopwatch = new();
     private readonly Stopwatch _cleanupStopwatch = new();
     private readonly Stopwatch _snapshotFlushStopwatch = new();
+    private readonly Stopwatch _systemStatsAggregationStopwatch = new();
     private readonly List<(long download, long upload, DateTime time)> _snapshotBuffer = new(30);
     private const int SnapshotFlushIntervalSeconds = 30;
     private const int CleanupIntervalMinutes = 5;
+    private const int SystemStatsAggregationIntervalMinutes = 5;
     private static readonly TimeSpan SpeedSnapshotRetention = TimeSpan.FromHours(2);
 
     public NetworkPollingBackgroundService(
         INetworkMonitorService networkMonitor,
         ISystemMonitorService systemMonitor,
+        ISystemHistoryService systemHistory,
         IDataPersistenceService persistence,
         ITrayIconService trayIcon,
         ILogger<NetworkPollingBackgroundService> logger)
     {
         _networkMonitor = networkMonitor;
         _systemMonitor = systemMonitor;
+        _systemHistory = systemHistory;
         _persistence = persistence;
         _trayIcon = trayIcon;
         _logger = logger;
@@ -63,6 +68,7 @@ public sealed class NetworkPollingBackgroundService : BackgroundService, INetwor
         _saveStopwatch.Start();
         _cleanupStopwatch.Start();
         _snapshotFlushStopwatch.Start();
+        _systemStatsAggregationStopwatch.Start();
 
         // Use PeriodicTimer for more consistent timing than Task.Delay
         using var timer = new PeriodicTimer(TimeSpan.FromMilliseconds(_pollIntervalMs));
@@ -79,6 +85,10 @@ public sealed class NetworkPollingBackgroundService : BackgroundService, INetwor
                     // Poll system stats (CPU, RAM)
                     _systemMonitor.Poll();
                     
+                    // Record system stats sample for historical tracking
+                    var systemStats = _systemMonitor.GetCurrentStats();
+                    await _systemHistory.RecordSampleAsync(systemStats).ConfigureAwait(false);
+                    
                     // Update tray icon with current activity
                     var currentStats = _networkMonitor.GetCurrentStats();
                     _trayIcon.UpdateActivity(currentStats.DownloadSpeedBps, currentStats.UploadSpeedBps);
@@ -91,6 +101,14 @@ public sealed class NetworkPollingBackgroundService : BackgroundService, INetwor
                     {
                         await FlushSnapshotBufferAsync().ConfigureAwait(false);
                         _snapshotFlushStopwatch.Restart();
+                    }
+                    
+                    // Aggregate system stats periodically (every 5 minutes)
+                    if (_systemStatsAggregationStopwatch.Elapsed.TotalMinutes >= SystemStatsAggregationIntervalMinutes)
+                    {
+                        await _systemHistory.AggregateHourlyAsync().ConfigureAwait(false);
+                        await _systemHistory.AggregateDailyAsync().ConfigureAwait(false);
+                        _systemStatsAggregationStopwatch.Restart();
                     }
 
                     // Periodic cleanup of old speed snapshots
@@ -138,6 +156,17 @@ public sealed class NetworkPollingBackgroundService : BackgroundService, INetwor
         catch (Exception ex)
         {
             _logger.LogWarning(ex, "Failed to flush snapshot buffer on shutdown");
+        }
+
+        // Final system stats aggregation before shutdown
+        try
+        {
+            await _systemHistory.AggregateHourlyAsync().ConfigureAwait(false);
+            _logger.LogInformation("Final system stats aggregation completed");
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Failed to aggregate system stats on shutdown");
         }
 
         // Final save before shutdown

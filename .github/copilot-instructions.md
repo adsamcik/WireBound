@@ -1,7 +1,7 @@
 # WireBound Development Instructions
 
 ## Project Overview
-WireBound is a cross-platform network traffic monitoring application built with .NET 10 and Avalonia UI.
+WireBound is a cross-platform network traffic and system monitoring application built with .NET 10 and Avalonia UI.
 
 ## Architecture
 - **MVVM Pattern**: Using CommunityToolkit.Mvvm for ViewModels
@@ -17,29 +17,30 @@ WireBound is a cross-platform network traffic monitoring application built with 
 ```
 src/
 ├── WireBound.Core/              # Shared core library
-│   ├── Data/                    # Database context and migrations
-│   ├── Helpers/                 # Utility classes (ByteFormatter, ChartColors, LttbDownsampler)
+│   ├── Data/                    # Database context (WireBoundDbContext)
+│   ├── Helpers/                 # Utility classes (ByteFormatter, ChartColors, LttbDownsampler, CircularBuffer, AdaptiveThresholdCalculator)
 │   ├── Models/                  # Domain models
 │   └── Services/                # Service interfaces
 │
 ├── WireBound.Platform.Abstract/ # Platform abstraction layer
-│   ├── Models/                  # Platform-specific models (ProcessNetworkStats, ConnectionInfo)
+│   ├── Models/                  # Platform-specific models (ProcessNetworkStats, ConnectionInfo, CpuInfoData, MemoryInfoData)
 │   └── Services/                # Platform service interfaces
 │
 ├── WireBound.Platform.Windows/  # Windows-specific implementations
-│   └── Services/                # Windows services (WiFi, Process network, Startup)
+│   └── Services/                # Windows services (WiFi, Process network, Startup, CPU, Memory, Elevation)
 │
 ├── WireBound.Platform.Linux/    # Linux-specific implementations
-│   └── Services/                # Linux services (WiFi, Process network, Startup)
+│   └── Services/                # Linux services (WiFi, Process network, Startup, CPU, Memory, Elevation)
 │
 ├── WireBound.Platform.Stub/     # Stub implementations for development/testing
 │   └── Services/                # Stub service implementations
 │
 └── WireBound.Avalonia/          # Cross-platform UI application
-    ├── Converters/              # XAML value converters
-    ├── Helpers/                 # UI helpers (ChartSeriesFactory)
+    ├── Controls/                # Custom controls (CircularGauge, MiniSparkline, SystemHealthStrip)
+    ├── Converters/              # XAML value converters (SelectedRowConverter, SpeedUnitConverter)
+    ├── Helpers/                 # UI helpers (ChartSeriesFactory, ChartDataManager)
     ├── Services/                # Application services
-    ├── Styles/                  # AXAML styles and themes
+    ├── Styles/                  # AXAML styles and themes (Colors.axaml, Styles.axaml)
     ├── ViewModels/              # MVVM ViewModels
     └── Views/                   # AXAML views
 ```
@@ -55,42 +56,61 @@ src/
 - `ITrayIconService` - System tray functionality
 - `IWiFiInfoService` - WiFi connection information
 - `IProcessNetworkService` - Per-process network statistics
-- `IElevationService` - Admin privilege management
+- `ISystemMonitorService` - System resource monitoring (CPU, Memory)
+- `ISystemHistoryService` - Historical system stats management
 
 ### Platform Abstractions (WireBound.Platform.Abstract)
 - `IPlatformServices` - Platform service factory
 - `IProcessNetworkProvider` - Per-process network data provider
+- `IProcessNetworkProviderFactory` - Factory for process network providers
 - `IWiFiInfoProvider` - WiFi information provider
 - `IStartupService` - System startup configuration
 - `IDnsResolverService` - DNS resolution
 - `IHelperConnection` - Helper process communication
+- `IElevationService` - Admin privilege management
+- `ICpuInfoProvider` - CPU usage information provider
+- `IMemoryInfoProvider` - Memory usage information provider
 
 ### Models (WireBound.Core)
 - `NetworkStats` - Real-time speed and usage data
 - `NetworkAdapter` - Network interface information
-- `DailyUsage` / `HourlyUsage` - Historical aggregated data
+- `DailyUsage` / `HourlyUsage` - Historical network usage data
+- `DailySystemStats` / `HourlySystemStats` - Historical system stats
 - `AppSettings` - User preferences
 - `ConnectionInfo` / `ConnectionStats` - Active connection tracking
 - `AppUsageRecord` / `AddressUsageRecord` - Per-app and per-address usage
 - `SpeedSnapshot` - Point-in-time speed measurement
+- `SpeedUnit` - Speed display unit enumeration
+- `CpuStats` / `MemoryStats` / `SystemStats` - System resource statistics
 
 ### ViewModels (WireBound.Avalonia)
 - `MainViewModel` - Navigation control and app state
+- `OverviewViewModel` - Quick overview with key metrics
 - `DashboardViewModel` - Real-time stats, charts, time range selection
 - `ChartsViewModel` - Advanced chart visualization
 - `HistoryViewModel` - Historical data visualization
 - `ApplicationsViewModel` - Per-application network usage
 - `ConnectionsViewModel` - Active network connections
+- `SystemViewModel` - System resource monitoring (CPU, Memory)
+- `InsightsViewModel` - Network insights and analytics
 - `SettingsViewModel` - App configuration
 
 ### Views (WireBound.Avalonia)
 - `MainWindow` - Main application window
+- `OverviewView` - Quick overview dashboard
 - `DashboardView` - Real-time monitoring with interactive chart
 - `ChartsView` - Advanced charting view
 - `HistoryView` - Historical usage data
 - `ApplicationsView` - Per-application usage tracking
 - `ConnectionsView` - Active connections display
+- `SystemView` - System resource monitoring
+- `InsightsView` - Network insights and analytics
 - `SettingsView` - App configuration
+
+### Custom Controls (WireBound.Avalonia)
+- `CircularGauge` - Circular gauge for displaying percentage values
+- `MiniSparkline` - Compact sparkline chart for inline data visualization
+- `SystemHealthStrip` - Status strip showing system health indicators
 
 ## Development Guidelines
 
@@ -150,4 +170,11 @@ Download a known file size and compare with app readings.
 Cross-platform network monitoring uses .NET's `NetworkInterface` class.
 
 ## Workflow
-- Commit changes after completing each task or feature effort
+- Commit changes at crucial points:
+  - After completing a logical unit of work (e.g., adding a new model, service, or view)
+  - After implementing a working feature, even if not fully polished
+  - Before starting a risky refactoring or significant change
+  - After fixing a bug or resolving an issue
+  - When switching context to a different part of the codebase
+- Always commit when work is complete with a clear, descriptive commit message
+- Use conventional commit format: `type(scope): description` (e.g., `feat(system): add CPU monitoring service`)

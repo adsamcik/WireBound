@@ -10,6 +10,7 @@ using System.Collections.ObjectModel;
 using Avalonia.Threading;
 using WireBound.Avalonia.Helpers;
 using WireBound.Core.Helpers;
+using WireBound.Core.Models;
 using WireBound.Core.Services;
 
 namespace WireBound.Avalonia.ViewModels;

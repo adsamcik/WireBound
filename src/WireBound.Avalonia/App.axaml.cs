@@ -101,7 +101,16 @@ public partial class App : Application
         // Register cross-platform network monitoring service
         // Uses System.Net.NetworkInformation which works on Windows and Linux
         services.AddSingleton<INetworkMonitorService, CrossPlatformNetworkMonitorService>();
-        services.AddSingleton<IDataPersistenceService, DataPersistenceService>();
+        
+        // Register data persistence with segregated interfaces for ISP compliance
+        // The DataPersistenceService implements all focused repository interfaces
+        services.AddSingleton<DataPersistenceService>();
+        services.AddSingleton<IDataPersistenceService>(sp => sp.GetRequiredService<DataPersistenceService>());
+        services.AddSingleton<INetworkUsageRepository>(sp => sp.GetRequiredService<DataPersistenceService>());
+        services.AddSingleton<IAppUsageRepository>(sp => sp.GetRequiredService<DataPersistenceService>());
+        services.AddSingleton<ISettingsRepository>(sp => sp.GetRequiredService<DataPersistenceService>());
+        services.AddSingleton<ISpeedSnapshotRepository>(sp => sp.GetRequiredService<DataPersistenceService>());
+        
         services.AddSingleton<IWiFiInfoService, WiFiInfoService>();
 
         // Register platform services (stub first, then override with platform-specific)

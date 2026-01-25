@@ -4,106 +4,25 @@ using WireBound.Platform.Abstract.Models;
 namespace WireBound.Core.Services;
 
 /// <summary>
-/// Service for persisting network data to database
+/// Unified service for persisting network data to database.
+/// Implements the Interface Segregation Principle by composing focused repository interfaces.
 /// </summary>
-public interface IDataPersistenceService
+/// <remarks>
+/// For new code, prefer injecting the specific interfaces:
+/// <list type="bullet">
+/// <item><see cref="INetworkUsageRepository"/> for network usage data</item>
+/// <item><see cref="IAppUsageRepository"/> for per-application tracking</item>
+/// <item><see cref="ISettingsRepository"/> for application settings</item>
+/// <item><see cref="ISpeedSnapshotRepository"/> for chart history data</item>
+/// </list>
+/// </remarks>
+public interface IDataPersistenceService : 
+    INetworkUsageRepository, 
+    IAppUsageRepository, 
+    ISettingsRepository, 
+    ISpeedSnapshotRepository
 {
-    /// <summary>
-    /// Save current stats to the database
-    /// </summary>
-    Task SaveStatsAsync(NetworkStats stats);
-
-    /// <summary>
-    /// Get daily usage for a date range
-    /// </summary>
-    Task<List<DailyUsage>> GetDailyUsageAsync(DateOnly startDate, DateOnly endDate);
-
-    /// <summary>
-    /// Get hourly usage for a specific date
-    /// </summary>
-    Task<List<HourlyUsage>> GetHourlyUsageAsync(DateOnly date);
-
-    /// <summary>
-    /// Get total usage statistics
-    /// </summary>
-    Task<(long totalReceived, long totalSent)> GetTotalUsageAsync();
-
-    /// <summary>
-    /// Get today's usage statistics
-    /// </summary>
-    Task<(long totalReceived, long totalSent)> GetTodayUsageAsync();
-
-    /// <summary>
-    /// Get today's usage statistics per adapter
-    /// </summary>
-    Task<Dictionary<string, (long received, long sent)>> GetTodayUsageByAdapterAsync();
-
-    /// <summary>
-    /// Clean up old data beyond retention period
-    /// </summary>
-    Task CleanupOldDataAsync(int retentionDays);
-
-    /// <summary>
-    /// Get app settings
-    /// </summary>
-    Task<AppSettings> GetSettingsAsync();
-
-    /// <summary>
-    /// Save app settings
-    /// </summary>
-    Task SaveSettingsAsync(AppSettings settings);
-    
-    // === Per-App Network Tracking Methods ===
-    
-    /// <summary>
-    /// Save per-app network statistics
-    /// </summary>
-    Task SaveAppStatsAsync(IEnumerable<ProcessNetworkStats> stats);
-
-    /// <summary>
-    /// Get per-app usage records for a specific app in a date range
-    /// </summary>
-    Task<List<AppUsageRecord>> GetAppUsageAsync(string appIdentifier, DateOnly startDate, DateOnly endDate, UsageGranularity? granularity = null);
-
-    /// <summary>
-    /// Get all per-app usage records for a date range
-    /// </summary>
-    Task<List<AppUsageRecord>> GetAllAppUsageAsync(DateOnly startDate, DateOnly endDate, UsageGranularity? granularity = null);
-
-    /// <summary>
-    /// Get top applications by usage for a date range
-    /// </summary>
-    Task<List<AppUsageRecord>> GetTopAppsAsync(int count, DateOnly startDate, DateOnly endDate);
-
-    /// <summary>
-    /// Aggregate hourly app data to daily for records older than specified days
-    /// </summary>
-    Task AggregateAppDataAsync(int olderThanDays);
-
-    /// <summary>
-    /// Clean up old app data beyond retention period
-    /// </summary>
-    Task CleanupOldAppDataAsync(int retentionDays);
-
-    // === Speed Snapshot Methods ===
-
-    /// <summary>
-    /// Save a speed snapshot for chart history
-    /// </summary>
-    Task SaveSpeedSnapshotAsync(long downloadSpeedBps, long uploadSpeedBps);
-
-    /// <summary>
-    /// Save a batch of speed snapshots for chart history (more efficient than individual saves)
-    /// </summary>
-    Task SaveSpeedSnapshotBatchAsync(IEnumerable<(long downloadBps, long uploadBps, DateTime timestamp)> snapshots);
-
-    /// <summary>
-    /// Get speed history for a time range
-    /// </summary>
-    Task<List<SpeedSnapshot>> GetSpeedHistoryAsync(DateTime since);
-
-    /// <summary>
-    /// Clean up old speed snapshots beyond retention period
-    /// </summary>
-    Task CleanupOldSpeedSnapshotsAsync(TimeSpan maxAge);
+    // All members are inherited from the composed interfaces.
+    // This interface exists for backward compatibility and as a convenience
+    // when a component needs access to multiple repository capabilities.
 }

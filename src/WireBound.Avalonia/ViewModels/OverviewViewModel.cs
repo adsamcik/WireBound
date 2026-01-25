@@ -46,12 +46,9 @@ public sealed partial class OverviewViewModel : ObservableObject, IDisposable
 
     private readonly ChartDataManager _chartDataManager = new(maxBufferSize: 3600, maxDisplayPoints: 300);
 
-    // Trend tracking
-    private long _previousDownloadBps;
-    private long _previousUploadBps;
-    private long _downloadMovingAvg;
-    private long _uploadMovingAvg;
-    private const double TrendAlpha = 0.3;
+    // Trend tracking using shared calculator (arrows style for overview)
+    private readonly TrendIndicatorCalculator _downloadTrendCalculator = new(iconStyle: TrendIconStyle.Arrows);
+    private readonly TrendIndicatorCalculator _uploadTrendCalculator = new(iconStyle: TrendIconStyle.Arrows);
 
     // Today's stored bytes (from database at startup)
     private long _todayStoredReceived;
@@ -306,54 +303,13 @@ public sealed partial class OverviewViewModel : ObservableObject, IDisposable
 
     private void UpdateTrendIndicators(long downloadBps, long uploadBps)
     {
-        // Update moving averages (exponential smoothing)
-        _downloadMovingAvg = (long)(_downloadMovingAvg * (1 - TrendAlpha) + downloadBps * TrendAlpha);
-        _uploadMovingAvg = (long)(_uploadMovingAvg * (1 - TrendAlpha) + uploadBps * TrendAlpha);
-
-        // Calculate trend based on comparison to moving average
-        var downloadDelta = downloadBps - _downloadMovingAvg;
-        var uploadDelta = uploadBps - _uploadMovingAvg;
-
-        // Threshold for considering a change significant (10% of moving average)
-        var downloadThreshold = Math.Max(_downloadMovingAvg * 0.1, 1024);
-        var uploadThreshold = Math.Max(_uploadMovingAvg * 0.1, 1024);
-
-        // Update download trend
-        if (downloadDelta > downloadThreshold)
-        {
-            DownloadTrendIcon = "↑";
-            DownloadTrendText = "increasing";
-        }
-        else if (downloadDelta < -downloadThreshold)
-        {
-            DownloadTrendIcon = "↓";
-            DownloadTrendText = "decreasing";
-        }
-        else
-        {
-            DownloadTrendIcon = "→";
-            DownloadTrendText = "stable";
-        }
-
-        // Update upload trend
-        if (uploadDelta > uploadThreshold)
-        {
-            UploadTrendIcon = "↑";
-            UploadTrendText = "increasing";
-        }
-        else if (uploadDelta < -uploadThreshold)
-        {
-            UploadTrendIcon = "↓";
-            UploadTrendText = "decreasing";
-        }
-        else
-        {
-            UploadTrendIcon = "→";
-            UploadTrendText = "stable";
-        }
-
-        _previousDownloadBps = downloadBps;
-        _previousUploadBps = uploadBps;
+        var downloadTrend = _downloadTrendCalculator.Update(downloadBps);
+        DownloadTrendIcon = downloadTrend.Icon;
+        DownloadTrendText = downloadTrend.Direction.ToString().ToLowerInvariant();
+        
+        var uploadTrend = _uploadTrendCalculator.Update(uploadBps);
+        UploadTrendIcon = uploadTrend.Icon;
+        UploadTrendText = uploadTrend.Direction.ToString().ToLowerInvariant();
     }
 
     private void UpdatePeakSpeeds()

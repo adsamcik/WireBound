@@ -18,16 +18,6 @@ using System.Collections.Concurrent;
 
 namespace WireBound.Avalonia.ViewModels;
 
-/// <summary>
-/// Represents a time range option for the chart display
-/// </summary>
-public sealed class TimeRangeOption
-{
-    public required string Label { get; init; }
-    public required int Seconds { get; init; }
-    public required string Description { get; init; }
-}
-
 public sealed partial class DashboardViewModel : ObservableObject, IDisposable
 {
     private readonly INetworkMonitorService _networkMonitor;
@@ -40,12 +30,9 @@ public sealed partial class DashboardViewModel : ObservableObject, IDisposable
     
     private readonly ChartDataManager _chartDataManager = new(maxBufferSize: 3600, maxDisplayPoints: 300);
     
-    // Trend tracking
-    private long _previousDownloadBps;
-    private long _previousUploadBps;
-    private long _downloadMovingAvg;
-    private long _uploadMovingAvg;
-    private const double TrendAlpha = 0.3; // Smoothing factor for moving average
+    // Trend tracking using shared calculator
+    private readonly TrendIndicatorCalculator _downloadTrendCalculator = new(iconStyle: TrendIconStyle.Geometric);
+    private readonly TrendIndicatorCalculator _uploadTrendCalculator = new(iconStyle: TrendIconStyle.Geometric);
     
     private readonly AdaptiveThresholdCalculator _thresholdCalculator = new(windowSize: 60, smoothingFactor: 0.1);
 
@@ -447,63 +434,13 @@ public sealed partial class DashboardViewModel : ObservableObject, IDisposable
     
     private void UpdateTrendIndicators(long downloadBps, long uploadBps)
     {
-        // Update moving averages (exponential smoothing)
-        _downloadMovingAvg = (long)(_downloadMovingAvg * (1 - TrendAlpha) + downloadBps * TrendAlpha);
-        _uploadMovingAvg = (long)(_uploadMovingAvg * (1 - TrendAlpha) + uploadBps * TrendAlpha);
+        var downloadTrend = _downloadTrendCalculator.Update(downloadBps);
+        DownloadTrendIcon = downloadTrend.Icon;
+        DownloadTrendText = downloadTrend.Direction.ToString().ToLowerInvariant();
         
-        // Calculate trend for download
-        var downloadDiff = downloadBps - _previousDownloadBps;
-        var downloadThreshold = Math.Max(_downloadMovingAvg * 0.1, 100); // 10% of average or 100 B/s
-        
-        if (downloadBps == 0)
-        {
-            DownloadTrendIcon = "○";
-            DownloadTrendText = "idle";
-        }
-        else if (downloadDiff > downloadThreshold)
-        {
-            DownloadTrendIcon = "▲";
-            DownloadTrendText = "rising";
-        }
-        else if (downloadDiff < -downloadThreshold)
-        {
-            DownloadTrendIcon = "▼";
-            DownloadTrendText = "falling";
-        }
-        else
-        {
-            DownloadTrendIcon = "●";
-            DownloadTrendText = "stable";
-        }
-        
-        // Calculate trend for upload
-        var uploadDiff = uploadBps - _previousUploadBps;
-        var uploadThreshold = Math.Max(_uploadMovingAvg * 0.1, 100);
-        
-        if (uploadBps == 0)
-        {
-            UploadTrendIcon = "○";
-            UploadTrendText = "idle";
-        }
-        else if (uploadDiff > uploadThreshold)
-        {
-            UploadTrendIcon = "▲";
-            UploadTrendText = "rising";
-        }
-        else if (uploadDiff < -uploadThreshold)
-        {
-            UploadTrendIcon = "▼";
-            UploadTrendText = "falling";
-        }
-        else
-        {
-            UploadTrendIcon = "●";
-            UploadTrendText = "stable";
-        }
-        
-        // Store current values for next comparison
-        _previousDownloadBps = downloadBps;
-        _previousUploadBps = uploadBps;
+        var uploadTrend = _uploadTrendCalculator.Update(uploadBps);
+        UploadTrendIcon = uploadTrend.Icon;
+        UploadTrendText = uploadTrend.Direction.ToString().ToLowerInvariant();
     }
     
     private void UpdateSparklines(DateTime now, long downloadBps, long uploadBps)

@@ -101,6 +101,7 @@
 | `AppUsageRecord` | Per-application bandwidth record |
 | `SpeedSnapshot` | Point-in-time speed for chart history |
 | `CpuStats` / `MemoryStats` / `SystemStats` | System resource measurements |
+| `TimeRangeOption` | Time range selector options for charts (30s, 1m, 5m, etc.) |
 
 #### Service Interfaces
 | Interface | Purpose |

@@ -82,7 +82,7 @@ dotnet test
 
 ## Code Conventions
 
-- **File naming**: PascalCase for all C# files (e.g., `NetworkAdapter.cs`, `DashboardViewModel.cs`)
+- **File naming**: PascalCase for all C# files (e.g., `NetworkAdapter.cs`, `OverviewViewModel.cs`)
 - **Interfaces**: Prefix with `I` (e.g., `INetworkMonitorService`)
 - **ViewModels**: Suffix with `ViewModel` (e.g., `OverviewViewModel`)
 - **Views**: Suffix with `View` or `Window` (e.g., `OverviewView`, `MainWindow`)

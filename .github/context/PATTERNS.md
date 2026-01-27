@@ -15,9 +15,9 @@
 | Local variables | camelCase | `currentStats` | |
 | Parameters | camelCase | `pollingInterval` | |
 | Async methods | ...Async | `SaveSettingsAsync()` | Always suffix |
-| ViewModels | ...ViewModel | `DashboardViewModel` | |
-| Views | ...View / ...Window | `DashboardView` | |
-| Tests | ...Tests | `DashboardViewModelTests` | |
+| ViewModels | ...ViewModel | `OverviewViewModel` | |
+| Views | ...View / ...Window | `OverviewView` | |
+| Tests | ...Tests | `OverviewViewModelTests` | |
 
 ## MVVM Pattern
 
@@ -182,7 +182,7 @@ else if (OperatingSystem.IsLinux())
 services.AddSingleton<MainViewModel>();
 
 // 5. Register Views (usually transient)
-services.AddTransient<DashboardView>();
+services.AddTransient<OverviewView>();
 ```
 
 ### Interface Segregation for Repositories

@@ -85,26 +85,22 @@ src/
 
 ### ViewModels (WireBound.Avalonia)
 - `MainViewModel` - Navigation control and app state
-- `OverviewViewModel` - Quick overview with key metrics
-- `DashboardViewModel` - Real-time stats, charts, time range selection
-- `ChartsViewModel` - Advanced chart visualization
-- `HistoryViewModel` - Historical data visualization
+- `OverviewViewModel` - Quick overview with key metrics (network + system combined)
+- `ChartsViewModel` - Real-time interactive chart with time range selection
 - `ApplicationsViewModel` - Per-application network usage
 - `ConnectionsViewModel` - Active network connections
 - `SystemViewModel` - System resource monitoring (CPU, Memory)
-- `InsightsViewModel` - Network insights and analytics
+- `InsightsViewModel` - Tabbed analytics (Usage, Trends, Correlations)
 - `SettingsViewModel` - App configuration
 
 ### Views (WireBound.Avalonia)
 - `MainWindow` - Main application window
-- `OverviewView` - Quick overview dashboard
-- `DashboardView` - Real-time monitoring with interactive chart
-- `ChartsView` - Advanced charting view
-- `HistoryView` - Historical usage data
+- `OverviewView` - Quick overview dashboard (network + system metrics)
+- `ChartsView` - Real-time interactive chart with time range selector
 - `ApplicationsView` - Per-application usage tracking
 - `ConnectionsView` - Active connections display
-- `SystemView` - System resource monitoring
-- `InsightsView` - Network insights and analytics
+- `SystemView` - System resource monitoring with gauges
+- `InsightsView` - Tabbed analytics (Usage, Trends, Correlations)
 - `SettingsView` - App configuration
 
 ### Custom Controls (WireBound.Avalonia)

@@ -150,10 +150,8 @@ public partial class App : Application
 
         // Register ViewModels
         services.AddSingleton<MainViewModel>();
-        services.AddSingleton<DashboardViewModel>();
         services.AddSingleton<OverviewViewModel>();
         services.AddSingleton<ChartsViewModel>();
-        services.AddSingleton<HistoryViewModel>();
         services.AddSingleton<InsightsViewModel>();
         services.AddSingleton<SettingsViewModel>();
         services.AddSingleton<ApplicationsViewModel>();
@@ -161,10 +159,8 @@ public partial class App : Application
         services.AddSingleton<SystemViewModel>();
 
         // Register View factory for navigation
-        services.AddTransient<DashboardView>();
         services.AddTransient<OverviewView>();
         services.AddTransient<ChartsView>();
-        services.AddTransient<HistoryView>();
         services.AddTransient<InsightsView>();
         services.AddTransient<SettingsView>();
         services.AddTransient<ApplicationsView>();
@@ -341,10 +337,8 @@ public partial class App : Application
             // Dispose all ViewModels that implement IDisposable
             // This ensures event handlers are unsubscribed and resources are released
             _serviceProvider?.GetService<MainViewModel>()?.Dispose();
-            _serviceProvider?.GetService<DashboardViewModel>()?.Dispose();
             _serviceProvider?.GetService<OverviewViewModel>()?.Dispose();
             _serviceProvider?.GetService<ChartsViewModel>()?.Dispose();
-            _serviceProvider?.GetService<HistoryViewModel>()?.Dispose();
             _serviceProvider?.GetService<InsightsViewModel>()?.Dispose();
             _serviceProvider?.GetService<SystemViewModel>()?.Dispose();
             _serviceProvider?.GetService<ConnectionsViewModel>()?.Dispose();

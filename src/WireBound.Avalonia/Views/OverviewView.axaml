@@ -270,7 +270,7 @@
                                             YAxes="{Binding ChartYAxes}"
                                             MinHeight="280"
                                             TooltipPosition="Hidden"
-                                            ZoomMode="X"
+                                            ZoomMode="None"
                                             AutomationProperties.Name="Live Network Speed Chart"
                                             AutomationProperties.HelpText="Real-time chart showing download and upload speeds" />
 

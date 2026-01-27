@@ -392,4 +392,79 @@ public class ByteFormatterTests
             result.Should().MatchRegex(@"\d+\.\d{2}\s[KMG]bps");
         }
     }
+
+    // ═══════════════════════════════════════════════════════════════════════
+    // FormatSpeed with SpeedUnit overload Tests
+    // ═══════════════════════════════════════════════════════════════════════
+
+    [Fact]
+    public void FormatSpeed_WithBytesPerSecondUnit_ReturnsBytes()
+    {
+        // Arrange
+        long bytesPerSecond = 1048576; // 1 MB/s
+
+        // Act
+        var result = ByteFormatter.FormatSpeed(bytesPerSecond, WireBound.Core.Models.SpeedUnit.BytesPerSecond);
+
+        // Assert
+        result.Should().Be("1.00 MB/s");
+    }
+
+    [Fact]
+    public void FormatSpeed_WithBitsPerSecondUnit_ReturnsBits()
+    {
+        // Arrange
+        long bytesPerSecond = 125000; // 1 Mbps
+
+        // Act
+        var result = ByteFormatter.FormatSpeed(bytesPerSecond, WireBound.Core.Models.SpeedUnit.BitsPerSecond);
+
+        // Assert
+        result.Should().Be("1.00 Mbps");
+    }
+
+    [Fact]
+    public void FormatSpeed_WithSpeedUnit_DoesNotUseGlobalSetting()
+    {
+        // Arrange
+        ByteFormatter.UseSpeedInBits = true; // Set global to bits
+        long bytesPerSecond = 1048576; // 1 MB/s
+
+        // Act - explicitly request bytes format
+        var result = ByteFormatter.FormatSpeed(bytesPerSecond, WireBound.Core.Models.SpeedUnit.BytesPerSecond);
+
+        // Assert - should still return bytes despite global setting
+        result.Should().Be("1.00 MB/s");
+
+        // Cleanup
+        ByteFormatter.UseSpeedInBits = false;
+    }
+
+    [Theory]
+    [InlineData(0, "0 B/s")]
+    [InlineData(1024, "1.00 KB/s")]
+    [InlineData(1048576, "1.00 MB/s")]
+    [InlineData(1073741824, "1.00 GB/s")]
+    public void FormatSpeed_WithBytesUnit_FormatsCorrectly(long bytesPerSecond, string expected)
+    {
+        // Act
+        var result = ByteFormatter.FormatSpeed(bytesPerSecond, WireBound.Core.Models.SpeedUnit.BytesPerSecond);
+
+        // Assert
+        result.Should().Be(expected);
+    }
+
+    [Theory]
+    [InlineData(0, "0 bps")]
+    [InlineData(125, "1.00 Kbps")]
+    [InlineData(125000, "1.00 Mbps")]
+    [InlineData(125000000, "1.00 Gbps")]
+    public void FormatSpeed_WithBitsUnit_FormatsCorrectly(long bytesPerSecond, string expected)
+    {
+        // Act
+        var result = ByteFormatter.FormatSpeed(bytesPerSecond, WireBound.Core.Models.SpeedUnit.BitsPerSecond);
+
+        // Assert
+        result.Should().Be(expected);
+    }
 }

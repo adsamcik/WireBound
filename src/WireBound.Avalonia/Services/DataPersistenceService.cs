@@ -9,11 +9,12 @@ namespace WireBound.Avalonia.Services;
 
 /// <summary>
 /// Service for persisting network statistics to the database.
+/// Thread-safe: uses async locking to prevent concurrent save operations from corrupting data.
 /// </summary>
 public sealed class DataPersistenceService : IDataPersistenceService
 {
     private readonly IServiceProvider _serviceProvider;
-    private readonly object _statsLock = new();
+    private readonly SemaphoreSlim _saveLock = new(1, 1);
     private long _lastSavedReceived;
     private long _lastSavedSent;
 
@@ -24,6 +25,21 @@ public sealed class DataPersistenceService : IDataPersistenceService
 
     public async Task SaveStatsAsync(NetworkStats stats)
     {
+        // Use async lock to serialize save operations and prevent race conditions
+        // where concurrent calls calculate deltas before either writes to the database
+        await _saveLock.WaitAsync().ConfigureAwait(false);
+        try
+        {
+            await SaveStatsInternalAsync(stats).ConfigureAwait(false);
+        }
+        finally
+        {
+            _saveLock.Release();
+        }
+    }
+
+    private async Task SaveStatsInternalAsync(NetworkStats stats)
+    {
         using var scope = _serviceProvider.CreateScope();
         var db = scope.ServiceProvider.GetRequiredService<WireBoundDbContext>();
 
@@ -31,20 +47,15 @@ public sealed class DataPersistenceService : IDataPersistenceService
         var currentHour = new DateTime(now.Year, now.Month, now.Day, now.Hour, 0, 0);
         var today = DateOnly.FromDateTime(now);
 
-        // Calculate delta since last save (thread-safe access)
-        long receivedDelta;
-        long sentDelta;
-        lock (_statsLock)
-        {
-            receivedDelta = stats.SessionBytesReceived - _lastSavedReceived;
-            sentDelta = stats.SessionBytesSent - _lastSavedSent;
+        // Calculate delta since last save (now protected by async lock)
+        var receivedDelta = stats.SessionBytesReceived - _lastSavedReceived;
+        var sentDelta = stats.SessionBytesSent - _lastSavedSent;
 
-            if (receivedDelta < 0) receivedDelta = stats.SessionBytesReceived;
-            if (sentDelta < 0) sentDelta = stats.SessionBytesSent;
+        if (receivedDelta < 0) receivedDelta = stats.SessionBytesReceived;
+        if (sentDelta < 0) sentDelta = stats.SessionBytesSent;
 
-            _lastSavedReceived = stats.SessionBytesReceived;
-            _lastSavedSent = stats.SessionBytesSent;
-        }
+        _lastSavedReceived = stats.SessionBytesReceived;
+        _lastSavedSent = stats.SessionBytesSent;
 
         // Update or create hourly record
         var hourlyRecord = await db.HourlyUsages

@@ -1,14 +1,25 @@
+using WireBound.Core.Models;
+
 namespace WireBound.Core.Helpers;
 
 /// <summary>
-/// Utility class for formatting bytes and network speeds into human-readable strings
+/// Utility class for formatting bytes and network speeds into human-readable strings.
+/// Thread-safe for concurrent access.
 /// </summary>
 public static class ByteFormatter
 {
+    // Use volatile to ensure thread-safe reads/writes of the boolean flag
+    private static volatile bool _useSpeedInBits;
+
     /// <summary>
     /// Current speed display mode. When true, displays in bits (Mbps). When false, displays in bytes (MB/s).
+    /// This property is thread-safe.
     /// </summary>
-    public static bool UseSpeedInBits { get; set; } = false;
+    public static bool UseSpeedInBits
+    {
+        get => _useSpeedInBits;
+        set => _useSpeedInBits = value;
+    }
 
     /// <summary>
     /// Formats bytes per second into a human-readable speed string.
@@ -19,6 +30,20 @@ public static class ByteFormatter
     public static string FormatSpeed(long bytesPerSecond)
     {
         return UseSpeedInBits ? FormatSpeedInBits(bytesPerSecond) : FormatSpeedInBytes(bytesPerSecond);
+    }
+
+    /// <summary>
+    /// Formats bytes per second into a human-readable speed string using the specified unit.
+    /// Use this overload for explicit control over the output format.
+    /// </summary>
+    /// <param name="bytesPerSecond">Speed in bytes per second</param>
+    /// <param name="unit">The speed unit to use for formatting</param>
+    /// <returns>Formatted string like "1.50 MB/s" or "12.00 Mbps"</returns>
+    public static string FormatSpeed(long bytesPerSecond, SpeedUnit unit)
+    {
+        return unit == SpeedUnit.BitsPerSecond
+            ? FormatSpeedInBits(bytesPerSecond)
+            : FormatSpeedInBytes(bytesPerSecond);
     }
 
     /// <summary>

@@ -14,6 +14,12 @@ namespace WireBound.Avalonia.Services;
 /// </summary>
 public sealed class SystemHistoryService : ISystemHistoryService, IDisposable
 {
+    /// <summary>
+    /// Maximum number of samples to keep in the buffer (~2 hours at 1 sample/second).
+    /// Prevents unbounded memory growth if aggregation is delayed.
+    /// </summary>
+    private const int MaxSampleBufferSize = 7200;
+
     private readonly IServiceProvider _serviceProvider;
     private readonly ILogger<SystemHistoryService> _logger;
     private readonly ConcurrentQueue<SystemStatsSample> _sampleBuffer = new();
@@ -57,8 +63,8 @@ public sealed class SystemHistoryService : ISystemHistoryService, IDisposable
 
             _sampleBuffer.Enqueue(sample);
 
-            // Limit buffer size to prevent memory issues (keep last ~2 hours of samples at 1/sec)
-            while (_sampleBuffer.Count > 7200)
+            // Limit buffer size to prevent memory issues
+            while (_sampleBuffer.Count > MaxSampleBufferSize)
             {
                 _sampleBuffer.TryDequeue(out _);
             }

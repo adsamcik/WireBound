@@ -38,6 +38,13 @@ public sealed class DnsResolverService : IDnsResolverService, IDisposable
         if (string.IsNullOrWhiteSpace(ipAddress))
             return null;
 
+        // Validate that the input is a valid IP address format
+        if (!IPAddress.TryParse(ipAddress, out _))
+        {
+            _logger?.LogDebug("Invalid IP address format: {IpAddress}", ipAddress);
+            return null;
+        }
+
         // Check cache first
         if (TryGetFromCache(ipAddress, out var hostname))
         {
@@ -103,6 +110,10 @@ public sealed class DnsResolverService : IDnsResolverService, IDisposable
     public void QueueForResolution(string ipAddress)
     {
         if (string.IsNullOrWhiteSpace(ipAddress))
+            return;
+
+        // Validate IP address format
+        if (!IPAddress.TryParse(ipAddress, out _))
             return;
 
         // Skip if already cached

@@ -113,7 +113,7 @@ dotnet test
 When working in this codebase:
 
 1. **Follow the platform abstraction pattern**: New platform features need interfaces in `Platform.Abstract`, implementations in `Platform.Windows` and `Platform.Linux`, and stubs in `Platform.Stub`
-2. **Use existing helpers**: `ByteFormatter`, `ChartColors`, `CircularBuffer`, `LttbDownsampler` exist in `WireBound.Core/Helpers`
+2. **Use existing helpers**: `ByteFormatter`, `ChartColors`, `CircularBuffer`, `LttbDownsampler`, `TrendIndicatorCalculator` exist in `WireBound.Core/Helpers`
 3. **Register services in App.axaml.cs**: All DI registration happens in `ConfigureServices()`
 4. **Follow the design system**: Use colors from `Colors.axaml`, follow spacing from `docs/DESIGN_SYSTEM.md`
 5. **Commit at logical points** using conventional commit format: `type(scope): description`

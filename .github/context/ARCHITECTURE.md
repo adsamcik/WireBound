@@ -127,6 +127,7 @@
 | `LttbDownsampler` | Largest-Triangle-Three-Buckets downsampling |
 | `AdaptiveThresholdCalculator` | Dynamic threshold calculation |
 | `TrendIndicatorCalculator` | Trend direction detection |
+| `TrendIndicatorCalculator` | Trend direction detection |
 
 ### WireBound.Platform.Abstract (Interfaces)
 

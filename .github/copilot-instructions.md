@@ -18,7 +18,7 @@ WireBound is a cross-platform network traffic and system monitoring application 
 src/
 ├── WireBound.Core/              # Shared core library
 │   ├── Data/                    # Database context (WireBoundDbContext)
-│   ├── Helpers/                 # Utility classes (ByteFormatter, ChartColors, LttbDownsampler, CircularBuffer, AdaptiveThresholdCalculator)
+│   ├── Helpers/                 # Utility classes (ByteFormatter, ChartColors, LttbDownsampler, CircularBuffer, AdaptiveThresholdCalculator, TrendIndicatorCalculator)
 │   ├── Models/                  # Domain models
 │   └── Services/                # Service interfaces
 │

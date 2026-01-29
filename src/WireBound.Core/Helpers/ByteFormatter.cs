@@ -6,15 +6,41 @@ namespace WireBound.Core.Helpers;
 /// Utility class for formatting bytes and network speeds into human-readable strings.
 /// Thread-safe for concurrent access.
 /// </summary>
+/// <remarks>
+/// <para>
+/// <strong>Design Decision: Global State for User Preferences</strong>
+/// </para>
+/// <para>
+/// This class uses a static <see cref="UseSpeedInBits"/> property to store the user's
+/// preferred speed display format. This is an intentional design choice that provides:
+/// </para>
+/// <list type="bullet">
+/// <item><description>Consistent formatting across all UI elements without parameter passing</description></item>
+/// <item><description>Simple integration - UI code calls <see cref="FormatSpeed(long)"/> and gets user-preferred format</description></item>
+/// <item><description>Setting is managed centrally by SettingsViewModel at startup and when user changes preference</description></item>
+/// </list>
+/// <para>
+/// <strong>Testing Strategy</strong>
+/// </para>
+/// <para>
+/// For testing purposes, use the <see cref="FormatSpeed(long, SpeedUnit)"/> overload which accepts
+/// an explicit <see cref="SpeedUnit"/> parameter and ignores the global setting. Tests should also
+/// reset <see cref="UseSpeedInBits"/> to a known state in their setup/constructor to ensure isolation.
+/// </para>
+/// </remarks>
 public static class ByteFormatter
 {
     // Use volatile to ensure thread-safe reads/writes of the boolean flag
     private static volatile bool _useSpeedInBits;
 
     /// <summary>
-    /// Current speed display mode. When true, displays in bits (Mbps). When false, displays in bytes (MB/s).
-    /// This property is thread-safe.
+    /// Gets or sets the global speed display mode. When true, displays in bits (Mbps). When false, displays in bytes (MB/s).
     /// </summary>
+    /// <remarks>
+    /// This property is thread-safe for individual reads/writes. It is set by SettingsViewModel
+    /// when the application starts and when the user changes their preference. Use the
+    /// <see cref="FormatSpeed(long, SpeedUnit)"/> overload in tests to avoid dependency on global state.
+    /// </remarks>
     public static bool UseSpeedInBits
     {
         get => _useSpeedInBits;
@@ -22,11 +48,14 @@ public static class ByteFormatter
     }
 
     /// <summary>
-    /// Formats bytes per second into a human-readable speed string.
-    /// Uses the current UseSpeedInBits setting to determine the unit.
+    /// Formats bytes per second into a human-readable speed string using the global <see cref="UseSpeedInBits"/> setting.
     /// </summary>
     /// <param name="bytesPerSecond">Speed in bytes per second</param>
-    /// <returns>Formatted string like "1.50 MB/s" or "12.00 Mbps"</returns>
+    /// <returns>Formatted string like "1.50 MB/s" or "12.00 Mbps" depending on user preference</returns>
+    /// <remarks>
+    /// Use this overload for UI display where you want consistent formatting based on user preferences.
+    /// For tests or when explicit control is needed, use <see cref="FormatSpeed(long, SpeedUnit)"/> instead.
+    /// </remarks>
     public static string FormatSpeed(long bytesPerSecond)
     {
         return UseSpeedInBits ? FormatSpeedInBits(bytesPerSecond) : FormatSpeedInBytes(bytesPerSecond);
@@ -34,11 +63,14 @@ public static class ByteFormatter
 
     /// <summary>
     /// Formats bytes per second into a human-readable speed string using the specified unit.
-    /// Use this overload for explicit control over the output format.
     /// </summary>
     /// <param name="bytesPerSecond">Speed in bytes per second</param>
-    /// <param name="unit">The speed unit to use for formatting</param>
+    /// <param name="unit">The speed unit to use for formatting (ignored global setting)</param>
     /// <returns>Formatted string like "1.50 MB/s" or "12.00 Mbps"</returns>
+    /// <remarks>
+    /// Use this overload for explicit control over the output format, especially in tests.
+    /// This method ignores the global <see cref="UseSpeedInBits"/> setting.
+    /// </remarks>
     public static string FormatSpeed(long bytesPerSecond, SpeedUnit unit)
     {
         return unit == SpeedUnit.BitsPerSecond

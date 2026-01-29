@@ -36,6 +36,8 @@ public sealed partial class ApplicationsViewModel : ObservableObject, IDisposabl
     private readonly IProcessNetworkService? _processNetworkService;
     private readonly IElevationService _elevationService;
     private readonly ILogger<ApplicationsViewModel>? _logger;
+    private readonly CancellationTokenSource _cts = new();
+    private bool _disposed;
 
     [ObservableProperty]
     private bool _isLoading;
@@ -131,14 +133,20 @@ public sealed partial class ApplicationsViewModel : ObservableObject, IDisposabl
 
     private async Task InitializeAsync()
     {
+        var token = _cts.Token;
+
         // Load settings to check if per-app tracking is enabled
         var settings = await _persistence.GetSettingsAsync();
+
+        if (token.IsCancellationRequested) return;
 
         if (settings.IsPerAppTrackingEnabled && _processNetworkService != null)
         {
             // Only start monitoring if the setting is enabled
             await StartMonitoringAsync();
         }
+
+        if (token.IsCancellationRequested) return;
 
         await LoadDataAsync();
     }
@@ -183,6 +191,8 @@ public sealed partial class ApplicationsViewModel : ObservableObject, IDisposabl
 
     private async Task LoadDataAsync()
     {
+        if (_disposed) return;
+
         IsLoading = true;
 
         try
@@ -191,6 +201,9 @@ public sealed partial class ApplicationsViewModel : ObservableObject, IDisposabl
             var endDateOnly = DateOnly.FromDateTime(EndDate ?? DateTime.Now);
 
             var usages = await _persistence.GetAllAppUsageAsync(startDateOnly, endDateOnly);
+
+            if (_cts.Token.IsCancellationRequested) return;
+
             var usageList = usages.ToList();
 
             // Apply search filter
@@ -280,6 +293,12 @@ public sealed partial class ApplicationsViewModel : ObservableObject, IDisposabl
     /// </summary>
     public void Dispose()
     {
+        if (_disposed) return;
+        _disposed = true;
+
+        _cts.Cancel();
+        _cts.Dispose();
+
         if (_processNetworkService != null)
         {
             _processNetworkService.StatsUpdated -= OnProcessStatsUpdated;

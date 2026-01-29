@@ -24,6 +24,7 @@ public sealed partial class ChartsViewModel : ObservableObject, IDisposable
     private readonly IDataPersistenceService _persistence;
     private readonly ISystemMonitorService? _systemMonitorService;
     private readonly ILogger<ChartsViewModel>? _logger;
+    private readonly CancellationTokenSource _cts = new();
     private bool _disposed;
     private readonly ChartDataManager _chartDataManager = new(maxBufferSize: 3600, maxDisplayPoints: 300);
     private readonly ObservableCollection<DateTimePoint> _downloadSpeedPoints = [];
@@ -134,11 +135,13 @@ public sealed partial class ChartsViewModel : ObservableObject, IDisposable
     {
         try
         {
+            var token = _cts.Token;
+
             // Load up to 1 hour of history (max range)
             var since = DateTime.Now.AddHours(-1);
             var history = await _persistence.GetSpeedHistoryAsync(since).ConfigureAwait(false);
 
-            if (history.Count == 0 || _disposed)
+            if (history.Count == 0 || token.IsCancellationRequested)
                 return;
 
             // Load history into ChartDataManager (populates buffer and updates statistics)
@@ -147,7 +150,7 @@ public sealed partial class ChartsViewModel : ObservableObject, IDisposable
             // Update UI on dispatcher thread
             await Dispatcher.UIThread.InvokeAsync(() =>
             {
-                if (_disposed) return;
+                if (token.IsCancellationRequested) return;
 
                 // Update statistics display from ChartDataManager
                 PeakDownloadSpeed = ByteFormatter.FormatSpeed(_chartDataManager.PeakDownloadBps);
@@ -214,11 +217,9 @@ public sealed partial class ChartsViewModel : ObservableObject, IDisposable
             _downloadSpeedPoints.Add(new DateTimePoint(now, stats.DownloadSpeedBps));
             _uploadSpeedPoints.Add(new DateTimePoint(now, stats.UploadSpeedBps));
 
-            // Remove old points from display collections
-            while (_downloadSpeedPoints.Count > 0 && _downloadSpeedPoints[0].DateTime < cutoff)
-                _downloadSpeedPoints.RemoveAt(0);
-            while (_uploadSpeedPoints.Count > 0 && _uploadSpeedPoints[0].DateTime < cutoff)
-                _uploadSpeedPoints.RemoveAt(0);
+            // Remove old points from display collections using batch removal (O(n) vs O(n²))
+            TrimPointsBeforeCutoff(_downloadSpeedPoints, cutoff);
+            TrimPointsBeforeCutoff(_uploadSpeedPoints, cutoff);
 
             if (XAxes.Length > 0)
             {
@@ -266,15 +267,13 @@ public sealed partial class ChartsViewModel : ObservableObject, IDisposable
         if (ShowCpuOverlay)
         {
             _cpuHistoryPoints.Add(new DateTimePoint(now, stats.Cpu.UsagePercent));
-            while (_cpuHistoryPoints.Count > 0 && _cpuHistoryPoints[0].DateTime < cutoff)
-                _cpuHistoryPoints.RemoveAt(0);
+            TrimPointsBeforeCutoff(_cpuHistoryPoints, cutoff);
         }
 
         if (ShowMemoryOverlay)
         {
             _memoryHistoryPoints.Add(new DateTimePoint(now, stats.Memory.UsagePercent));
-            while (_memoryHistoryPoints.Count > 0 && _memoryHistoryPoints[0].DateTime < cutoff)
-                _memoryHistoryPoints.RemoveAt(0);
+            TrimPointsBeforeCutoff(_memoryHistoryPoints, cutoff);
         }
     }
 
@@ -312,10 +311,53 @@ public sealed partial class ChartsViewModel : ObservableObject, IDisposable
         }
     }
 
+    /// <summary>
+    /// Efficiently removes all points before the cutoff time using batch removal.
+    /// This is O(n) compared to O(n²) for repeated RemoveAt(0) calls.
+    /// </summary>
+    private static void TrimPointsBeforeCutoff(ObservableCollection<DateTimePoint> points, DateTime cutoff)
+    {
+        if (points.Count == 0 || points[0].DateTime >= cutoff)
+            return;
+
+        // Find the first index where DateTime >= cutoff
+        var firstValidIndex = 0;
+        for (var i = 0; i < points.Count; i++)
+        {
+            if (points[i].DateTime >= cutoff)
+            {
+                firstValidIndex = i;
+                break;
+            }
+            // If we reach the end without finding a valid point, all points are old
+            if (i == points.Count - 1)
+            {
+                points.Clear();
+                return;
+            }
+        }
+
+        if (firstValidIndex == 0)
+            return;
+
+        // Keep only points from firstValidIndex onwards
+        var pointsToKeep = new DateTimePoint[points.Count - firstValidIndex];
+        for (var i = firstValidIndex; i < points.Count; i++)
+            pointsToKeep[i - firstValidIndex] = points[i];
+
+        points.Clear();
+        foreach (var point in pointsToKeep)
+            points.Add(point);
+    }
+
     public void Dispose()
     {
         if (_disposed) return;
         _disposed = true;
+
+        _cts.Cancel();
+        _cts.Dispose();
+
         _networkMonitor.StatsUpdated -= OnStatsUpdated;
         if (_systemMonitorService != null)
         {

@@ -3,9 +3,10 @@ using WireBound.Core.Models;
 namespace WireBound.Core.Services;
 
 /// <summary>
-/// Service for persisting and querying historical system statistics (CPU, Memory, GPU)
+/// Service for persisting and querying historical system statistics (CPU, Memory, GPU).
+/// Implements IAsyncDisposable for proper cleanup of async aggregation operations.
 /// </summary>
-public interface ISystemHistoryService
+public interface ISystemHistoryService : IAsyncDisposable
 {
     /// <summary>
     /// Records current system stats sample for aggregation

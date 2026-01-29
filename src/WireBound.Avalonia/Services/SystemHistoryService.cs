@@ -410,14 +410,28 @@ public sealed class SystemHistoryService : ISystemHistoryService, IDisposable
 
         _disposed = true;
 
+        // Don't block with GetAwaiter().GetResult() - can cause deadlocks in UI contexts.
+        // If synchronous disposal is called, we skip the final aggregation.
+        // Use DisposeAsync for proper async cleanup.
+        _logger.LogDebug("Synchronous Dispose called - final aggregation will be skipped. Use DisposeAsync for proper cleanup.");
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        if (_disposed)
+            return;
+
+        _disposed = true;
+
         // Final aggregation attempt on disposal
         try
         {
-            AggregateHourlyAsync().GetAwaiter().GetResult();
+            await AggregateHourlyAsync().ConfigureAwait(false);
+            _logger.LogDebug("Final aggregation completed during async disposal");
         }
         catch (Exception ex)
         {
-            _logger.LogWarning(ex, "Failed to perform final aggregation during disposal");
+            _logger.LogWarning(ex, "Failed to perform final aggregation during async disposal");
         }
     }
 }

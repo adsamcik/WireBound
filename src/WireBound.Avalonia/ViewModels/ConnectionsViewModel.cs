@@ -114,6 +114,13 @@ public sealed partial class ConnectionsViewModel : ObservableObject, IDisposable
     [ObservableProperty]
     private bool _requiresElevation;
 
+    /// <summary>
+    /// Indicates that per-connection byte tracking is using estimated values
+    /// because the elevated helper process is not connected.
+    /// </summary>
+    [ObservableProperty]
+    private bool _isByteTrackingLimited;
+
     [ObservableProperty]
     private string _errorMessage = "";
 
@@ -164,6 +171,9 @@ public sealed partial class ConnectionsViewModel : ObservableObject, IDisposable
         RequiresElevation = _elevationService.RequiresElevationFor(ElevatedFeature.PerProcessNetworkMonitoring)
                             && _elevationService.IsElevationSupported;
 
+        // Byte tracking is limited when elevated helper is not connected
+        IsByteTrackingLimited = !_elevationService.IsHelperConnected;
+
         // Set up refresh timer (2 seconds)
         _refreshTimer = new System.Timers.Timer(2000);
         _refreshTimer.Elapsed += async (_, _) => await RefreshConnectionsAsync();
@@ -180,7 +190,18 @@ public sealed partial class ConnectionsViewModel : ObservableObject, IDisposable
             _dnsResolver.HostnameResolved += OnHostnameResolved;
         }
 
+        // Subscribe to helper state changes
+        _elevationService.HelperConnectionStateChanged += OnHelperConnectionStateChanged;
+
         _ = InitializeAsync();
+    }
+
+    private void OnHelperConnectionStateChanged(object? sender, HelperConnectionStateChangedEventArgs e)
+    {
+        Dispatcher.UIThread.Post(() =>
+        {
+            IsByteTrackingLimited = !e.IsConnected;
+        });
     }
 
     private async Task InitializeAsync()
@@ -420,5 +441,7 @@ public sealed partial class ConnectionsViewModel : ObservableObject, IDisposable
         {
             _dnsResolver.HostnameResolved -= OnHostnameResolved;
         }
+
+        _elevationService.HelperConnectionStateChanged -= OnHelperConnectionStateChanged;
     }
 }

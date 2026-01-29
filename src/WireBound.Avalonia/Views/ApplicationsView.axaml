@@ -78,6 +78,32 @@
                     </StackPanel>
                 </Border>
 
+                <!-- Byte Tracking Preview Banner -->
+                <Border Classes="Card"
+                        Background="{DynamicResource InfoBannerColor}"
+                        IsVisible="{Binding IsByteTrackingLimited}">
+                    <StackPanel Orientation="Horizontal" Spacing="16">
+                        <Border Background="{DynamicResource InfoBgTintBrush}" CornerRadius="10" Width="48" Height="48">
+                            <TextBlock Text="🔬" FontSize="24"
+                                       HorizontalAlignment="Center" VerticalAlignment="Center" />
+                        </Border>
+                        <StackPanel VerticalAlignment="Center">
+                            <StackPanel Orientation="Horizontal" Spacing="8">
+                                <TextBlock Text="Byte Tracking Preview"
+                                           FontSize="16" FontWeight="Bold"
+                                           Foreground="{DynamicResource PrimaryBrush}" />
+                                <Border Background="{DynamicResource AccentBgTintBrush}" 
+                                        CornerRadius="6" Padding="8,2">
+                                    <TextBlock Text="COMING SOON" FontSize="10" FontWeight="Bold"
+                                               Foreground="{DynamicResource PrimaryBrush}" />
+                                </Border>
+                            </StackPanel>
+                            <TextBlock Text="Per-app byte counts are estimated. Accurate tracking with elevated helper is in development."
+                                       Classes="Subtitle" TextWrapping="Wrap" />
+                        </StackPanel>
+                    </StackPanel>
+                </Border>
+
                 <!-- Summary Cards -->
                 <Grid ColumnDefinitions="*, *, *">
                     <Border Grid.Column="0" Classes="ElevatedCard" Margin="0,0,10,0">

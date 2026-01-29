@@ -92,21 +92,28 @@
                     </StackPanel>
                 </Border>
 
-                <!-- Elevation Required Banner -->
+                <!-- Byte Tracking Preview Banner -->
                 <Border Classes="Card"
                         Background="{DynamicResource InfoBannerColor}"
-                        IsVisible="{Binding RequiresElevation}">
+                        IsVisible="{Binding IsByteTrackingLimited}">
                     <StackPanel Orientation="Horizontal" Spacing="16">
                         <Border Background="{DynamicResource InfoBgTintBrush}" CornerRadius="10" Width="48" Height="48">
-                            <TextBlock Text="🔐" FontSize="24"
+                            <TextBlock Text="🔬" FontSize="24"
                                        HorizontalAlignment="Center" VerticalAlignment="Center" />
                         </Border>
                         <StackPanel VerticalAlignment="Center">
-                            <TextBlock Text="Helper Connection Required"
-                                       FontSize="16" FontWeight="Bold"
-                                       Foreground="{DynamicResource PrimaryBrush}" />
-                            <TextBlock Text="Full byte tracking requires elevated helper."
-                                       Classes="Subtitle" />
+                            <StackPanel Orientation="Horizontal" Spacing="8">
+                                <TextBlock Text="Byte Tracking Preview"
+                                           FontSize="16" FontWeight="Bold"
+                                           Foreground="{DynamicResource PrimaryBrush}" />
+                                <Border Background="{DynamicResource AccentBgTintBrush}" 
+                                        CornerRadius="6" Padding="8,2">
+                                    <TextBlock Text="COMING SOON" FontSize="10" FontWeight="Bold"
+                                               Foreground="{DynamicResource PrimaryBrush}" />
+                                </Border>
+                            </StackPanel>
+                            <TextBlock Text="Per-connection byte counts are estimated. Accurate tracking with elevated helper is in development."
+                                       Classes="Subtitle" TextWrapping="Wrap" />
                         </StackPanel>
                     </StackPanel>
                 </Border>

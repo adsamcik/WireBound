@@ -33,6 +33,13 @@ public sealed partial class ApplicationsViewModel : ObservableObject, IDisposabl
     [ObservableProperty]
     private bool _requiresElevation;
 
+    /// <summary>
+    /// Indicates that per-app byte tracking is using estimated values
+    /// because the elevated helper process is not connected.
+    /// </summary>
+    [ObservableProperty]
+    private bool _isByteTrackingLimited;
+
     [ObservableProperty]
     private bool _isRequestingElevation;
 
@@ -80,6 +87,9 @@ public sealed partial class ApplicationsViewModel : ObservableObject, IDisposabl
                             && _elevationService.IsElevationSupported
                             && !_elevationService.IsHelperConnected;
 
+        // Byte tracking is limited when elevated helper is not connected
+        IsByteTrackingLimited = !_elevationService.IsHelperConnected;
+
         if (_processNetworkService != null)
         {
             _processNetworkService.StatsUpdated += OnProcessStatsUpdated;
@@ -99,6 +109,7 @@ public sealed partial class ApplicationsViewModel : ObservableObject, IDisposabl
             RequiresElevation = !e.IsConnected
                                && _elevationService.IsElevationSupported
                                && _elevationService.RequiresElevationFor(ElevatedFeature.PerProcessNetworkMonitoring);
+            IsByteTrackingLimited = !e.IsConnected;
         });
     }
 

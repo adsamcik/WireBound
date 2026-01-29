@@ -91,8 +91,23 @@ public partial class ConnectionDisplayItem : ObservableObject
 }
 
 /// <summary>
-/// ViewModel for the Connections page - displays active network connections by IP/URL
+/// ViewModel for the Connections page - displays active network connections by IP/URL.
 /// </summary>
+/// <remarks>
+/// <para>
+/// <strong>Byte Tracking Limitation:</strong> Per-connection byte counters (BytesSent, BytesReceived, speeds)
+/// require the elevated helper process to provide accurate values. Without the helper:
+/// </para>
+/// <list type="bullet">
+///   <item>Connection list, process info, and states work fully</item>
+///   <item>Byte counters show estimated values based on proportional traffic distribution</item>
+///   <item>The <see cref="IsByteTrackingLimited"/> property indicates when estimates are in use</item>
+/// </list>
+/// <para>
+/// This limitation exists because per-socket byte accounting requires elevated access:
+/// ETW on Windows, eBPF on Linux. See docs/LIMITATIONS.md for details.
+/// </para>
+/// </remarks>
 public sealed partial class ConnectionsViewModel : ObservableObject, IDisposable
 {
     private readonly IProcessNetworkService? _processNetworkService;

@@ -12,8 +12,24 @@ using WireBound.Platform.Abstract.Services;
 namespace WireBound.Avalonia.ViewModels;
 
 /// <summary>
-/// ViewModel for the Applications page
+/// ViewModel for the Applications page - displays network usage per application.
 /// </summary>
+/// <remarks>
+/// <para>
+/// <strong>Byte Tracking Limitation:</strong> Per-app byte counters require the elevated helper
+/// process to provide accurate values. Without the helper:
+/// </para>
+/// <list type="bullet">
+///   <item>Active apps with network connections are listed correctly</item>
+///   <item>Historical usage records from the database display correctly</item>
+///   <item>Real-time byte counters show estimated values based on proportional traffic</item>
+///   <item>The <see cref="IsByteTrackingLimited"/> property indicates when estimates are in use</item>
+/// </list>
+/// <para>
+/// This limitation exists because per-socket byte accounting requires elevated access:
+/// ETW on Windows, eBPF on Linux. See docs/LIMITATIONS.md for details.
+/// </para>
+/// </remarks>
 public sealed partial class ApplicationsViewModel : ObservableObject, IDisposable
 {
     private readonly IDataPersistenceService _persistence;

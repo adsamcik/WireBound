@@ -365,6 +365,48 @@ private async Task PollAsync()
 </Button>
 ```
 
+## DateTime Usage Guidelines
+
+This is a **local desktop monitoring application**. DateTime usage follows these intentional patterns:
+
+### Use `DateTime.Now` (Local Time)
+
+| Scenario | Rationale |
+| -------- | --------- |
+| Hourly/daily aggregations | User's "today" should match their local calendar day |
+| Speed snapshot timestamps | Displayed in local time to user |
+| UI date pickers and filters | Users work in local time |
+| Data retention cleanup | Cutoffs based on local day boundaries |
+| LastUpdated fields | Shown to user in local time |
+
+### Use `DateTime.UtcNow`
+
+| Scenario | Rationale |
+| -------- | --------- |
+| Cache TTL checks | Internal timing, not displayed to user |
+| Cross-timezone comparisons | N/A for desktop app |
+| Distributed timestamps | N/A for desktop app |
+
+### Example
+
+```csharp
+// ✅ Correct: Aggregations use local time (user's day/hour)
+var now = DateTime.Now;
+var currentHour = new DateTime(now.Year, now.Month, now.Day, now.Hour, 0, 0);
+var today = DateOnly.FromDateTime(now);
+
+// ✅ Correct: Cache TTL uses UTC (internal, not displayed)
+if (DateTime.UtcNow - entry.CachedAt < CacheTtl)
+    return cached;
+```
+
+### Where to See It
+- `src/WireBound.Avalonia/Services/DataPersistenceService.cs` - Local time for aggregations
+- `src/WireBound.Avalonia/Services/SystemHistoryService.cs` - Local time for aggregations  
+- `src/WireBound.Avalonia/Services/DnsResolverService.cs` - UTC for cache TTL
+
+---
+
 ## Commit Conventions
 
 Use conventional commits:

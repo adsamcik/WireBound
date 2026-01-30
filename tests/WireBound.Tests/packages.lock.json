@@ -4,9 +4,9 @@
     "net10.0": {
       "AwesomeAssertions": {
         "type": "Direct",
-        "requested": "[9.0.0, )",
-        "resolved": "9.0.0",
-        "contentHash": "7HpVy5wMgzBX9vmelhDdM6EshiaGuz8apnhPcWGAkrbc7rlgmtzEDNcUiTNIicTkurBY37JZYdDiNMWrnKdADA=="
+        "requested": "[9.3.0, )",
+        "resolved": "9.3.0",
+        "contentHash": "8lGLYap2ec2gNLgjf2xKZaKLpQ7j36oJvrYzBVVpNAumqnxRdevqqhEF66qxE92f8y2+zsbQ061DeHG61ZhzaQ=="
       },
       "Microsoft.EntityFrameworkCore.InMemory": {
         "type": "Direct",

@@ -6,6 +6,7 @@ namespace WireBound.Tests.Helpers;
 /// <summary>
 /// Unit tests for ByteFormatter helper class
 /// </summary>
+[NotInParallel(Order = 1)]  // Ensure tests run serially due to shared static state
 public class ByteFormatterTests
 {
     [Before(Test)]

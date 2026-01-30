@@ -13,7 +13,7 @@ public class ChartColorsTests
     // NETWORK ACTIVITY COLORS
     // ═══════════════════════════════════════════════════════════════════════
 
-    [Fact]
+    [Test]
     public void DownloadColor_ShouldReturnValidElectricCyan()
     {
         // Act
@@ -27,7 +27,7 @@ public class ChartColorsTests
         color.Alpha.Should().Be(255);
     }
 
-    [Fact]
+    [Test]
     public void DownloadAccentColor_ShouldReturnValidColor()
     {
         // Act
@@ -38,7 +38,7 @@ public class ChartColorsTests
         color.Alpha.Should().Be(255);
     }
 
-    [Fact]
+    [Test]
     public void DownloadDimColor_ShouldReturnValidColor()
     {
         // Act
@@ -49,7 +49,7 @@ public class ChartColorsTests
         color.Alpha.Should().Be(255);
     }
 
-    [Fact]
+    [Test]
     public void UploadColor_ShouldReturnValidCoralOrange()
     {
         // Act
@@ -63,7 +63,7 @@ public class ChartColorsTests
         color.Alpha.Should().Be(255);
     }
 
-    [Fact]
+    [Test]
     public void UploadAccentColor_ShouldReturnValidColor()
     {
         // Act
@@ -74,7 +74,7 @@ public class ChartColorsTests
         color.Alpha.Should().Be(255);
     }
 
-    [Fact]
+    [Test]
     public void UploadDimColor_ShouldReturnValidColor()
     {
         // Act
@@ -89,7 +89,7 @@ public class ChartColorsTests
     // SYSTEM RESOURCE COLORS
     // ═══════════════════════════════════════════════════════════════════════
 
-    [Fact]
+    [Test]
     public void CpuColor_ShouldReturnValidSapphireBlue()
     {
         // Act
@@ -103,7 +103,7 @@ public class ChartColorsTests
         color.Alpha.Should().Be(255);
     }
 
-    [Fact]
+    [Test]
     public void CpuAccentColor_ShouldReturnValidColor()
     {
         // Act
@@ -114,7 +114,7 @@ public class ChartColorsTests
         color.Alpha.Should().Be(255);
     }
 
-    [Fact]
+    [Test]
     public void CpuDimColor_ShouldReturnValidColor()
     {
         // Act
@@ -125,7 +125,7 @@ public class ChartColorsTests
         color.Alpha.Should().Be(255);
     }
 
-    [Fact]
+    [Test]
     public void MemoryColor_ShouldReturnValidAmethystPurple()
     {
         // Act
@@ -139,7 +139,7 @@ public class ChartColorsTests
         color.Alpha.Should().Be(255);
     }
 
-    [Fact]
+    [Test]
     public void MemoryAccentColor_ShouldReturnValidColor()
     {
         // Act
@@ -150,7 +150,7 @@ public class ChartColorsTests
         color.Alpha.Should().Be(255);
     }
 
-    [Fact]
+    [Test]
     public void MemoryDimColor_ShouldReturnValidColor()
     {
         // Act
@@ -165,7 +165,7 @@ public class ChartColorsTests
     // CHART AXIS & GRID COLORS
     // ═══════════════════════════════════════════════════════════════════════
 
-    [Fact]
+    [Test]
     public void AxisLabelColor_ShouldReturnValidColor()
     {
         // Act
@@ -176,7 +176,7 @@ public class ChartColorsTests
         color.Alpha.Should().Be(255);
     }
 
-    [Fact]
+    [Test]
     public void AxisNameColor_ShouldReturnValidColor()
     {
         // Act
@@ -187,7 +187,7 @@ public class ChartColorsTests
         color.Alpha.Should().Be(255);
     }
 
-    [Fact]
+    [Test]
     public void GridLineColor_ShouldHaveAlphaTransparency()
     {
         // Act
@@ -202,7 +202,7 @@ public class ChartColorsTests
     // SECTION & THRESHOLD COLORS
     // ═══════════════════════════════════════════════════════════════════════
 
-    [Fact]
+    [Test]
     public void SectionStrokeColor_ShouldHaveAlphaTransparency()
     {
         // Act
@@ -213,7 +213,7 @@ public class ChartColorsTests
         color.Alpha.Should().Be(150);
     }
 
-    [Fact]
+    [Test]
     public void WarningSectionColor_ShouldHaveAlphaTransparency()
     {
         // Act
@@ -228,7 +228,7 @@ public class ChartColorsTests
     // BACKGROUND & TOOLTIP COLORS
     // ═══════════════════════════════════════════════════════════════════════
 
-    [Fact]
+    [Test]
     public void ChartBackgroundColor_ShouldReturnValidColor()
     {
         // Act
@@ -239,7 +239,7 @@ public class ChartColorsTests
         color.Alpha.Should().Be(255);
     }
 
-    [Fact]
+    [Test]
     public void TooltipBackgroundColor_ShouldReturnValidColor()
     {
         // Act
@@ -250,7 +250,7 @@ public class ChartColorsTests
         color.Alpha.Should().Be(255);
     }
 
-    [Fact]
+    [Test]
     public void TooltipTextColor_ShouldReturnValidColor()
     {
         // Act
@@ -265,7 +265,7 @@ public class ChartColorsTests
     // SERIES PALETTE
     // ═══════════════════════════════════════════════════════════════════════
 
-    [Fact]
+    [Test]
     public void SeriesPalette_ShouldContainMultipleColors()
     {
         // Act
@@ -276,7 +276,7 @@ public class ChartColorsTests
         palette.Should().HaveCountGreaterThanOrEqualTo(8);
     }
 
-    [Fact]
+    [Test]
     public void SeriesPalette_AllColorsShouldBeValid()
     {
         // Act
@@ -290,7 +290,7 @@ public class ChartColorsTests
         }
     }
 
-    [Fact]
+    [Test]
     public void SeriesPalette_FirstColorShouldBeElectricCyan()
     {
         // Act
@@ -302,7 +302,7 @@ public class ChartColorsTests
         firstColor.Blue.Should().Be(255);
     }
 
-    [Fact]
+    [Test]
     public void SeriesPalette_SecondColorShouldBeCoralOrange()
     {
         // Act
@@ -314,7 +314,7 @@ public class ChartColorsTests
         secondColor.Blue.Should().Be(53);
     }
 
-    [Fact]
+    [Test]
     public void SeriesPalette_ColorsShouldBeDistinct()
     {
         // Act
@@ -328,7 +328,7 @@ public class ChartColorsTests
     // COLOR RELATIONSHIP TESTS
     // ═══════════════════════════════════════════════════════════════════════
 
-    [Fact]
+    [Test]
     public void DownloadColors_ShouldBeInCyanFamily()
     {
         // All download colors should have higher blue component
@@ -337,7 +337,7 @@ public class ChartColorsTests
         ChartColors.DownloadDimColor.Blue.Should().BeGreaterThan(ChartColors.DownloadDimColor.Red);
     }
 
-    [Fact]
+    [Test]
     public void UploadColors_ShouldBeInOrangeFamily()
     {
         // All upload colors should have higher red component
@@ -346,7 +346,7 @@ public class ChartColorsTests
         ChartColors.UploadDimColor.Red.Should().BeGreaterThan(ChartColors.UploadDimColor.Blue);
     }
 
-    [Fact]
+    [Test]
     public void CpuColors_ShouldBeInBlueFamily()
     {
         // CPU colors should have dominant blue component
@@ -354,7 +354,7 @@ public class ChartColorsTests
         ChartColors.CpuColor.Blue.Should().BeGreaterThan(ChartColors.CpuColor.Green);
     }
 
-    [Fact]
+    [Test]
     public void MemoryColors_ShouldBeInPurpleFamily()
     {
         // Memory colors should have high red and blue (purple)

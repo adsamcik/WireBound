@@ -16,17 +16,75 @@ public sealed class NetworkPollingBackgroundService : BackgroundService, INetwor
     private readonly IDataPersistenceService _persistence;
     private readonly ITrayIconService _trayIcon;
     private readonly ILogger<NetworkPollingBackgroundService> _logger;
-    private volatile int _pollIntervalMs = 1000;
-    private volatile int _saveIntervalSeconds = 60;
+    private volatile int _pollIntervalMs = DefaultPollIntervalMs;
+    private volatile int _saveIntervalSeconds = DefaultSaveIntervalSeconds;
     private readonly Stopwatch _saveStopwatch = new();
     private readonly Stopwatch _cleanupStopwatch = new();
     private readonly Stopwatch _snapshotFlushStopwatch = new();
     private readonly Stopwatch _systemStatsAggregationStopwatch = new();
-    private readonly List<(long download, long upload, DateTime time)> _snapshotBuffer = new(30);
+    private readonly List<(long download, long upload, DateTime time)> _snapshotBuffer = new(SnapshotBufferCapacity);
+
+    #region Constants
+
+    /// <summary>
+    /// Default polling interval in milliseconds when no user setting is configured.
+    /// </summary>
+    private const int DefaultPollIntervalMs = 1000;
+
+    /// <summary>
+    /// Default interval between persisting stats to database when no user setting is configured.
+    /// </summary>
+    private const int DefaultSaveIntervalSeconds = 60;
+
+    /// <summary>
+    /// Delay before the first stats save after service startup, allowing initial readings to stabilize.
+    /// </summary>
+    private const int InitialSaveDelaySeconds = 5;
+
+    /// <summary>
+    /// Interval for flushing buffered speed snapshots to the database.
+    /// Balances write performance with data freshness.
+    /// </summary>
     private const int SnapshotFlushIntervalSeconds = 30;
+
+    /// <summary>
+    /// Interval for cleaning up old speed snapshots beyond the retention period.
+    /// </summary>
     private const int CleanupIntervalMinutes = 5;
+
+    /// <summary>
+    /// Interval for aggregating system stats (CPU, memory) into hourly and daily summaries.
+    /// </summary>
     private const int SystemStatsAggregationIntervalMinutes = 5;
+
+    /// <summary>
+    /// How long to retain detailed speed snapshots before cleanup.
+    /// Older data is aggregated into hourly/daily summaries.
+    /// </summary>
     private static readonly TimeSpan SpeedSnapshotRetention = TimeSpan.FromHours(2);
+
+    /// <summary>
+    /// Maximum number of speed snapshots to buffer before flushing to database.
+    /// Sized to hold approximately <see cref="SnapshotFlushIntervalSeconds"/> worth of samples.
+    /// </summary>
+    private const int SnapshotBufferCapacity = 30;
+
+    /// <summary>
+    /// Minimum allowed polling interval to prevent excessive CPU usage.
+    /// </summary>
+    private const int MinPollingIntervalMs = 100;
+
+    /// <summary>
+    /// Maximum allowed polling interval (1 minute) to ensure reasonably responsive updates.
+    /// </summary>
+    private const int MaxPollingIntervalMs = 60000;
+
+    /// <summary>
+    /// Minimum allowed save interval to prevent excessive database writes.
+    /// </summary>
+    private const int MinSaveIntervalSeconds = 10;
+
+    #endregion
 
     public NetworkPollingBackgroundService(
         INetworkMonitorService networkMonitor,
@@ -64,7 +122,6 @@ public sealed class NetworkPollingBackgroundService : BackgroundService, INetwor
 
         // Perform an initial save after a short delay
         bool initialSaveDone = false;
-        const int initialSaveDelaySeconds = 5;
         _saveStopwatch.Start();
         _cleanupStopwatch.Start();
         _snapshotFlushStopwatch.Start();
@@ -119,7 +176,7 @@ public sealed class NetworkPollingBackgroundService : BackgroundService, INetwor
                     }
 
                     // Initial save after short delay
-                    if (!initialSaveDone && _saveStopwatch.Elapsed.TotalSeconds >= initialSaveDelaySeconds)
+                    if (!initialSaveDone && _saveStopwatch.Elapsed.TotalSeconds >= InitialSaveDelaySeconds)
                     {
                         var stats = _networkMonitor.GetCurrentStats();
                         await _persistence.SaveStatsAsync(stats).ConfigureAwait(false);
@@ -185,9 +242,6 @@ public sealed class NetworkPollingBackgroundService : BackgroundService, INetwor
     /// <inheritdoc />
     public void UpdatePollingInterval(int milliseconds)
     {
-        const int MinPollingIntervalMs = 100;
-        const int MaxPollingIntervalMs = 60000;
-
         if (milliseconds < MinPollingIntervalMs)
         {
             _logger.LogWarning("Polling interval {Interval}ms is too low, using minimum of {Min}ms", milliseconds, MinPollingIntervalMs);
@@ -206,10 +260,10 @@ public sealed class NetworkPollingBackgroundService : BackgroundService, INetwor
     /// <inheritdoc />
     public void UpdateSaveInterval(int seconds)
     {
-        if (seconds < 10)
+        if (seconds < MinSaveIntervalSeconds)
         {
-            _logger.LogWarning("Save interval {Interval}s is too low, using minimum of 10s", seconds);
-            seconds = 10;
+            _logger.LogWarning("Save interval {Interval}s is too low, using minimum of {Min}s", seconds, MinSaveIntervalSeconds);
+            seconds = MinSaveIntervalSeconds;
         }
 
         _saveIntervalSeconds = seconds;

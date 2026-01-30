@@ -12,7 +12,7 @@ public class CircularBufferTests
     // Constructor Tests
     // ═══════════════════════════════════════════════════════════════════════
 
-    [Fact]
+    [Test]
     public void Constructor_ValidCapacity_CreatesBuffer()
     {
         // Act
@@ -23,10 +23,10 @@ public class CircularBufferTests
         buffer.Count.Should().Be(0);
     }
 
-    [Theory]
-    [InlineData(0)]
-    [InlineData(-1)]
-    [InlineData(-100)]
+    [Test]
+    [Arguments(0)]
+    [Arguments(-1)]
+    [Arguments(-100)]
     public void Constructor_InvalidCapacity_ThrowsArgumentOutOfRangeException(int capacity)
     {
         // Act & Assert
@@ -34,7 +34,7 @@ public class CircularBufferTests
         action.Should().Throw<ArgumentOutOfRangeException>();
     }
 
-    [Fact]
+    [Test]
     public void Constructor_MinimumCapacity_Works()
     {
         // Act
@@ -49,7 +49,7 @@ public class CircularBufferTests
     // Add Tests
     // ═══════════════════════════════════════════════════════════════════════
 
-    [Fact]
+    [Test]
     public void Add_SingleItem_IncreasesCount()
     {
         // Arrange
@@ -62,7 +62,7 @@ public class CircularBufferTests
         buffer.Count.Should().Be(1);
     }
 
-    [Fact]
+    [Test]
     public void Add_MultipleItems_IncreasesCount()
     {
         // Arrange
@@ -77,7 +77,7 @@ public class CircularBufferTests
         buffer.Count.Should().Be(3);
     }
 
-    [Fact]
+    [Test]
     public void Add_FillToCapacity_CountEqualsCapacity()
     {
         // Arrange
@@ -93,7 +93,7 @@ public class CircularBufferTests
         buffer.Count.Should().Be(5);
     }
 
-    [Fact]
+    [Test]
     public void Add_ExceedCapacity_CountStaysAtCapacity()
     {
         // Arrange
@@ -109,7 +109,7 @@ public class CircularBufferTests
         buffer.Count.Should().Be(5);
     }
 
-    [Fact]
+    [Test]
     public void Add_ExceedCapacity_OverwritesOldestItems()
     {
         // Arrange
@@ -126,7 +126,7 @@ public class CircularBufferTests
         items.Should().BeEquivalentTo([2, 3, 4]);
     }
 
-    [Fact]
+    [Test]
     public void Add_WrapAround_MaintainsCorrectOrder()
     {
         // Arrange
@@ -143,7 +143,7 @@ public class CircularBufferTests
         items.Should().BeEquivalentTo([4, 5, 6]);
     }
 
-    [Fact]
+    [Test]
     public void Add_NullValues_Allowed()
     {
         // Arrange
@@ -164,7 +164,7 @@ public class CircularBufferTests
     // Clear Tests
     // ═══════════════════════════════════════════════════════════════════════
 
-    [Fact]
+    [Test]
     public void Clear_EmptyBuffer_DoesNothing()
     {
         // Arrange
@@ -177,7 +177,7 @@ public class CircularBufferTests
         buffer.Count.Should().Be(0);
     }
 
-    [Fact]
+    [Test]
     public void Clear_WithItems_ResetsCount()
     {
         // Arrange
@@ -193,7 +193,7 @@ public class CircularBufferTests
         buffer.Count.Should().Be(0);
     }
 
-    [Fact]
+    [Test]
     public void Clear_AfterClear_CanAddNewItems()
     {
         // Arrange
@@ -211,7 +211,7 @@ public class CircularBufferTests
         buffer.ToArray().Should().BeEquivalentTo([10, 20]);
     }
 
-    [Fact]
+    [Test]
     public void Clear_PreservesCapacity()
     {
         // Arrange
@@ -230,7 +230,7 @@ public class CircularBufferTests
     // AsEnumerable / ToArray Tests
     // ═══════════════════════════════════════════════════════════════════════
 
-    [Fact]
+    [Test]
     public void ToArray_EmptyBuffer_ReturnsEmptyArray()
     {
         // Arrange
@@ -243,7 +243,7 @@ public class CircularBufferTests
         array.Should().BeEmpty();
     }
 
-    [Fact]
+    [Test]
     public void ToArray_PartiallyFilled_ReturnsOnlyAddedItems()
     {
         // Arrange
@@ -260,7 +260,7 @@ public class CircularBufferTests
         array.Should().BeEquivalentTo([1, 2, 3]);
     }
 
-    [Fact]
+    [Test]
     public void ToArray_FullyFilled_ReturnsAllItems()
     {
         // Arrange
@@ -278,7 +278,7 @@ public class CircularBufferTests
         array.Should().BeEquivalentTo([1, 2, 3, 4, 5]);
     }
 
-    [Fact]
+    [Test]
     public void ToArray_AfterWrapAround_ReturnsItemsInCorrectOrder()
     {
         // Arrange
@@ -296,7 +296,7 @@ public class CircularBufferTests
         array.Should().BeEquivalentTo([3, 4, 5]);
     }
 
-    [Fact]
+    [Test]
     public void AsEnumerable_AllowsLinqOperations()
     {
         // Arrange
@@ -316,7 +316,7 @@ public class CircularBufferTests
         avg.Should().Be(3.0);
     }
 
-    [Fact]
+    [Test]
     public void AsEnumerable_AfterWrapAround_EnumeratesCorrectly()
     {
         // Arrange
@@ -337,7 +337,7 @@ public class CircularBufferTests
     // Edge Cases and Stress Tests
     // ═══════════════════════════════════════════════════════════════════════
 
-    [Fact]
+    [Test]
     public void SingleCapacity_WrapAround_WorksCorrectly()
     {
         // Arrange
@@ -353,7 +353,7 @@ public class CircularBufferTests
         buffer.ToArray().Should().BeEquivalentTo([3]);
     }
 
-    [Fact]
+    [Test]
     public void LargeBuffer_ManyItems_MaintainsIntegrity()
     {
         // Arrange
@@ -375,7 +375,7 @@ public class CircularBufferTests
         array[999].Should().Be(4999);
     }
 
-    [Fact]
+    [Test]
     public void ReferenceTypes_WorkCorrectly()
     {
         // Arrange
@@ -392,7 +392,7 @@ public class CircularBufferTests
         items.Should().BeEquivalentTo(["second", "third", "fourth"]);
     }
 
-    [Fact]
+    [Test]
     public void ComplexTypes_WorkCorrectly()
     {
         // Arrange

@@ -2,7 +2,6 @@ using AwesomeAssertions;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
-using Moq;
 using WireBound.Avalonia.Services;
 using WireBound.Core.Data;
 using WireBound.Core.Models;
@@ -12,18 +11,18 @@ namespace WireBound.Tests.Services;
 /// <summary>
 /// Unit tests for SystemHistoryService
 /// </summary>
-public class SystemHistoryServiceTests : IDisposable
+public class SystemHistoryServiceTests : IAsyncDisposable
 {
     private readonly WireBoundDbContext _context;
     private readonly IServiceProvider _serviceProvider;
-    private readonly Mock<ILogger<SystemHistoryService>> _loggerMock;
+    private readonly ILogger<SystemHistoryService> _loggerMock;
     private readonly SystemHistoryService _service;
     private readonly string _databaseName;
 
     public SystemHistoryServiceTests()
     {
         _databaseName = Guid.NewGuid().ToString();
-        _loggerMock = new Mock<ILogger<SystemHistoryService>>();
+        _loggerMock = Substitute.For<ILogger<SystemHistoryService>>();
 
         // Set up in-memory database with scoped context
         var services = new ServiceCollection();
@@ -37,15 +36,14 @@ public class SystemHistoryServiceTests : IDisposable
         _context = scope.ServiceProvider.GetRequiredService<WireBoundDbContext>();
         _context.Database.EnsureCreated();
 
-        _service = new SystemHistoryService(_serviceProvider, _loggerMock.Object);
+        _service = new SystemHistoryService(_serviceProvider, _loggerMock);
     }
 
-    public void Dispose()
-    {
+    public ValueTask DisposeAsync() {
         _service.Dispose();
         _context.Dispose();
         GC.SuppressFinalize(this);
-    }
+    ; return ValueTask.CompletedTask; }
 
     #region Helper Methods
 
@@ -101,8 +99,8 @@ public class SystemHistoryServiceTests : IDisposable
 
     #region RecordSampleAsync Tests
 
-    [Fact]
-    public async Task RecordSampleAsync_AddsSampleToBuffer()
+    [Test, Timeout(30000)]
+    public async Task RecordSampleAsync_AddsSampleToBuffer(CancellationToken cancellationToken)
     {
         // Arrange
         var stats = CreateSystemStats(cpuUsage: 75.0, memoryUsage: 80.0);
@@ -117,8 +115,8 @@ public class SystemHistoryServiceTests : IDisposable
         // Success if no exception
     }
 
-    [Fact]
-    public async Task RecordSampleAsync_MultipleSamples_AllAdded()
+    [Test, Timeout(30000)]
+    public async Task RecordSampleAsync_MultipleSamples_AllAdded(CancellationToken cancellationToken)
     {
         // Arrange
         var stats1 = CreateSystemStats(cpuUsage: 25.0);
@@ -134,11 +132,11 @@ public class SystemHistoryServiceTests : IDisposable
         // Actual verification happens through aggregation tests
     }
 
-    [Fact]
-    public async Task RecordSampleAsync_AfterDispose_DoesNotThrow()
+    [Test, Timeout(30000)]
+    public async Task RecordSampleAsync_AfterDispose_DoesNotThrow(CancellationToken cancellationToken)
     {
         // Arrange
-        var service = new SystemHistoryService(_serviceProvider, _loggerMock.Object);
+        var service = new SystemHistoryService(_serviceProvider, _loggerMock);
         var stats = CreateSystemStats();
 
         // Act
@@ -152,8 +150,8 @@ public class SystemHistoryServiceTests : IDisposable
 
     #region Buffer Limit Tests
 
-    [Fact]
-    public async Task RecordSampleAsync_BufferLimit_DoesNotGrowUnbounded()
+    [Test, Timeout(30000)]
+    public async Task RecordSampleAsync_BufferLimit_DoesNotGrowUnbounded(CancellationToken cancellationToken)
     {
         // Arrange - The buffer limit is 7200 samples
         const int sampleCount = 8000; // More than the limit
@@ -169,8 +167,8 @@ public class SystemHistoryServiceTests : IDisposable
         // The service should have dequeued older samples
     }
 
-    [Fact]
-    public async Task RecordSampleAsync_ExactlyAtLimit_NoOverflow()
+    [Test, Timeout(30000)]
+    public async Task RecordSampleAsync_ExactlyAtLimit_NoOverflow(CancellationToken cancellationToken)
     {
         // Arrange
         const int sampleCount = 7200; // Exactly at limit
@@ -189,8 +187,8 @@ public class SystemHistoryServiceTests : IDisposable
 
     #region GetHourlyStatsAsync Tests
 
-    [Fact]
-    public async Task GetHourlyStatsAsync_ReturnsCorrectDataRange()
+    [Test, Timeout(30000)]
+    public async Task GetHourlyStatsAsync_ReturnsCorrectDataRange(CancellationToken cancellationToken)
     {
         // Arrange
         var now = DateTime.Now;
@@ -217,8 +215,8 @@ public class SystemHistoryServiceTests : IDisposable
         result.Should().NotContain(h => h.Hour == hour4);
     }
 
-    [Fact]
-    public async Task GetHourlyStatsAsync_ReturnsOrderedByHour()
+    [Test, Timeout(30000)]
+    public async Task GetHourlyStatsAsync_ReturnsOrderedByHour(CancellationToken cancellationToken)
     {
         // Arrange
         var baseTime = new DateTime(2025, 1, 15, 0, 0, 0);
@@ -236,8 +234,8 @@ public class SystemHistoryServiceTests : IDisposable
         result.Should().BeInAscendingOrder(h => h.Hour);
     }
 
-    [Fact]
-    public async Task GetHourlyStatsAsync_EmptyData_ReturnsEmptyList()
+    [Test, Timeout(30000)]
+    public async Task GetHourlyStatsAsync_EmptyData_ReturnsEmptyList(CancellationToken cancellationToken)
     {
         // Arrange
         var start = DateTime.Now.AddDays(-1);
@@ -250,8 +248,8 @@ public class SystemHistoryServiceTests : IDisposable
         result.Should().BeEmpty();
     }
 
-    [Fact]
-    public async Task GetHourlyStatsAsync_NoMatchingRecords_ReturnsEmptyList()
+    [Test, Timeout(30000)]
+    public async Task GetHourlyStatsAsync_NoMatchingRecords_ReturnsEmptyList(CancellationToken cancellationToken)
     {
         // Arrange
         var baseTime = new DateTime(2025, 1, 15, 0, 0, 0);
@@ -270,8 +268,8 @@ public class SystemHistoryServiceTests : IDisposable
         result.Should().BeEmpty();
     }
 
-    [Fact]
-    public async Task GetHourlyStatsAsync_InclusiveDateRange()
+    [Test, Timeout(30000)]
+    public async Task GetHourlyStatsAsync_InclusiveDateRange(CancellationToken cancellationToken)
     {
         // Arrange
         var hour = new DateTime(2025, 1, 15, 12, 0, 0);
@@ -290,8 +288,8 @@ public class SystemHistoryServiceTests : IDisposable
 
     #region GetDailyStatsAsync Tests
 
-    [Fact]
-    public async Task GetDailyStatsAsync_ReturnsCorrectDataRange()
+    [Test, Timeout(30000)]
+    public async Task GetDailyStatsAsync_ReturnsCorrectDataRange(CancellationToken cancellationToken)
     {
         // Arrange
         var day1 = new DateOnly(2025, 1, 10);
@@ -315,8 +313,8 @@ public class SystemHistoryServiceTests : IDisposable
         result.Should().Contain(d => d.Date == day3);
     }
 
-    [Fact]
-    public async Task GetDailyStatsAsync_ReturnsOrderedByDate()
+    [Test, Timeout(30000)]
+    public async Task GetDailyStatsAsync_ReturnsOrderedByDate(CancellationToken cancellationToken)
     {
         // Arrange
         await SeedDailyStatsAsync(
@@ -335,8 +333,8 @@ public class SystemHistoryServiceTests : IDisposable
         result.Should().BeInAscendingOrder(d => d.Date);
     }
 
-    [Fact]
-    public async Task GetDailyStatsAsync_EmptyData_ReturnsEmptyList()
+    [Test, Timeout(30000)]
+    public async Task GetDailyStatsAsync_EmptyData_ReturnsEmptyList(CancellationToken cancellationToken)
     {
         // Arrange
         var start = new DateOnly(2025, 1, 1);
@@ -349,8 +347,8 @@ public class SystemHistoryServiceTests : IDisposable
         result.Should().BeEmpty();
     }
 
-    [Fact]
-    public async Task GetDailyStatsAsync_NoMatchingRecords_ReturnsEmptyList()
+    [Test, Timeout(30000)]
+    public async Task GetDailyStatsAsync_NoMatchingRecords_ReturnsEmptyList(CancellationToken cancellationToken)
     {
         // Arrange
         await SeedDailyStatsAsync(
@@ -370,8 +368,8 @@ public class SystemHistoryServiceTests : IDisposable
 
     #region GetAverageCpuAsync Tests
 
-    [Fact]
-    public async Task GetAverageCpuAsync_CalculatesCorrectly()
+    [Test, Timeout(30000)]
+    public async Task GetAverageCpuAsync_CalculatesCorrectly(CancellationToken cancellationToken)
     {
         // Arrange
         var baseTime = new DateTime(2025, 1, 15, 10, 0, 0);
@@ -389,8 +387,8 @@ public class SystemHistoryServiceTests : IDisposable
         result.Should().Be(50.0); // (20 + 40 + 60 + 80) / 4 = 50
     }
 
-    [Fact]
-    public async Task GetAverageCpuAsync_SingleRecord_ReturnsThatValue()
+    [Test, Timeout(30000)]
+    public async Task GetAverageCpuAsync_SingleRecord_ReturnsThatValue(CancellationToken cancellationToken)
     {
         // Arrange
         var hour = new DateTime(2025, 1, 15, 10, 0, 0);
@@ -405,8 +403,8 @@ public class SystemHistoryServiceTests : IDisposable
         result.Should().Be(75.0);
     }
 
-    [Fact]
-    public async Task GetAverageCpuAsync_NoData_ReturnsZero()
+    [Test, Timeout(30000)]
+    public async Task GetAverageCpuAsync_NoData_ReturnsZero(CancellationToken cancellationToken)
     {
         // Arrange
         var start = new DateTime(2025, 1, 1);
@@ -419,8 +417,8 @@ public class SystemHistoryServiceTests : IDisposable
         result.Should().Be(0);
     }
 
-    [Fact]
-    public async Task GetAverageCpuAsync_NoMatchingRecords_ReturnsZero()
+    [Test, Timeout(30000)]
+    public async Task GetAverageCpuAsync_NoMatchingRecords_ReturnsZero(CancellationToken cancellationToken)
     {
         // Arrange
         var hour = new DateTime(2025, 1, 15, 10, 0, 0);
@@ -439,8 +437,8 @@ public class SystemHistoryServiceTests : IDisposable
         result.Should().Be(0);
     }
 
-    [Fact]
-    public async Task GetAverageCpuAsync_PartialRangeMatch_CalculatesMatchingOnly()
+    [Test, Timeout(30000)]
+    public async Task GetAverageCpuAsync_PartialRangeMatch_CalculatesMatchingOnly(CancellationToken cancellationToken)
     {
         // Arrange
         var baseTime = new DateTime(2025, 1, 15, 10, 0, 0);
@@ -462,8 +460,8 @@ public class SystemHistoryServiceTests : IDisposable
 
     #region GetAverageMemoryAsync Tests
 
-    [Fact]
-    public async Task GetAverageMemoryAsync_CalculatesCorrectly()
+    [Test, Timeout(30000)]
+    public async Task GetAverageMemoryAsync_CalculatesCorrectly(CancellationToken cancellationToken)
     {
         // Arrange
         var baseTime = new DateTime(2025, 1, 15, 10, 0, 0);
@@ -481,8 +479,8 @@ public class SystemHistoryServiceTests : IDisposable
         result.Should().Be(55.0); // (40 + 50 + 60 + 70) / 4 = 55
     }
 
-    [Fact]
-    public async Task GetAverageMemoryAsync_SingleRecord_ReturnsThatValue()
+    [Test, Timeout(30000)]
+    public async Task GetAverageMemoryAsync_SingleRecord_ReturnsThatValue(CancellationToken cancellationToken)
     {
         // Arrange
         var hour = new DateTime(2025, 1, 15, 10, 0, 0);
@@ -497,8 +495,8 @@ public class SystemHistoryServiceTests : IDisposable
         result.Should().Be(85.0);
     }
 
-    [Fact]
-    public async Task GetAverageMemoryAsync_NoData_ReturnsZero()
+    [Test, Timeout(30000)]
+    public async Task GetAverageMemoryAsync_NoData_ReturnsZero(CancellationToken cancellationToken)
     {
         // Arrange
         var start = new DateTime(2025, 1, 1);
@@ -511,8 +509,8 @@ public class SystemHistoryServiceTests : IDisposable
         result.Should().Be(0);
     }
 
-    [Fact]
-    public async Task GetAverageMemoryAsync_NoMatchingRecords_ReturnsZero()
+    [Test, Timeout(30000)]
+    public async Task GetAverageMemoryAsync_NoMatchingRecords_ReturnsZero(CancellationToken cancellationToken)
     {
         // Arrange
         var hour = new DateTime(2025, 1, 15, 10, 0, 0);
@@ -531,8 +529,8 @@ public class SystemHistoryServiceTests : IDisposable
         result.Should().Be(0);
     }
 
-    [Fact]
-    public async Task GetAverageMemoryAsync_HighMemoryUsage_CalculatesCorrectly()
+    [Test, Timeout(30000)]
+    public async Task GetAverageMemoryAsync_HighMemoryUsage_CalculatesCorrectly(CancellationToken cancellationToken)
     {
         // Arrange
         var baseTime = new DateTime(2025, 1, 15, 10, 0, 0);
@@ -552,8 +550,8 @@ public class SystemHistoryServiceTests : IDisposable
 
     #region AggregateHourlyAsync Tests
 
-    [Fact]
-    public async Task AggregateHourlyAsync_CreatesHourlyStats()
+    [Test, Timeout(30000)]
+    public async Task AggregateHourlyAsync_CreatesHourlyStats(CancellationToken cancellationToken)
     {
         // Arrange - Record samples for a past hour
         var pastHour = DateTime.Now.AddHours(-2);
@@ -579,11 +577,11 @@ public class SystemHistoryServiceTests : IDisposable
         stats.MaxCpuPercent.Should().Be(70);
     }
 
-    [Fact]
-    public async Task AggregateHourlyAsync_AfterDispose_DoesNotThrow()
+    [Test, Timeout(30000)]
+    public async Task AggregateHourlyAsync_AfterDispose_DoesNotThrow(CancellationToken cancellationToken)
     {
         // Arrange
-        var service = new SystemHistoryService(_serviceProvider, _loggerMock.Object);
+        var service = new SystemHistoryService(_serviceProvider, _loggerMock);
 
         // Act
         service.Dispose();
@@ -592,8 +590,8 @@ public class SystemHistoryServiceTests : IDisposable
         await service.AggregateHourlyAsync();
     }
 
-    [Fact]
-    public async Task AggregateHourlyAsync_EmptyBuffer_DoesNotCreateRecords()
+    [Test, Timeout(30000)]
+    public async Task AggregateHourlyAsync_EmptyBuffer_DoesNotCreateRecords(CancellationToken cancellationToken)
     {
         // Act
         await _service.AggregateHourlyAsync();
@@ -604,8 +602,8 @@ public class SystemHistoryServiceTests : IDisposable
         count.Should().Be(0);
     }
 
-    [Fact]
-    public async Task AggregateHourlyAsync_MultipleHours_CreatesMultipleRecords()
+    [Test, Timeout(30000)]
+    public async Task AggregateHourlyAsync_MultipleHours_CreatesMultipleRecords(CancellationToken cancellationToken)
     {
         // Arrange - Record samples for two different past hours
         var twoHoursAgo = DateTime.Now.AddHours(-3);
@@ -630,8 +628,8 @@ public class SystemHistoryServiceTests : IDisposable
 
     #region AggregateDailyAsync Tests
 
-    [Fact]
-    public async Task AggregateDailyAsync_CreatesFromHourlyStats()
+    [Test, Timeout(30000)]
+    public async Task AggregateDailyAsync_CreatesFromHourlyStats(CancellationToken cancellationToken)
     {
         // Arrange - Seed hourly stats for yesterday
         var yesterday = DateOnly.FromDateTime(DateTime.Now.AddDays(-1));
@@ -675,8 +673,8 @@ public class SystemHistoryServiceTests : IDisposable
         daily.PeakMemoryUsedBytes.Should().Be(12_000_000_000);
     }
 
-    [Fact]
-    public async Task AggregateDailyAsync_NoHourlyData_DoesNotCreateRecord()
+    [Test, Timeout(30000)]
+    public async Task AggregateDailyAsync_NoHourlyData_DoesNotCreateRecord(CancellationToken cancellationToken)
     {
         // Act
         await _service.AggregateDailyAsync();
@@ -687,8 +685,8 @@ public class SystemHistoryServiceTests : IDisposable
         count.Should().Be(0);
     }
 
-    [Fact]
-    public async Task AggregateDailyAsync_ExistingRecord_DoesNotDuplicate()
+    [Test, Timeout(30000)]
+    public async Task AggregateDailyAsync_ExistingRecord_DoesNotDuplicate(CancellationToken cancellationToken)
     {
         // Arrange - Seed existing daily record
         var yesterday = DateOnly.FromDateTime(DateTime.Now.AddDays(-1));
@@ -712,11 +710,11 @@ public class SystemHistoryServiceTests : IDisposable
         records[0].AvgCpuPercent.Should().Be(50); // Original value, not updated
     }
 
-    [Fact]
-    public async Task AggregateDailyAsync_AfterDispose_DoesNotThrow()
+    [Test, Timeout(30000)]
+    public async Task AggregateDailyAsync_AfterDispose_DoesNotThrow(CancellationToken cancellationToken)
     {
         // Arrange
-        var service = new SystemHistoryService(_serviceProvider, _loggerMock.Object);
+        var service = new SystemHistoryService(_serviceProvider, _loggerMock);
 
         // Act
         service.Dispose();
@@ -729,8 +727,8 @@ public class SystemHistoryServiceTests : IDisposable
 
     #region Edge Cases
 
-    [Fact]
-    public async Task GetHourlyStatsAsync_StartAfterEnd_ReturnsEmpty()
+    [Test, Timeout(30000)]
+    public async Task GetHourlyStatsAsync_StartAfterEnd_ReturnsEmpty(CancellationToken cancellationToken)
     {
         // Arrange
         var baseTime = new DateTime(2025, 1, 15, 10, 0, 0);
@@ -747,8 +745,8 @@ public class SystemHistoryServiceTests : IDisposable
         result.Should().BeEmpty();
     }
 
-    [Fact]
-    public async Task GetDailyStatsAsync_StartAfterEnd_ReturnsEmpty()
+    [Test, Timeout(30000)]
+    public async Task GetDailyStatsAsync_StartAfterEnd_ReturnsEmpty(CancellationToken cancellationToken)
     {
         // Arrange
         await SeedDailyStatsAsync(
@@ -764,8 +762,8 @@ public class SystemHistoryServiceTests : IDisposable
         result.Should().BeEmpty();
     }
 
-    [Fact]
-    public async Task RecordSampleAsync_ZeroValues_Accepted()
+    [Test, Timeout(30000)]
+    public async Task RecordSampleAsync_ZeroValues_Accepted(CancellationToken cancellationToken)
     {
         // Arrange
         var stats = CreateSystemStats(cpuUsage: 0, memoryUsage: 0, memoryUsedBytes: 0);
@@ -774,8 +772,8 @@ public class SystemHistoryServiceTests : IDisposable
         await _service.RecordSampleAsync(stats);
     }
 
-    [Fact]
-    public async Task RecordSampleAsync_MaxValues_Accepted()
+    [Test, Timeout(30000)]
+    public async Task RecordSampleAsync_MaxValues_Accepted(CancellationToken cancellationToken)
     {
         // Arrange
         var stats = CreateSystemStats(cpuUsage: 100.0, memoryUsage: 100.0, memoryUsedBytes: long.MaxValue / 2);
@@ -784,8 +782,8 @@ public class SystemHistoryServiceTests : IDisposable
         await _service.RecordSampleAsync(stats);
     }
 
-    [Fact]
-    public async Task GetAverageCpuAsync_VerySmallValues_CalculatesCorrectly()
+    [Test, Timeout(30000)]
+    public async Task GetAverageCpuAsync_VerySmallValues_CalculatesCorrectly(CancellationToken cancellationToken)
     {
         // Arrange
         var baseTime = new DateTime(2025, 1, 15, 10, 0, 0);
@@ -801,8 +799,8 @@ public class SystemHistoryServiceTests : IDisposable
         result.Should().BeApproximately(0.2, 0.0001);
     }
 
-    [Fact]
-    public async Task Service_MultipleOperations_ThreadSafe()
+    [Test, Timeout(30000)]
+    public async Task Service_MultipleOperations_ThreadSafe(CancellationToken cancellationToken)
     {
         // Arrange
         var tasks = new List<Task>();
@@ -823,8 +821,8 @@ public class SystemHistoryServiceTests : IDisposable
 
     #region GPU Stats Tests
 
-    [Fact]
-    public async Task GetDailyStatsAsync_WithGpuData_ReturnsGpuStats()
+    [Test, Timeout(30000)]
+    public async Task GetDailyStatsAsync_WithGpuData_ReturnsGpuStats(CancellationToken cancellationToken)
     {
         // Arrange
         var day = new DateOnly(2025, 1, 15);
@@ -847,8 +845,8 @@ public class SystemHistoryServiceTests : IDisposable
         result[0].MaxGpuPercent.Should().Be(95);
     }
 
-    [Fact]
-    public async Task GetHourlyStatsAsync_WithGpuData_ReturnsGpuStats()
+    [Test, Timeout(30000)]
+    public async Task GetHourlyStatsAsync_WithGpuData_ReturnsGpuStats(CancellationToken cancellationToken)
     {
         // Arrange
         var hour = new DateTime(2025, 1, 15, 12, 0, 0);
@@ -873,8 +871,8 @@ public class SystemHistoryServiceTests : IDisposable
         result[0].AvgGpuMemoryPercent.Should().Be(45);
     }
 
-    [Fact]
-    public async Task GetHourlyStatsAsync_NullGpuData_ReturnsNullGpuStats()
+    [Test, Timeout(30000)]
+    public async Task GetHourlyStatsAsync_NullGpuData_ReturnsNullGpuStats(CancellationToken cancellationToken)
     {
         // Arrange
         var hour = new DateTime(2025, 1, 15, 12, 0, 0);
@@ -903,11 +901,11 @@ public class SystemHistoryServiceTests : IDisposable
 
     #region Dispose Tests
 
-    [Fact]
+    [Test]
     public void Dispose_MultipleCalls_DoesNotThrow()
     {
         // Arrange
-        var service = new SystemHistoryService(_serviceProvider, _loggerMock.Object);
+        var service = new SystemHistoryService(_serviceProvider, _loggerMock);
 
         // Act & Assert - Should not throw on multiple dispose calls
         service.Dispose();
@@ -915,11 +913,11 @@ public class SystemHistoryServiceTests : IDisposable
         service.Dispose();
     }
 
-    [Fact]
-    public async Task Dispose_TriggersAggregation()
+    [Test, Timeout(30000)]
+    public async Task Dispose_TriggersAggregation(CancellationToken cancellationToken)
     {
         // Arrange
-        var service = new SystemHistoryService(_serviceProvider, _loggerMock.Object);
+        var service = new SystemHistoryService(_serviceProvider, _loggerMock);
         var pastHour = DateTime.Now.AddHours(-2);
         var sampleTime = new DateTime(pastHour.Year, pastHour.Month, pastHour.Day, pastHour.Hour, 30, 0);
 

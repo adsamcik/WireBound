@@ -155,11 +155,30 @@ public sealed partial class SystemViewModel : ObservableObject, IDisposable
     {
         points.Add(new DateTimePoint(timestamp, value));
 
-        // Keep only the last MaxHistoryPoints
-        while (points.Count > MaxHistoryPoints)
-        {
-            points.RemoveAt(0);
-        }
+        // Keep only the last MaxHistoryPoints using batch removal
+        TrimCollectionToMaxCount(points, MaxHistoryPoints);
+    }
+
+    /// <summary>
+    /// Efficiently removes excess items from the beginning using batch removal.
+    /// This is O(n) compared to O(n²) for repeated RemoveAt(0) calls.
+    /// </summary>
+    private static void TrimCollectionToMaxCount(ObservableCollection<DateTimePoint> points, int maxCount)
+    {
+        var removeCount = points.Count - maxCount;
+        if (removeCount <= 0)
+            return;
+
+        // Copy items we want to keep to an array
+        var keepCount = points.Count - removeCount;
+        var pointsToKeep = new DateTimePoint[keepCount];
+        for (var i = 0; i < keepCount; i++)
+            pointsToKeep[i] = points[removeCount + i];
+
+        // Clear and re-add (triggers fewer UI updates than multiple RemoveAt)
+        points.Clear();
+        foreach (var point in pointsToKeep)
+            points.Add(point);
     }
 
     private static ISeries[] CreateLineSeries(

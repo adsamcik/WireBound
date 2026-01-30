@@ -4,17 +4,19 @@ using LiveChartsCore.SkiaSharpView;
 namespace WireBound.Tests.Fixtures;
 
 /// <summary>
-/// Assembly-level fixture that initializes LiveCharts once before any tests run.
+/// Assembly-level hook that initializes LiveCharts once before any tests run.
 /// This prevents thread-safety issues with LiveCharts' static initializer.
 /// </summary>
-public class LiveChartsFixture : IDisposable
+public class LiveChartsHook
 {
     private static readonly object _initLock = new();
     private static bool _initialized;
 
-    public LiveChartsFixture()
+    [Before(Assembly)]
+    public static Task InitializeLiveCharts()
     {
         EnsureInitialized();
+        return Task.CompletedTask;
     }
 
     public static void EnsureInitialized()
@@ -34,18 +36,4 @@ public class LiveChartsFixture : IDisposable
             _initialized = true;
         }
     }
-
-    public void Dispose()
-    {
-        // Nothing to dispose
-    }
-}
-
-/// <summary>
-/// Collection definition that runs tests using LiveCharts sequentially.
-/// </summary>
-[CollectionDefinition("LiveCharts")]
-public class LiveChartsCollection : ICollectionFixture<LiveChartsFixture>
-{
-    // This class has no code, it's just a marker for xUnit
 }

@@ -12,7 +12,7 @@ public class HourlySystemStatsTests
     // HourlySystemStats - Default Values
     // ═══════════════════════════════════════════════════════════════════════
 
-    [Fact]
+    [Test]
     public void HourlySystemStats_NewInstance_HasDefaultValues()
     {
         // Act
@@ -29,7 +29,7 @@ public class HourlySystemStatsTests
         stats.AvgMemoryUsedBytes.Should().Be(0);
     }
 
-    [Fact]
+    [Test]
     public void HourlySystemStats_NewInstance_GpuPropertiesAreNull()
     {
         // Act
@@ -45,7 +45,7 @@ public class HourlySystemStatsTests
     // HourlySystemStats - Property Setters/Getters
     // ═══════════════════════════════════════════════════════════════════════
 
-    [Fact]
+    [Test]
     public void HourlySystemStats_Id_CanBeSetAndRetrieved()
     {
         // Arrange
@@ -58,7 +58,7 @@ public class HourlySystemStatsTests
         stats.Id.Should().Be(42);
     }
 
-    [Fact]
+    [Test]
     public void HourlySystemStats_Hour_CanBeSetAndRetrieved()
     {
         // Arrange
@@ -72,10 +72,10 @@ public class HourlySystemStatsTests
         stats.Hour.Should().Be(expectedHour);
     }
 
-    [Theory]
-    [InlineData(0.0)]
-    [InlineData(50.5)]
-    [InlineData(100.0)]
+    [Test]
+    [Arguments(0.0)]
+    [Arguments(50.5)]
+    [Arguments(100.0)]
     public void HourlySystemStats_AvgCpuPercent_CanBeSetAndRetrieved(double value)
     {
         // Arrange
@@ -88,10 +88,10 @@ public class HourlySystemStatsTests
         stats.AvgCpuPercent.Should().Be(value);
     }
 
-    [Theory]
-    [InlineData(0.0)]
-    [InlineData(75.25)]
-    [InlineData(100.0)]
+    [Test]
+    [Arguments(0.0)]
+    [Arguments(75.25)]
+    [Arguments(100.0)]
     public void HourlySystemStats_MaxCpuPercent_CanBeSetAndRetrieved(double value)
     {
         // Arrange
@@ -104,10 +104,10 @@ public class HourlySystemStatsTests
         stats.MaxCpuPercent.Should().Be(value);
     }
 
-    [Theory]
-    [InlineData(0.0)]
-    [InlineData(10.5)]
-    [InlineData(100.0)]
+    [Test]
+    [Arguments(0.0)]
+    [Arguments(10.5)]
+    [Arguments(100.0)]
     public void HourlySystemStats_MinCpuPercent_CanBeSetAndRetrieved(double value)
     {
         // Arrange
@@ -120,10 +120,10 @@ public class HourlySystemStatsTests
         stats.MinCpuPercent.Should().Be(value);
     }
 
-    [Theory]
-    [InlineData(0.0)]
-    [InlineData(65.75)]
-    [InlineData(100.0)]
+    [Test]
+    [Arguments(0.0)]
+    [Arguments(65.75)]
+    [Arguments(100.0)]
     public void HourlySystemStats_AvgMemoryPercent_CanBeSetAndRetrieved(double value)
     {
         // Arrange
@@ -136,10 +136,10 @@ public class HourlySystemStatsTests
         stats.AvgMemoryPercent.Should().Be(value);
     }
 
-    [Theory]
-    [InlineData(0.0)]
-    [InlineData(85.5)]
-    [InlineData(100.0)]
+    [Test]
+    [Arguments(0.0)]
+    [Arguments(85.5)]
+    [Arguments(100.0)]
     public void HourlySystemStats_MaxMemoryPercent_CanBeSetAndRetrieved(double value)
     {
         // Arrange
@@ -152,10 +152,10 @@ public class HourlySystemStatsTests
         stats.MaxMemoryPercent.Should().Be(value);
     }
 
-    [Theory]
-    [InlineData(0)]
-    [InlineData(8589934592)]  // 8 GB
-    [InlineData(17179869184)] // 16 GB
+    [Test]
+    [Arguments(0)]
+    [Arguments(8589934592)]  // 8 GB
+    [Arguments(17179869184)] // 16 GB
     public void HourlySystemStats_AvgMemoryUsedBytes_CanBeSetAndRetrieved(long value)
     {
         // Arrange
@@ -172,7 +172,7 @@ public class HourlySystemStatsTests
     // HourlySystemStats - Nullable GPU Properties
     // ═══════════════════════════════════════════════════════════════════════
 
-    [Fact]
+    [Test]
     public void HourlySystemStats_AvgGpuPercent_CanBeNull()
     {
         // Arrange
@@ -185,10 +185,10 @@ public class HourlySystemStatsTests
         stats.AvgGpuPercent.Should().BeNull();
     }
 
-    [Theory]
-    [InlineData(0.0)]
-    [InlineData(45.5)]
-    [InlineData(100.0)]
+    [Test]
+    [Arguments(0.0)]
+    [Arguments(45.5)]
+    [Arguments(100.0)]
     public void HourlySystemStats_AvgGpuPercent_CanBeSetToValue(double value)
     {
         // Arrange
@@ -201,7 +201,7 @@ public class HourlySystemStatsTests
         stats.AvgGpuPercent.Should().Be(value);
     }
 
-    [Fact]
+    [Test]
     public void HourlySystemStats_MaxGpuPercent_CanBeNull()
     {
         // Arrange
@@ -214,10 +214,10 @@ public class HourlySystemStatsTests
         stats.MaxGpuPercent.Should().BeNull();
     }
 
-    [Theory]
-    [InlineData(0.0)]
-    [InlineData(95.75)]
-    [InlineData(100.0)]
+    [Test]
+    [Arguments(0.0)]
+    [Arguments(95.75)]
+    [Arguments(100.0)]
     public void HourlySystemStats_MaxGpuPercent_CanBeSetToValue(double value)
     {
         // Arrange
@@ -230,7 +230,7 @@ public class HourlySystemStatsTests
         stats.MaxGpuPercent.Should().Be(value);
     }
 
-    [Fact]
+    [Test]
     public void HourlySystemStats_AvgGpuMemoryPercent_CanBeNull()
     {
         // Arrange
@@ -243,10 +243,10 @@ public class HourlySystemStatsTests
         stats.AvgGpuMemoryPercent.Should().BeNull();
     }
 
-    [Theory]
-    [InlineData(0.0)]
-    [InlineData(60.25)]
-    [InlineData(100.0)]
+    [Test]
+    [Arguments(0.0)]
+    [Arguments(60.25)]
+    [Arguments(100.0)]
     public void HourlySystemStats_AvgGpuMemoryPercent_CanBeSetToValue(double value)
     {
         // Arrange
@@ -263,7 +263,7 @@ public class HourlySystemStatsTests
     // HourlySystemStats - Complete Object Test
     // ═══════════════════════════════════════════════════════════════════════
 
-    [Fact]
+    [Test]
     public void HourlySystemStats_AllPropertiesSet_ReturnsCorrectValues()
     {
         // Arrange
@@ -300,7 +300,7 @@ public class HourlySystemStatsTests
     // DailySystemStats - Default Values
     // ═══════════════════════════════════════════════════════════════════════
 
-    [Fact]
+    [Test]
     public void DailySystemStats_NewInstance_HasDefaultValues()
     {
         // Act
@@ -316,7 +316,7 @@ public class HourlySystemStatsTests
         stats.PeakMemoryUsedBytes.Should().Be(0);
     }
 
-    [Fact]
+    [Test]
     public void DailySystemStats_NewInstance_GpuPropertiesAreNull()
     {
         // Act
@@ -331,7 +331,7 @@ public class HourlySystemStatsTests
     // DailySystemStats - Property Setters/Getters
     // ═══════════════════════════════════════════════════════════════════════
 
-    [Fact]
+    [Test]
     public void DailySystemStats_Id_CanBeSetAndRetrieved()
     {
         // Arrange
@@ -344,7 +344,7 @@ public class HourlySystemStatsTests
         stats.Id.Should().Be(100);
     }
 
-    [Fact]
+    [Test]
     public void DailySystemStats_Date_CanBeSetAndRetrieved()
     {
         // Arrange
@@ -358,10 +358,10 @@ public class HourlySystemStatsTests
         stats.Date.Should().Be(expectedDate);
     }
 
-    [Theory]
-    [InlineData(0.0)]
-    [InlineData(42.5)]
-    [InlineData(100.0)]
+    [Test]
+    [Arguments(0.0)]
+    [Arguments(42.5)]
+    [Arguments(100.0)]
     public void DailySystemStats_AvgCpuPercent_CanBeSetAndRetrieved(double value)
     {
         // Arrange
@@ -374,10 +374,10 @@ public class HourlySystemStatsTests
         stats.AvgCpuPercent.Should().Be(value);
     }
 
-    [Theory]
-    [InlineData(0.0)]
-    [InlineData(88.75)]
-    [InlineData(100.0)]
+    [Test]
+    [Arguments(0.0)]
+    [Arguments(88.75)]
+    [Arguments(100.0)]
     public void DailySystemStats_MaxCpuPercent_CanBeSetAndRetrieved(double value)
     {
         // Arrange
@@ -390,10 +390,10 @@ public class HourlySystemStatsTests
         stats.MaxCpuPercent.Should().Be(value);
     }
 
-    [Theory]
-    [InlineData(0.0)]
-    [InlineData(55.25)]
-    [InlineData(100.0)]
+    [Test]
+    [Arguments(0.0)]
+    [Arguments(55.25)]
+    [Arguments(100.0)]
     public void DailySystemStats_AvgMemoryPercent_CanBeSetAndRetrieved(double value)
     {
         // Arrange
@@ -406,10 +406,10 @@ public class HourlySystemStatsTests
         stats.AvgMemoryPercent.Should().Be(value);
     }
 
-    [Theory]
-    [InlineData(0.0)]
-    [InlineData(90.5)]
-    [InlineData(100.0)]
+    [Test]
+    [Arguments(0.0)]
+    [Arguments(90.5)]
+    [Arguments(100.0)]
     public void DailySystemStats_MaxMemoryPercent_CanBeSetAndRetrieved(double value)
     {
         // Arrange
@@ -422,10 +422,10 @@ public class HourlySystemStatsTests
         stats.MaxMemoryPercent.Should().Be(value);
     }
 
-    [Theory]
-    [InlineData(0)]
-    [InlineData(16106127360)]  // 15 GB
-    [InlineData(34359738368)]  // 32 GB
+    [Test]
+    [Arguments(0)]
+    [Arguments(16106127360)]  // 15 GB
+    [Arguments(34359738368)]  // 32 GB
     public void DailySystemStats_PeakMemoryUsedBytes_CanBeSetAndRetrieved(long value)
     {
         // Arrange
@@ -442,7 +442,7 @@ public class HourlySystemStatsTests
     // DailySystemStats - Nullable GPU Properties
     // ═══════════════════════════════════════════════════════════════════════
 
-    [Fact]
+    [Test]
     public void DailySystemStats_AvgGpuPercent_CanBeNull()
     {
         // Arrange
@@ -455,10 +455,10 @@ public class HourlySystemStatsTests
         stats.AvgGpuPercent.Should().BeNull();
     }
 
-    [Theory]
-    [InlineData(0.0)]
-    [InlineData(30.0)]
-    [InlineData(100.0)]
+    [Test]
+    [Arguments(0.0)]
+    [Arguments(30.0)]
+    [Arguments(100.0)]
     public void DailySystemStats_AvgGpuPercent_CanBeSetToValue(double value)
     {
         // Arrange
@@ -471,7 +471,7 @@ public class HourlySystemStatsTests
         stats.AvgGpuPercent.Should().Be(value);
     }
 
-    [Fact]
+    [Test]
     public void DailySystemStats_MaxGpuPercent_CanBeNull()
     {
         // Arrange
@@ -484,10 +484,10 @@ public class HourlySystemStatsTests
         stats.MaxGpuPercent.Should().BeNull();
     }
 
-    [Theory]
-    [InlineData(0.0)]
-    [InlineData(85.0)]
-    [InlineData(100.0)]
+    [Test]
+    [Arguments(0.0)]
+    [Arguments(85.0)]
+    [Arguments(100.0)]
     public void DailySystemStats_MaxGpuPercent_CanBeSetToValue(double value)
     {
         // Arrange
@@ -504,7 +504,7 @@ public class HourlySystemStatsTests
     // DailySystemStats - Complete Object Test
     // ═══════════════════════════════════════════════════════════════════════
 
-    [Fact]
+    [Test]
     public void DailySystemStats_AllPropertiesSet_ReturnsCorrectValues()
     {
         // Arrange
@@ -537,7 +537,7 @@ public class HourlySystemStatsTests
     // Cross-Model Comparison Tests
     // ═══════════════════════════════════════════════════════════════════════
 
-    [Fact]
+    [Test]
     public void HourlyAndDailyStats_HaveComparableProperties()
     {
         // This test ensures both models have the expected shared properties

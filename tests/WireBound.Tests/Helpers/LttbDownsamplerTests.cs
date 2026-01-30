@@ -8,14 +8,13 @@ namespace WireBound.Tests.Helpers;
 /// <summary>
 /// Unit tests for LTTB (Largest-Triangle-Three-Buckets) downsampling algorithm
 /// </summary>
-[Collection("LiveCharts")]
 public class LttbDownsamplerTests
 {
     // ═══════════════════════════════════════════════════════════════════════
     // Edge Cases and Empty Input Tests
     // ═══════════════════════════════════════════════════════════════════════
 
-    [Fact]
+    [Test]
     public void Downsample_NullInput_ReturnsEmptyList()
     {
         // Act
@@ -25,7 +24,7 @@ public class LttbDownsamplerTests
         result.Should().BeEmpty();
     }
 
-    [Fact]
+    [Test]
     public void Downsample_EmptyInput_ReturnsEmptyList()
     {
         // Arrange
@@ -38,7 +37,7 @@ public class LttbDownsamplerTests
         result.Should().BeEmpty();
     }
 
-    [Fact]
+    [Test]
     public void Downsample_SinglePoint_ReturnsSamePoint()
     {
         // Arrange
@@ -59,7 +58,7 @@ public class LttbDownsamplerTests
     // Pass-through Cases (No Downsampling Needed)
     // ═══════════════════════════════════════════════════════════════════════
 
-    [Fact]
+    [Test]
     public void Downsample_DataSmallerThanTarget_ReturnsAllPoints()
     {
         // Arrange
@@ -75,7 +74,7 @@ public class LttbDownsamplerTests
         result.Should().HaveCount(5);
     }
 
-    [Fact]
+    [Test]
     public void Downsample_DataEqualsTarget_ReturnsAllPoints()
     {
         // Arrange
@@ -91,10 +90,10 @@ public class LttbDownsamplerTests
         result.Should().HaveCount(10);
     }
 
-    [Theory]
-    [InlineData(0)]
-    [InlineData(1)]
-    [InlineData(2)]
+    [Test]
+    [Arguments(0)]
+    [Arguments(1)]
+    [Arguments(2)]
     public void Downsample_TargetLessThan3_ReturnsAllPoints(int target)
     {
         // Arrange
@@ -114,7 +113,7 @@ public class LttbDownsamplerTests
     // Basic Downsampling Tests
     // ═══════════════════════════════════════════════════════════════════════
 
-    [Fact]
+    [Test]
     public void Downsample_BasicReduction_ReducesToTargetCount()
     {
         // Arrange
@@ -130,7 +129,7 @@ public class LttbDownsamplerTests
         result.Should().HaveCount(20);
     }
 
-    [Fact]
+    [Test]
     public void Downsample_PreservesFirstAndLastPoints()
     {
         // Arrange
@@ -152,7 +151,7 @@ public class LttbDownsamplerTests
         result.Last().Value.Should().Be(data.Last().Value);
     }
 
-    [Fact]
+    [Test]
     public void Downsample_MaintainsChronologicalOrder()
     {
         // Arrange
@@ -175,7 +174,7 @@ public class LttbDownsamplerTests
     // Peak and Valley Preservation Tests
     // ═══════════════════════════════════════════════════════════════════════
 
-    [Fact]
+    [Test]
     public void Downsample_PreservesPeakValues()
     {
         // Arrange - Create data with a clear peak
@@ -204,7 +203,7 @@ public class LttbDownsamplerTests
         result.Max(p => p.Value ?? 0).Should().Be(1000);
     }
 
-    [Fact]
+    [Test]
     public void Downsample_PreservesValleyValues()
     {
         // Arrange - Create data with a clear valley
@@ -233,7 +232,7 @@ public class LttbDownsamplerTests
         result.Min(p => p.Value ?? 0).Should().Be(-100);
     }
 
-    [Fact]
+    [Test]
     public void Downsample_SineWave_PreservesWaveform()
     {
         // Arrange - Create a sine wave
@@ -264,7 +263,7 @@ public class LttbDownsamplerTests
     // Null Value Handling Tests
     // ═══════════════════════════════════════════════════════════════════════
 
-    [Fact]
+    [Test]
     public void Downsample_NullValues_TreatedAsZero()
     {
         // Arrange
@@ -293,7 +292,7 @@ public class LttbDownsamplerTests
     // Performance and Scale Tests
     // ═══════════════════════════════════════════════════════════════════════
 
-    [Fact]
+    [Test]
     public void Downsample_LargeDataset_CompletesInReasonableTime()
     {
         // Arrange
@@ -312,11 +311,11 @@ public class LttbDownsamplerTests
         sw.ElapsedMilliseconds.Should().BeLessThan(1000); // Should complete in under 1 second
     }
 
-    [Theory]
-    [InlineData(1000, 100)]
-    [InlineData(1000, 500)]
-    [InlineData(10000, 100)]
-    [InlineData(10000, 1000)]
+    [Test]
+    [Arguments(1000, 100)]
+    [Arguments(1000, 500)]
+    [Arguments(10000, 100)]
+    [Arguments(10000, 1000)]
     public void Downsample_VariousScales_ProducesCorrectCount(int dataPoints, int targetPoints)
     {
         // Arrange
@@ -336,7 +335,7 @@ public class LttbDownsamplerTests
     // Data Pattern Tests
     // ═══════════════════════════════════════════════════════════════════════
 
-    [Fact]
+    [Test]
     public void Downsample_ConstantValues_Works()
     {
         // Arrange - All same value
@@ -353,7 +352,7 @@ public class LttbDownsamplerTests
         result.All(p => p.Value == 50).Should().BeTrue();
     }
 
-    [Fact]
+    [Test]
     public void Downsample_LinearIncreasing_PreservesEndpoints()
     {
         // Arrange
@@ -370,7 +369,7 @@ public class LttbDownsamplerTests
         result.Last().Value.Should().Be(99);
     }
 
-    [Fact]
+    [Test]
     public void Downsample_StepFunction_PreservesSteps()
     {
         // Arrange - Step function: 0,0,0...100,100,100...0,0,0
@@ -393,7 +392,7 @@ public class LttbDownsamplerTests
         distinctValues.Should().Contain(100);
     }
 
-    [Fact]
+    [Test]
     public void Downsample_SpikyData_PreservesSpikes()
     {
         // Arrange - Mostly flat with occasional spikes

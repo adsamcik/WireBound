@@ -8,7 +8,7 @@ namespace WireBound.Tests.Fixtures;
 /// Base class for tests that require an in-memory database.
 /// Provides a fresh database for each test to ensure isolation.
 /// </summary>
-public abstract class DatabaseTestBase : IDisposable
+public abstract class DatabaseTestBase : IAsyncDisposable
 {
     protected readonly IServiceProvider ServiceProvider;
     protected readonly string DatabaseName;
@@ -57,12 +57,13 @@ public abstract class DatabaseTestBase : IDisposable
         return ServiceProvider.CreateScope();
     }
 
-    public virtual void Dispose()
+    public virtual ValueTask DisposeAsync()
     {
         if (ServiceProvider is IDisposable disposable)
         {
             disposable.Dispose();
         }
         GC.SuppressFinalize(this);
+        return ValueTask.CompletedTask;
     }
 }

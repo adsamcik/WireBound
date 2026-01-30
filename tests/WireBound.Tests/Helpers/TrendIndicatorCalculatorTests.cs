@@ -9,7 +9,7 @@ public sealed class TrendIndicatorCalculatorTests
 {
     #region Constructor Tests
 
-    [Fact]
+    [Test]
     public void Constructor_DefaultParameters_SetsGeometricIcons()
     {
         var calculator = new TrendIndicatorCalculator();
@@ -21,7 +21,7 @@ public sealed class TrendIndicatorCalculatorTests
         result.Icon.Should().Be("●"); // Geometric stable icon for first call
     }
 
-    [Fact]
+    [Test]
     public void Constructor_ArrowsStyle_SetsArrowIcons()
     {
         var calculator = new TrendIndicatorCalculator(iconStyle: TrendIconStyle.Arrows);
@@ -33,10 +33,10 @@ public sealed class TrendIndicatorCalculatorTests
         result.Icon.Should().Be("→"); // Arrow stable icon for first call
     }
 
-    [Theory]
-    [InlineData(0.1)]
-    [InlineData(0.5)]
-    [InlineData(0.9)]
+    [Test]
+    [Arguments(0.1)]
+    [Arguments(0.5)]
+    [Arguments(0.9)]
     public void Constructor_ValidAlpha_DoesNotThrow(double alpha)
     {
         var action = () => new TrendIndicatorCalculator(alpha: alpha);
@@ -44,11 +44,11 @@ public sealed class TrendIndicatorCalculatorTests
         action.Should().NotThrow();
     }
 
-    [Theory]
-    [InlineData(0.0)]
-    [InlineData(1.0)]
-    [InlineData(-0.1)]
-    [InlineData(1.5)]
+    [Test]
+    [Arguments(0.0)]
+    [Arguments(1.0)]
+    [Arguments(-0.1)]
+    [Arguments(1.5)]
     public void Constructor_OutOfRangeAlpha_IsClamped(double alpha)
     {
         // The constructor clamps values rather than throwing
@@ -57,9 +57,9 @@ public sealed class TrendIndicatorCalculatorTests
         action.Should().NotThrow();
     }
 
-    [Theory]
-    [InlineData(0.0)]
-    [InlineData(-0.1)]
+    [Test]
+    [Arguments(0.0)]
+    [Arguments(-0.1)]
     public void Constructor_OutOfRangeThreshold_IsClamped(double threshold)
     {
         // The constructor clamps values rather than throwing
@@ -68,9 +68,9 @@ public sealed class TrendIndicatorCalculatorTests
         action.Should().NotThrow();
     }
 
-    [Theory]
-    [InlineData(-1)]
-    [InlineData(-100)]
+    [Test]
+    [Arguments(-1)]
+    [Arguments(-100)]
     public void Constructor_NegativeMinThreshold_IsClamped(long minThreshold)
     {
         // The constructor uses Math.Max so negatives become 1
@@ -83,7 +83,7 @@ public sealed class TrendIndicatorCalculatorTests
 
     #region Update Tests - Basic Behavior
 
-    [Fact]
+    [Test]
     public void Update_ZeroValue_ReturnsIdle()
     {
         var calculator = new TrendIndicatorCalculator();
@@ -95,7 +95,7 @@ public sealed class TrendIndicatorCalculatorTests
         result.Direction.Should().Be(TrendDirection.Idle);
     }
 
-    [Fact]
+    [Test]
     public void Update_FirstNonZeroValue_ReturnsStable()
     {
         var calculator = new TrendIndicatorCalculator();
@@ -106,7 +106,7 @@ public sealed class TrendIndicatorCalculatorTests
         result.Direction.Should().Be(TrendDirection.Stable);
     }
 
-    [Fact]
+    [Test]
     public void Update_AfterActivity_ZeroReturnsIdle()
     {
         var calculator = new TrendIndicatorCalculator();
@@ -125,7 +125,7 @@ public sealed class TrendIndicatorCalculatorTests
 
     #region Update Tests - Trend Detection
 
-    [Fact]
+    [Test]
     public void Update_SignificantIncrease_ReturnsRising()
     {
         var calculator = new TrendIndicatorCalculator(
@@ -143,7 +143,7 @@ public sealed class TrendIndicatorCalculatorTests
         result.Direction.Should().Be(TrendDirection.Rising);
     }
 
-    [Fact]
+    [Test]
     public void Update_SignificantDecrease_ReturnsFalling()
     {
         var calculator = new TrendIndicatorCalculator(
@@ -161,7 +161,7 @@ public sealed class TrendIndicatorCalculatorTests
         result.Direction.Should().Be(TrendDirection.Falling);
     }
 
-    [Fact]
+    [Test]
     public void Update_SmallFluctuation_ReturnsStable()
     {
         var calculator = new TrendIndicatorCalculator(
@@ -179,7 +179,7 @@ public sealed class TrendIndicatorCalculatorTests
         result.Direction.Should().Be(TrendDirection.Stable);
     }
 
-    [Fact]
+    [Test]
     public void Update_MinimumThreshold_PreventsFalsePositives()
     {
         var calculator = new TrendIndicatorCalculator(
@@ -201,7 +201,7 @@ public sealed class TrendIndicatorCalculatorTests
 
     #region Icon Tests - Geometric Style
 
-    [Fact]
+    [Test]
     public void Update_GeometricStyle_IdleReturnsEmptyCircle()
     {
         var calculator = new TrendIndicatorCalculator(iconStyle: TrendIconStyle.Geometric);
@@ -212,7 +212,7 @@ public sealed class TrendIndicatorCalculatorTests
         result.Icon.Should().Be("○");
     }
 
-    [Fact]
+    [Test]
     public void Update_GeometricStyle_RisingReturnsUpTriangle()
     {
         var calculator = new TrendIndicatorCalculator(iconStyle: TrendIconStyle.Geometric);
@@ -226,7 +226,7 @@ public sealed class TrendIndicatorCalculatorTests
         result.Icon.Should().Be("▲");
     }
 
-    [Fact]
+    [Test]
     public void Update_GeometricStyle_FallingReturnsDownTriangle()
     {
         var calculator = new TrendIndicatorCalculator(iconStyle: TrendIconStyle.Geometric);
@@ -240,7 +240,7 @@ public sealed class TrendIndicatorCalculatorTests
         result.Icon.Should().Be("▼");
     }
 
-    [Fact]
+    [Test]
     public void Update_GeometricStyle_StableReturnsBullet()
     {
         var calculator = new TrendIndicatorCalculator(iconStyle: TrendIconStyle.Geometric);
@@ -258,7 +258,7 @@ public sealed class TrendIndicatorCalculatorTests
 
     #region Icon Tests - Arrows Style
 
-    [Fact]
+    [Test]
     public void Update_ArrowsStyle_IdleReturnsEmptyCircle()
     {
         var calculator = new TrendIndicatorCalculator(iconStyle: TrendIconStyle.Arrows);
@@ -269,7 +269,7 @@ public sealed class TrendIndicatorCalculatorTests
         result.Icon.Should().Be("○");
     }
 
-    [Fact]
+    [Test]
     public void Update_ArrowsStyle_RisingReturnsUpArrow()
     {
         var calculator = new TrendIndicatorCalculator(iconStyle: TrendIconStyle.Arrows);
@@ -282,7 +282,7 @@ public sealed class TrendIndicatorCalculatorTests
         result.Icon.Should().Be("↑");
     }
 
-    [Fact]
+    [Test]
     public void Update_ArrowsStyle_FallingReturnsDownArrow()
     {
         var calculator = new TrendIndicatorCalculator(iconStyle: TrendIconStyle.Arrows);
@@ -295,7 +295,7 @@ public sealed class TrendIndicatorCalculatorTests
         result.Icon.Should().Be("↓");
     }
 
-    [Fact]
+    [Test]
     public void Update_ArrowsStyle_StableReturnsRightArrow()
     {
         var calculator = new TrendIndicatorCalculator(iconStyle: TrendIconStyle.Arrows);
@@ -312,7 +312,7 @@ public sealed class TrendIndicatorCalculatorTests
 
     #region TrendResult Tests
 
-    [Fact]
+    [Test]
     public void TrendResult_ContainsIcon()
     {
         var calculator = new TrendIndicatorCalculator();
@@ -322,7 +322,7 @@ public sealed class TrendIndicatorCalculatorTests
         result.Icon.Should().NotBeNullOrEmpty();
     }
 
-    [Fact]
+    [Test]
     public void TrendResult_ContainsText()
     {
         var calculator = new TrendIndicatorCalculator();
@@ -332,7 +332,7 @@ public sealed class TrendIndicatorCalculatorTests
         result.Text.Should().NotBeNullOrEmpty();
     }
 
-    [Fact]
+    [Test]
     public void TrendResult_DirectionMatchesText()
     {
         var calculator = new TrendIndicatorCalculator();
@@ -346,7 +346,7 @@ public sealed class TrendIndicatorCalculatorTests
 
     #region Edge Cases
 
-    [Fact]
+    [Test]
     public void Update_VeryLargeValues_HandlesWithoutOverflow()
     {
         var calculator = new TrendIndicatorCalculator();
@@ -356,7 +356,7 @@ public sealed class TrendIndicatorCalculatorTests
         result.Direction.Should().Be(TrendDirection.Stable);
     }
 
-    [Fact]
+    [Test]
     public void Update_NegativeValues_TreatedAsZero()
     {
         var calculator = new TrendIndicatorCalculator();
@@ -370,7 +370,7 @@ public sealed class TrendIndicatorCalculatorTests
         result.Direction.Should().BeOneOf(TrendDirection.Idle, TrendDirection.Falling, TrendDirection.Stable);
     }
 
-    [Fact]
+    [Test]
     public void Update_AlternatingValues_TracksCorrectly()
     {
         var calculator = new TrendIndicatorCalculator();
@@ -388,7 +388,7 @@ public sealed class TrendIndicatorCalculatorTests
         results.Should().NotBeEmpty();
     }
 
-    [Fact]
+    [Test]
     public void Update_GradualIncrease_EventuallyDetectsRising()
     {
         var calculator = new TrendIndicatorCalculator(
@@ -413,7 +413,7 @@ public sealed class TrendIndicatorCalculatorTests
 
     #region Reset Behavior (implicit through zero)
 
-    [Fact]
+    [Test]
     public void Update_AfterIdle_ResumesTracking()
     {
         var calculator = new TrendIndicatorCalculator();

@@ -174,3 +174,43 @@ Cross-platform network monitoring uses .NET's `NetworkInterface` class.
   - When switching context to a different part of the codebase
 - Always commit when work is complete with a clear, descriptive commit message
 - Use conventional commit format: `type(scope): description` (e.g., `feat(system): add CPU monitoring service`)
+
+## AI Skills Usage
+
+**IMPORTANT**: Always leverage specialized skills for higher-quality results. Read the skill file before starting work.
+
+### When to Use Each Skill
+
+| Task Type | Skill to Use | Trigger Phrases |
+|-----------|--------------|-----------------|
+| **Any coding work** | `swe` | Writing, editing, fixing, debugging, refactoring, adding features |
+| **Reviewing code/PRs** | `code-review` | "review this", "audit code", "check this PR", "assess quality" |
+| **Writing/improving tests** | `test-gen` | "write tests", "improve coverage", "mutation testing", "set up testing" |
+| **Security concerns** | `security-audit` | "find vulnerabilities", "security check", "threat model", "OWASP" |
+| **Research topics** | `deep-research` | "research", "investigate", "compare options", "deep dive" |
+| **Generating ideas** | `brainstorming` | "brainstorm", "generate ideas", "what are ways to" |
+| **Validating ideas** | `idea-stress-test` | "is this a good idea", "critique", "poke holes in" |
+| **Unclear requirements** | `problem-discovery` | "not sure what I need", "something feels wrong" |
+| **Stuck creatively** | `creative-unblock` | "I'm stuck", "out of ideas", "hitting a wall" |
+
+### Skill Usage Guidelines
+
+1. **Default to `swe` for all coding tasks** - It enforces verification loops, test-driven development, and incremental changes
+2. **Use `code-review` before merging** - Catches issues early with adversarial review techniques
+3. **Use `test-gen` for test coverage** - Includes mutation testing and edge case discovery
+4. **Use `security-audit` for sensitive code** - Especially for network/system monitoring code that handles connections and process data
+5. **Use `deep-research` when uncertain** - Better than guessing; synthesizes multiple sources with confidence ratings
+
+### For Complex Multi-Step Tasks
+
+Use the **Plan** agent to research and outline multi-step plans before implementation. This is especially useful for:
+- Adding new platform-specific features (Windows + Linux implementations)
+- Major architectural changes
+- Cross-cutting concerns affecting multiple projects
+
+### Quality Verification
+
+After any significant change:
+1. Build the solution: `dotnet build`
+2. Run relevant tests: `dotnet test`
+3. Consider using `code-review` skill for self-review before committing

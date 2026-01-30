@@ -1,3 +1,3 @@
-global using Xunit;
+global using TUnit.Core;
 global using AwesomeAssertions;
-global using Moq;
+global using NSubstitute;

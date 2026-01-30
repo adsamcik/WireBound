@@ -46,8 +46,8 @@ public class DataPersistenceServiceTests : DatabaseTestBase
     // SaveStatsAsync Tests
     // ═══════════════════════════════════════════════════════════════════════
 
-    [Fact]
-    public async Task SaveStatsAsync_FirstSave_CreatesHourlyAndDailyRecords()
+    [Test, Timeout(30000)]
+    public async Task SaveStatsAsync_FirstSave_CreatesHourlyAndDailyRecords(CancellationToken cancellationToken)
     {
         // Arrange
         var stats = CreateNetworkStats(sessionReceived: 1000, sessionSent: 500);
@@ -66,8 +66,8 @@ public class DataPersistenceServiceTests : DatabaseTestBase
         dailyCount.Should().Be(1);
     }
 
-    [Fact]
-    public async Task SaveStatsAsync_MultipleSavesToSameHour_UpdatesExistingRecords()
+    [Test, Timeout(30000)]
+    public async Task SaveStatsAsync_MultipleSavesToSameHour_UpdatesExistingRecords(CancellationToken cancellationToken)
     {
         // Arrange
         var stats1 = CreateNetworkStats(sessionReceived: 1000, sessionSent: 500);
@@ -90,8 +90,8 @@ public class DataPersistenceServiceTests : DatabaseTestBase
         hourly.BytesSent.Should().Be(1000);
     }
 
-    [Fact]
-    public async Task SaveStatsAsync_TracksPeakSpeeds()
+    [Test, Timeout(30000)]
+    public async Task SaveStatsAsync_TracksPeakSpeeds(CancellationToken cancellationToken)
     {
         // Arrange
         var stats1 = CreateNetworkStats(downloadSpeedBps: 100_000, uploadSpeedBps: 50_000);
@@ -114,8 +114,8 @@ public class DataPersistenceServiceTests : DatabaseTestBase
         hourly.PeakUploadSpeed.Should().Be(50_000); // Max of 50k and 30k
     }
 
-    [Fact]
-    public async Task SaveStatsAsync_DifferentAdapters_CreatesSeparateRecords()
+    [Test, Timeout(30000)]
+    public async Task SaveStatsAsync_DifferentAdapters_CreatesSeparateRecords(CancellationToken cancellationToken)
     {
         // Arrange
         var stats1 = CreateNetworkStats(adapterId: "adapter-1", sessionReceived: 1000);
@@ -140,8 +140,8 @@ public class DataPersistenceServiceTests : DatabaseTestBase
     // GetDailyUsageAsync Tests
     // ═══════════════════════════════════════════════════════════════════════
 
-    [Fact]
-    public async Task GetDailyUsageAsync_NoData_ReturnsEmptyList()
+    [Test, Timeout(30000)]
+    public async Task GetDailyUsageAsync_NoData_ReturnsEmptyList(CancellationToken cancellationToken)
     {
         // Arrange
         var startDate = DateOnly.FromDateTime(DateTime.Now.AddDays(-7));
@@ -154,8 +154,8 @@ public class DataPersistenceServiceTests : DatabaseTestBase
         result.Should().BeEmpty();
     }
 
-    [Fact]
-    public async Task GetDailyUsageAsync_WithData_ReturnsOrderedByDate()
+    [Test, Timeout(30000)]
+    public async Task GetDailyUsageAsync_WithData_ReturnsOrderedByDate(CancellationToken cancellationToken)
     {
         // Arrange - Seed data
         using (var scope = CreateScope())
@@ -181,8 +181,8 @@ public class DataPersistenceServiceTests : DatabaseTestBase
         result[2].BytesReceived.Should().Be(300);
     }
 
-    [Fact]
-    public async Task GetDailyUsageAsync_FiltersByDateRange()
+    [Test, Timeout(30000)]
+    public async Task GetDailyUsageAsync_FiltersByDateRange(CancellationToken cancellationToken)
     {
         // Arrange - Seed data across multiple days
         using (var scope = CreateScope())
@@ -210,8 +210,8 @@ public class DataPersistenceServiceTests : DatabaseTestBase
     // GetHourlyUsageAsync Tests
     // ═══════════════════════════════════════════════════════════════════════
 
-    [Fact]
-    public async Task GetHourlyUsageAsync_NoData_ReturnsEmptyList()
+    [Test, Timeout(30000)]
+    public async Task GetHourlyUsageAsync_NoData_ReturnsEmptyList(CancellationToken cancellationToken)
     {
         // Act
         var result = await _service.GetHourlyUsageAsync(DateOnly.FromDateTime(DateTime.Now));
@@ -220,8 +220,8 @@ public class DataPersistenceServiceTests : DatabaseTestBase
         result.Should().BeEmpty();
     }
 
-    [Fact]
-    public async Task GetHourlyUsageAsync_ReturnsOnlyRequestedDay()
+    [Test, Timeout(30000)]
+    public async Task GetHourlyUsageAsync_ReturnsOnlyRequestedDay(CancellationToken cancellationToken)
     {
         // Arrange
         var today = DateTime.Now;
@@ -250,8 +250,8 @@ public class DataPersistenceServiceTests : DatabaseTestBase
     // GetTotalUsageAsync Tests
     // ═══════════════════════════════════════════════════════════════════════
 
-    [Fact]
-    public async Task GetTotalUsageAsync_NoData_ReturnsZeros()
+    [Test, Timeout(30000)]
+    public async Task GetTotalUsageAsync_NoData_ReturnsZeros(CancellationToken cancellationToken)
     {
         // Act
         var (received, sent) = await _service.GetTotalUsageAsync();
@@ -261,8 +261,8 @@ public class DataPersistenceServiceTests : DatabaseTestBase
         sent.Should().Be(0);
     }
 
-    [Fact]
-    public async Task GetTotalUsageAsync_SumsAllDailyRecords()
+    [Test, Timeout(30000)]
+    public async Task GetTotalUsageAsync_SumsAllDailyRecords(CancellationToken cancellationToken)
     {
         // Arrange
         using (var scope = CreateScope())
@@ -288,8 +288,8 @@ public class DataPersistenceServiceTests : DatabaseTestBase
     // GetTodayUsageAsync Tests
     // ═══════════════════════════════════════════════════════════════════════
 
-    [Fact]
-    public async Task GetTodayUsageAsync_NoData_ReturnsZeros()
+    [Test, Timeout(30000)]
+    public async Task GetTodayUsageAsync_NoData_ReturnsZeros(CancellationToken cancellationToken)
     {
         // Act
         var (received, sent) = await _service.GetTodayUsageAsync();
@@ -299,8 +299,8 @@ public class DataPersistenceServiceTests : DatabaseTestBase
         sent.Should().Be(0);
     }
 
-    [Fact]
-    public async Task GetTodayUsageAsync_OnlyReturnsTodaysData()
+    [Test, Timeout(30000)]
+    public async Task GetTodayUsageAsync_OnlyReturnsTodaysData(CancellationToken cancellationToken)
     {
         // Arrange
         var today = DateOnly.FromDateTime(DateTime.Now);
@@ -328,8 +328,8 @@ public class DataPersistenceServiceTests : DatabaseTestBase
     // Settings Tests
     // ═══════════════════════════════════════════════════════════════════════
 
-    [Fact]
-    public async Task GetSettingsAsync_NoSettings_ReturnsDefaults()
+    [Test, Timeout(30000)]
+    public async Task GetSettingsAsync_NoSettings_ReturnsDefaults(CancellationToken cancellationToken)
     {
         // Act
         var settings = await _service.GetSettingsAsync();
@@ -339,8 +339,8 @@ public class DataPersistenceServiceTests : DatabaseTestBase
         settings.PollingIntervalMs.Should().Be(1000); // Default value
     }
 
-    [Fact]
-    public async Task SaveSettingsAsync_NewSettings_CreatesRecord()
+    [Test, Timeout(30000)]
+    public async Task SaveSettingsAsync_NewSettings_CreatesRecord(CancellationToken cancellationToken)
     {
         // Arrange
         var settings = new AppSettings
@@ -360,8 +360,8 @@ public class DataPersistenceServiceTests : DatabaseTestBase
         loaded.StartMinimized.Should().BeFalse();
     }
 
-    [Fact]
-    public async Task SaveSettingsAsync_ExistingSettings_UpdatesRecord()
+    [Test, Timeout(30000)]
+    public async Task SaveSettingsAsync_ExistingSettings_UpdatesRecord(CancellationToken cancellationToken)
     {
         // Arrange - Create initial settings
         var settings1 = new AppSettings { PollingIntervalMs = 1000 };
@@ -386,8 +386,8 @@ public class DataPersistenceServiceTests : DatabaseTestBase
     // Speed Snapshot Tests
     // ═══════════════════════════════════════════════════════════════════════
 
-    [Fact]
-    public async Task SaveSpeedSnapshotAsync_SavesCorrectly()
+    [Test, Timeout(30000)]
+    public async Task SaveSpeedSnapshotAsync_SavesCorrectly(CancellationToken cancellationToken)
     {
         // Act
         await _service.SaveSpeedSnapshotAsync(1_000_000, 500_000);
@@ -402,8 +402,8 @@ public class DataPersistenceServiceTests : DatabaseTestBase
         snapshot.UploadSpeedBps.Should().Be(500_000);
     }
 
-    [Fact]
-    public async Task SaveSpeedSnapshotBatchAsync_SavesMultipleSnapshots()
+    [Test, Timeout(30000)]
+    public async Task SaveSpeedSnapshotBatchAsync_SavesMultipleSnapshots(CancellationToken cancellationToken)
     {
         // Arrange
         var now = DateTime.Now;
@@ -425,8 +425,8 @@ public class DataPersistenceServiceTests : DatabaseTestBase
         count.Should().Be(3);
     }
 
-    [Fact]
-    public async Task SaveSpeedSnapshotBatchAsync_EmptyList_DoesNothing()
+    [Test, Timeout(30000)]
+    public async Task SaveSpeedSnapshotBatchAsync_EmptyList_DoesNothing(CancellationToken cancellationToken)
     {
         // Arrange
         var snapshots = new List<(long, long, DateTime)>();
@@ -442,8 +442,8 @@ public class DataPersistenceServiceTests : DatabaseTestBase
         count.Should().Be(0);
     }
 
-    [Fact]
-    public async Task GetSpeedHistoryAsync_ReturnsOrderedSnapshots()
+    [Test, Timeout(30000)]
+    public async Task GetSpeedHistoryAsync_ReturnsOrderedSnapshots(CancellationToken cancellationToken)
     {
         // Arrange
         var now = DateTime.Now;
@@ -470,8 +470,8 @@ public class DataPersistenceServiceTests : DatabaseTestBase
 
     // Note: This test is skipped because ExecuteDeleteAsync is not supported by EF Core InMemory provider.
     // The actual functionality works correctly with SQLite in production.
-    [Fact(Skip = "ExecuteDeleteAsync not supported by InMemory provider")]
-    public async Task CleanupOldSpeedSnapshotsAsync_RemovesOldSnapshots()
+    [Test, Skip("ExecuteDeleteAsync not supported by InMemory provider"), Timeout(30000)]
+    public async Task CleanupOldSpeedSnapshotsAsync_RemovesOldSnapshots(CancellationToken cancellationToken)
     {
         // Arrange
         var now = DateTime.Now;
@@ -504,8 +504,8 @@ public class DataPersistenceServiceTests : DatabaseTestBase
 
     // Note: This test is skipped because ExecuteDeleteAsync is not supported by EF Core InMemory provider.
     // The actual functionality works correctly with SQLite in production.
-    [Fact(Skip = "ExecuteDeleteAsync not supported by InMemory provider")]
-    public async Task CleanupOldDataAsync_RemovesOldRecords()
+    [Test, Skip("ExecuteDeleteAsync not supported by InMemory provider"), Timeout(30000)]
+    public async Task CleanupOldDataAsync_RemovesOldRecords(CancellationToken cancellationToken)
     {
         // Arrange
         using (var scope = CreateScope())

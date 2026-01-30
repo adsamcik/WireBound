@@ -195,56 +195,65 @@ public sealed partial class SettingsViewModel : ObservableObject, IDisposable
 
     private async void LoadSettings()
     {
-        // Load adapters
-        Adapters.Clear();
-        foreach (var adapter in _networkMonitor.GetAdapters())
+        try
         {
-            Adapters.Add(adapter);
+            // Load adapters
+            Adapters.Clear();
+            foreach (var adapter in _networkMonitor.GetAdapters())
+            {
+                Adapters.Add(adapter);
+            }
+
+            // Load settings from database
+            var settings = await _persistence.GetSettingsAsync();
+
+            PollingIntervalMs = settings.PollingIntervalMs;
+            UseIpHelperApi = settings.UseIpHelperApi;
+            IsPerAppTrackingEnabled = settings.IsPerAppTrackingEnabled;
+            MinimizeToTray = settings.MinimizeToTray;
+            StartMinimized = settings.StartMinimized;
+            SelectedSpeedUnit = settings.SpeedUnit;
+
+            // Dashboard Customization
+            ShowSystemMetricsInHeader = settings.ShowSystemMetricsInHeader;
+            ShowCpuOverlayByDefault = settings.ShowCpuOverlayByDefault;
+            ShowMemoryOverlayByDefault = settings.ShowMemoryOverlayByDefault;
+            ShowGpuMetrics = settings.ShowGpuMetrics;
+            DefaultTimeRange = settings.DefaultTimeRange;
+
+            // Performance Mode
+            PerformanceModeEnabled = settings.PerformanceModeEnabled;
+            ChartUpdateIntervalMs = settings.ChartUpdateIntervalMs;
+
+            // Insights Page
+            DefaultInsightsPeriod = settings.DefaultInsightsPeriod;
+            ShowCorrelationInsights = settings.ShowCorrelationInsights;
+
+            // Load startup state from OS (not from saved settings)
+            await LoadStartupStateAsync();
+
+            // Apply speed unit setting globally
+            WireBound.Core.Helpers.ByteFormatter.UseSpeedInBits = settings.SpeedUnit == SpeedUnit.BitsPerSecond;
+
+            // Find matching adapter
+            SelectedAdapter = Adapters.FirstOrDefault(a => a.Id == settings.SelectedAdapterId);
+
+            // Check elevation status using the platform service
+            // IsElevated reflects whether the helper is connected (NOT whether the main app is elevated)
+            IsElevated = _elevationService.IsHelperConnected;
+            RequiresElevation = _elevationService.RequiresElevation && _elevationService.IsElevationSupported;
+
+            // Subscribe to helper state changes
+            _elevationService.HelperConnectionStateChanged += OnHelperConnectionStateChanged;
         }
-
-        // Load settings from database
-        var settings = await _persistence.GetSettingsAsync();
-
-        PollingIntervalMs = settings.PollingIntervalMs;
-        UseIpHelperApi = settings.UseIpHelperApi;
-        IsPerAppTrackingEnabled = settings.IsPerAppTrackingEnabled;
-        MinimizeToTray = settings.MinimizeToTray;
-        StartMinimized = settings.StartMinimized;
-        SelectedSpeedUnit = settings.SpeedUnit;
-
-        // Dashboard Customization
-        ShowSystemMetricsInHeader = settings.ShowSystemMetricsInHeader;
-        ShowCpuOverlayByDefault = settings.ShowCpuOverlayByDefault;
-        ShowMemoryOverlayByDefault = settings.ShowMemoryOverlayByDefault;
-        ShowGpuMetrics = settings.ShowGpuMetrics;
-        DefaultTimeRange = settings.DefaultTimeRange;
-
-        // Performance Mode
-        PerformanceModeEnabled = settings.PerformanceModeEnabled;
-        ChartUpdateIntervalMs = settings.ChartUpdateIntervalMs;
-
-        // Insights Page
-        DefaultInsightsPeriod = settings.DefaultInsightsPeriod;
-        ShowCorrelationInsights = settings.ShowCorrelationInsights;
-
-        // Load startup state from OS (not from saved settings)
-        await LoadStartupStateAsync();
-
-        // Apply speed unit setting globally
-        WireBound.Core.Helpers.ByteFormatter.UseSpeedInBits = settings.SpeedUnit == SpeedUnit.BitsPerSecond;
-
-        // Find matching adapter
-        SelectedAdapter = Adapters.FirstOrDefault(a => a.Id == settings.SelectedAdapterId);
-
-        // Check elevation status using the platform service
-        // IsElevated reflects whether the helper is connected (NOT whether the main app is elevated)
-        IsElevated = _elevationService.IsHelperConnected;
-        RequiresElevation = _elevationService.RequiresElevation && _elevationService.IsElevationSupported;
-
-        // Subscribe to helper state changes
-        _elevationService.HelperConnectionStateChanged += OnHelperConnectionStateChanged;
-
-        _isLoading = false;
+        catch (Exception ex)
+        {
+            _logger?.LogError(ex, "Failed to load settings");
+        }
+        finally
+        {
+            _isLoading = false;
+        }
     }
 
     private void OnHelperConnectionStateChanged(object? sender, HelperConnectionStateChangedEventArgs e)

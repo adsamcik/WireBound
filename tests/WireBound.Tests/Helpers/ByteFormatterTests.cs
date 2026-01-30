@@ -8,21 +8,23 @@ namespace WireBound.Tests.Helpers;
 /// </summary>
 public class ByteFormatterTests
 {
-    public ByteFormatterTests()
+    [Before(Test)]
+    public Task Setup()
     {
         // Reset to default state before each test
         ByteFormatter.UseSpeedInBits = false;
+        return Task.CompletedTask;
     }
 
     // ═══════════════════════════════════════════════════════════════════════
     // FormatBytes Tests
     // ═══════════════════════════════════════════════════════════════════════
 
-    [Theory]
-    [InlineData(0, "0 B")]
-    [InlineData(1, "1 B")]
-    [InlineData(512, "512 B")]
-    [InlineData(1023, "1023 B")]
+    [Test]
+    [Arguments(0L, "0 B")]
+    [Arguments(1L, "1 B")]
+    [Arguments(512L, "512 B")]
+    [Arguments(1023L, "1023 B")]
     public void FormatBytes_ByteRange_ReturnsBytes(long bytes, string expected)
     {
         // Act
@@ -32,11 +34,11 @@ public class ByteFormatterTests
         result.Should().Be(expected);
     }
 
-    [Theory]
-    [InlineData(1024, "1.00 KB")]
-    [InlineData(1536, "1.50 KB")]
-    [InlineData(2048, "2.00 KB")]
-    [InlineData(1047552, "1023.00 KB")]  // Just under 1 MB
+    [Test]
+    [Arguments(1024L, "1.00 KB")]
+    [Arguments(1536L, "1.50 KB")]
+    [Arguments(2048L, "2.00 KB")]
+    [Arguments(1047552L, "1023.00 KB")]  // Just under 1 MB
     public void FormatBytes_KilobyteRange_ReturnsKilobytes(long bytes, string expected)
     {
         // Act
@@ -46,11 +48,11 @@ public class ByteFormatterTests
         result.Should().Be(expected);
     }
 
-    [Theory]
-    [InlineData(1048576, "1.00 MB")]
-    [InlineData(1572864, "1.50 MB")]
-    [InlineData(104857600, "100.00 MB")]
-    [InlineData(1073217536, "1023.50 MB")]  // Just under 1 GB
+    [Test]
+    [Arguments(1048576L, "1.00 MB")]
+    [Arguments(1572864L, "1.50 MB")]
+    [Arguments(104857600L, "100.00 MB")]
+    [Arguments(1073217536L, "1023.50 MB")]  // Just under 1 GB
     public void FormatBytes_MegabyteRange_ReturnsMegabytes(long bytes, string expected)
     {
         // Act
@@ -60,11 +62,11 @@ public class ByteFormatterTests
         result.Should().Be(expected);
     }
 
-    [Theory]
-    [InlineData(1073741824, "1.00 GB")]
-    [InlineData(1610612736, "1.50 GB")]
-    [InlineData(10737418240, "10.00 GB")]
-    [InlineData(107374182400, "100.00 GB")]
+    [Test]
+    [Arguments(1073741824L, "1.00 GB")]
+    [Arguments(1610612736L, "1.50 GB")]
+    [Arguments(10737418240L, "10.00 GB")]
+    [Arguments(107374182400L, "100.00 GB")]
     public void FormatBytes_GigabyteRange_ReturnsGigabytes(long bytes, string expected)
     {
         // Act
@@ -74,10 +76,10 @@ public class ByteFormatterTests
         result.Should().Be(expected);
     }
 
-    [Theory]
-    [InlineData(1099511627776, "1.00 TB")]
-    [InlineData(1649267441664, "1.50 TB")]
-    [InlineData(10995116277760, "10.00 TB")]
+    [Test]
+    [Arguments(1099511627776L, "1.00 TB")]
+    [Arguments(1649267441664L, "1.50 TB")]
+    [Arguments(10995116277760L, "10.00 TB")]
     public void FormatBytes_TerabyteRange_ReturnsTerabytes(long bytes, string expected)
     {
         // Act
@@ -87,7 +89,7 @@ public class ByteFormatterTests
         result.Should().Be(expected);
     }
 
-    [Fact]
+    [Test]
     public void FormatBytes_VeryLargeValue_ReturnsTerabytes()
     {
         // Arrange
@@ -100,7 +102,7 @@ public class ByteFormatterTests
         result.Should().Be("1024.00 TB");
     }
 
-    [Fact]
+    [Test]
     public void FormatBytes_MaxLongValue_DoesNotThrow()
     {
         // Arrange
@@ -117,11 +119,11 @@ public class ByteFormatterTests
     // FormatSpeedInBytes Tests
     // ═══════════════════════════════════════════════════════════════════════
 
-    [Theory]
-    [InlineData(0, "0 B/s")]
-    [InlineData(1, "1 B/s")]
-    [InlineData(512, "512 B/s")]
-    [InlineData(1023, "1023 B/s")]
+    [Test]
+    [Arguments(0L, "0 B/s")]
+    [Arguments(1L, "1 B/s")]
+    [Arguments(512L, "512 B/s")]
+    [Arguments(1023L, "1023 B/s")]
     public void FormatSpeedInBytes_ByteRange_ReturnsBytesPerSecond(long bytesPerSecond, string expected)
     {
         // Act
@@ -131,11 +133,11 @@ public class ByteFormatterTests
         result.Should().Be(expected);
     }
 
-    [Theory]
-    [InlineData(1024, "1.00 KB/s")]
-    [InlineData(1536, "1.50 KB/s")]
-    [InlineData(10240, "10.00 KB/s")]
-    [InlineData(102400, "100.00 KB/s")]
+    [Test]
+    [Arguments(1024L, "1.00 KB/s")]
+    [Arguments(1536L, "1.50 KB/s")]
+    [Arguments(10240L, "10.00 KB/s")]
+    [Arguments(102400L, "100.00 KB/s")]
     public void FormatSpeedInBytes_KilobyteRange_ReturnsKilobytesPerSecond(long bytesPerSecond, string expected)
     {
         // Act
@@ -145,10 +147,10 @@ public class ByteFormatterTests
         result.Should().Be(expected);
     }
 
-    [Theory]
-    [InlineData(1048576, "1.00 MB/s")]
-    [InlineData(1572864, "1.50 MB/s")]
-    [InlineData(104857600, "100.00 MB/s")]
+    [Test]
+    [Arguments(1048576L, "1.00 MB/s")]
+    [Arguments(1572864L, "1.50 MB/s")]
+    [Arguments(104857600L, "100.00 MB/s")]
     public void FormatSpeedInBytes_MegabyteRange_ReturnsMegabytesPerSecond(long bytesPerSecond, string expected)
     {
         // Act
@@ -158,9 +160,9 @@ public class ByteFormatterTests
         result.Should().Be(expected);
     }
 
-    [Theory]
-    [InlineData(1073741824, "1.00 GB/s")]
-    [InlineData(10737418240, "10.00 GB/s")]
+    [Test]
+    [Arguments(1073741824L, "1.00 GB/s")]
+    [Arguments(10737418240L, "10.00 GB/s")]
     public void FormatSpeedInBytes_GigabyteRange_ReturnsGigabytesPerSecond(long bytesPerSecond, string expected)
     {
         // Act
@@ -174,11 +176,11 @@ public class ByteFormatterTests
     // FormatSpeedInBits Tests
     // ═══════════════════════════════════════════════════════════════════════
 
-    [Theory]
-    [InlineData(0, "0 bps")]
-    [InlineData(1, "8 bps")]
-    [InlineData(100, "800 bps")]
-    [InlineData(124, "992 bps")]
+    [Test]
+    [Arguments(0L, "0 bps")]
+    [Arguments(1L, "8 bps")]
+    [Arguments(100L, "800 bps")]
+    [Arguments(124L, "992 bps")]
     public void FormatSpeedInBits_BitsRange_ReturnsBitsPerSecond(long bytesPerSecond, string expected)
     {
         // Act
@@ -188,11 +190,11 @@ public class ByteFormatterTests
         result.Should().Be(expected);
     }
 
-    [Theory]
-    [InlineData(125, "1.00 Kbps")]         // 1000 bps = 1 Kbps
-    [InlineData(1000, "8.00 Kbps")]        // 8000 bps = 8 Kbps
-    [InlineData(12500, "100.00 Kbps")]     // 100000 bps = 100 Kbps
-    [InlineData(125000, "1.00 Mbps")]      // 1000000 bps = 1 Mbps (threshold)
+    [Test]
+    [Arguments(125L, "1.00 Kbps")]         // 1000 bps = 1 Kbps
+    [Arguments(1000L, "8.00 Kbps")]        // 8000 bps = 8 Kbps
+    [Arguments(12500L, "100.00 Kbps")]     // 100000 bps = 100 Kbps
+    [Arguments(125000L, "1.00 Mbps")]      // 1000000 bps = 1 Mbps (threshold)
     public void FormatSpeedInBits_KilobitsRange_ReturnsKilobitsPerSecond(long bytesPerSecond, string expected)
     {
         // Act
@@ -202,11 +204,11 @@ public class ByteFormatterTests
         result.Should().Be(expected);
     }
 
-    [Theory]
-    [InlineData(125000, "1.00 Mbps")]      // 1 Mbps
-    [InlineData(1250000, "10.00 Mbps")]    // 10 Mbps
-    [InlineData(12500000, "100.00 Mbps")]  // 100 Mbps
-    [InlineData(125000000, "1.00 Gbps")]   // 1 Gbps (threshold)
+    [Test]
+    [Arguments(125000L, "1.00 Mbps")]      // 1 Mbps
+    [Arguments(1250000L, "10.00 Mbps")]    // 10 Mbps
+    [Arguments(12500000L, "100.00 Mbps")]  // 100 Mbps
+    [Arguments(125000000L, "1.00 Gbps")]   // 1 Gbps (threshold)
     public void FormatSpeedInBits_MegabitsRange_ReturnsMegabitsPerSecond(long bytesPerSecond, string expected)
     {
         // Act
@@ -216,9 +218,9 @@ public class ByteFormatterTests
         result.Should().Be(expected);
     }
 
-    [Theory]
-    [InlineData(125000000, "1.00 Gbps")]     // 1 Gbps
-    [InlineData(1250000000, "10.00 Gbps")]   // 10 Gbps
+    [Test]
+    [Arguments(125000000L, "1.00 Gbps")]     // 1 Gbps
+    [Arguments(1250000000L, "10.00 Gbps")]   // 10 Gbps
     public void FormatSpeedInBits_GigabitsRange_ReturnsGigabitsPerSecond(long bytesPerSecond, string expected)
     {
         // Act
@@ -232,7 +234,7 @@ public class ByteFormatterTests
     // FormatSpeed (UseSpeedInBits switch) Tests
     // ═══════════════════════════════════════════════════════════════════════
 
-    [Fact]
+    [Test]
     public void FormatSpeed_WhenUseSpeedInBitsFalse_ReturnsBytes()
     {
         // Arrange
@@ -246,7 +248,7 @@ public class ByteFormatterTests
         result.Should().Be("1.00 MB/s");
     }
 
-    [Fact]
+    [Test]
     public void FormatSpeed_WhenUseSpeedInBitsTrue_ReturnsBits()
     {
         // Arrange
@@ -260,15 +262,15 @@ public class ByteFormatterTests
         result.Should().Be("1.00 Mbps");
     }
 
-    [Fact]
+    [Test]
     public void UseSpeedInBits_DefaultValue_ShouldBeFalse()
     {
         // Note: This test may fail if run after other tests that set the value
-        // In practice, we reset it in the constructor
+        // In practice, we reset it in the setup
         ByteFormatter.UseSpeedInBits.Should().BeFalse();
     }
 
-    [Fact]
+    [Test]
     public void FormatSpeed_TogglingMode_ReturnsCorrectFormat()
     {
         // Arrange
@@ -287,7 +289,7 @@ public class ByteFormatterTests
     // Edge Cases Tests
     // ═══════════════════════════════════════════════════════════════════════
 
-    [Fact]
+    [Test]
     public void FormatBytes_ZeroBytes_ReturnsZeroB()
     {
         // Act
@@ -297,7 +299,7 @@ public class ByteFormatterTests
         result.Should().Be("0 B");
     }
 
-    [Fact]
+    [Test]
     public void FormatSpeedInBytes_ZeroSpeed_ReturnsZeroBps()
     {
         // Act
@@ -307,7 +309,7 @@ public class ByteFormatterTests
         result.Should().Be("0 B/s");
     }
 
-    [Fact]
+    [Test]
     public void FormatSpeedInBits_ZeroSpeed_ReturnsZeroBps()
     {
         // Act
@@ -317,10 +319,10 @@ public class ByteFormatterTests
         result.Should().Be("0 bps");
     }
 
-    [Theory]
-    [InlineData(1024)]      // 1 KB boundary
-    [InlineData(1048576)]   // 1 MB boundary
-    [InlineData(1073741824)] // 1 GB boundary
+    [Test]
+    [Arguments(1024L)]      // 1 KB boundary
+    [Arguments(1048576L)]   // 1 MB boundary
+    [Arguments(1073741824L)] // 1 GB boundary
     public void FormatBytes_BoundaryValues_ReturnsExactUnits(long bytes)
     {
         // Act
@@ -334,7 +336,7 @@ public class ByteFormatterTests
     // Format Consistency Tests
     // ═══════════════════════════════════════════════════════════════════════
 
-    [Fact]
+    [Test]
     public void FormatBytes_AlwaysIncludesSpace()
     {
         // Arrange
@@ -348,7 +350,7 @@ public class ByteFormatterTests
         }
     }
 
-    [Fact]
+    [Test]
     public void FormatBytes_NonZeroValues_IncludeTwoDecimalPlaces()
     {
         // Arrange
@@ -363,7 +365,7 @@ public class ByteFormatterTests
         }
     }
 
-    [Fact]
+    [Test]
     public void FormatSpeedInBytes_NonZeroValues_IncludeTwoDecimalPlaces()
     {
         // Arrange
@@ -378,7 +380,7 @@ public class ByteFormatterTests
         }
     }
 
-    [Fact]
+    [Test]
     public void FormatSpeedInBits_NonZeroValues_IncludeTwoDecimalPlaces()
     {
         // Arrange
@@ -397,7 +399,7 @@ public class ByteFormatterTests
     // FormatSpeed with SpeedUnit overload Tests
     // ═══════════════════════════════════════════════════════════════════════
 
-    [Fact]
+    [Test]
     public void FormatSpeed_WithBytesPerSecondUnit_ReturnsBytes()
     {
         // Arrange
@@ -410,7 +412,7 @@ public class ByteFormatterTests
         result.Should().Be("1.00 MB/s");
     }
 
-    [Fact]
+    [Test]
     public void FormatSpeed_WithBitsPerSecondUnit_ReturnsBits()
     {
         // Arrange
@@ -423,7 +425,7 @@ public class ByteFormatterTests
         result.Should().Be("1.00 Mbps");
     }
 
-    [Fact]
+    [Test]
     public void FormatSpeed_WithSpeedUnit_DoesNotUseGlobalSetting()
     {
         // Arrange
@@ -440,11 +442,11 @@ public class ByteFormatterTests
         ByteFormatter.UseSpeedInBits = false;
     }
 
-    [Theory]
-    [InlineData(0, "0 B/s")]
-    [InlineData(1024, "1.00 KB/s")]
-    [InlineData(1048576, "1.00 MB/s")]
-    [InlineData(1073741824, "1.00 GB/s")]
+    [Test]
+    [Arguments(0L, "0 B/s")]
+    [Arguments(1024L, "1.00 KB/s")]
+    [Arguments(1048576L, "1.00 MB/s")]
+    [Arguments(1073741824L, "1.00 GB/s")]
     public void FormatSpeed_WithBytesUnit_FormatsCorrectly(long bytesPerSecond, string expected)
     {
         // Act
@@ -454,11 +456,11 @@ public class ByteFormatterTests
         result.Should().Be(expected);
     }
 
-    [Theory]
-    [InlineData(0, "0 bps")]
-    [InlineData(125, "1.00 Kbps")]
-    [InlineData(125000, "1.00 Mbps")]
-    [InlineData(125000000, "1.00 Gbps")]
+    [Test]
+    [Arguments(0L, "0 bps")]
+    [Arguments(125L, "1.00 Kbps")]
+    [Arguments(125000L, "1.00 Mbps")]
+    [Arguments(125000000L, "1.00 Gbps")]
     public void FormatSpeed_WithBitsUnit_FormatsCorrectly(long bytesPerSecond, string expected)
     {
         // Act

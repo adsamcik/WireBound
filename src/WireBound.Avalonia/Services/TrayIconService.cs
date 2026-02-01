@@ -23,12 +23,12 @@ public sealed class TrayIconService : ITrayIconService
     private bool _minimizeToTray;
     private bool _showActivityGraph = true;
     private bool _isTraySupported = true;
-    
+
     // Activity graph data - stores last N readings for the mini-graph
     private const int GraphHistorySize = 16;
     private readonly Queue<(float download, float upload)> _activityHistory = new();
     private long _autoScaleMaxSpeed = 1_000_000; // 1 MB/s default, auto-adjusts
-    
+
     // Icon dimensions
     private const int IconSize = 16;
 
@@ -44,7 +44,7 @@ public sealed class TrayIconService : ITrayIconService
             UpdateTrayIconVisibility();
         }
     }
-    
+
     /// <summary>
     /// Gets or sets whether the tray icon shows a dynamic activity graph.
     /// </summary>
@@ -78,10 +78,10 @@ public sealed class TrayIconService : ITrayIconService
     {
         _mainWindow = mainWindow;
         _minimizeToTray = minimizeToTray;
-        
+
         // Check if tray icons are likely to be supported
         _isTraySupported = CheckTraySupport();
-        
+
         if (_isTraySupported)
         {
             SetupTrayIcon();
@@ -90,9 +90,9 @@ public sealed class TrayIconService : ITrayIconService
         {
             Log.Warning("System tray icons may not be fully supported on this platform");
         }
-        
+
         SetupWindowHandlers();
-        
+
         Log.Information("TrayIconService initialized (TraySupported={TraySupported})", _isTraySupported);
     }
 
@@ -106,7 +106,7 @@ public sealed class TrayIconService : ITrayIconService
         {
             return true;
         }
-        
+
         // Linux support depends on desktop environment (AppIndicator/KDE support)
         // We'll try to create the tray icon anyway and catch any failures
         if (OperatingSystem.IsLinux())
@@ -114,21 +114,21 @@ public sealed class TrayIconService : ITrayIconService
             // Check for common desktop environment indicators
             var desktop = Environment.GetEnvironmentVariable("XDG_CURRENT_DESKTOP") ?? "";
             var sessionType = Environment.GetEnvironmentVariable("XDG_SESSION_TYPE") ?? "";
-            
+
             // Known supported environments
             var supportedDesktops = new[] { "GNOME", "KDE", "XFCE", "Unity", "Cinnamon", "MATE", "Budgie" };
-            var isKnownSupported = supportedDesktops.Any(d => 
+            var isKnownSupported = supportedDesktops.Any(d =>
                 desktop.Contains(d, StringComparison.OrdinalIgnoreCase));
-            
+
             if (isKnownSupported)
             {
                 Log.Debug("Linux desktop environment detected: {Desktop}, session: {Session}", desktop, sessionType);
             }
-            
+
             // Return true to attempt - we'll handle failures gracefully
             return true;
         }
-        
+
         return true;
     }
 
@@ -139,13 +139,13 @@ public sealed class TrayIconService : ITrayIconService
         try
         {
             var menu = new NativeMenu();
-            
+
             var showItem = new NativeMenuItem("Show WireBound");
             showItem.Click += (_, _) => ShowMainWindow();
             menu.Add(showItem);
-            
+
             menu.Add(new NativeMenuItemSeparator());
-            
+
             var exitItem = new NativeMenuItem("Exit");
             exitItem.Click += (_, _) => ExitApplication();
             menu.Add(exitItem);
@@ -166,11 +166,11 @@ public sealed class TrayIconService : ITrayIconService
 
             // Click to show window
             _trayIcon.Clicked += (_, _) => ShowMainWindow();
-            
+
             // Register the tray icon with the application
             var trayIcons = TrayIcon.GetIcons(Application.Current!);
             trayIcons?.Add(_trayIcon);
-            
+
             Log.Debug("Tray icon created successfully");
         }
         catch (Exception ex)
@@ -189,7 +189,7 @@ public sealed class TrayIconService : ITrayIconService
     {
         return CreateStaticIcon();
     }
-    
+
     /// <summary>
     /// Creates a static lightning bolt icon (used when activity graph is disabled).
     /// </summary>
@@ -200,7 +200,7 @@ public sealed class TrayIconService : ITrayIconService
             using var surface = SKSurface.Create(new SKImageInfo(IconSize, IconSize, SKColorType.Rgba8888, SKAlphaType.Premul));
             var canvas = surface.Canvas;
             canvas.Clear(SKColors.Transparent);
-            
+
             // Draw background circle
             using var bgPaint = new SKPaint
             {
@@ -209,7 +209,7 @@ public sealed class TrayIconService : ITrayIconService
                 Style = SKPaintStyle.Fill
             };
             canvas.DrawCircle(IconSize / 2f, IconSize / 2f, IconSize / 2f - 0.5f, bgPaint);
-            
+
             // Draw lightning bolt (⚡) - simplified path for 16x16
             using var boltPaint = new SKPaint
             {
@@ -217,7 +217,7 @@ public sealed class TrayIconService : ITrayIconService
                 IsAntialias = true,
                 Style = SKPaintStyle.Fill
             };
-            
+
             using var path = new SKPath();
             // Lightning bolt shape scaled to 16x16
             float scale = IconSize / 32f;
@@ -228,9 +228,9 @@ public sealed class TrayIconService : ITrayIconService
             path.LineTo(22 * scale, 14 * scale);
             path.LineTo(18 * scale, 14 * scale);
             path.Close();
-            
+
             canvas.DrawPath(path, boltPaint);
-            
+
             return CreateWindowIconFromSurface(surface);
         }
         catch (Exception ex)
@@ -239,21 +239,21 @@ public sealed class TrayIconService : ITrayIconService
             return null;
         }
     }
-    
+
     /// <summary>
     /// Updates the tray icon to the static version.
     /// </summary>
     private void UpdateStaticIcon()
     {
         if (_trayIcon == null) return;
-        
+
         var icon = CreateStaticIcon();
         if (icon != null)
         {
             _trayIcon.Icon = icon;
         }
     }
-    
+
     /// <summary>
     /// Updates the tray icon with current network activity.
     /// Creates a Task Manager-style activity graph showing download/upload history.
@@ -261,14 +261,14 @@ public sealed class TrayIconService : ITrayIconService
     public void UpdateActivity(long downloadSpeedBps, long uploadSpeedBps, long maxSpeedBps = 0)
     {
         if (_trayIcon == null || _isDisposed) return;
-        
+
         // Dispatch to UI thread if not already on it
         if (!Dispatcher.UIThread.CheckAccess())
         {
             Dispatcher.UIThread.Post(() => UpdateActivity(downloadSpeedBps, uploadSpeedBps, maxSpeedBps));
             return;
         }
-        
+
         // Auto-scale: track the maximum speed seen
         var currentMax = Math.Max(downloadSpeedBps, uploadSpeedBps);
         if (currentMax > _autoScaleMaxSpeed)
@@ -280,37 +280,37 @@ public sealed class TrayIconService : ITrayIconService
             // Slowly decrease the scale if traffic is consistently low
             _autoScaleMaxSpeed = Math.Max(1_000_000, _autoScaleMaxSpeed * 9 / 10);
         }
-        
+
         var effectiveMax = maxSpeedBps > 0 ? maxSpeedBps : _autoScaleMaxSpeed;
-        
+
         // Normalize to 0-1 range
         var downloadNorm = Math.Min(1f, downloadSpeedBps / (float)effectiveMax);
         var uploadNorm = Math.Min(1f, uploadSpeedBps / (float)effectiveMax);
-        
+
         // Add to history
         _activityHistory.Enqueue((downloadNorm, uploadNorm));
         while (_activityHistory.Count > GraphHistorySize)
         {
             _activityHistory.Dequeue();
         }
-        
+
         if (!_showActivityGraph)
         {
             // Just update tooltip with speed info
             UpdateTooltip(downloadSpeedBps, uploadSpeedBps);
             return;
         }
-        
+
         // Create the activity graph icon
         var icon = CreateActivityGraphIcon();
         if (icon != null)
         {
             _trayIcon.Icon = icon;
         }
-        
+
         UpdateTooltip(downloadSpeedBps, uploadSpeedBps);
     }
-    
+
     /// <summary>
     /// Creates a Task Manager-style activity graph icon showing network activity.
     /// The graph shows download (cyan) and upload (magenta) as stacked area bars.
@@ -321,10 +321,10 @@ public sealed class TrayIconService : ITrayIconService
         {
             using var surface = SKSurface.Create(new SKImageInfo(IconSize, IconSize, SKColorType.Rgba8888, SKAlphaType.Premul));
             var canvas = surface.Canvas;
-            
+
             // Dark background (similar to Task Manager's dark green)
             canvas.Clear(new SKColor(20, 30, 35)); // Dark blue-gray
-            
+
             // Draw border
             using var borderPaint = new SKPaint
             {
@@ -334,7 +334,7 @@ public sealed class TrayIconService : ITrayIconService
                 StrokeWidth = 1
             };
             canvas.DrawRect(0, 0, IconSize - 1, IconSize - 1, borderPaint);
-            
+
             // Download color (cyan - matches app theme)
             using var downloadPaint = new SKPaint
             {
@@ -342,7 +342,7 @@ public sealed class TrayIconService : ITrayIconService
                 IsAntialias = false,
                 Style = SKPaintStyle.Fill
             };
-            
+
             // Upload color (magenta/pink)
             using var uploadPaint = new SKPaint
             {
@@ -350,7 +350,7 @@ public sealed class TrayIconService : ITrayIconService
                 IsAntialias = false,
                 Style = SKPaintStyle.Fill
             };
-            
+
             // Grid lines (subtle)
             using var gridPaint = new SKPaint
             {
@@ -359,24 +359,24 @@ public sealed class TrayIconService : ITrayIconService
                 Style = SKPaintStyle.Stroke,
                 StrokeWidth = 1
             };
-            
+
             // Draw horizontal grid lines
             for (int y = 4; y < IconSize - 1; y += 4)
             {
                 canvas.DrawLine(1, y, IconSize - 2, y, gridPaint);
             }
-            
+
             // Draw the activity bars
             var history = _activityHistory.ToArray();
             var graphWidth = IconSize - 2; // Leave 1px border on each side
             var graphHeight = IconSize - 2;
             var barWidth = (float)graphWidth / GraphHistorySize;
-            
+
             for (int i = 0; i < history.Length; i++)
             {
                 var (download, upload) = history[i];
                 var x = 1 + i * barWidth;
-                
+
                 // Draw download bar (from bottom up)
                 var downloadHeight = download * (graphHeight - 1);
                 if (downloadHeight > 0.5f)
@@ -386,7 +386,7 @@ public sealed class TrayIconService : ITrayIconService
                         Math.Max(1, barWidth - 0.5f), downloadHeight,
                         downloadPaint);
                 }
-                
+
                 // Draw upload bar (stacked on top of download, or from bottom if no download)
                 var uploadHeight = upload * (graphHeight - 1);
                 if (uploadHeight > 0.5f)
@@ -398,7 +398,7 @@ public sealed class TrayIconService : ITrayIconService
                         uploadPaint);
                 }
             }
-            
+
             // If no history, show a flat line at the bottom
             if (history.Length == 0)
             {
@@ -410,7 +410,7 @@ public sealed class TrayIconService : ITrayIconService
                 };
                 canvas.DrawRect(1, IconSize - 2, IconSize - 2, 1, emptyPaint);
             }
-            
+
             return CreateWindowIconFromSurface(surface);
         }
         catch (Exception ex)
@@ -419,20 +419,20 @@ public sealed class TrayIconService : ITrayIconService
             return null;
         }
     }
-    
+
     /// <summary>
     /// Updates the tray icon tooltip with current speed information.
     /// </summary>
     private void UpdateTooltip(long downloadSpeedBps, long uploadSpeedBps)
     {
         if (_trayIcon == null) return;
-        
+
         var downloadSpeed = ByteFormatter.FormatSpeed(downloadSpeedBps);
         var uploadSpeed = ByteFormatter.FormatSpeed(uploadSpeedBps);
-        
+
         _trayIcon.ToolTipText = $"WireBound\n↓ {downloadSpeed}  ↑ {uploadSpeed}";
     }
-    
+
     /// <summary>
     /// Helper to create a WindowIcon from an SKSurface.
     /// </summary>
@@ -441,7 +441,7 @@ public sealed class TrayIconService : ITrayIconService
         using var image = surface.Snapshot();
         using var data = image.Encode(SKEncodedImageFormat.Png, 100);
         using var stream = new MemoryStream(data.ToArray());
-        
+
         var bitmap = new Bitmap(stream);
         return new WindowIcon(bitmap);
     }
@@ -452,7 +452,7 @@ public sealed class TrayIconService : ITrayIconService
 
         // Handle window closing to minimize to tray instead of closing
         _mainWindow.Closing += OnWindowClosing;
-        
+
         // Handle window state changes to hide to tray when minimized
         _mainWindow.PropertyChanged += OnWindowPropertyChanged;
     }
@@ -460,10 +460,10 @@ public sealed class TrayIconService : ITrayIconService
     private void OnWindowPropertyChanged(object? sender, AvaloniaPropertyChangedEventArgs e)
     {
         // Only handle minimize-to-tray if tray is actually supported
-        if (e.Property == Window.WindowStateProperty && 
-            e.NewValue is WindowState newState && 
+        if (e.Property == Window.WindowStateProperty &&
+            e.NewValue is WindowState newState &&
             newState == WindowState.Minimized &&
-            _minimizeToTray && 
+            _minimizeToTray &&
             _isTraySupported &&
             _trayIcon != null &&
             !_isDisposed)
@@ -487,7 +487,7 @@ public sealed class TrayIconService : ITrayIconService
     public void HideMainWindow()
     {
         if (_mainWindow == null) return;
-        
+
         // If tray is not supported, don't hide - just minimize normally
         if (!_isTraySupported || _trayIcon == null)
         {
@@ -505,10 +505,10 @@ public sealed class TrayIconService : ITrayIconService
         {
             Log.Debug(ex, "ShowInTaskbar not supported on this platform");
         }
-        
+
         _mainWindow.Hide();
         _trayIcon.IsVisible = true;
-        
+
         Log.Debug("Main window hidden to tray");
     }
 
@@ -526,10 +526,10 @@ public sealed class TrayIconService : ITrayIconService
         {
             Log.Debug(ex, "ShowInTaskbar not supported on this platform");
         }
-        
+
         _mainWindow.Show();
         _mainWindow.WindowState = WindowState.Normal;
-        
+
         // Activate/focus the window (platform-specific behavior)
         try
         {
@@ -539,20 +539,20 @@ public sealed class TrayIconService : ITrayIconService
         {
             Log.Debug(ex, "Window.Activate not fully supported on this platform");
         }
-        
+
         // Keep icon visible if activity graph is enabled
         if (_trayIcon != null && !_minimizeToTray && !_showActivityGraph)
         {
             _trayIcon.IsVisible = false;
         }
-        
+
         Log.Debug("Main window shown from tray");
     }
 
     private void ExitApplication()
     {
         _isDisposed = true; // Prevent re-hiding when we're actually exiting
-        
+
         if (Application.Current?.ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop)
         {
             desktop.Shutdown();
@@ -569,7 +569,7 @@ public sealed class TrayIconService : ITrayIconService
             _trayIcon.IsVisible = true;
             return;
         }
-        
+
         // If minimize to tray is disabled and window is visible, hide the tray icon
         if (!_minimizeToTray && _mainWindow?.IsVisible == true)
         {

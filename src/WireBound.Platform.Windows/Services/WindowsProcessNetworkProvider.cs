@@ -22,7 +22,7 @@ public sealed class WindowsProcessNetworkProvider : IProcessNetworkProvider
     private readonly Dictionary<int, ProcessNetworkStats> _processStats = [];
     private readonly Dictionary<int, ProcessCacheEntry> _processCache = [];
     private readonly object _lock = new();
-    
+
     private bool _isMonitoring;
     private CancellationTokenSource? _monitoringCts;
     private Task? _monitoringTask;
@@ -89,7 +89,7 @@ public sealed class WindowsProcessNetworkProvider : IProcessNetworkProvider
 
             // Get all TCP and UDP connections with their owning process IDs
             var connections = GetAllConnectionsInternal();
-            
+
             // Group connections by process ID
             var connectionsByProcess = connections
                 .GroupBy(c => c.ProcessId)
@@ -99,7 +99,7 @@ public sealed class WindowsProcessNetworkProvider : IProcessNetworkProvider
             foreach (var (pid, processConnections) in connectionsByProcess)
             {
                 if (pid == 0) continue; // Skip system idle process
-                
+
                 if (!_processStats.TryGetValue(pid, out var stats))
                 {
                     var processInfo = GetProcessInfo(pid);
@@ -138,7 +138,7 @@ public sealed class WindowsProcessNetworkProvider : IProcessNetworkProvider
     public Task<IReadOnlyList<AbstractConnectionInfo>> GetActiveConnectionsAsync(CancellationToken cancellationToken = default)
     {
         var connections = new List<AbstractConnectionInfo>();
-        
+
         try
         {
             connections.AddRange(GetTcpConnections());
@@ -182,7 +182,7 @@ public sealed class WindowsProcessNetworkProvider : IProcessNetworkProvider
     private List<InternalConnectionInfo> GetAllConnectionsInternal()
     {
         var connections = new List<InternalConnectionInfo>();
-        
+
         try
         {
             connections.AddRange(GetTcpConnectionsInternal());
@@ -237,10 +237,10 @@ public sealed class WindowsProcessNetworkProvider : IProcessNetworkProvider
     private List<InternalConnectionInfo> GetTcpConnectionsInternal()
     {
         var connections = new List<InternalConnectionInfo>();
-        
+
         int bufferSize = 0;
         int result = GetExtendedTcpTable(IntPtr.Zero, ref bufferSize, false, AF_INET, TCP_TABLE_CLASS.TCP_TABLE_OWNER_PID_ALL, 0);
-        
+
         if (result != ERROR_INSUFFICIENT_BUFFER && result != 0)
             return connections;
 
@@ -282,10 +282,10 @@ public sealed class WindowsProcessNetworkProvider : IProcessNetworkProvider
     private List<InternalConnectionInfo> GetUdpConnectionsInternal()
     {
         var connections = new List<InternalConnectionInfo>();
-        
+
         int bufferSize = 0;
         int result = GetExtendedUdpTable(IntPtr.Zero, ref bufferSize, false, AF_INET, UDP_TABLE_CLASS.UDP_TABLE_OWNER_PID, 0);
-        
+
         if (result != ERROR_INSUFFICIENT_BUFFER && result != 0)
             return connections;
 
@@ -353,7 +353,7 @@ public sealed class WindowsProcessNetworkProvider : IProcessNetworkProvider
             using var process = Process.GetProcessById(pid);
             info.Name = process.ProcessName;
             info.DisplayName = process.ProcessName;
-            
+
             try
             {
                 info.Path = process.MainModule?.FileName ?? "";
@@ -388,7 +388,7 @@ public sealed class WindowsProcessNetworkProvider : IProcessNetworkProvider
     {
         if (string.IsNullOrEmpty(path))
             return "unknown";
-            
+
         var bytes = SHA256.HashData(Encoding.UTF8.GetBytes(path.ToLowerInvariant()));
         return Convert.ToHexString(bytes)[..16].ToLowerInvariant();
     }
@@ -399,17 +399,17 @@ public sealed class WindowsProcessNetworkProvider : IProcessNetworkProvider
             return;
 
         _isMonitoring = false;
-        
+
         if (_monitoringCts != null)
         {
             await _monitoringCts.CancelAsync();
-            
+
             if (_monitoringTask != null)
             {
                 try { await _monitoringTask; }
                 catch (OperationCanceledException) { }
             }
-            
+
             _monitoringCts.Dispose();
             _monitoringCts = null;
         }

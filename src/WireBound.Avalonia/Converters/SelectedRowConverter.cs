@@ -16,10 +16,10 @@ public class SelectedRowBackgroundConverter : IMultiValueConverter
     public object? Convert(IList<object?> values, Type targetType, object? parameter, CultureInfo culture)
     {
         if (values.Count < 2) return Brushes.Transparent;
-        
+
         var currentDate = values[0] as DateOnly?;
         var selectedDate = values[1] as DateOnly?;
-        
+
         if (currentDate.HasValue && selectedDate.HasValue && currentDate.Value == selectedDate.Value)
         {
             // Selected row background - use theme resource
@@ -27,7 +27,7 @@ public class SelectedRowBackgroundConverter : IMultiValueConverter
                 return b;
             return new SolidColorBrush(Color.Parse("#1500E5FF"));
         }
-        
+
         return Brushes.Transparent;
     }
 }
@@ -42,10 +42,10 @@ public class SelectedRowBorderConverter : IMultiValueConverter
     public object? Convert(IList<object?> values, Type targetType, object? parameter, CultureInfo culture)
     {
         if (values.Count < 2) return Brushes.Transparent;
-        
+
         var currentDate = values[0] as DateOnly?;
         var selectedDate = values[1] as DateOnly?;
-        
+
         if (currentDate.HasValue && selectedDate.HasValue && currentDate.Value == selectedDate.Value)
         {
             // Selected row border - use theme resource
@@ -53,7 +53,7 @@ public class SelectedRowBorderConverter : IMultiValueConverter
                 return b;
             return new SolidColorBrush(Color.Parse("#5000E5FF"));
         }
-        
+
         return Brushes.Transparent;
     }
 }
@@ -68,16 +68,16 @@ public class SelectedRowChevronRotationConverter : IMultiValueConverter
     public object? Convert(IList<object?> values, Type targetType, object? parameter, CultureInfo culture)
     {
         if (values.Count < 2) return 0.0;
-        
+
         var currentDate = values[0] as DateOnly?;
         var selectedDate = values[1] as DateOnly?;
-        
+
         // Return 90 degrees rotation when selected (chevron points down)
         if (currentDate.HasValue && selectedDate.HasValue && currentDate.Value == selectedDate.Value)
         {
             return 90.0;
         }
-        
+
         return 0.0;
     }
 }
@@ -92,16 +92,16 @@ public class SelectedRowChevronOpacityConverter : IMultiValueConverter
     public object? Convert(IList<object?> values, Type targetType, object? parameter, CultureInfo culture)
     {
         if (values.Count < 2) return 0.5;
-        
+
         var currentDate = values[0] as DateOnly?;
         var selectedDate = values[1] as DateOnly?;
-        
+
         // Full opacity when selected
         if (currentDate.HasValue && selectedDate.HasValue && currentDate.Value == selectedDate.Value)
         {
             return 1.0;
         }
-        
+
         return 0.5;
     }
 }
@@ -189,7 +189,7 @@ public class SortIndicatorConverter : IValueConverter
     {
         // This simple converter just returns an indicator if the column matches
         // The actual ascending/descending requires a MultiValueConverter
-        if (value is WireBound.Avalonia.ViewModels.SortColumn currentColumn && 
+        if (value is WireBound.Avalonia.ViewModels.SortColumn currentColumn &&
             parameter is string columnName)
         {
             var paramColumn = columnName switch
@@ -225,7 +225,7 @@ public class SortDirectionConverter : IMultiValueConverter
     public object? Convert(IList<object?> values, Type targetType, object? parameter, CultureInfo culture)
     {
         if (values.Count < 2) return "";
-        
+
         if (values[0] is WireBound.Avalonia.ViewModels.SortColumn currentColumn &&
             values[1] is bool ascending &&
             parameter is string columnName)

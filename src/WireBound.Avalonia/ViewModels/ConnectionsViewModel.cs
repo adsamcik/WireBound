@@ -81,7 +81,7 @@ public partial class ConnectionDisplayItem : ObservableObject
         SendSpeed = ByteFormatter.FormatSpeed(stats.SendSpeedBps);
         ReceiveSpeed = ByteFormatter.FormatSpeed(stats.ReceiveSpeedBps);
         HasByteCounters = stats.HasByteCounters;
-        
+
         if (!string.IsNullOrEmpty(stats.ResolvedHostname))
         {
             RemoteHostname = stats.ResolvedHostname;
@@ -161,7 +161,7 @@ public sealed partial class ConnectionsViewModel : ObservableObject, IDisposable
 
         IsPlatformSupported = _processNetworkService?.IsPlatformSupported ?? false;
         IsMonitoring = _processNetworkService?.IsRunning == true;
-        RequiresElevation = _elevationService.RequiresElevationFor(ElevatedFeature.PerProcessNetworkMonitoring) 
+        RequiresElevation = _elevationService.RequiresElevationFor(ElevatedFeature.PerProcessNetworkMonitoring)
                             && _elevationService.IsElevationSupported;
 
         // Set up refresh timer (2 seconds)
@@ -371,20 +371,20 @@ public sealed partial class ConnectionsViewModel : ObservableObject, IDisposable
     {
         var sorted = SortColumn switch
         {
-            "Protocol" => SortAscending 
-                ? Connections.OrderBy(c => c.Protocol) 
+            "Protocol" => SortAscending
+                ? Connections.OrderBy(c => c.Protocol)
                 : Connections.OrderByDescending(c => c.Protocol),
-            "Remote" => SortAscending 
-                ? Connections.OrderBy(c => c.DisplayName) 
+            "Remote" => SortAscending
+                ? Connections.OrderBy(c => c.DisplayName)
                 : Connections.OrderByDescending(c => c.DisplayName),
-            "Process" => SortAscending 
-                ? Connections.OrderBy(c => c.ProcessName) 
+            "Process" => SortAscending
+                ? Connections.OrderBy(c => c.ProcessName)
                 : Connections.OrderByDescending(c => c.ProcessName),
-            "State" => SortAscending 
-                ? Connections.OrderBy(c => c.State) 
+            "State" => SortAscending
+                ? Connections.OrderBy(c => c.State)
                 : Connections.OrderByDescending(c => c.State),
-            _ => SortAscending 
-                ? Connections.OrderBy(c => c.ReceiveSpeed) 
+            _ => SortAscending
+                ? Connections.OrderBy(c => c.ReceiveSpeed)
                 : Connections.OrderByDescending(c => c.ReceiveSpeed)
         };
 

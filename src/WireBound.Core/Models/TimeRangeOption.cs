@@ -10,17 +10,17 @@ public sealed class TimeRangeOption
     /// Short label for display in compact UI elements (e.g., "30s", "1m", "5m")
     /// </summary>
     public required string Label { get; init; }
-    
+
     /// <summary>
     /// Duration in seconds that this time range represents
     /// </summary>
     public required int Seconds { get; init; }
-    
+
     /// <summary>
     /// Human-readable description (e.g., "Last 30 seconds", "Last 1 minute")
     /// </summary>
     public required string Description { get; init; }
-    
+
     /// <summary>
     /// Standard time range options used across the application.
     /// </summary>
@@ -32,7 +32,7 @@ public sealed class TimeRangeOption
         new() { Label = "15m", Seconds = 900, Description = "Last 15 minutes" },
         new() { Label = "1h", Seconds = 3600, Description = "Last 1 hour" }
     ];
-    
+
     /// <summary>
     /// Extended time range options for historical views.
     /// </summary>

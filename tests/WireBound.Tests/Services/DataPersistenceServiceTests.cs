@@ -58,10 +58,10 @@ public class DataPersistenceServiceTests : DatabaseTestBase
         // Assert
         using var scope = CreateScope();
         var db = scope.ServiceProvider.GetRequiredService<WireBoundDbContext>();
-        
+
         var hourlyCount = await db.HourlyUsages.CountAsync();
         var dailyCount = await db.DailyUsages.CountAsync();
-        
+
         hourlyCount.Should().Be(1);
         dailyCount.Should().Be(1);
     }
@@ -80,10 +80,10 @@ public class DataPersistenceServiceTests : DatabaseTestBase
         // Assert
         using var scope = CreateScope();
         var db = scope.ServiceProvider.GetRequiredService<WireBoundDbContext>();
-        
+
         var hourlyCount = await db.HourlyUsages.CountAsync();
         hourlyCount.Should().Be(1);
-        
+
         var hourly = await db.HourlyUsages.FirstAsync();
         // Should contain delta: (2000-1000) + 1000 = 2000 total
         hourly.BytesReceived.Should().Be(2000);
@@ -96,7 +96,7 @@ public class DataPersistenceServiceTests : DatabaseTestBase
         // Arrange
         var stats1 = CreateNetworkStats(downloadSpeedBps: 100_000, uploadSpeedBps: 50_000);
         var stats2 = CreateNetworkStats(downloadSpeedBps: 200_000, uploadSpeedBps: 30_000);
-        
+
         // Make sure we're tracking session bytes correctly
         stats1 = CreateNetworkStats(sessionReceived: 1000, sessionSent: 500, downloadSpeedBps: 100_000, uploadSpeedBps: 50_000);
         stats2 = CreateNetworkStats(sessionReceived: 2000, sessionSent: 1000, downloadSpeedBps: 200_000, uploadSpeedBps: 30_000);
@@ -108,7 +108,7 @@ public class DataPersistenceServiceTests : DatabaseTestBase
         // Assert
         using var scope = CreateScope();
         var db = scope.ServiceProvider.GetRequiredService<WireBoundDbContext>();
-        
+
         var hourly = await db.HourlyUsages.FirstAsync();
         hourly.PeakDownloadSpeed.Should().Be(200_000); // Max of 100k and 200k
         hourly.PeakUploadSpeed.Should().Be(50_000); // Max of 50k and 30k
@@ -128,10 +128,10 @@ public class DataPersistenceServiceTests : DatabaseTestBase
         // Assert
         using var scope = CreateScope();
         var db = scope.ServiceProvider.GetRequiredService<WireBoundDbContext>();
-        
+
         var hourlyCount = await db.HourlyUsages.CountAsync();
         var dailyCount = await db.DailyUsages.CountAsync();
-        
+
         hourlyCount.Should().Be(2);
         dailyCount.Should().Be(2);
     }
@@ -226,7 +226,7 @@ public class DataPersistenceServiceTests : DatabaseTestBase
         // Arrange
         var today = DateTime.Now;
         var yesterday = DateTime.Now.AddDays(-1);
-        
+
         using (var scope = CreateScope())
         {
             var db = scope.ServiceProvider.GetRequiredService<WireBoundDbContext>();
@@ -305,7 +305,7 @@ public class DataPersistenceServiceTests : DatabaseTestBase
         // Arrange
         var today = DateOnly.FromDateTime(DateTime.Now);
         var yesterday = DateOnly.FromDateTime(DateTime.Now.AddDays(-1));
-        
+
         using (var scope = CreateScope())
         {
             var db = scope.ServiceProvider.GetRequiredService<WireBoundDbContext>();
@@ -374,10 +374,10 @@ public class DataPersistenceServiceTests : DatabaseTestBase
         // Assert - Should have only one record with updated value
         using var scope = CreateScope();
         var db = scope.ServiceProvider.GetRequiredService<WireBoundDbContext>();
-        
+
         var count = await db.Settings.CountAsync();
         count.Should().Be(1);
-        
+
         var loaded = await _service.GetSettingsAsync();
         loaded.PollingIntervalMs.Should().Be(5000);
     }
@@ -395,7 +395,7 @@ public class DataPersistenceServiceTests : DatabaseTestBase
         // Assert
         using var scope = CreateScope();
         var db = scope.ServiceProvider.GetRequiredService<WireBoundDbContext>();
-        
+
         var snapshot = await db.SpeedSnapshots.FirstOrDefaultAsync();
         snapshot.Should().NotBeNull();
         snapshot!.DownloadSpeedBps.Should().Be(1_000_000);
@@ -420,7 +420,7 @@ public class DataPersistenceServiceTests : DatabaseTestBase
         // Assert
         using var scope = CreateScope();
         var db = scope.ServiceProvider.GetRequiredService<WireBoundDbContext>();
-        
+
         var count = await db.SpeedSnapshots.CountAsync();
         count.Should().Be(3);
     }
@@ -437,7 +437,7 @@ public class DataPersistenceServiceTests : DatabaseTestBase
         // Assert
         using var scope = CreateScope();
         var db = scope.ServiceProvider.GetRequiredService<WireBoundDbContext>();
-        
+
         var count = await db.SpeedSnapshots.CountAsync();
         count.Should().Be(0);
     }
@@ -492,7 +492,7 @@ public class DataPersistenceServiceTests : DatabaseTestBase
         // Assert
         using var verifyScope = CreateScope();
         var db2 = verifyScope.ServiceProvider.GetRequiredService<WireBoundDbContext>();
-        
+
         var remaining = await db2.SpeedSnapshots.ToListAsync();
         remaining.Should().HaveCount(2);
         remaining.All(s => s.Timestamp > now.AddHours(-2)).Should().BeTrue();
@@ -511,21 +511,21 @@ public class DataPersistenceServiceTests : DatabaseTestBase
         using (var scope = CreateScope())
         {
             var db = scope.ServiceProvider.GetRequiredService<WireBoundDbContext>();
-            
+
             // Add daily records
             db.DailyUsages.AddRange(
                 new DailyUsage { Date = DateOnly.FromDateTime(DateTime.Now.AddDays(-100)), AdapterId = "test", BytesReceived = 100 },
                 new DailyUsage { Date = DateOnly.FromDateTime(DateTime.Now.AddDays(-50)), AdapterId = "test", BytesReceived = 200 },
                 new DailyUsage { Date = DateOnly.FromDateTime(DateTime.Now), AdapterId = "test", BytesReceived = 300 }
             );
-            
+
             // Add hourly records
             db.HourlyUsages.AddRange(
                 new HourlyUsage { Hour = DateTime.Now.AddDays(-100), AdapterId = "test", BytesReceived = 100 },
                 new HourlyUsage { Hour = DateTime.Now.AddDays(-50), AdapterId = "test", BytesReceived = 200 },
                 new HourlyUsage { Hour = DateTime.Now, AdapterId = "test", BytesReceived = 300 }
             );
-            
+
             await db.SaveChangesAsync();
         }
 
@@ -535,10 +535,10 @@ public class DataPersistenceServiceTests : DatabaseTestBase
         // Assert
         using var verifyScope = CreateScope();
         var db2 = verifyScope.ServiceProvider.GetRequiredService<WireBoundDbContext>();
-        
+
         var dailyCount = await db2.DailyUsages.CountAsync();
         var hourlyCount = await db2.HourlyUsages.CountAsync();
-        
+
         dailyCount.Should().Be(2); // -50 and today
         hourlyCount.Should().Be(2); // -50 and today
     }

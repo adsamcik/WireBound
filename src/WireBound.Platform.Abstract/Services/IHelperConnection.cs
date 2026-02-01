@@ -10,7 +10,7 @@ public interface IHelperConnection : IAsyncDisposable
     /// Whether the connection to the helper is currently established.
     /// </summary>
     bool IsConnected { get; }
-    
+
     /// <summary>
     /// Connect to the elevated helper process.
     /// May launch the helper if it's not running.
@@ -18,12 +18,12 @@ public interface IHelperConnection : IAsyncDisposable
     /// <param name="cancellationToken">Cancellation token</param>
     /// <returns>True if connection established successfully</returns>
     Task<bool> ConnectAsync(CancellationToken cancellationToken = default);
-    
+
     /// <summary>
     /// Disconnect from the helper process.
     /// </summary>
     Task DisconnectAsync();
-    
+
     /// <summary>
     /// Send a request to the helper and receive a response.
     /// </summary>
@@ -35,7 +35,7 @@ public interface IHelperConnection : IAsyncDisposable
     Task<TResponse> SendRequestAsync<TRequest, TResponse>(TRequest request, CancellationToken cancellationToken = default)
         where TRequest : class
         where TResponse : class;
-    
+
     /// <summary>
     /// Event raised when the connection to the helper is lost.
     /// </summary>
@@ -51,12 +51,12 @@ public class HelperConnectionLostEventArgs : EventArgs
     /// Reason the connection was lost.
     /// </summary>
     public string Reason { get; }
-    
+
     /// <summary>
     /// Whether automatic reconnection will be attempted.
     /// </summary>
     public bool WillReconnect { get; }
-    
+
     public HelperConnectionLostEventArgs(string reason, bool willReconnect)
     {
         Reason = reason;

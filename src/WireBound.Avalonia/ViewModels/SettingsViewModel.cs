@@ -45,48 +45,48 @@ public sealed partial class SettingsViewModel : ObservableObject, IDisposable
 
     [ObservableProperty]
     private bool _minimizeToTray = true;
-    
+
     [ObservableProperty]
     private bool _startMinimized;
-    
+
     [ObservableProperty]
     private SpeedUnit _selectedSpeedUnit = SpeedUnit.BytesPerSecond;
-    
+
     public SpeedUnit[] SpeedUnits { get; } = Enum.GetValues<SpeedUnit>();
-    
+
     // Dashboard Customization
     [ObservableProperty]
     private bool _showSystemMetricsInHeader = true;
-    
+
     [ObservableProperty]
     private bool _showCpuOverlayByDefault;
-    
+
     [ObservableProperty]
     private bool _showMemoryOverlayByDefault;
-    
+
     [ObservableProperty]
     private bool _showGpuMetrics = true;
-    
+
     [ObservableProperty]
     private string _defaultTimeRange = "FiveMinutes";
-    
+
     public List<string> TimeRangeOptions { get; } = ["OneMinute", "FiveMinutes", "FifteenMinutes", "OneHour"];
-    
+
     // Performance Mode
     [ObservableProperty]
     private bool _performanceModeEnabled;
-    
+
     [ObservableProperty]
     private int _chartUpdateIntervalMs = 1000;
-    
+
     public List<int> ChartUpdateIntervals { get; } = [500, 750, 1000, 1500, 2000, 3000, 5000];
-    
+
     // Insights Page
     [ObservableProperty]
     private string _defaultInsightsPeriod = "ThisWeek";
-    
+
     public List<string> InsightsPeriodOptions { get; } = ["Today", "ThisWeek", "ThisMonth"];
-    
+
     [ObservableProperty]
     private bool _showCorrelationInsights = true;
 
@@ -115,11 +115,11 @@ public sealed partial class SettingsViewModel : ObservableObject, IDisposable
         ScheduleAutoSave();
         _ = ApplyPerAppTrackingSettingAsync(value);
     }
-    
+
     private async Task ApplyPerAppTrackingSettingAsync(bool enabled)
     {
         if (_isLoading) return;
-        
+
         if (enabled)
         {
             var started = await _processNetworkService.StartAsync();
@@ -137,7 +137,7 @@ public sealed partial class SettingsViewModel : ObservableObject, IDisposable
     partial void OnMinimizeToTrayChanged(bool value) => ScheduleAutoSave();
     partial void OnStartMinimizedChanged(bool value) => ScheduleAutoSave();
     partial void OnSelectedSpeedUnitChanged(SpeedUnit value) => ScheduleAutoSave();
-    
+
     // Dashboard Customization auto-save handlers
     partial void OnShowSystemMetricsInHeaderChanged(bool value) => ScheduleAutoSave();
     partial void OnShowCpuOverlayByDefaultChanged(bool value) => ScheduleAutoSave();
@@ -204,35 +204,35 @@ public sealed partial class SettingsViewModel : ObservableObject, IDisposable
 
         // Load settings from database
         var settings = await _persistence.GetSettingsAsync();
-        
+
         PollingIntervalMs = settings.PollingIntervalMs;
         UseIpHelperApi = settings.UseIpHelperApi;
         IsPerAppTrackingEnabled = settings.IsPerAppTrackingEnabled;
         MinimizeToTray = settings.MinimizeToTray;
         StartMinimized = settings.StartMinimized;
         SelectedSpeedUnit = settings.SpeedUnit;
-        
+
         // Dashboard Customization
         ShowSystemMetricsInHeader = settings.ShowSystemMetricsInHeader;
         ShowCpuOverlayByDefault = settings.ShowCpuOverlayByDefault;
         ShowMemoryOverlayByDefault = settings.ShowMemoryOverlayByDefault;
         ShowGpuMetrics = settings.ShowGpuMetrics;
         DefaultTimeRange = settings.DefaultTimeRange;
-        
+
         // Performance Mode
         PerformanceModeEnabled = settings.PerformanceModeEnabled;
         ChartUpdateIntervalMs = settings.ChartUpdateIntervalMs;
-        
+
         // Insights Page
         DefaultInsightsPeriod = settings.DefaultInsightsPeriod;
         ShowCorrelationInsights = settings.ShowCorrelationInsights;
-        
+
         // Load startup state from OS (not from saved settings)
         await LoadStartupStateAsync();
-        
+
         // Apply speed unit setting globally
         WireBound.Core.Helpers.ByteFormatter.UseSpeedInBits = settings.SpeedUnit == SpeedUnit.BitsPerSecond;
-        
+
         // Find matching adapter
         SelectedAdapter = Adapters.FirstOrDefault(a => a.Id == settings.SelectedAdapterId);
 
@@ -240,13 +240,13 @@ public sealed partial class SettingsViewModel : ObservableObject, IDisposable
         // IsElevated reflects whether the helper is connected (NOT whether the main app is elevated)
         IsElevated = _elevationService.IsHelperConnected;
         RequiresElevation = _elevationService.RequiresElevation && _elevationService.IsElevationSupported;
-        
+
         // Subscribe to helper state changes
         _elevationService.HelperConnectionStateChanged += OnHelperConnectionStateChanged;
 
         _isLoading = false;
     }
-    
+
     private void OnHelperConnectionStateChanged(object? sender, HelperConnectionStateChangedEventArgs e)
     {
         // Update UI state when helper connection changes
@@ -283,23 +283,23 @@ public sealed partial class SettingsViewModel : ObservableObject, IDisposable
             StartMinimized = StartMinimized,
             StartWithWindows = StartWithWindows,
             SpeedUnit = SelectedSpeedUnit,
-            
+
             // Dashboard Customization
             ShowSystemMetricsInHeader = ShowSystemMetricsInHeader,
             ShowCpuOverlayByDefault = ShowCpuOverlayByDefault,
             ShowMemoryOverlayByDefault = ShowMemoryOverlayByDefault,
             ShowGpuMetrics = ShowGpuMetrics,
             DefaultTimeRange = DefaultTimeRange,
-            
+
             // Performance Mode
             PerformanceModeEnabled = PerformanceModeEnabled,
             ChartUpdateIntervalMs = ChartUpdateIntervalMs,
-            
+
             // Insights Page
             DefaultInsightsPeriod = DefaultInsightsPeriod,
             ShowCorrelationInsights = ShowCorrelationInsights
         };
-        
+
         // Apply speed unit setting globally
         WireBound.Core.Helpers.ByteFormatter.UseSpeedInBits = SelectedSpeedUnit == SpeedUnit.BitsPerSecond;
 
@@ -338,10 +338,10 @@ public sealed partial class SettingsViewModel : ObservableObject, IDisposable
         try
         {
             _logger?.LogInformation("User requested to start elevated helper from Settings");
-            
+
             // Start the minimal helper process (NOT elevate the entire app)
             var result = await _elevationService.StartHelperAsync();
-            
+
             if (result.IsSuccess)
             {
                 _logger?.LogInformation("Helper process started successfully");
@@ -376,7 +376,7 @@ public sealed partial class SettingsViewModel : ObservableObject, IDisposable
         _autoSaveCts?.Cancel();
         _autoSaveCts?.Dispose();
         _autoSaveCts = null;
-        
+
         _elevationService.HelperConnectionStateChanged -= OnHelperConnectionStateChanged;
     }
 }

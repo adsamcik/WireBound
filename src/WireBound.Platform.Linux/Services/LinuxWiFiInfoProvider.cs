@@ -13,38 +13,38 @@ namespace WireBound.Platform.Linux.Services;
 public sealed partial class LinuxWiFiInfoProvider : IWiFiInfoProvider
 {
     private readonly ILogger<LinuxWiFiInfoProvider> _logger;
-    
+
     public LinuxWiFiInfoProvider(ILogger<LinuxWiFiInfoProvider> logger)
     {
         _logger = logger;
     }
-    
+
     public bool IsSupported => true;
-    
+
     public WiFiInfo? GetWiFiInfo(string adapterId)
     {
         // Try to find the interface name from the adapter ID
         // On Linux, adapter ID is typically the interface name (e.g., wlan0, wlp2s0)
         var allInfo = GetAllWiFiInfo();
-        
+
         // Try exact match first
         if (allInfo.TryGetValue(adapterId, out var info))
             return info;
-        
+
         // Try partial match (adapterId might contain the interface name)
         foreach (var kvp in allInfo)
         {
             if (adapterId.Contains(kvp.Key, StringComparison.OrdinalIgnoreCase))
                 return kvp.Value;
         }
-        
+
         return null;
     }
-    
+
     public Dictionary<string, WiFiInfo> GetAllWiFiInfo()
     {
         var result = new Dictionary<string, WiFiInfo>();
-        
+
         try
         {
             // Try nmcli first (works without root)
@@ -53,7 +53,7 @@ public sealed partial class LinuxWiFiInfoProvider : IWiFiInfoProvider
             {
                 ParseNmcliOutput(nmcliResult, result);
             }
-            
+
             // If no results, try iw
             if (result.Count == 0)
             {
@@ -81,10 +81,10 @@ public sealed partial class LinuxWiFiInfoProvider : IWiFiInfoProvider
         {
             _logger.LogDebug(ex, "Failed to get WiFi info on Linux");
         }
-        
+
         return result;
     }
-    
+
     private void ParseNmcliOutput(string output, Dictionary<string, WiFiInfo> result)
     {
         // Format: DEVICE:ACTIVE:SSID:SIGNAL:FREQ:CHAN:SECURITY
@@ -95,13 +95,13 @@ public sealed partial class LinuxWiFiInfoProvider : IWiFiInfoProvider
             {
                 var device = parts[0];
                 var ssid = parts[2];
-                
+
                 int.TryParse(parts[3], out var signal);
-                
+
                 string? frequency = parts.Length > 4 ? parts[4] : null;
                 int.TryParse(parts.Length > 5 ? parts[5] : null, out var channel);
                 string? security = parts.Length > 6 ? parts[6] : null;
-                
+
                 // Parse frequency to determine band
                 string? freqBand = null;
                 int? freqMhz = null;
@@ -116,7 +116,7 @@ public sealed partial class LinuxWiFiInfoProvider : IWiFiInfoProvider
                         _ => null
                     };
                 }
-                
+
                 result[device] = new WiFiInfo
                 {
                     Ssid = ssid,
@@ -129,37 +129,37 @@ public sealed partial class LinuxWiFiInfoProvider : IWiFiInfoProvider
             }
         }
     }
-    
+
     private List<string> ParseIwDevInterfaces(string output)
     {
         var interfaces = new List<string>();
         var regex = InterfaceRegex();
-        
+
         foreach (Match match in regex.Matches(output))
         {
             interfaces.Add(match.Groups[1].Value);
         }
-        
+
         return interfaces;
     }
-    
+
     private WiFiInfo? ParseIwLinkOutput(string output)
     {
         if (output.Contains("Not connected"))
             return null;
-        
+
         var ssidMatch = SsidRegex().Match(output);
         var signalMatch = SignalRegex().Match(output);
         var freqMatch = FreqRegex().Match(output);
         var bitrateMatch = BitrateRegex().Match(output);
-        
+
         if (!ssidMatch.Success)
             return null;
-        
+
         int? signalDbm = null;
         if (signalMatch.Success && int.TryParse(signalMatch.Groups[1].Value, out var signal))
             signalDbm = signal;
-        
+
         int? freqMhz = null;
         string? freqBand = null;
         if (freqMatch.Success && int.TryParse(freqMatch.Groups[1].Value, out var freq))
@@ -173,16 +173,16 @@ public sealed partial class LinuxWiFiInfoProvider : IWiFiInfoProvider
                 _ => null
             };
         }
-        
+
         int? linkSpeed = null;
         if (bitrateMatch.Success && int.TryParse(bitrateMatch.Groups[1].Value, out var bitrate))
             linkSpeed = bitrate;
-        
+
         // Convert dBm to approximate percentage
-        int signalPercent = signalDbm.HasValue 
-            ? Math.Clamp((signalDbm.Value + 100) * 2, 0, 100) 
+        int signalPercent = signalDbm.HasValue
+            ? Math.Clamp((signalDbm.Value + 100) * 2, 0, 100)
             : 0;
-        
+
         return new WiFiInfo
         {
             Ssid = ssidMatch.Groups[1].Value,
@@ -193,7 +193,7 @@ public sealed partial class LinuxWiFiInfoProvider : IWiFiInfoProvider
             Band = freqBand
         };
     }
-    
+
     private static string? RunCommand(string command, string arguments)
     {
         try
@@ -210,11 +210,11 @@ public sealed partial class LinuxWiFiInfoProvider : IWiFiInfoProvider
                     CreateNoWindow = true
                 }
             };
-            
+
             process.Start();
             var output = process.StandardOutput.ReadToEnd();
             process.WaitForExit(5000);
-            
+
             return output;
         }
         catch
@@ -225,16 +225,16 @@ public sealed partial class LinuxWiFiInfoProvider : IWiFiInfoProvider
 
     [GeneratedRegex(@"Interface\s+(\w+)")]
     private static partial Regex InterfaceRegex();
-    
+
     [GeneratedRegex(@"SSID:\s*(.+)")]
     private static partial Regex SsidRegex();
-    
+
     [GeneratedRegex(@"signal:\s*(-?\d+)\s*dBm")]
     private static partial Regex SignalRegex();
-    
+
     [GeneratedRegex(@"freq:\s*(\d+)")]
     private static partial Regex FreqRegex();
-    
+
     [GeneratedRegex(@"tx bitrate:\s*(\d+)")]
     private static partial Regex BitrateRegex();
 }

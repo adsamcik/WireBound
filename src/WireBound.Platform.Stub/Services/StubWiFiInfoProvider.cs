@@ -8,8 +8,8 @@ namespace WireBound.Platform.Stub.Services;
 public sealed class StubWiFiInfoProvider : IWiFiInfoProvider
 {
     public bool IsSupported => false;
-    
+
     public WiFiInfo? GetWiFiInfo(string adapterId) => null;
-    
+
     public Dictionary<string, WiFiInfo> GetAllWiFiInfo() => [];
 }

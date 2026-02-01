@@ -369,7 +369,7 @@ public class CircularBufferTests
         buffer.Count.Should().Be(1000);
         var array = buffer.ToArray();
         array.Should().HaveCount(1000);
-        
+
         // Should contain the last 1000 items: 4000-4999
         array[0].Should().Be(4000);
         array[999].Should().Be(4999);

@@ -18,10 +18,10 @@ public sealed class LinuxMemoryInfoProvider : IMemoryInfoProvider
             if (File.Exists("/proc/meminfo"))
             {
                 var memInfo = ParseMemInfo();
-                
+
                 // MemTotal is total physical memory
                 var totalBytes = memInfo.GetValueOrDefault("MemTotal", 0) * 1024;
-                
+
                 // MemAvailable is the best estimate of available memory
                 // Falls back to MemFree + Buffers + Cached if MemAvailable not present
                 long availableBytes;
@@ -36,13 +36,13 @@ public sealed class LinuxMemoryInfoProvider : IMemoryInfoProvider
                     var cached = memInfo.GetValueOrDefault("Cached", 0);
                     availableBytes = (memFree + buffers + cached) * 1024;
                 }
-                
+
                 var usedBytes = totalBytes - availableBytes;
-                
+
                 // Swap for virtual memory
                 var swapTotal = memInfo.GetValueOrDefault("SwapTotal", 0) * 1024;
                 var swapFree = memInfo.GetValueOrDefault("SwapFree", 0) * 1024;
-                
+
                 return new MemoryInfoData
                 {
                     TotalBytes = totalBytes,
@@ -57,7 +57,7 @@ public sealed class LinuxMemoryInfoProvider : IMemoryInfoProvider
         {
             // Fallback below
         }
-        
+
         // Fallback to GC memory info
         var gcInfo = GC.GetGCMemoryInfo();
         return new MemoryInfoData
@@ -73,26 +73,26 @@ public sealed class LinuxMemoryInfoProvider : IMemoryInfoProvider
     private static Dictionary<string, long> ParseMemInfo()
     {
         var result = new Dictionary<string, long>(StringComparer.OrdinalIgnoreCase);
-        
+
         foreach (var line in File.ReadLines("/proc/meminfo"))
         {
             // Format: "MemTotal:       16384000 kB"
             var colonIndex = line.IndexOf(':');
             if (colonIndex <= 0) continue;
-            
+
             var key = line[..colonIndex].Trim();
             var valuePart = line[(colonIndex + 1)..].Trim();
-            
+
             // Remove "kB" suffix and parse
             var spaceIndex = valuePart.IndexOf(' ');
             var valueStr = spaceIndex > 0 ? valuePart[..spaceIndex] : valuePart;
-            
+
             if (long.TryParse(valueStr, NumberStyles.Integer, CultureInfo.InvariantCulture, out var value))
             {
                 result[key] = value;
             }
         }
-        
+
         return result;
     }
 

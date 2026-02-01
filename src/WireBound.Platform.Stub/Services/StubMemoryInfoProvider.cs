@@ -10,20 +10,20 @@ public sealed class StubMemoryInfoProvider : IMemoryInfoProvider
 {
     private readonly Random _random = new();
     private readonly long _totalMemory;
-    
+
     public StubMemoryInfoProvider()
     {
         // Simulate 16 GB total memory
         _totalMemory = 16L * 1024 * 1024 * 1024;
     }
-    
+
     public MemoryInfoData GetMemoryInfo()
     {
         // Generate realistic-looking random memory usage for development/testing
         var usagePercent = 40 + _random.NextDouble() * 30; // 40-70% usage
         var usedBytes = (long)(_totalMemory * usagePercent / 100);
         var availableBytes = _totalMemory - usedBytes;
-        
+
         return new MemoryInfoData
         {
             TotalBytes = _totalMemory,

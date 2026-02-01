@@ -96,9 +96,9 @@ public sealed class WindowsStartupService : IStartupService
                 // Check if it's been disabled via the Approved key
                 // Windows stores disabled startup items in a separate location
                 using var approvedKey = Registry.CurrentUser.OpenSubKey(
-                    @"SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer\StartupApproved\Run", 
+                    @"SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer\StartupApproved\Run",
                     writable: false);
-                
+
                 var approvedValue = approvedKey?.GetValue(AppName) as byte[];
                 if (approvedValue != null && approvedValue.Length >= 1)
                 {
@@ -161,7 +161,7 @@ public sealed class WindowsStartupService : IStartupService
                 Log.Information(
                     "Updating startup registry entry from '{OldPath}' to '{NewPath}'",
                     currentValue, expectedValue);
-                
+
                 key.SetValue(AppName, expectedValue);
                 Log.Information("Startup path updated successfully");
             }

@@ -12,7 +12,7 @@ namespace WireBound.Avalonia.ViewModels;
 public partial class AdapterDisplayItem : ObservableObject
 {
     public NetworkAdapter Adapter { get; }
-    
+
     public string Id => Adapter.Id;
     public string Name => Adapter.Name;
     public string DisplayName => Adapter.DisplayName;
@@ -24,33 +24,33 @@ public partial class AdapterDisplayItem : ObservableObject
     public bool IsUsbTethering => Adapter.IsUsbTethering;
     public bool IsBluetoothTethering => Adapter.IsBluetoothTethering;
     public string Category => Adapter.Category;
-    
+
     /// <summary>
     /// Icon/emoji for the adapter type
     /// </summary>
     public string TypeIcon => GetTypeIcon();
-    
+
     /// <summary>
     /// Badge text (e.g., "VPN", "WiFi", "USB")
     /// </summary>
     public string? Badge => GetBadge();
-    
+
     /// <summary>
     /// Badge background color
     /// </summary>
     public string BadgeColor => GetBadgeColor();
-    
+
     /// <summary>
     /// WiFi info for wireless adapters
     /// </summary>
     [ObservableProperty]
     private WiFiInfo? _wiFiInfo;
-    
+
     /// <summary>
     /// Whether this adapter has WiFi info available
     /// </summary>
     public bool HasWiFiInfo => !string.IsNullOrEmpty(WiFiInfo?.Ssid);
-    
+
     /// <summary>
     /// WiFi signal bars (1-4) based on signal quality
     /// </summary>
@@ -62,7 +62,7 @@ public partial class AdapterDisplayItem : ObservableObject
         > 0 => 1,
         _ => 0
     };
-    
+
     /// <summary>
     /// WiFi signal icon based on strength
     /// </summary>
@@ -74,56 +74,56 @@ public partial class AdapterDisplayItem : ObservableObject
         1 => "📶",
         _ => "📡"
     };
-    
+
     /// <summary>
     /// Current download speed
     /// </summary>
     [ObservableProperty]
     private string _downloadSpeed = "0 B/s";
-    
+
     /// <summary>
     /// Current upload speed  
     /// </summary>
     [ObservableProperty]
     private string _uploadSpeed = "0 B/s";
-    
+
     /// <summary>
     /// Today's download total
     /// </summary>
     [ObservableProperty]
     private string _todayDownload = "0 B";
-    
+
     /// <summary>
     /// Today's upload total
     /// </summary>
     [ObservableProperty]
     private string _todayUpload = "0 B";
-    
+
     /// <summary>
     /// Raw download bytes per second for sorting
     /// </summary>
     public long DownloadBps { get; private set; }
-    
+
     /// <summary>
     /// Raw upload bytes per second for sorting
     /// </summary>
     public long UploadBps { get; private set; }
-    
+
     /// <summary>
     /// Whether this adapter currently has traffic
     /// </summary>
     public bool HasTraffic => DownloadBps > 0 || UploadBps > 0;
-    
+
     /// <summary>
     /// Status line (SSID for WiFi, description for others)
     /// </summary>
     public string StatusLine => GetStatusLine();
-    
+
     public AdapterDisplayItem(NetworkAdapter adapter)
     {
         Adapter = adapter;
     }
-    
+
     /// <summary>
     /// Update traffic stats from network stats
     /// </summary>
@@ -137,13 +137,13 @@ public partial class AdapterDisplayItem : ObservableObject
         TodayUpload = ByteFormatter.FormatBytes(storedTodayUpload + sessionUpload);
         OnPropertyChanged(nameof(HasTraffic));
     }
-    
+
     private string GetTypeIcon()
     {
         if (IsKnownVpn) return "🔐";
         if (IsUsbTethering) return "📱";
         if (IsBluetoothTethering) return "🔗";
-        
+
         return AdapterType switch
         {
             NetworkAdapterType.WiFi => "📶",
@@ -153,18 +153,18 @@ public partial class AdapterDisplayItem : ObservableObject
             _ => IsVirtual ? "💻" : "🌐"
         };
     }
-    
+
     private string? GetBadge()
     {
         if (IsKnownVpn) return "VPN";
         if (IsUsbTethering) return "USB";
         if (IsBluetoothTethering) return "BT";
-        if (AdapterType == NetworkAdapterType.WiFi && HasWiFiInfo) 
+        if (AdapterType == NetworkAdapterType.WiFi && HasWiFiInfo)
             return $"{WiFiInfo!.SignalStrength}%";
         if (IsVirtual) return "VM";
         return null;
     }
-    
+
     private string GetBadgeColor()
     {
         if (IsKnownVpn) return "#A855F7"; // Purple for VPN
@@ -173,24 +173,24 @@ public partial class AdapterDisplayItem : ObservableObject
         if (IsVirtual) return "#6B7280"; // Gray for virtual
         return "#3B82F6"; // Blue default
     }
-    
+
     private string GetStatusLine()
     {
         if (HasWiFiInfo && !string.IsNullOrEmpty(WiFiInfo!.Ssid))
             return $"{WiFiInfo.Ssid} • {WiFiInfo.Band ?? "WiFi"}";
-        
+
         if (IsUsbTethering)
             return "USB Tethered Connection";
-        
+
         if (IsBluetoothTethering)
             return "Bluetooth Tethered Connection";
-        
+
         if (IsKnownVpn)
             return "Secure VPN Tunnel";
-        
+
         if (!string.IsNullOrEmpty(Description))
             return Description.Length > 50 ? Description[..47] + "..." : Description;
-        
+
         return IsActive ? "Connected" : "Disconnected";
     }
 }

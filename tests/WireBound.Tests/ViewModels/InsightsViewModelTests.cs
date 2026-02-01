@@ -464,7 +464,7 @@ public class InsightsViewModelTests : IDisposable
     {
         // This tests the static GetTrendStatus method logic indirectly
         // by checking the expected output based on the switch expression in the ViewModel
-        
+
         // The logic is:
         // avg > 80 => "Critical"
         // avg > 60 => "High"

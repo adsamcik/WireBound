@@ -21,7 +21,7 @@ public sealed partial class LinuxProcessNetworkProvider : IProcessNetworkProvide
     private readonly Dictionary<int, ProcessNetworkStats> _processStats = [];
     private readonly Dictionary<int, ProcessCacheEntry> _processCache = [];
     private readonly object _lock = new();
-    
+
     private bool _isMonitoring;
     private CancellationTokenSource? _monitoringCts;
     private Task? _monitoringTask;
@@ -88,7 +88,7 @@ public sealed partial class LinuxProcessNetworkProvider : IProcessNetworkProvide
 
             // Build inode to PID mapping from /proc/[pid]/fd
             var inodeToPid = BuildInodeToPidMap();
-            
+
             // Parse /proc/net/* files
             var connections = new List<InternalConnectionInfo>();
             connections.AddRange(ParseProcNetFile("/proc/net/tcp", "TCP", inodeToPid));
@@ -143,7 +143,7 @@ public sealed partial class LinuxProcessNetworkProvider : IProcessNetworkProvide
     {
         var inodeToPid = BuildInodeToPidMap();
         var connections = new List<ConnectionInfo>();
-        
+
         foreach (var conn in ParseProcNetFile("/proc/net/tcp", "TCP", inodeToPid))
         {
             connections.Add(ToConnectionInfo(conn));
@@ -168,7 +168,7 @@ public sealed partial class LinuxProcessNetworkProvider : IProcessNetworkProvide
     {
         var inodeToPid = BuildInodeToPidMap();
         var stats = new List<ConnectionStats>();
-        
+
         var allConnections = new List<InternalConnectionInfo>();
         allConnections.AddRange(ParseProcNetFile("/proc/net/tcp", "TCP", inodeToPid));
         allConnections.AddRange(ParseProcNetFile("/proc/net/tcp6", "TCP", inodeToPid));
@@ -213,7 +213,7 @@ public sealed partial class LinuxProcessNetworkProvider : IProcessNetworkProvide
     private Dictionary<long, int> BuildInodeToPidMap()
     {
         var map = new Dictionary<long, int>();
-        
+
         try
         {
             var procDir = new DirectoryInfo("/proc");
@@ -234,7 +234,7 @@ public sealed partial class LinuxProcessNetworkProvider : IProcessNetworkProvide
                         {
                             var link = File.ResolveLinkTarget(fd, false);
                             if (link == null) continue;
-                            
+
                             var target = link.FullName;
                             var match = SocketInodeRegex().Match(target);
                             if (match.Success && long.TryParse(match.Groups[1].Value, out long inode))
@@ -269,7 +269,7 @@ public sealed partial class LinuxProcessNetworkProvider : IProcessNetworkProvide
     private List<InternalConnectionInfo> ParseProcNetFile(string path, string protocol, Dictionary<long, int> inodeToPid)
     {
         var connections = new List<InternalConnectionInfo>();
-        
+
         if (!File.Exists(path))
             return connections;
 
@@ -286,7 +286,7 @@ public sealed partial class LinuxProcessNetworkProvider : IProcessNetworkProvide
                 {
                     var localParts = parts[1].Split(':');
                     var remoteParts = parts[2].Split(':');
-                    
+
                     if (long.TryParse(parts[9], out long inode) && inodeToPid.TryGetValue(inode, out int pid))
                     {
                         var stateHex = parts[3];
@@ -405,7 +405,7 @@ public sealed partial class LinuxProcessNetworkProvider : IProcessNetworkProvide
     {
         if (string.IsNullOrEmpty(path))
             return "unknown";
-            
+
         var bytes = SHA256.HashData(Encoding.UTF8.GetBytes(path.ToLowerInvariant()));
         return Convert.ToHexString(bytes)[..16].ToLowerInvariant();
     }
@@ -416,17 +416,17 @@ public sealed partial class LinuxProcessNetworkProvider : IProcessNetworkProvide
             return;
 
         _isMonitoring = false;
-        
+
         if (_monitoringCts != null)
         {
             await _monitoringCts.CancelAsync();
-            
+
             if (_monitoringTask != null)
             {
                 try { await _monitoringTask; }
                 catch (OperationCanceledException) { }
             }
-            
+
             _monitoringCts.Dispose();
             _monitoringCts = null;
         }

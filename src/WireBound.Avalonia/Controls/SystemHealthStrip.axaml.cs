@@ -15,7 +15,7 @@ public partial class SystemHealthStrip : UserControl
 
     /// <summary>Threshold below which the metric is considered healthy (green).</summary>
     private const double WarningThreshold = 70.0;
-    
+
     /// <summary>Threshold above which the metric is considered critical (red).</summary>
     private const double CriticalThreshold = 85.0;
 
@@ -332,7 +332,7 @@ public partial class SystemHealthStrip : UserControl
     {
         CpuPercentText = $"{CpuPercent:F0}%";
         MemoryPercentText = $"{MemoryPercent:F0}%";
-        
+
         if (GpuPercent.HasValue)
         {
             GpuDisplayPercent = Math.Clamp(GpuPercent.Value, 0, 100);

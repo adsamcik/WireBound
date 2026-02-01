@@ -306,7 +306,7 @@ public sealed partial class OverviewViewModel : ObservableObject, IDisposable
         var downloadTrend = _downloadTrendCalculator.Update(downloadBps);
         DownloadTrendIcon = downloadTrend.Icon;
         DownloadTrendText = downloadTrend.Direction.ToString().ToLowerInvariant();
-        
+
         var uploadTrend = _uploadTrendCalculator.Update(uploadBps);
         UploadTrendIcon = uploadTrend.Icon;
         UploadTrendText = uploadTrend.Direction.ToString().ToLowerInvariant();

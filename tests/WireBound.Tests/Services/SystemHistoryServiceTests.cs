@@ -29,9 +29,9 @@ public class SystemHistoryServiceTests : IDisposable
         var services = new ServiceCollection();
         services.AddDbContext<WireBoundDbContext>(options =>
             options.UseInMemoryDatabase(databaseName: _databaseName));
-        
+
         _serviceProvider = services.BuildServiceProvider();
-        
+
         // Get a context instance for direct testing
         using var scope = _serviceProvider.CreateScope();
         _context = scope.ServiceProvider.GetRequiredService<WireBoundDbContext>();
@@ -140,10 +140,10 @@ public class SystemHistoryServiceTests : IDisposable
         // Arrange
         var service = new SystemHistoryService(_serviceProvider, _loggerMock.Object);
         var stats = CreateSystemStats();
-        
+
         // Act
         service.Dispose();
-        
+
         // Should not throw after disposal
         await service.RecordSampleAsync(stats);
     }
@@ -327,7 +327,7 @@ public class SystemHistoryServiceTests : IDisposable
 
         // Act
         var result = await _service.GetDailyStatsAsync(
-            new DateOnly(2025, 1, 1), 
+            new DateOnly(2025, 1, 1),
             new DateOnly(2025, 1, 31));
 
         // Assert
@@ -359,7 +359,7 @@ public class SystemHistoryServiceTests : IDisposable
 
         // Act
         var result = await _service.GetDailyStatsAsync(
-            new DateOnly(2025, 6, 1), 
+            new DateOnly(2025, 6, 1),
             new DateOnly(2025, 6, 30));
 
         // Assert
@@ -572,7 +572,7 @@ public class SystemHistoryServiceTests : IDisposable
         using var db = await GetFreshContextAsync();
         var hourStart = new DateTime(pastHour.Year, pastHour.Month, pastHour.Day, pastHour.Hour, 0, 0);
         var stats = await db.HourlySystemStats.FirstOrDefaultAsync(h => h.Hour == hourStart);
-        
+
         stats.Should().NotBeNull();
         stats!.AvgCpuPercent.Should().Be(50); // (30 + 50 + 70) / 3
         stats.MinCpuPercent.Should().Be(30);
@@ -584,10 +584,10 @@ public class SystemHistoryServiceTests : IDisposable
     {
         // Arrange
         var service = new SystemHistoryService(_serviceProvider, _loggerMock.Object);
-        
+
         // Act
         service.Dispose();
-        
+
         // Should not throw after disposal
         await service.AggregateHourlyAsync();
     }
@@ -638,20 +638,20 @@ public class SystemHistoryServiceTests : IDisposable
         var startOfYesterday = yesterday.ToDateTime(TimeOnly.MinValue);
 
         await SeedHourlyStatsAsync(
-            new HourlySystemStats 
-            { 
-                Hour = startOfYesterday.AddHours(8), 
-                AvgCpuPercent = 30, 
+            new HourlySystemStats
+            {
+                Hour = startOfYesterday.AddHours(8),
+                AvgCpuPercent = 30,
                 MaxCpuPercent = 40,
                 MinCpuPercent = 20,
                 AvgMemoryPercent = 50,
                 MaxMemoryPercent = 60,
                 AvgMemoryUsedBytes = 8_000_000_000
             },
-            new HourlySystemStats 
-            { 
-                Hour = startOfYesterday.AddHours(12), 
-                AvgCpuPercent = 70, 
+            new HourlySystemStats
+            {
+                Hour = startOfYesterday.AddHours(12),
+                AvgCpuPercent = 70,
                 MaxCpuPercent = 90,
                 MinCpuPercent = 60,
                 AvgMemoryPercent = 80,
@@ -666,7 +666,7 @@ public class SystemHistoryServiceTests : IDisposable
         // Assert
         using var db = await GetFreshContextAsync();
         var daily = await db.DailySystemStats.FirstOrDefaultAsync(d => d.Date == yesterday);
-        
+
         daily.Should().NotBeNull();
         daily!.AvgCpuPercent.Should().Be(50); // (30 + 70) / 2
         daily.MaxCpuPercent.Should().Be(90);
@@ -717,10 +717,10 @@ public class SystemHistoryServiceTests : IDisposable
     {
         // Arrange
         var service = new SystemHistoryService(_serviceProvider, _loggerMock.Object);
-        
+
         // Act
         service.Dispose();
-        
+
         // Should not throw after disposal
         await service.AggregateDailyAsync();
     }
@@ -740,7 +740,7 @@ public class SystemHistoryServiceTests : IDisposable
 
         // Act - Query with start after end
         var result = await _service.GetHourlyStatsAsync(
-            baseTime.AddHours(2), 
+            baseTime.AddHours(2),
             baseTime.AddHours(-2));
 
         // Assert
@@ -757,7 +757,7 @@ public class SystemHistoryServiceTests : IDisposable
 
         // Act
         var result = await _service.GetDailyStatsAsync(
-            new DateOnly(2025, 1, 20), 
+            new DateOnly(2025, 1, 20),
             new DateOnly(2025, 1, 10));
 
         // Assert
@@ -829,9 +829,9 @@ public class SystemHistoryServiceTests : IDisposable
         // Arrange
         var day = new DateOnly(2025, 1, 15);
         await SeedDailyStatsAsync(
-            new DailySystemStats 
-            { 
-                Date = day, 
+            new DailySystemStats
+            {
+                Date = day,
                 AvgCpuPercent = 50,
                 AvgGpuPercent = 75,
                 MaxGpuPercent = 95
@@ -853,9 +853,9 @@ public class SystemHistoryServiceTests : IDisposable
         // Arrange
         var hour = new DateTime(2025, 1, 15, 12, 0, 0);
         await SeedHourlyStatsAsync(
-            new HourlySystemStats 
-            { 
-                Hour = hour, 
+            new HourlySystemStats
+            {
+                Hour = hour,
                 AvgCpuPercent = 50,
                 AvgGpuPercent = 60,
                 MaxGpuPercent = 80,
@@ -879,9 +879,9 @@ public class SystemHistoryServiceTests : IDisposable
         // Arrange
         var hour = new DateTime(2025, 1, 15, 12, 0, 0);
         await SeedHourlyStatsAsync(
-            new HourlySystemStats 
-            { 
-                Hour = hour, 
+            new HourlySystemStats
+            {
+                Hour = hour,
                 AvgCpuPercent = 50,
                 AvgGpuPercent = null,
                 MaxGpuPercent = null,

@@ -243,9 +243,9 @@ public sealed class DataPersistenceService : IDataPersistenceService
                 continue;
 
             var record = await db.AppUsageRecords
-                .FirstOrDefaultAsync(a => 
-                    a.Timestamp == currentHour && 
-                    a.AppIdentifier == stat.AppIdentifier && 
+                .FirstOrDefaultAsync(a =>
+                    a.Timestamp == currentHour &&
+                    a.AppIdentifier == stat.AppIdentifier &&
                     a.Granularity == UsageGranularity.Hourly)
                 .ConfigureAwait(false);
 
@@ -331,8 +331,8 @@ public sealed class DataPersistenceService : IDataPersistenceService
         var endDateTime = endDate.ToDateTime(TimeOnly.MaxValue);
 
         var query = db.AppUsageRecords
-            .Where(a => a.AppIdentifier == appIdentifier && 
-                        a.Timestamp >= startDateTime && 
+            .Where(a => a.AppIdentifier == appIdentifier &&
+                        a.Timestamp >= startDateTime &&
                         a.Timestamp <= endDateTime);
 
         if (granularity.HasValue)
@@ -374,7 +374,7 @@ public sealed class DataPersistenceService : IDataPersistenceService
         var db = scope.ServiceProvider.GetRequiredService<WireBoundDbContext>();
 
         var cutoffDate = DateTime.Now.AddDays(-aggregateAfterDays);
-        
+
         var hourlyRecords = await db.AppUsageRecords
             .Where(a => a.Granularity == UsageGranularity.Hourly && a.Timestamp < cutoffDate)
             .ToListAsync()
@@ -389,11 +389,11 @@ public sealed class DataPersistenceService : IDataPersistenceService
         foreach (var group in groupedByDay)
         {
             var dailyTimestamp = group.Key.Date.ToDateTime(TimeOnly.MinValue);
-            
+
             var existingDaily = await db.AppUsageRecords
-                .FirstOrDefaultAsync(a => 
-                    a.AppIdentifier == group.Key.AppIdentifier && 
-                    a.Timestamp == dailyTimestamp && 
+                .FirstOrDefaultAsync(a =>
+                    a.AppIdentifier == group.Key.AppIdentifier &&
+                    a.Timestamp == dailyTimestamp &&
                     a.Granularity == UsageGranularity.Daily)
                 .ConfigureAwait(false);
 

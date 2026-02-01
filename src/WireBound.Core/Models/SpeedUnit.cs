@@ -9,7 +9,7 @@ public enum SpeedUnit
     /// Bytes per second (KB/s, MB/s, GB/s)
     /// </summary>
     BytesPerSecond,
-    
+
     /// <summary>
     /// Bits per second (Kbps, Mbps, Gbps)
     /// </summary>

@@ -296,7 +296,7 @@ public static class ChartSeriesFactory
             }
         ];
     }
-    
+
     /// <summary>
     /// Creates a minimal sparkline series for inline card charts.
     /// </summary>
@@ -327,7 +327,7 @@ public static class ChartSeriesFactory
             }
         ];
     }
-    
+
     /// <summary>
     /// Creates hidden axes for sparkline charts (no labels, no gridlines).
     /// </summary>
@@ -351,7 +351,7 @@ public static class ChartSeriesFactory
                 }
             ];
         }
-        
+
         return
         [
             new Axis

@@ -42,12 +42,12 @@ public partial class MainViewModel : ObservableObject, IDisposable
             .GetCustomAttribute<AssemblyInformationalVersionAttribute>()?.InformationalVersion
             ?? Assembly.GetExecutingAssembly().GetName().Version?.ToString()
             ?? "Unknown";
-        
+
         // Remove any metadata after '+' (e.g., commit hash)
         var plusIndex = version.IndexOf('+');
         if (plusIndex > 0)
             version = version[..plusIndex];
-        
+
         return $"v{version}";
     }
 

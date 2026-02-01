@@ -11,15 +11,15 @@ public sealed class WiFiInfoService : IWiFiInfoService
 {
     private readonly ILogger<WiFiInfoService> _logger;
     private readonly IWiFiInfoProvider _provider;
-    
+
     public WiFiInfoService(ILogger<WiFiInfoService> logger, IWiFiInfoProvider provider)
     {
         _logger = logger;
         _provider = provider;
     }
-    
+
     public bool IsSupported => _provider.IsSupported;
-    
+
     public WiFiInfo? GetWiFiInfo(string adapterId)
     {
         try
@@ -32,7 +32,7 @@ public sealed class WiFiInfoService : IWiFiInfoService
             return null;
         }
     }
-    
+
     public Dictionary<string, WiFiInfo> GetAllWiFiInfo()
     {
         try

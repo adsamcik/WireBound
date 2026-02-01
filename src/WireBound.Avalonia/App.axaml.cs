@@ -101,7 +101,7 @@ public partial class App : Application
         // Register cross-platform network monitoring service
         // Uses System.Net.NetworkInformation which works on Windows and Linux
         services.AddSingleton<INetworkMonitorService, CrossPlatformNetworkMonitorService>();
-        
+
         // Register data persistence with segregated interfaces for ISP compliance
         // The DataPersistenceService implements all focused repository interfaces
         services.AddSingleton<DataPersistenceService>();
@@ -110,12 +110,12 @@ public partial class App : Application
         services.AddSingleton<IAppUsageRepository>(sp => sp.GetRequiredService<DataPersistenceService>());
         services.AddSingleton<ISettingsRepository>(sp => sp.GetRequiredService<DataPersistenceService>());
         services.AddSingleton<ISpeedSnapshotRepository>(sp => sp.GetRequiredService<DataPersistenceService>());
-        
+
         services.AddSingleton<IWiFiInfoService, WiFiInfoService>();
 
         // Register platform services (stub first, then override with platform-specific)
         StubPlatformServices.Instance.Register(services);
-        
+
         if (OperatingSystem.IsWindows())
         {
             WindowsPlatformServices.Instance.Register(services);
@@ -227,21 +227,21 @@ public partial class App : Application
     private async Task InitializeTrayIconAsync(MainWindow mainWindow)
     {
         if (_serviceProvider is null) return;
-        
+
         try
         {
             // Load settings to get minimize to tray preference
             var persistence = _serviceProvider.GetRequiredService<IDataPersistenceService>();
             var settings = await persistence.GetSettingsAsync();
-            
+
             var trayIconService = (TrayIconService)_serviceProvider.GetRequiredService<ITrayIconService>();
-            
+
             // Tray icon initialization may touch UI, ensure we're on UI thread
             await Dispatcher.UIThread.InvokeAsync(() =>
             {
                 trayIconService.Initialize(mainWindow, settings.MinimizeToTray);
             });
-            
+
             // Subscribe to settings changes
             var settingsViewModel = _serviceProvider.GetRequiredService<SettingsViewModel>();
             settingsViewModel.PropertyChanged += (_, e) =>
@@ -251,7 +251,7 @@ public partial class App : Application
                     trayIconService.MinimizeToTray = settingsViewModel.MinimizeToTray;
                 }
             };
-            
+
             Log.Information("Tray icon initialized with MinimizeToTray={MinimizeToTray}", settings.MinimizeToTray);
         }
         catch (Exception ex)
@@ -278,7 +278,7 @@ public partial class App : Application
                     var trayService = _serviceProvider.GetRequiredService<ITrayIconService>();
                     trayService.HideMainWindow();
                 });
-                
+
                 Log.Information("Application started minimized to tray");
             }
         }
@@ -296,7 +296,7 @@ public partial class App : Application
         {
             // Dispose tray icon service
             _serviceProvider?.GetService<ITrayIconService>()?.Dispose();
-            
+
             // Stop background services - use async void pattern for shutdown
             // This is acceptable here as the app is terminating
             var pollingService = _serviceProvider?.GetService<NetworkPollingBackgroundService>();
@@ -350,7 +350,7 @@ public partial class App : Application
             _serviceProvider?.GetService<ConnectionsViewModel>()?.Dispose();
             _serviceProvider?.GetService<SettingsViewModel>()?.Dispose();
             _serviceProvider?.GetService<ApplicationsViewModel>()?.Dispose();
-            
+
             Log.Information("ViewModels disposed successfully");
         }
         catch (Exception ex)

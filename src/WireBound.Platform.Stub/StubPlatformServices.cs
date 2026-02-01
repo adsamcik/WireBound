@@ -12,9 +12,9 @@ namespace WireBound.Platform.Stub;
 public sealed class StubPlatformServices : IPlatformServices
 {
     public static readonly StubPlatformServices Instance = new();
-    
+
     private StubPlatformServices() { }
-    
+
     public void Register(IServiceCollection services)
     {
         services.AddSingleton<IStartupService, StubStartupService>();

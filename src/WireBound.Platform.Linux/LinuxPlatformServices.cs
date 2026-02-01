@@ -13,9 +13,9 @@ namespace WireBound.Platform.Linux;
 public sealed class LinuxPlatformServices : IPlatformServices
 {
     public static readonly LinuxPlatformServices Instance = new();
-    
+
     private LinuxPlatformServices() { }
-    
+
     public void Register(IServiceCollection services)
     {
         services.AddSingleton<IStartupService, LinuxStartupService>();

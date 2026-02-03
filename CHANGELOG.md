@@ -7,6 +7,37 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.6.0] - 2026-02-01
+
+### Security
+
+- **Helper-Based Elevation** - Replaced full-app elevation with minimal helper process pattern
+  - Removed legacy full-app elevation code for improved security
+  - Updated all UI text to reflect new helper-based elevation approach
+
+### Added
+
+- **System Stats Persistence** - CPU and RAM statistics now recorded to database for historical analysis
+
+### Changed
+
+- **NuGet Central Package Management** - Migrated to centralized package version management
+- **Testing Framework** - Migrated from FluentAssertions to AwesomeAssertions
+- **Major Refactoring** - Implemented Phases 2-4 of the refactoring roadmap
+- **.NET SDK** - Updated to .NET SDK 10.0.102
+
+### Fixed
+
+- **Memory Leaks** - Critical memory leak fixes with Phase 1 disposal implementation
+- **CI/CD** - Build now uses global.json for consistent SDK version across environments
+- **Code Style** - Fixed whitespace formatting across codebase
+
+### Dependencies
+
+- Bump AwesomeAssertions from 9.0.0 to 9.3.0
+- Bump Avalonia and Avalonia.Desktop to latest versions
+- Bump GitHub Actions: actions/cache (4→5), actions/upload-artifact (4→6), actions/checkout (4→6), actions/setup-dotnet (4→5), actions/download-artifact (4→7)
+
 ## [0.5.0] - 2026-01-24
 
 ### Added

@@ -15,7 +15,6 @@ public class InsightsViewModelTests : IAsyncDisposable
     private readonly IDataPersistenceService _persistenceMock;
     private readonly ISystemHistoryService _systemHistoryMock;
     private readonly ILogger<InsightsViewModel> _loggerMock;
-    private InsightsViewModel? _viewModel;
 
     public InsightsViewModelTests()
     {
@@ -58,42 +57,42 @@ public class InsightsViewModelTests : IAsyncDisposable
     public void Constructor_InitializesToNetworkUsageTab()
     {
         // Act
-        _viewModel = CreateViewModel();
+        var viewModel = CreateViewModel();
 
         // Assert
-        _viewModel.SelectedTab.Should().Be(InsightsTab.NetworkUsage);
+        viewModel.SelectedTab.Should().Be(InsightsTab.NetworkUsage);
     }
 
     [Test]
     public void Constructor_InitializesDefaultPeriod()
     {
         // Act
-        _viewModel = CreateViewModel();
+        var viewModel = CreateViewModel();
 
         // Assert
-        _viewModel.SelectedPeriod.Should().Be(InsightsPeriod.ThisWeek);
+        viewModel.SelectedPeriod.Should().Be(InsightsPeriod.ThisWeek);
     }
 
     [Test]
     public void Constructor_InitializesCustomDates()
     {
         // Act
-        _viewModel = CreateViewModel();
+        var viewModel = CreateViewModel();
 
         // Assert
-        _viewModel.CustomStartDate.Should().NotBeNull();
-        _viewModel.CustomEndDate.Should().NotBeNull();
-        _viewModel.CustomEndDate!.Value.Date.Should().Be(DateTimeOffset.Now.Date);
+        viewModel.CustomStartDate.Should().NotBeNull();
+        viewModel.CustomEndDate.Should().NotBeNull();
+        viewModel.CustomEndDate!.Value.Date.Should().Be(DateTimeOffset.Now.Date);
     }
 
     [Test]
     public void Constructor_InitializesIsCustomPeriodToFalse()
     {
         // Act
-        _viewModel = CreateViewModel();
+        var viewModel = CreateViewModel();
 
         // Assert
-        _viewModel.IsCustomPeriod.Should().BeFalse();
+        viewModel.IsCustomPeriod.Should().BeFalse();
     }
 
     [Test]
@@ -103,81 +102,81 @@ public class InsightsViewModelTests : IAsyncDisposable
         _persistenceMock.GetDailyUsageAsync(Arg.Any<DateOnly>(), Arg.Any<DateOnly>()).Returns(new List<DailyUsage>());
 
         // Act
-        _viewModel = CreateViewModel();
+        var viewModel = CreateViewModel();
 
         // Assert - after initialization completes
         Thread.Sleep(100); // Allow async loading to complete
-        _viewModel.IsLoading.Should().BeFalse();
+        viewModel.IsLoading.Should().BeFalse();
     }
 
     [Test]
     public void Constructor_InitializesNetworkUsageProperties()
     {
         // Act
-        _viewModel = CreateViewModel();
+        var viewModel = CreateViewModel();
 
         // Assert
-        _viewModel.TotalDownload.Should().Be("0 B");
-        _viewModel.TotalUpload.Should().Be("0 B");
-        _viewModel.PeakDownloadSpeed.Should().Be("0 B/s");
-        _viewModel.PeakUploadSpeed.Should().Be("0 B/s");
+        viewModel.TotalDownload.Should().Be("0 B");
+        viewModel.TotalUpload.Should().Be("0 B");
+        viewModel.PeakDownloadSpeed.Should().Be("0 B/s");
+        viewModel.PeakUploadSpeed.Should().Be("0 B/s");
     }
 
     [Test]
     public void Constructor_InitializesSystemTrendsProperties()
     {
         // Act
-        _viewModel = CreateViewModel();
+        var viewModel = CreateViewModel();
 
         // Assert
-        _viewModel.AvgCpuPercent.Should().Be(0);
-        _viewModel.MaxCpuPercent.Should().Be(0);
-        _viewModel.AvgMemoryPercent.Should().Be(0);
-        _viewModel.MaxMemoryPercent.Should().Be(0);
+        viewModel.AvgCpuPercent.Should().Be(0);
+        viewModel.MaxCpuPercent.Should().Be(0);
+        viewModel.AvgMemoryPercent.Should().Be(0);
+        viewModel.MaxMemoryPercent.Should().Be(0);
     }
 
     [Test]
     public void Constructor_InitializesCorrelationProperties()
     {
         // Act
-        _viewModel = CreateViewModel();
+        var viewModel = CreateViewModel();
 
         // Assert
-        _viewModel.NetworkCpuCorrelation.Should().Be(0);
-        _viewModel.NetworkMemoryCorrelation.Should().Be(0);
-        _viewModel.CpuMemoryCorrelation.Should().Be(0);
+        viewModel.NetworkCpuCorrelation.Should().Be(0);
+        viewModel.NetworkMemoryCorrelation.Should().Be(0);
+        viewModel.CpuMemoryCorrelation.Should().Be(0);
     }
 
     [Test]
     public void Constructor_InitializesCorrelationInsights()
     {
         // Act
-        _viewModel = CreateViewModel();
+        var viewModel = CreateViewModel();
 
         // Assert
-        _viewModel.CorrelationInsights.Should().NotBeNull();
+        viewModel.CorrelationInsights.Should().NotBeNull();
     }
 
     [Test]
     public void Constructor_InitializesDailyUsageAxes()
     {
         // Act
-        _viewModel = CreateViewModel();
+        var viewModel = CreateViewModel();
 
         // Assert
-        _viewModel.DailyUsageXAxes.Should().NotBeNull();
-        _viewModel.DailyUsageYAxes.Should().NotBeNull();
+        viewModel.DailyUsageXAxes.Should().NotBeNull();
+        viewModel.DailyUsageYAxes.Should().NotBeNull();
     }
 
     [Test]
     public void Constructor_InitializesSystemTrendAxes()
     {
         // Act
-        _viewModel = CreateViewModel();
+        var viewModel = CreateViewModel();
 
         // Assert
-        _viewModel.SystemTrendXAxes.Should().NotBeNull();
-        _viewModel.SystemTrendYAxes.Should().NotBeNull();
+        viewModel.SystemTrendXAxes.Should().NotBeNull();
+        viewModel.SystemTrendYAxes.Should().NotBeNull();
     }
 
     #endregion
@@ -188,51 +187,51 @@ public class InsightsViewModelTests : IAsyncDisposable
     public void SelectNetworkTabCommand_SetsSelectedTabToNetworkUsage()
     {
         // Arrange
-        _viewModel = CreateViewModel();
-        _viewModel.SelectedTab = InsightsTab.SystemTrends;
+        var viewModel = CreateViewModel();
+        viewModel.SelectedTab = InsightsTab.SystemTrends;
 
         // Act
-        _viewModel.SelectNetworkTabCommand.Execute(null);
+        viewModel.SelectNetworkTabCommand.Execute(null);
 
         // Assert
-        _viewModel.SelectedTab.Should().Be(InsightsTab.NetworkUsage);
+        viewModel.SelectedTab.Should().Be(InsightsTab.NetworkUsage);
     }
 
     [Test]
     public void SelectSystemTrendsTabCommand_SetsSelectedTabToSystemTrends()
     {
         // Arrange
-        _viewModel = CreateViewModel();
+        var viewModel = CreateViewModel();
 
         // Act
-        _viewModel.SelectSystemTrendsTabCommand.Execute(null);
+        viewModel.SelectSystemTrendsTabCommand.Execute(null);
 
         // Assert
-        _viewModel.SelectedTab.Should().Be(InsightsTab.SystemTrends);
+        viewModel.SelectedTab.Should().Be(InsightsTab.SystemTrends);
     }
 
     [Test]
     public void SelectCorrelationsTabCommand_SetsSelectedTabToCorrelations()
     {
         // Arrange
-        _viewModel = CreateViewModel();
+        var viewModel = CreateViewModel();
 
         // Act
-        _viewModel.SelectCorrelationsTabCommand.Execute(null);
+        viewModel.SelectCorrelationsTabCommand.Execute(null);
 
         // Assert
-        _viewModel.SelectedTab.Should().Be(InsightsTab.Correlations);
+        viewModel.SelectedTab.Should().Be(InsightsTab.Correlations);
     }
 
     [Test]
     public void SelectedTab_WhenChanged_LoadsDataForNewTab()
     {
         // Arrange
-        _viewModel = CreateViewModel();
+        var viewModel = CreateViewModel();
         Thread.Sleep(100); // Wait for initial load
 
         // Act
-        _viewModel.SelectedTab = InsightsTab.SystemTrends;
+        viewModel.SelectedTab = InsightsTab.SystemTrends;
         Thread.Sleep(100); // Wait for async load
 
         // Assert
@@ -243,11 +242,11 @@ public class InsightsViewModelTests : IAsyncDisposable
     public void SelectedTab_RaisesPropertyChanged()
     {
         // Arrange
-        _viewModel = CreateViewModel();
-        using var monitor = _viewModel.Monitor();
+        var viewModel = CreateViewModel();
+        using var monitor = viewModel.Monitor();
 
         // Act
-        _viewModel.SelectedTab = InsightsTab.Correlations;
+        viewModel.SelectedTab = InsightsTab.Correlations;
 
         // Assert
         monitor.Should().RaisePropertyChangeFor(x => x.SelectedTab);
@@ -261,93 +260,93 @@ public class InsightsViewModelTests : IAsyncDisposable
     public void SetPeriodCommand_SetsPeriodToToday()
     {
         // Arrange
-        _viewModel = CreateViewModel();
+        var viewModel = CreateViewModel();
 
         // Act
-        _viewModel.SetPeriodCommand.Execute(InsightsPeriod.Today);
+        viewModel.SetPeriodCommand.Execute(InsightsPeriod.Today);
 
         // Assert
-        _viewModel.SelectedPeriod.Should().Be(InsightsPeriod.Today);
+        viewModel.SelectedPeriod.Should().Be(InsightsPeriod.Today);
     }
 
     [Test]
     public void SetPeriodCommand_SetsPeriodToThisWeek()
     {
         // Arrange
-        _viewModel = CreateViewModel();
-        _viewModel.SelectedPeriod = InsightsPeriod.Today;
+        var viewModel = CreateViewModel();
+        viewModel.SelectedPeriod = InsightsPeriod.Today;
 
         // Act
-        _viewModel.SetPeriodCommand.Execute(InsightsPeriod.ThisWeek);
+        viewModel.SetPeriodCommand.Execute(InsightsPeriod.ThisWeek);
 
         // Assert
-        _viewModel.SelectedPeriod.Should().Be(InsightsPeriod.ThisWeek);
+        viewModel.SelectedPeriod.Should().Be(InsightsPeriod.ThisWeek);
     }
 
     [Test]
     public void SetPeriodCommand_SetsPeriodToThisMonth()
     {
         // Arrange
-        _viewModel = CreateViewModel();
+        var viewModel = CreateViewModel();
 
         // Act
-        _viewModel.SetPeriodCommand.Execute(InsightsPeriod.ThisMonth);
+        viewModel.SetPeriodCommand.Execute(InsightsPeriod.ThisMonth);
 
         // Assert
-        _viewModel.SelectedPeriod.Should().Be(InsightsPeriod.ThisMonth);
+        viewModel.SelectedPeriod.Should().Be(InsightsPeriod.ThisMonth);
     }
 
     [Test]
     public void SetPeriodCommand_SetsPeriodToCustom()
     {
         // Arrange
-        _viewModel = CreateViewModel();
+        var viewModel = CreateViewModel();
 
         // Act
-        _viewModel.SetPeriodCommand.Execute(InsightsPeriod.Custom);
+        viewModel.SetPeriodCommand.Execute(InsightsPeriod.Custom);
 
         // Assert
-        _viewModel.SelectedPeriod.Should().Be(InsightsPeriod.Custom);
+        viewModel.SelectedPeriod.Should().Be(InsightsPeriod.Custom);
     }
 
     [Test]
     public void SelectedPeriod_WhenSetToCustom_SetsIsCustomPeriodToTrue()
     {
         // Arrange
-        _viewModel = CreateViewModel();
+        var viewModel = CreateViewModel();
 
         // Act
-        _viewModel.SelectedPeriod = InsightsPeriod.Custom;
+        viewModel.SelectedPeriod = InsightsPeriod.Custom;
 
         // Assert
-        _viewModel.IsCustomPeriod.Should().BeTrue();
+        viewModel.IsCustomPeriod.Should().BeTrue();
     }
 
     [Test]
     public void SelectedPeriod_WhenSetToNonCustom_SetsIsCustomPeriodToFalse()
     {
         // Arrange
-        _viewModel = CreateViewModel();
-        _viewModel.SelectedPeriod = InsightsPeriod.Custom;
+        var viewModel = CreateViewModel();
+        viewModel.SelectedPeriod = InsightsPeriod.Custom;
 
         // Act
-        _viewModel.SelectedPeriod = InsightsPeriod.ThisWeek;
+        viewModel.SelectedPeriod = InsightsPeriod.ThisWeek;
 
         // Assert
-        _viewModel.IsCustomPeriod.Should().BeFalse();
+        viewModel.IsCustomPeriod.Should().BeFalse();
     }
 
     [Test]
     public void SelectedPeriod_WhenChanged_TriggersDataReload()
     {
         // Arrange
-        _viewModel = CreateViewModel();
+        var viewModel = CreateViewModel();
         Thread.Sleep(100); // Wait for initial load
 
         _persistenceMock.ClearReceivedCalls();
 
         // Act
-        _viewModel.SelectedPeriod = InsightsPeriod.ThisMonth;
+        viewModel.SelectedPeriod = InsightsPeriod.ThisMonth;
         Thread.Sleep(100); // Wait for async load
 
         // Assert
@@ -362,24 +361,24 @@ public class InsightsViewModelTests : IAsyncDisposable
     public void SelectedPeriod_AcceptsAllPeriods(InsightsPeriod period)
     {
         // Arrange
-        _viewModel = CreateViewModel();
+        var viewModel = CreateViewModel();
 
         // Act
-        _viewModel.SelectedPeriod = period;
+        viewModel.SelectedPeriod = period;
 
         // Assert
-        _viewModel.SelectedPeriod.Should().Be(period);
+        viewModel.SelectedPeriod.Should().Be(period);
     }
 
     [Test]
     public void SelectedPeriod_RaisesPropertyChanged()
     {
         // Arrange
-        _viewModel = CreateViewModel();
-        using var monitor = _viewModel.Monitor();
+        var viewModel = CreateViewModel();
+        using var monitor = viewModel.Monitor();
 
         // Act
-        _viewModel.SelectedPeriod = InsightsPeriod.ThisMonth;
+        viewModel.SelectedPeriod = InsightsPeriod.ThisMonth;
 
         // Assert
         monitor.Should().RaisePropertyChangeFor(x => x.SelectedPeriod);
@@ -393,15 +392,15 @@ public class InsightsViewModelTests : IAsyncDisposable
     public void CustomStartDate_WhenChanged_TriggersReloadIfCustomPeriod()
     {
         // Arrange
-        _viewModel = CreateViewModel();
-        _viewModel.SelectedPeriod = InsightsPeriod.Custom;
-        _viewModel.CustomEndDate = DateTimeOffset.Now;
+        var viewModel = CreateViewModel();
+        viewModel.SelectedPeriod = InsightsPeriod.Custom;
+        viewModel.CustomEndDate = DateTimeOffset.Now;
         Thread.Sleep(100);
 
         _persistenceMock.ClearReceivedCalls();
 
         // Act
-        _viewModel.CustomStartDate = DateTimeOffset.Now.AddDays(-14);
+        viewModel.CustomStartDate = DateTimeOffset.Now.AddDays(-14);
         Thread.Sleep(100);
 
         // Assert
@@ -412,15 +411,15 @@ public class InsightsViewModelTests : IAsyncDisposable
     public void CustomEndDate_WhenChanged_TriggersReloadIfCustomPeriod()
     {
         // Arrange
-        _viewModel = CreateViewModel();
-        _viewModel.SelectedPeriod = InsightsPeriod.Custom;
-        _viewModel.CustomStartDate = DateTimeOffset.Now.AddDays(-7);
+        var viewModel = CreateViewModel();
+        viewModel.SelectedPeriod = InsightsPeriod.Custom;
+        viewModel.CustomStartDate = DateTimeOffset.Now.AddDays(-7);
         Thread.Sleep(100);
 
         _persistenceMock.ClearReceivedCalls();
 
         // Act
-        _viewModel.CustomEndDate = DateTimeOffset.Now.AddDays(-1);
+        viewModel.CustomEndDate = DateTimeOffset.Now.AddDays(-1);
         Thread.Sleep(100);
 
         // Assert
@@ -478,16 +477,16 @@ public class InsightsViewModelTests : IAsyncDisposable
 
         _systemHistoryMock.GetHourlyStatsAsync(Arg.Any<DateTime>(), Arg.Any<DateTime>()).Returns(systemData);
 
-        _viewModel = CreateViewModel();
+        var viewModel = CreateViewModel();
         Thread.Sleep(100);
 
         // Act
-        _viewModel.SelectedTab = InsightsTab.SystemTrends;
+        viewModel.SelectedTab = InsightsTab.SystemTrends;
         await Task.Delay(200); // Wait for async load
 
         // Assert
-        _viewModel.CpuTrendStatus.Should().Be("Critical"); // avg 87.5 > 80
-        _viewModel.MemoryTrendStatus.Should().Be("Moderate"); // avg 47.5 > 40
+        viewModel.CpuTrendStatus.Should().Be("Critical"); // avg 87.5 > 80
+        viewModel.MemoryTrendStatus.Should().Be("Moderate"); // avg 47.5 > 40
     }
 
     #endregion
@@ -504,32 +503,32 @@ public class InsightsViewModelTests : IAsyncDisposable
                 new() { Hour = DateTime.Now, AvgCpuPercent = 50, AvgMemoryPercent = 60 }
             });
 
-        _viewModel = CreateViewModel();
+        var viewModel = CreateViewModel();
         Thread.Sleep(100);
 
         // Act
-        _viewModel.SelectedTab = InsightsTab.Correlations;
+        viewModel.SelectedTab = InsightsTab.Correlations;
         await Task.Delay(200);
 
         // Assert
-        _viewModel.NetworkCpuCorrelation.Should().Be(0);
-        _viewModel.NetworkMemoryCorrelation.Should().Be(0);
-        _viewModel.CpuMemoryCorrelation.Should().Be(0);
+        viewModel.NetworkCpuCorrelation.Should().Be(0);
+        viewModel.NetworkMemoryCorrelation.Should().Be(0);
+        viewModel.CpuMemoryCorrelation.Should().Be(0);
     }
 
     [Test]
     public async Task LoadCorrelations_WithNoSystemHistoryService_AddsInsightMessage()
     {
         // Arrange
-        _viewModel = CreateViewModelWithoutSystemHistory();
+        var viewModel = CreateViewModelWithoutSystemHistory();
         Thread.Sleep(100);
 
         // Act
-        _viewModel.SelectedTab = InsightsTab.Correlations;
+        viewModel.SelectedTab = InsightsTab.Correlations;
         await Task.Delay(200);
 
         // Assert
-        _viewModel.CorrelationInsights.Should().Contain(x => x.Contains("unavailable"));
+        viewModel.CorrelationInsights.Should().Contain(x => x.Contains("unavailable"));
     }
 
     #endregion
@@ -542,12 +541,12 @@ public class InsightsViewModelTests : IAsyncDisposable
         // Arrange
         _persistenceMock.GetDailyUsageAsync(Arg.Any<DateOnly>(), Arg.Any<DateOnly>()).Returns(new List<DailyUsage>());
 
-        _viewModel = CreateViewModel();
+        var viewModel = CreateViewModel();
         await Task.Delay(200);
 
         // Assert - when no data, totals should be zero/empty
-        _viewModel.TotalDownload.Should().Be("0 B");
-        _viewModel.TotalUpload.Should().Be("0 B");
+        viewModel.TotalDownload.Should().Be("0 B");
+        viewModel.TotalUpload.Should().Be("0 B");
     }
 
     [Test]
@@ -562,14 +561,14 @@ public class InsightsViewModelTests : IAsyncDisposable
 
         _persistenceMock.GetDailyUsageAsync(Arg.Any<DateOnly>(), Arg.Any<DateOnly>()).Returns(dailyData);
 
-        _viewModel = CreateViewModel();
+        var viewModel = CreateViewModel();
         await Task.Delay(200);
 
         // Assert
-        _viewModel.TotalDownload.Should().NotBe("0 B");
-        _viewModel.TotalUpload.Should().NotBe("0 B");
-        _viewModel.PeakDownloadSpeed.Should().NotBe("0 B/s");
-        _viewModel.PeakUploadSpeed.Should().NotBe("0 B/s");
+        viewModel.TotalDownload.Should().NotBe("0 B");
+        viewModel.TotalUpload.Should().NotBe("0 B");
+        viewModel.PeakDownloadSpeed.Should().NotBe("0 B/s");
+        viewModel.PeakUploadSpeed.Should().NotBe("0 B/s");
     }
 
     [Test]
@@ -583,11 +582,11 @@ public class InsightsViewModelTests : IAsyncDisposable
 
         _persistenceMock.GetDailyUsageAsync(Arg.Any<DateOnly>(), Arg.Any<DateOnly>()).Returns(dailyData);
 
-        _viewModel = CreateViewModel();
+        var viewModel = CreateViewModel();
         await Task.Delay(200);
 
         // Assert
-        _viewModel.DailyUsageChart.Should().NotBeEmpty();
+        viewModel.DailyUsageChart.Should().NotBeEmpty();
     }
 
     #endregion
@@ -598,16 +597,16 @@ public class InsightsViewModelTests : IAsyncDisposable
     public async Task LoadSystemTrends_WithNoSystemHistoryService_SetsUnavailableStatus()
     {
         // Arrange
-        _viewModel = CreateViewModelWithoutSystemHistory();
+        var viewModel = CreateViewModelWithoutSystemHistory();
         Thread.Sleep(100);
 
         // Act
-        _viewModel.SelectedTab = InsightsTab.SystemTrends;
+        viewModel.SelectedTab = InsightsTab.SystemTrends;
         await Task.Delay(200);
 
         // Assert
-        _viewModel.CpuTrendStatus.Should().Be("Unavailable");
-        _viewModel.MemoryTrendStatus.Should().Be("Unavailable");
+        viewModel.CpuTrendStatus.Should().Be("Unavailable");
+        viewModel.MemoryTrendStatus.Should().Be("Unavailable");
     }
 
     [Test]
@@ -616,16 +615,16 @@ public class InsightsViewModelTests : IAsyncDisposable
         // Arrange
         _systemHistoryMock.GetHourlyStatsAsync(Arg.Any<DateTime>(), Arg.Any<DateTime>()).Returns(new List<HourlySystemStats>());
 
-        _viewModel = CreateViewModel();
+        var viewModel = CreateViewModel();
         Thread.Sleep(100);
 
         // Act
-        _viewModel.SelectedTab = InsightsTab.SystemTrends;
+        viewModel.SelectedTab = InsightsTab.SystemTrends;
         await Task.Delay(200);
 
         // Assert
-        _viewModel.CpuTrendStatus.Should().Be("No Data");
-        _viewModel.MemoryTrendStatus.Should().Be("No Data");
+        viewModel.CpuTrendStatus.Should().Be("No Data");
+        viewModel.MemoryTrendStatus.Should().Be("No Data");
     }
 
     [Test]
@@ -640,18 +639,18 @@ public class InsightsViewModelTests : IAsyncDisposable
 
         _systemHistoryMock.GetHourlyStatsAsync(Arg.Any<DateTime>(), Arg.Any<DateTime>()).Returns(systemData);
 
-        _viewModel = CreateViewModel();
+        var viewModel = CreateViewModel();
         Thread.Sleep(100);
 
         // Act
-        _viewModel.SelectedTab = InsightsTab.SystemTrends;
+        viewModel.SelectedTab = InsightsTab.SystemTrends;
         await Task.Delay(200);
 
         // Assert
-        _viewModel.AvgCpuPercent.Should().Be(50); // (40 + 60) / 2
-        _viewModel.MaxCpuPercent.Should().Be(80);
-        _viewModel.AvgMemoryPercent.Should().Be(60); // (50 + 70) / 2
-        _viewModel.MaxMemoryPercent.Should().Be(90);
+        viewModel.AvgCpuPercent.Should().Be(50); // (40 + 60) / 2
+        viewModel.MaxCpuPercent.Should().Be(80);
+        viewModel.AvgMemoryPercent.Should().Be(60); // (50 + 70) / 2
+        viewModel.MaxMemoryPercent.Should().Be(90);
     }
 
     #endregion
@@ -662,34 +661,34 @@ public class InsightsViewModelTests : IAsyncDisposable
     public async Task RefreshCommand_ClearsErrorState()
     {
         // Arrange
-        _viewModel = CreateViewModel();
+        var viewModel = CreateViewModel();
         // Simulate error state
-        _viewModel.GetType().GetProperty("HasError")!.SetValue(_viewModel, true);
-        _viewModel.GetType().GetProperty("ErrorMessage")!.SetValue(_viewModel, "Test error");
+        viewModel.GetType().GetProperty("HasError")!.SetValue(viewModel, true);
+        viewModel.GetType().GetProperty("ErrorMessage")!.SetValue(viewModel, "Test error");
 
         // Act
-        _viewModel.RefreshCommand.Execute(null);
+        viewModel.RefreshCommand.Execute(null);
         await Task.Delay(100);
 
         // Assert
-        _viewModel.HasError.Should().BeFalse();
-        _viewModel.ErrorMessage.Should().BeEmpty();
+        viewModel.HasError.Should().BeFalse();
+        viewModel.ErrorMessage.Should().BeEmpty();
     }
 
     [Test]
     public async Task RefreshCommand_ReloadsDataForCurrentTab()
     {
         // Arrange
-        _viewModel = CreateViewModel();
+        var viewModel = CreateViewModel();
         await Task.Delay(100);
         _persistenceMock.ClearReceivedCalls();
 
         // Act
-        await _viewModel.RefreshCommand.ExecuteAsync(null);
+        await viewModel.RefreshCommand.ExecuteAsync(null);
         await Task.Delay(200);
 
         // Assert
-        _persistenceMock.Received().GetDailyUsageAsync(Arg.Any<DateOnly>(), Arg.Any<DateOnly>());
+        await _persistenceMock.Received().GetDailyUsageAsync(Arg.Any<DateOnly>(), Arg.Any<DateOnly>());
     }
 
     #endregion
@@ -703,12 +702,12 @@ public class InsightsViewModelTests : IAsyncDisposable
         _persistenceMock.GetDailyUsageAsync(Arg.Any<DateOnly>(), Arg.Any<DateOnly>())
             .Returns<Task<List<DailyUsage>>>(_ => throw new InvalidOperationException("Test error"));
 
-        _viewModel = CreateViewModel();
+        var viewModel = CreateViewModel();
         await Task.Delay(200);
 
         // Assert
-        _viewModel.HasError.Should().BeTrue();
-        _viewModel.ErrorMessage.Should().Contain("Test error");
+        viewModel.HasError.Should().BeTrue();
+        viewModel.ErrorMessage.Should().Contain("Test error");
     }
 
     [Test]
@@ -718,11 +717,11 @@ public class InsightsViewModelTests : IAsyncDisposable
         _persistenceMock.GetDailyUsageAsync(Arg.Any<DateOnly>(), Arg.Any<DateOnly>())
             .Returns<Task<List<DailyUsage>>>(_ => throw new InvalidOperationException("Test error"));
 
-        _viewModel = CreateViewModel();
+        var viewModel = CreateViewModel();
         await Task.Delay(200);
 
         // Assert - verify error state is set (logger verification removed as NSubstitute doesn't easily support ILogger verification)
-        _viewModel.HasError.Should().BeTrue();
+        viewModel.HasError.Should().BeTrue();
     }
 
     #endregion
@@ -733,11 +732,11 @@ public class InsightsViewModelTests : IAsyncDisposable
     public void Dispose_CanBeCalledMultipleTimes()
     {
         // Arrange
-        _viewModel = CreateViewModel();
+        var viewModel = CreateViewModel();
 
         // Act & Assert - should not throw
-        _viewModel.Dispose();
-        _viewModel.Dispose();
+        viewModel.Dispose();
+        viewModel.Dispose();
     }
 
     [Test]
@@ -747,10 +746,10 @@ public class InsightsViewModelTests : IAsyncDisposable
         var tcs = new TaskCompletionSource<List<DailyUsage>>();
         _persistenceMock.GetDailyUsageAsync(Arg.Any<DateOnly>(), Arg.Any<DateOnly>()).Returns(tcs.Task);
 
-        _viewModel = CreateViewModel();
+        var viewModel = CreateViewModel();
 
         // Act
-        _viewModel.Dispose();
+        viewModel.Dispose();
         tcs.SetResult(new List<DailyUsage>());
 
         // Assert - no exception should be thrown
@@ -764,11 +763,11 @@ public class InsightsViewModelTests : IAsyncDisposable
     public void TotalDownload_RaisesPropertyChanged()
     {
         // Arrange
-        _viewModel = CreateViewModel();
-        using var monitor = _viewModel.Monitor();
+        var viewModel = CreateViewModel();
+        using var monitor = viewModel.Monitor();
 
         // Act
-        _viewModel.GetType().GetProperty("TotalDownload")!.SetValue(_viewModel, "100 MB");
+        viewModel.GetType().GetProperty("TotalDownload")!.SetValue(viewModel, "100 MB");
 
         // Assert
         monitor.Should().RaisePropertyChangeFor(x => x.TotalDownload);
@@ -778,11 +777,11 @@ public class InsightsViewModelTests : IAsyncDisposable
     public void IsLoading_RaisesPropertyChanged()
     {
         // Arrange
-        _viewModel = CreateViewModel();
-        using var monitor = _viewModel.Monitor();
+        var viewModel = CreateViewModel();
+        using var monitor = viewModel.Monitor();
 
         // Act
-        _viewModel.GetType().GetProperty("IsLoading")!.SetValue(_viewModel, true);
+        viewModel.GetType().GetProperty("IsLoading")!.SetValue(viewModel, true);
 
         // Assert
         monitor.Should().RaisePropertyChangeFor(x => x.IsLoading);
@@ -792,10 +791,10 @@ public class InsightsViewModelTests : IAsyncDisposable
     public void HasData_PropertyExists()
     {
         // Arrange
-        _viewModel = CreateViewModel();
+        var viewModel = CreateViewModel();
 
         // Act & Assert - just verify the property is accessible and is a boolean
-        var hasData = _viewModel.HasData;
+        var hasData = viewModel.HasData;
         hasData.Should().Be(hasData); // Property exists and is accessible
     }
 
@@ -803,11 +802,11 @@ public class InsightsViewModelTests : IAsyncDisposable
     public void HasError_RaisesPropertyChanged()
     {
         // Arrange
-        _viewModel = CreateViewModel();
-        using var monitor = _viewModel.Monitor();
+        var viewModel = CreateViewModel();
+        using var monitor = viewModel.Monitor();
 
         // Act
-        _viewModel.GetType().GetProperty("HasError")!.SetValue(_viewModel, true);
+        viewModel.GetType().GetProperty("HasError")!.SetValue(viewModel, true);
 
         // Assert
         monitor.Should().RaisePropertyChangeFor(x => x.HasError);
@@ -817,11 +816,11 @@ public class InsightsViewModelTests : IAsyncDisposable
     public void IsCustomPeriod_RaisesPropertyChanged()
     {
         // Arrange
-        _viewModel = CreateViewModel();
-        using var monitor = _viewModel.Monitor();
+        var viewModel = CreateViewModel();
+        using var monitor = viewModel.Monitor();
 
         // Act
-        _viewModel.SelectedPeriod = InsightsPeriod.Custom;
+        viewModel.SelectedPeriod = InsightsPeriod.Custom;
 
         // Assert
         monitor.Should().RaisePropertyChangeFor(x => x.IsCustomPeriod);
@@ -864,24 +863,23 @@ public class InsightsViewModelTests : IAsyncDisposable
         var slowTask = new TaskCompletionSource<List<DailyUsage>>();
         _persistenceMock.GetDailyUsageAsync(Arg.Any<DateOnly>(), Arg.Any<DateOnly>()).Returns(slowTask.Task);
 
-        _viewModel = CreateViewModel();
+        var viewModel = CreateViewModel();
 
         // Act - change tab before first load completes
-        _viewModel.SelectedTab = InsightsTab.SystemTrends;
+        viewModel.SelectedTab = InsightsTab.SystemTrends;
         await Task.Delay(50);
 
         // Complete the slow task
         slowTask.SetResult(new List<DailyUsage>());
 
         // Assert - should not throw and should be on new tab
-        _viewModel.SelectedTab.Should().Be(InsightsTab.SystemTrends);
+        viewModel.SelectedTab.Should().Be(InsightsTab.SystemTrends);
     }
 
     #endregion
 
     public ValueTask DisposeAsync()
     {
-        _viewModel?.Dispose();
         return ValueTask.CompletedTask;
     }
 }

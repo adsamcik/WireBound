@@ -14,7 +14,6 @@ public class ConnectionsViewModelTests : IAsyncDisposable
     private readonly IProcessNetworkService _processNetworkServiceMock;
     private readonly IDnsResolverService _dnsResolverMock;
     private readonly IElevationService _elevationServiceMock;
-    private ConnectionsViewModel? _viewModel;
 
     public ConnectionsViewModelTests()
     {
@@ -83,39 +82,42 @@ public class ConnectionsViewModelTests : IAsyncDisposable
     public void Constructor_InitializesDefaultValues()
     {
         // Act
-        _viewModel = CreateViewModel();
+        var viewModel = CreateViewModel();
 
         // Assert
         // Note: HasError may be true due to fire-and-forget InitializeAsync in constructor
         // that uses Dispatcher.UIThread which doesn't exist in test context
-        _viewModel.ErrorMessage.Should().BeEmpty();
-        _viewModel.SearchText.Should().BeEmpty();
-        _viewModel.SortColumn.Should().Be("Speed");
-        _viewModel.SortAscending.Should().BeFalse();
+        viewModel.ErrorMessage.Should().BeEmpty();
+        viewModel.SearchText.Should().BeEmpty();
+        viewModel.SortColumn.Should().Be("Speed");
+        viewModel.SortAscending.Should().BeFalse();
+        viewModel.Dispose();
     }
 
     [Test]
     public void Constructor_InitializesConnectionsCollection()
     {
         // Act
-        _viewModel = CreateViewModel();
+        var viewModel = CreateViewModel();
 
         // Assert
-        _viewModel.Connections.Should().NotBeNull();
+        viewModel.Connections.Should().NotBeNull();
+        viewModel.Dispose();
     }
 
     [Test]
     public void Constructor_InitializesCountersToZero()
     {
         // Act
-        _viewModel = CreateViewModel();
+        var viewModel = CreateViewModel();
 
         // Assert
-        _viewModel.ConnectionCount.Should().Be(0);
-        _viewModel.TcpCount.Should().Be(0);
-        _viewModel.UdpCount.Should().Be(0);
-        _viewModel.TotalSent.Should().Be("0 B");
-        _viewModel.TotalReceived.Should().Be("0 B");
+        viewModel.ConnectionCount.Should().Be(0);
+        viewModel.TcpCount.Should().Be(0);
+        viewModel.UdpCount.Should().Be(0);
+        viewModel.TotalSent.Should().Be("0 B");
+        viewModel.TotalReceived.Should().Be("0 B");
+        viewModel.Dispose();
     }
 
     [Test]
@@ -125,10 +127,11 @@ public class ConnectionsViewModelTests : IAsyncDisposable
         _processNetworkServiceMock.IsPlatformSupported.Returns(true);
 
         // Act
-        _viewModel = CreateViewModel();
+        var viewModel = CreateViewModel();
 
         // Assert
-        _viewModel.IsPlatformSupported.Should().BeTrue();
+        viewModel.IsPlatformSupported.Should().BeTrue();
+        viewModel.Dispose();
     }
 
     [Test]
@@ -138,10 +141,11 @@ public class ConnectionsViewModelTests : IAsyncDisposable
         _processNetworkServiceMock.IsPlatformSupported.Returns(false);
 
         // Act
-        _viewModel = CreateViewModel();
+        var viewModel = CreateViewModel();
 
         // Assert
-        _viewModel.IsPlatformSupported.Should().BeFalse();
+        viewModel.IsPlatformSupported.Should().BeFalse();
+        viewModel.Dispose();
     }
 
     [Test]
@@ -151,10 +155,11 @@ public class ConnectionsViewModelTests : IAsyncDisposable
         _processNetworkServiceMock.IsRunning.Returns(true);
 
         // Act
-        _viewModel = CreateViewModel();
+        var viewModel = CreateViewModel();
 
         // Assert
-        _viewModel.IsMonitoring.Should().BeTrue();
+        viewModel.IsMonitoring.Should().BeTrue();
+        viewModel.Dispose();
     }
 
     [Test]
@@ -165,13 +170,14 @@ public class ConnectionsViewModelTests : IAsyncDisposable
         _processNetworkServiceMock.StartAsync().Returns(false);
 
         // Act
-        _viewModel = CreateViewModel();
+        var viewModel = CreateViewModel();
 
         // Wait a bit for the fire-and-forget InitializeAsync to complete
         Thread.Sleep(100);
 
         // Assert - IsMonitoring should remain false because StartAsync failed
-        _viewModel.IsMonitoring.Should().BeFalse();
+        viewModel.IsMonitoring.Should().BeFalse();
+        viewModel.Dispose();
     }
 
     [Test]
@@ -182,10 +188,11 @@ public class ConnectionsViewModelTests : IAsyncDisposable
         _elevationServiceMock.IsElevationSupported.Returns(true);
 
         // Act
-        _viewModel = CreateViewModel();
+        var viewModel = CreateViewModel();
 
         // Assert
-        _viewModel.RequiresElevation.Should().BeTrue();
+        viewModel.RequiresElevation.Should().BeTrue();
+        viewModel.Dispose();
     }
 
     [Test]
@@ -195,10 +202,11 @@ public class ConnectionsViewModelTests : IAsyncDisposable
         _elevationServiceMock.RequiresElevationFor(ElevatedFeature.PerProcessNetworkMonitoring).Returns(false);
 
         // Act
-        _viewModel = CreateViewModel();
+        var viewModel = CreateViewModel();
 
         // Assert
-        _viewModel.RequiresElevation.Should().BeFalse();
+        viewModel.RequiresElevation.Should().BeFalse();
+        viewModel.Dispose();
     }
 
     [Test]
@@ -209,63 +217,69 @@ public class ConnectionsViewModelTests : IAsyncDisposable
         _elevationServiceMock.IsElevationSupported.Returns(false);
 
         // Act
-        _viewModel = CreateViewModel();
+        var viewModel = CreateViewModel();
 
         // Assert - RequiresElevation should be false when elevation isn't supported
-        _viewModel.RequiresElevation.Should().BeFalse();
+        viewModel.RequiresElevation.Should().BeFalse();
+        viewModel.Dispose();
     }
 
     [Test]
     public void Constructor_SubscribesToProcessStatsUpdated()
     {
         // Act
-        _viewModel = CreateViewModel();
+        var viewModel = CreateViewModel();
 
         // Assert
         // Event subscription verified (NSubstitute does not verify event subscriptions directly)
+        viewModel.Dispose();
     }
 
     [Test]
     public void Constructor_SubscribesToProcessErrorOccurred()
     {
         // Act
-        _viewModel = CreateViewModel();
+        var viewModel = CreateViewModel();
 
         // Assert
         // Event subscription verified (NSubstitute does not verify event subscriptions directly)
+        viewModel.Dispose();
     }
 
     [Test]
     public void Constructor_SubscribesToDnsHostnameResolved()
     {
         // Act
-        _viewModel = CreateViewModel();
+        var viewModel = CreateViewModel();
 
         // Assert
         // Event subscription verified (NSubstitute does not verify event subscriptions directly)
+        viewModel.Dispose();
     }
 
     [Test]
     public void Constructor_StartsProcessNetworkService()
     {
         // Act
-        _viewModel = CreateViewModel();
+        var viewModel = CreateViewModel();
 
         // Allow async initialization to complete
         Thread.Sleep(100);
 
         // Assert
         _processNetworkServiceMock.Received(1).StartAsync();
+        viewModel.Dispose();
     }
 
     [Test]
     public void Constructor_SelectedConnectionIsNull()
     {
         // Act
-        _viewModel = CreateViewModel();
+        var viewModel = CreateViewModel();
 
         // Assert
-        _viewModel.SelectedConnection.Should().BeNull();
+        viewModel.SelectedConnection.Should().BeNull();
+        viewModel.Dispose();
     }
 
     #endregion
@@ -350,53 +364,57 @@ public class ConnectionsViewModelTests : IAsyncDisposable
     public void SortByCommand_ChangesColumn_SetsSortColumn()
     {
         // Arrange
-        _viewModel = CreateViewModel();
+        var viewModel = CreateViewModel();
 
         // Act
-        _viewModel.SortByCommand.Execute("Protocol");
+        viewModel.SortByCommand.Execute("Protocol");
 
         // Assert
-        _viewModel.SortColumn.Should().Be("Protocol");
+        viewModel.SortColumn.Should().Be("Protocol");
+        viewModel.Dispose();
     }
 
     [Test]
     public void SortByCommand_SameColumn_TogglesDirection()
     {
         // Arrange
-        _viewModel = CreateViewModel();
-        _viewModel.SortByCommand.Execute("Protocol");
-        var initialDirection = _viewModel.SortAscending;
+        var viewModel = CreateViewModel();
+        viewModel.SortByCommand.Execute("Protocol");
+        var initialDirection = viewModel.SortAscending;
 
         // Act
-        _viewModel.SortByCommand.Execute("Protocol");
+        viewModel.SortByCommand.Execute("Protocol");
 
         // Assert
-        _viewModel.SortAscending.Should().Be(!initialDirection);
+        viewModel.SortAscending.Should().Be(!initialDirection);
+        viewModel.Dispose();
     }
 
     [Test]
     public void SortByCommand_DifferentColumn_ResetsToDescending()
     {
         // Arrange
-        _viewModel = CreateViewModel();
-        _viewModel.SortByCommand.Execute("Protocol");
-        _viewModel.SortByCommand.Execute("Protocol"); // Toggle to ascending
+        var viewModel = CreateViewModel();
+        viewModel.SortByCommand.Execute("Protocol");
+        viewModel.SortByCommand.Execute("Protocol"); // Toggle to ascending
 
         // Act
-        _viewModel.SortByCommand.Execute("Remote");
+        viewModel.SortByCommand.Execute("Remote");
 
         // Assert
-        _viewModel.SortAscending.Should().BeFalse();
+        viewModel.SortAscending.Should().BeFalse();
+        viewModel.Dispose();
     }
 
     [Test]
     public void SortByCommand_DefaultColumn_IsSpeed()
     {
         // Arrange
-        _viewModel = CreateViewModel();
+        var viewModel = CreateViewModel();
 
         // Assert
-        _viewModel.SortColumn.Should().Be("Speed");
+        viewModel.SortColumn.Should().Be("Speed");
+        viewModel.Dispose();
     }
 
     #endregion
@@ -408,26 +426,29 @@ public class ConnectionsViewModelTests : IAsyncDisposable
     public async Task RefreshCommand_CallsGetConnectionStats()
     {
         // Arrange
-        _viewModel = CreateViewModel();
+        var viewModel = CreateViewModel();
         await Task.Delay(150); // Wait for initial refresh
 
         _processNetworkServiceMock.ClearReceivedCalls();
 
         // Act
-        await _viewModel.RefreshCommand.ExecuteAsync(null);
+        await viewModel.RefreshCommand.ExecuteAsync(null);
 
         // Assert
         await _processNetworkServiceMock.Received(1).GetConnectionStatsAsync();
+        viewModel.Dispose();
     }
 
     [Test]
     public async Task RefreshCommand_CanExecute()
     {
         // Arrange
-        _viewModel = CreateViewModel();
+        var viewModel = CreateViewModel();
 
         // Assert
-        _viewModel.RefreshCommand.CanExecute(null).Should().BeTrue();
+        viewModel.RefreshCommand.CanExecute(null).Should().BeTrue();
+        viewModel.Dispose();
+        await Task.CompletedTask;
     }
 
     #endregion
@@ -438,7 +459,7 @@ public class ConnectionsViewModelTests : IAsyncDisposable
     public void ProcessErrorOccurred_SetsErrorState()
     {
         // Arrange
-        _viewModel = CreateViewModel();
+        var viewModel = CreateViewModel();
         var errorArgs = new ProcessNetworkErrorEventArgs("Test error", null, false);
 
         // Act - Raise event using NSubstitute
@@ -450,13 +471,14 @@ public class ConnectionsViewModelTests : IAsyncDisposable
         // Assert - The error should be set (note: this may be difficult to test without UI thread)
         // The event is captured but dispatched to UI thread which won't happen in unit tests
         // Event subscription verified (NSubstitute does not verify event subscriptions directly)
+        viewModel.Dispose();
     }
 
     [Test]
     public void ProcessErrorOccurred_WithElevationRequired_SetsRequiresElevation()
     {
         // Arrange
-        _viewModel = CreateViewModel();
+        var viewModel = CreateViewModel();
         var errorArgs = new ProcessNetworkErrorEventArgs("Elevation required", null, requiresElevation: true);
 
         // Act
@@ -464,6 +486,7 @@ public class ConnectionsViewModelTests : IAsyncDisposable
 
         // Assert - Event subscription verified (actual UI thread dispatch tested elsewhere)
         // Event subscription verified (NSubstitute does not verify event subscriptions directly)
+        viewModel.Dispose();
     }
 
     #endregion
@@ -474,10 +497,10 @@ public class ConnectionsViewModelTests : IAsyncDisposable
     public void Dispose_UnsubscribesFromProcessStatsUpdated()
     {
         // Arrange
-        _viewModel = CreateViewModel();
+        var viewModel = CreateViewModel();
 
         // Act
-        _viewModel.Dispose();
+        viewModel.Dispose();
 
         // Assert
         // Event unsubscription verified (NSubstitute does not verify event subscriptions directly)
@@ -487,10 +510,10 @@ public class ConnectionsViewModelTests : IAsyncDisposable
     public void Dispose_UnsubscribesFromProcessErrorOccurred()
     {
         // Arrange
-        _viewModel = CreateViewModel();
+        var viewModel = CreateViewModel();
 
         // Act
-        _viewModel.Dispose();
+        viewModel.Dispose();
 
         // Assert
         // Event unsubscription verified (NSubstitute does not verify event subscriptions directly)
@@ -500,10 +523,10 @@ public class ConnectionsViewModelTests : IAsyncDisposable
     public void Dispose_UnsubscribesFromDnsHostnameResolved()
     {
         // Arrange
-        _viewModel = CreateViewModel();
+        var viewModel = CreateViewModel();
 
         // Act
-        _viewModel.Dispose();
+        viewModel.Dispose();
 
         // Assert
         // Event unsubscription verified (NSubstitute does not verify event subscriptions directly)
@@ -513,22 +536,22 @@ public class ConnectionsViewModelTests : IAsyncDisposable
     public void Dispose_CanBeCalledMultipleTimes()
     {
         // Arrange
-        _viewModel = CreateViewModel();
+        var viewModel = CreateViewModel();
 
         // Act & Assert - should not throw
-        _viewModel.Dispose();
-        _viewModel.Dispose();
+        viewModel.Dispose();
+        viewModel.Dispose();
     }
 
     [Test]
     public void Dispose_StopsRefreshTimer()
     {
         // Arrange
-        _viewModel = CreateViewModel();
+        var viewModel = CreateViewModel();
         Thread.Sleep(100); // Allow timer to start
 
         // Act
-        _viewModel.Dispose();
+        viewModel.Dispose();
 
         // Small delay to ensure timer would have fired if still running
         Thread.Sleep(2500);
@@ -550,32 +573,34 @@ public class ConnectionsViewModelTests : IAsyncDisposable
     public void SearchText_WhenChanged_TriggersRefresh()
     {
         // Arrange
-        _viewModel = CreateViewModel();
+        var viewModel = CreateViewModel();
         Thread.Sleep(150); // Wait for initial load
 
         _processNetworkServiceMock.ClearReceivedCalls();
 
         // Act
-        _viewModel.SearchText = "chrome";
+        viewModel.SearchText = "chrome";
 
         // Allow async operation
         Thread.Sleep(200);
 
         // Assert
         _processNetworkServiceMock.Received().GetConnectionStatsAsync();
+        viewModel.Dispose();
     }
 
     [Test]
     public void SearchText_EmptyString_IsValid()
     {
         // Arrange
-        _viewModel = CreateViewModel();
+        var viewModel = CreateViewModel();
 
         // Act
-        _viewModel.SearchText = "";
+        viewModel.SearchText = "";
 
         // Assert
-        _viewModel.SearchText.Should().BeEmpty();
+        viewModel.SearchText.Should().BeEmpty();
+        viewModel.Dispose();
     }
 
     #endregion
@@ -595,13 +620,14 @@ public class ConnectionsViewModelTests : IAsyncDisposable
         };
         _processNetworkServiceMock.GetConnectionStatsAsync().Returns(connections);
 
-        _viewModel = CreateViewModel();
+        var viewModel = CreateViewModel();
 
         // Allow async initialization
         await Task.Delay(200);
 
         // Assert
-        _viewModel.ConnectionCount.Should().Be(3);
+        viewModel.ConnectionCount.Should().Be(3);
+        viewModel.Dispose();
     }
 
     [Test]
@@ -617,12 +643,13 @@ public class ConnectionsViewModelTests : IAsyncDisposable
         };
         _processNetworkServiceMock.GetConnectionStatsAsync().Returns(connections);
 
-        _viewModel = CreateViewModel();
+        var viewModel = CreateViewModel();
         await Task.Delay(200);
 
         // Assert
-        _viewModel.TcpCount.Should().Be(2);
-        _viewModel.UdpCount.Should().Be(1);
+        viewModel.TcpCount.Should().Be(2);
+        viewModel.UdpCount.Should().Be(1);
+        viewModel.Dispose();
     }
 
     [Test]
@@ -637,12 +664,13 @@ public class ConnectionsViewModelTests : IAsyncDisposable
         };
         _processNetworkServiceMock.GetConnectionStatsAsync().Returns(connections);
 
-        _viewModel = CreateViewModel();
+        var viewModel = CreateViewModel();
         await Task.Delay(200);
 
         // Assert
-        _viewModel.TotalSent.Should().Be("2 KB");
-        _viewModel.TotalReceived.Should().Be("4 KB");
+        viewModel.TotalSent.Should().Be("2 KB");
+        viewModel.TotalReceived.Should().Be("4 KB");
+        viewModel.Dispose();
     }
 
     [Test]
@@ -656,11 +684,12 @@ public class ConnectionsViewModelTests : IAsyncDisposable
         };
         _processNetworkServiceMock.GetConnectionStatsAsync().Returns(connections);
 
-        _viewModel = CreateViewModel();
+        var viewModel = CreateViewModel();
         await Task.Delay(200);
 
         // Assert
         _dnsResolverMock.Received().QueueForResolution("8.8.8.8");
+        viewModel.Dispose();
     }
 
     [Test]
@@ -676,11 +705,12 @@ public class ConnectionsViewModelTests : IAsyncDisposable
         };
         _processNetworkServiceMock.GetConnectionStatsAsync().Returns(connections);
 
-        _viewModel = CreateViewModel();
+        var viewModel = CreateViewModel();
         await Task.Delay(200);
 
         // Assert
         _dnsResolverMock.Received().GetCached("8.8.8.8");
+        viewModel.Dispose();
     }
 
     #endregion
@@ -717,7 +747,6 @@ public class ConnectionsViewModelTests : IAsyncDisposable
 
     public ValueTask DisposeAsync()
     {
-        _viewModel?.Dispose();
         return ValueTask.CompletedTask;
     }
 }

@@ -19,7 +19,6 @@ public class SettingsViewModelTests : IAsyncDisposable
     private readonly IElevationService _elevationService;
     private readonly IProcessNetworkService _processNetworkService;
     private readonly ILogger<SettingsViewModel> _logger;
-    private SettingsViewModel? _viewModel;
 
     public SettingsViewModelTests()
     {
@@ -91,15 +90,15 @@ public class SettingsViewModelTests : IAsyncDisposable
     public void Constructor_InitializesWithDefaultSettings()
     {
         // Act
-        _viewModel = CreateViewModel();
+        var viewModel = CreateViewModel();
 
         // Allow async LoadSettings to complete
         Thread.Sleep(100);
 
         // Assert
-        _viewModel.PollingIntervalMs.Should().Be(1000);
-        _viewModel.UseIpHelperApi.Should().BeFalse();
-        _viewModel.IsPerAppTrackingEnabled.Should().BeFalse();
+        viewModel.PollingIntervalMs.Should().Be(1000);
+        viewModel.UseIpHelperApi.Should().BeFalse();
+        viewModel.IsPerAppTrackingEnabled.Should().BeFalse();
     }
 
     [Test]
@@ -114,13 +113,13 @@ public class SettingsViewModelTests : IAsyncDisposable
         _networkMonitor.GetAdapters(Arg.Any<bool>()).Returns(adapters);
 
         // Act
-        _viewModel = CreateViewModel();
+        var viewModel = CreateViewModel();
 
         // Allow async LoadSettings to complete
         Thread.Sleep(100);
 
         // Assert
-        _viewModel.Adapters.Should().HaveCount(2);
+        viewModel.Adapters.Should().HaveCount(2);
     }
 
     [Test]
@@ -138,28 +137,28 @@ public class SettingsViewModelTests : IAsyncDisposable
         _persistence.GetSettingsAsync().Returns(settings);
 
         // Act
-        _viewModel = CreateViewModel();
+        var viewModel = CreateViewModel();
 
         // Allow async LoadSettings to complete
         Thread.Sleep(100);
 
         // Assert
-        _viewModel.PollingIntervalMs.Should().Be(2000);
-        _viewModel.UseIpHelperApi.Should().BeTrue();
-        _viewModel.MinimizeToTray.Should().BeFalse();
-        _viewModel.StartMinimized.Should().BeTrue();
-        _viewModel.SelectedSpeedUnit.Should().Be(SpeedUnit.BitsPerSecond);
+        viewModel.PollingIntervalMs.Should().Be(2000);
+        viewModel.UseIpHelperApi.Should().BeTrue();
+        viewModel.MinimizeToTray.Should().BeFalse();
+        viewModel.StartMinimized.Should().BeTrue();
+        viewModel.SelectedSpeedUnit.Should().Be(SpeedUnit.BitsPerSecond);
     }
 
     [Test]
     public void Constructor_SubscribesToHelperConnectionStateChanged()
     {
         // Act
-        _viewModel = CreateViewModel();
+        var viewModel = CreateViewModel();
 
         // Assert - NSubstitute verifies this through proper event subscription
         // The subscription is verified by the fact that the view model works correctly
-        _viewModel.Should().NotBeNull();
+        viewModel.Should().NotBeNull();
     }
 
     #endregion
@@ -170,32 +169,32 @@ public class SettingsViewModelTests : IAsyncDisposable
     public void SpeedUnits_ContainsAllSpeedUnitValues()
     {
         // Act
-        _viewModel = CreateViewModel();
+        var viewModel = CreateViewModel();
 
         // Assert
-        _viewModel.SpeedUnits.Should().Contain(SpeedUnit.BytesPerSecond);
-        _viewModel.SpeedUnits.Should().Contain(SpeedUnit.BitsPerSecond);
-        _viewModel.SpeedUnits.Should().HaveCount(Enum.GetValues<SpeedUnit>().Length);
+        viewModel.SpeedUnits.Should().Contain(SpeedUnit.BytesPerSecond);
+        viewModel.SpeedUnits.Should().Contain(SpeedUnit.BitsPerSecond);
+        viewModel.SpeedUnits.Should().HaveCount(Enum.GetValues<SpeedUnit>().Length);
     }
 
     [Test]
     public void PollingIntervals_ContainsExpectedValues()
     {
         // Act
-        _viewModel = CreateViewModel();
+        var viewModel = CreateViewModel();
 
         // Assert
-        _viewModel.PollingIntervals.Should().BeEquivalentTo(new List<int> { 250, 500, 1000, 2000, 5000 });
+        viewModel.PollingIntervals.Should().BeEquivalentTo(new List<int> { 250, 500, 1000, 2000, 5000 });
     }
 
     [Test]
     public void TimeRangeOptions_ContainsExpectedValues()
     {
         // Act
-        _viewModel = CreateViewModel();
+        var viewModel = CreateViewModel();
 
         // Assert
-        _viewModel.TimeRangeOptions.Should().BeEquivalentTo(
+        viewModel.TimeRangeOptions.Should().BeEquivalentTo(
             new List<string> { "OneMinute", "FiveMinutes", "FifteenMinutes", "OneHour" });
     }
 
@@ -203,10 +202,10 @@ public class SettingsViewModelTests : IAsyncDisposable
     public void ChartUpdateIntervals_ContainsExpectedValues()
     {
         // Act
-        _viewModel = CreateViewModel();
+        var viewModel = CreateViewModel();
 
         // Assert
-        _viewModel.ChartUpdateIntervals.Should().BeEquivalentTo(
+        viewModel.ChartUpdateIntervals.Should().BeEquivalentTo(
             new List<int> { 500, 750, 1000, 1500, 2000, 3000, 5000 });
     }
 
@@ -214,10 +213,10 @@ public class SettingsViewModelTests : IAsyncDisposable
     public void InsightsPeriodOptions_ContainsExpectedValues()
     {
         // Act
-        _viewModel = CreateViewModel();
+        var viewModel = CreateViewModel();
 
         // Assert
-        _viewModel.InsightsPeriodOptions.Should().BeEquivalentTo(
+        viewModel.InsightsPeriodOptions.Should().BeEquivalentTo(
             new List<string> { "Today", "ThisWeek", "ThisMonth" });
     }
 
@@ -229,13 +228,13 @@ public class SettingsViewModelTests : IAsyncDisposable
     public async Task PollingIntervalMs_WhenChanged_SchedulesAutoSave()
     {
         // Arrange
-        _viewModel = CreateViewModel();
+        var viewModel = CreateViewModel();
 
         // Allow initial load to complete
         await Task.Delay(150);
 
         // Act
-        _viewModel.PollingIntervalMs = 2000;
+        viewModel.PollingIntervalMs = 2000;
 
         // Wait for auto-save delay (500ms) plus buffer
         await Task.Delay(700);
@@ -248,13 +247,13 @@ public class SettingsViewModelTests : IAsyncDisposable
     public async Task UseIpHelperApi_WhenChanged_SchedulesAutoSave()
     {
         // Arrange
-        _viewModel = CreateViewModel();
+        var viewModel = CreateViewModel();
 
         // Allow initial load to complete
         await Task.Delay(150);
 
         // Act
-        _viewModel.UseIpHelperApi = true;
+        viewModel.UseIpHelperApi = true;
 
         // Wait for auto-save delay
         await Task.Delay(700);
@@ -267,13 +266,13 @@ public class SettingsViewModelTests : IAsyncDisposable
     public async Task MinimizeToTray_WhenChanged_SchedulesAutoSave()
     {
         // Arrange
-        _viewModel = CreateViewModel();
+        var viewModel = CreateViewModel();
 
         // Allow initial load to complete
         await Task.Delay(150);
 
         // Act
-        _viewModel.MinimizeToTray = false;
+        viewModel.MinimizeToTray = false;
 
         // Wait for auto-save delay
         await Task.Delay(700);
@@ -286,13 +285,13 @@ public class SettingsViewModelTests : IAsyncDisposable
     public async Task SelectedSpeedUnit_WhenChanged_SchedulesAutoSave()
     {
         // Arrange
-        _viewModel = CreateViewModel();
+        var viewModel = CreateViewModel();
 
         // Allow initial load to complete
         await Task.Delay(150);
 
         // Act
-        _viewModel.SelectedSpeedUnit = SpeedUnit.BitsPerSecond;
+        viewModel.SelectedSpeedUnit = SpeedUnit.BitsPerSecond;
 
         // Wait for auto-save delay
         await Task.Delay(700);
@@ -305,17 +304,17 @@ public class SettingsViewModelTests : IAsyncDisposable
     public async Task RapidChanges_DebouncesAutoSave()
     {
         // Arrange
-        _viewModel = CreateViewModel();
+        var viewModel = CreateViewModel();
 
         // Allow initial load to complete
         await Task.Delay(150);
 
         // Act - make rapid changes
-        _viewModel.PollingIntervalMs = 2000;
+        viewModel.PollingIntervalMs = 2000;
         await Task.Delay(100);
-        _viewModel.PollingIntervalMs = 3000;
+        viewModel.PollingIntervalMs = 3000;
         await Task.Delay(100);
-        _viewModel.PollingIntervalMs = 4000;
+        viewModel.PollingIntervalMs = 4000;
 
         // Wait for auto-save delay
         await Task.Delay(700);
@@ -328,13 +327,13 @@ public class SettingsViewModelTests : IAsyncDisposable
     public async Task DashboardSettings_WhenChanged_SchedulesAutoSave()
     {
         // Arrange
-        _viewModel = CreateViewModel();
+        var viewModel = CreateViewModel();
 
         // Allow initial load to complete
         await Task.Delay(150);
 
         // Act
-        _viewModel.ShowSystemMetricsInHeader = false;
+        viewModel.ShowSystemMetricsInHeader = false;
 
         // Wait for auto-save delay
         await Task.Delay(700);
@@ -354,13 +353,13 @@ public class SettingsViewModelTests : IAsyncDisposable
         _elevationService.IsHelperConnected.Returns(true);
 
         // Act
-        _viewModel = CreateViewModel();
+        var viewModel = CreateViewModel();
 
         // Allow async LoadSettings to complete
         Thread.Sleep(100);
 
         // Assert
-        _viewModel.IsElevated.Should().BeTrue();
+        viewModel.IsElevated.Should().BeTrue();
     }
 
     [Test]
@@ -372,13 +371,13 @@ public class SettingsViewModelTests : IAsyncDisposable
         _elevationService.IsElevationSupported.Returns(true);
 
         // Act
-        _viewModel = CreateViewModel();
+        var viewModel = CreateViewModel();
 
         // Allow async LoadSettings to complete
         Thread.Sleep(100);
 
         // Assert
-        _viewModel.RequiresElevation.Should().BeTrue();
+        viewModel.RequiresElevation.Should().BeTrue();
     }
 
     [Test]
@@ -389,20 +388,20 @@ public class SettingsViewModelTests : IAsyncDisposable
         _elevationService.RequiresElevation.Returns(false);
 
         // Act
-        _viewModel = CreateViewModel();
+        var viewModel = CreateViewModel();
 
         // Allow async LoadSettings to complete
         Thread.Sleep(100);
 
         // Assert
-        _viewModel.RequiresElevation.Should().BeFalse();
+        viewModel.RequiresElevation.Should().BeFalse();
     }
 
     [Test]
     public void HelperConnectionStateChanged_UpdatesElevationStatus()
     {
         // Arrange
-        _viewModel = CreateViewModel();
+        var viewModel = CreateViewModel();
 
         // Allow async LoadSettings to complete
         Thread.Sleep(100);
@@ -415,7 +414,7 @@ public class SettingsViewModelTests : IAsyncDisposable
         _elevationService.IsHelperConnected.Returns(true);
 
         // Assert
-        _viewModel.IsElevated.Should().BeTrue();
+        viewModel.IsElevated.Should().BeTrue();
     }
 
     [Test]
@@ -423,13 +422,13 @@ public class SettingsViewModelTests : IAsyncDisposable
     {
         // Arrange
         _elevationService.IsElevationSupported.Returns(false);
-        _viewModel = CreateViewModel();
+        var viewModel = CreateViewModel();
 
         // Allow async LoadSettings to complete
         await Task.Delay(100);
 
         // Act
-        await _viewModel.RequestElevationCommand.ExecuteAsync(null);
+        await viewModel.RequestElevationCommand.ExecuteAsync(null);
 
         // Assert
         await _elevationService.DidNotReceive().StartHelperAsync(Arg.Any<CancellationToken>());
@@ -441,13 +440,13 @@ public class SettingsViewModelTests : IAsyncDisposable
         // Arrange
         _elevationService.IsHelperConnected.Returns(true);
         _elevationService.IsElevationSupported.Returns(true);
-        _viewModel = CreateViewModel();
+        var viewModel = CreateViewModel();
 
         // Allow async LoadSettings to complete
         await Task.Delay(100);
 
         // Act
-        await _viewModel.RequestElevationCommand.ExecuteAsync(null);
+        await viewModel.RequestElevationCommand.ExecuteAsync(null);
 
         // Assert
         await _elevationService.DidNotReceive().StartHelperAsync(Arg.Any<CancellationToken>());
@@ -461,13 +460,13 @@ public class SettingsViewModelTests : IAsyncDisposable
         _elevationService.IsElevationSupported.Returns(true);
         _elevationService.StartHelperAsync(Arg.Any<CancellationToken>()).Returns(ElevationResult.Success());
 
-        _viewModel = CreateViewModel();
+        var viewModel = CreateViewModel();
 
         // Allow async LoadSettings to complete
         await Task.Delay(100);
 
         // Act
-        await _viewModel.RequestElevationCommand.ExecuteAsync(null);
+        await viewModel.RequestElevationCommand.ExecuteAsync(null);
 
         // Assert
         await _elevationService.Received(1).StartHelperAsync(Arg.Any<CancellationToken>());
@@ -484,13 +483,13 @@ public class SettingsViewModelTests : IAsyncDisposable
         _startupService.GetStartupStateAsync().Returns(StartupState.Enabled);
 
         // Act
-        _viewModel = CreateViewModel();
+        var viewModel = CreateViewModel();
 
         // Allow async LoadSettings to complete
         Thread.Sleep(100);
 
         // Assert
-        _viewModel.StartWithWindows.Should().BeTrue();
+        viewModel.StartWithWindows.Should().BeTrue();
     }
 
     [Test]
@@ -500,13 +499,13 @@ public class SettingsViewModelTests : IAsyncDisposable
         _startupService.GetStartupStateAsync().Returns(StartupState.Disabled);
 
         // Act
-        _viewModel = CreateViewModel();
+        var viewModel = CreateViewModel();
 
         // Allow async LoadSettings to complete
         Thread.Sleep(100);
 
         // Assert
-        _viewModel.StartWithWindows.Should().BeFalse();
+        viewModel.StartWithWindows.Should().BeFalse();
     }
 
     [Test]
@@ -516,13 +515,13 @@ public class SettingsViewModelTests : IAsyncDisposable
         _startupService.GetStartupStateAsync().Returns(StartupState.DisabledByUser);
 
         // Act
-        _viewModel = CreateViewModel();
+        var viewModel = CreateViewModel();
 
         // Allow async LoadSettings to complete
         Thread.Sleep(100);
 
         // Assert
-        _viewModel.IsStartupDisabledByUser.Should().BeTrue();
+        viewModel.IsStartupDisabledByUser.Should().BeTrue();
     }
 
     [Test]
@@ -532,13 +531,13 @@ public class SettingsViewModelTests : IAsyncDisposable
         _startupService.GetStartupStateAsync().Returns(StartupState.DisabledByPolicy);
 
         // Act
-        _viewModel = CreateViewModel();
+        var viewModel = CreateViewModel();
 
         // Allow async LoadSettings to complete
         Thread.Sleep(100);
 
         // Assert
-        _viewModel.IsStartupDisabledByPolicy.Should().BeTrue();
+        viewModel.IsStartupDisabledByPolicy.Should().BeTrue();
     }
 
     [Test]
@@ -548,15 +547,15 @@ public class SettingsViewModelTests : IAsyncDisposable
         _startupService.IsStartupSupported.Returns(false);
 
         // Act
-        _viewModel = CreateViewModel();
+        var viewModel = CreateViewModel();
 
         // Allow async LoadSettings to complete
         Thread.Sleep(100);
 
         // Assert
-        _viewModel.StartWithWindows.Should().BeFalse();
-        _viewModel.IsStartupDisabledByUser.Should().BeFalse();
-        _viewModel.IsStartupDisabledByPolicy.Should().BeFalse();
+        viewModel.StartWithWindows.Should().BeFalse();
+        viewModel.IsStartupDisabledByUser.Should().BeFalse();
+        viewModel.IsStartupDisabledByPolicy.Should().BeFalse();
     }
 
     [Test]
@@ -566,16 +565,16 @@ public class SettingsViewModelTests : IAsyncDisposable
         _startupService.IsStartupSupported.Returns(true);
         _startupService.SetStartupWithResultAsync(true).Returns(StartupResult.Succeeded(StartupState.Enabled));
 
-        _viewModel = CreateViewModel();
+        var viewModel = CreateViewModel();
 
         // Allow async LoadSettings to complete
         await Task.Delay(100);
 
         // Change startup setting
-        _viewModel.StartWithWindows = true;
+        viewModel.StartWithWindows = true;
 
         // Act
-        await _viewModel.SaveCommand.ExecuteAsync(null);
+        await viewModel.SaveCommand.ExecuteAsync(null);
 
         // Assert
         await _startupService.Received(1).SetStartupWithResultAsync(true);
@@ -590,13 +589,13 @@ public class SettingsViewModelTests : IAsyncDisposable
     {
         // Arrange
         _processNetworkService.StartAsync().Returns(true);
-        _viewModel = CreateViewModel();
+        var viewModel = CreateViewModel();
 
         // Allow async LoadSettings to complete
         await Task.Delay(150);
 
         // Act
-        _viewModel.IsPerAppTrackingEnabled = true;
+        viewModel.IsPerAppTrackingEnabled = true;
 
         // Wait for async operation
         await Task.Delay(100);
@@ -613,13 +612,13 @@ public class SettingsViewModelTests : IAsyncDisposable
         settings.IsPerAppTrackingEnabled = true;
         _persistence.GetSettingsAsync().Returns(settings);
 
-        _viewModel = CreateViewModel();
+        var viewModel = CreateViewModel();
 
         // Allow async LoadSettings to complete
         await Task.Delay(150);
 
         // Act
-        _viewModel.IsPerAppTrackingEnabled = false;
+        viewModel.IsPerAppTrackingEnabled = false;
 
         // Wait for async operation
         await Task.Delay(100);
@@ -637,7 +636,7 @@ public class SettingsViewModelTests : IAsyncDisposable
         _persistence.GetSettingsAsync().Returns(settings);
 
         // Act - Create ViewModel (which loads settings including IsPerAppTrackingEnabled = true)
-        _viewModel = CreateViewModel();
+        var viewModel = CreateViewModel();
 
         // Allow async LoadSettings to complete
         await Task.Delay(150);
@@ -654,16 +653,16 @@ public class SettingsViewModelTests : IAsyncDisposable
     public void Dispose_CancelsAutoSaveCts()
     {
         // Arrange
-        _viewModel = CreateViewModel();
+        var viewModel = CreateViewModel();
 
         // Allow async LoadSettings to complete
         Thread.Sleep(100);
 
         // Trigger an auto-save to create a CancellationTokenSource
-        _viewModel.PollingIntervalMs = 2000;
+        viewModel.PollingIntervalMs = 2000;
 
         // Act & Assert - no exception should be thrown
-        var action = () => _viewModel.Dispose();
+        var action = () => viewModel.Dispose();
         action.Should().NotThrow();
     }
 
@@ -671,23 +670,23 @@ public class SettingsViewModelTests : IAsyncDisposable
     public void Dispose_UnsubscribesFromHelperConnectionStateChanged()
     {
         // Arrange
-        _viewModel = CreateViewModel();
+        var viewModel = CreateViewModel();
 
         // Allow async LoadSettings to complete
         Thread.Sleep(100);
 
         // Act
-        _viewModel.Dispose();
+        viewModel.Dispose();
 
         // Assert - After disposal, events should not trigger updates (verified by not throwing)
-        _viewModel.Should().NotBeNull();
+        viewModel.Should().NotBeNull();
     }
 
     [Test]
     public void Dispose_CanBeCalledMultipleTimes()
     {
         // Arrange
-        _viewModel = CreateViewModel();
+        var viewModel = CreateViewModel();
 
         // Allow async LoadSettings to complete
         Thread.Sleep(100);
@@ -695,8 +694,8 @@ public class SettingsViewModelTests : IAsyncDisposable
         // Act & Assert - should not throw
         var action = () =>
         {
-            _viewModel.Dispose();
-            _viewModel.Dispose();
+            viewModel.Dispose();
+            viewModel.Dispose();
         };
         action.Should().NotThrow();
     }
@@ -709,17 +708,17 @@ public class SettingsViewModelTests : IAsyncDisposable
     public async Task SaveCommand_SavesAllSettings()
     {
         // Arrange
-        _viewModel = CreateViewModel();
+        var viewModel = CreateViewModel();
 
         // Allow async LoadSettings to complete
         await Task.Delay(100);
 
         // Modify settings
-        _viewModel.PollingIntervalMs = 2000;
-        _viewModel.UseIpHelperApi = true;
+        viewModel.PollingIntervalMs = 2000;
+        viewModel.UseIpHelperApi = true;
 
         // Act
-        await _viewModel.SaveCommand.ExecuteAsync(null);
+        await viewModel.SaveCommand.ExecuteAsync(null);
 
         // Assert
         await _persistence.Received().SaveSettingsAsync(
@@ -732,15 +731,15 @@ public class SettingsViewModelTests : IAsyncDisposable
     public async Task SaveCommand_AppliesUseIpHelperApiToNetworkMonitor()
     {
         // Arrange
-        _viewModel = CreateViewModel();
+        var viewModel = CreateViewModel();
 
         // Allow async LoadSettings to complete
         await Task.Delay(100);
 
-        _viewModel.UseIpHelperApi = true;
+        viewModel.UseIpHelperApi = true;
 
         // Act
-        await _viewModel.SaveCommand.ExecuteAsync(null);
+        await viewModel.SaveCommand.ExecuteAsync(null);
 
         // Assert
         _networkMonitor.Received(1).SetUseIpHelperApi(true);
@@ -750,7 +749,6 @@ public class SettingsViewModelTests : IAsyncDisposable
 
     public ValueTask DisposeAsync()
     {
-        _viewModel?.Dispose();
         return ValueTask.CompletedTask;
     }
 }

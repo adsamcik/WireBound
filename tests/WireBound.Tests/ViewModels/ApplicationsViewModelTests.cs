@@ -15,7 +15,6 @@ public class ApplicationsViewModelTests : IAsyncDisposable
     private readonly IDataPersistenceService _persistenceMock;
     private readonly IProcessNetworkService _processNetworkServiceMock;
     private readonly IElevationService _elevationServiceMock;
-    private ApplicationsViewModel? _viewModel;
 
     public ApplicationsViewModelTests()
     {
@@ -75,46 +74,46 @@ public class ApplicationsViewModelTests : IAsyncDisposable
     public void Constructor_InitializesDefaultValues()
     {
         // Act
-        _viewModel = CreateViewModel();
+        var viewModel = CreateViewModel();
 
         // Assert
-        _viewModel.IsLoading.Should().BeFalse();
-        _viewModel.SearchText.Should().BeEmpty();
-        _viewModel.AppCount.Should().Be(0);
+        viewModel.IsLoading.Should().BeFalse();
+        viewModel.SearchText.Should().BeEmpty();
+        viewModel.AppCount.Should().Be(0);
     }
 
     [Test]
     public void Constructor_InitializesCollections()
     {
         // Act
-        _viewModel = CreateViewModel();
+        var viewModel = CreateViewModel();
 
         // Assert
-        _viewModel.ActiveApps.Should().NotBeNull();
-        _viewModel.AllApps.Should().NotBeNull();
+        viewModel.ActiveApps.Should().NotBeNull();
+        viewModel.AllApps.Should().NotBeNull();
     }
 
     [Test]
     public void Constructor_InitializesDateRange()
     {
         // Act
-        _viewModel = CreateViewModel();
+        var viewModel = CreateViewModel();
 
         // Assert
-        _viewModel.StartDate.Should().NotBeNull();
-        _viewModel.EndDate.Should().NotBeNull();
-        _viewModel.StartDate.Should().BeBefore(_viewModel.EndDate!.Value);
+        viewModel.StartDate.Should().NotBeNull();
+        viewModel.EndDate.Should().NotBeNull();
+        viewModel.StartDate.Should().BeBefore(viewModel.EndDate!.Value);
     }
 
     [Test]
     public void Constructor_InitializesTotalCounters()
     {
         // Act
-        _viewModel = CreateViewModel();
+        var viewModel = CreateViewModel();
 
         // Assert
-        _viewModel.TotalDownload.Should().Be("0 B");
-        _viewModel.TotalUpload.Should().Be("0 B");
+        viewModel.TotalDownload.Should().Be("0 B");
+        viewModel.TotalUpload.Should().Be("0 B");
     }
 
     [Test]
@@ -124,10 +123,10 @@ public class ApplicationsViewModelTests : IAsyncDisposable
         _processNetworkServiceMock.IsPlatformSupported.Returns(true);
 
         // Act
-        _viewModel = CreateViewModel();
+        var viewModel = CreateViewModel();
 
         // Assert
-        _viewModel.IsPlatformSupported.Should().BeTrue();
+        viewModel.IsPlatformSupported.Should().BeTrue();
     }
 
     [Test]
@@ -137,10 +136,10 @@ public class ApplicationsViewModelTests : IAsyncDisposable
         _processNetworkServiceMock.IsPlatformSupported.Returns(false);
 
         // Act
-        _viewModel = CreateViewModel();
+        var viewModel = CreateViewModel();
 
         // Assert
-        _viewModel.IsPlatformSupported.Should().BeFalse();
+        viewModel.IsPlatformSupported.Should().BeFalse();
     }
 
     [Test]
@@ -152,10 +151,10 @@ public class ApplicationsViewModelTests : IAsyncDisposable
         _elevationServiceMock.IsHelperConnected.Returns(false);
 
         // Act
-        _viewModel = CreateViewModel();
+        var viewModel = CreateViewModel();
 
         // Assert
-        _viewModel.RequiresElevation.Should().BeTrue();
+        viewModel.RequiresElevation.Should().BeTrue();
     }
 
     [Test]
@@ -167,10 +166,10 @@ public class ApplicationsViewModelTests : IAsyncDisposable
         _elevationServiceMock.IsHelperConnected.Returns(true);
 
         // Act
-        _viewModel = CreateViewModel();
+        var viewModel = CreateViewModel();
 
         // Assert
-        _viewModel.RequiresElevation.Should().BeFalse();
+        viewModel.RequiresElevation.Should().BeFalse();
     }
 
     [Test]
@@ -180,10 +179,10 @@ public class ApplicationsViewModelTests : IAsyncDisposable
         _elevationServiceMock.IsHelperConnected.Returns(false);
 
         // Act
-        _viewModel = CreateViewModel();
+        var viewModel = CreateViewModel();
 
         // Assert
-        _viewModel.IsByteTrackingLimited.Should().BeTrue();
+        viewModel.IsByteTrackingLimited.Should().BeTrue();
     }
 
     [Test]
@@ -193,17 +192,17 @@ public class ApplicationsViewModelTests : IAsyncDisposable
         _elevationServiceMock.IsHelperConnected.Returns(true);
 
         // Act
-        _viewModel = CreateViewModel();
+        var viewModel = CreateViewModel();
 
         // Assert
-        _viewModel.IsByteTrackingLimited.Should().BeFalse();
+        viewModel.IsByteTrackingLimited.Should().BeFalse();
     }
 
     [Test]
     public void Constructor_SubscribesToProcessStatsUpdatedEvent()
     {
         // Act
-        _viewModel = CreateViewModel();
+        using var viewModel = CreateViewModel();
 
         // Assert
         // Event subscription verified (NSubstitute does not verify event subscriptions directly)
@@ -213,7 +212,7 @@ public class ApplicationsViewModelTests : IAsyncDisposable
     public void Constructor_SubscribesToProcessErrorOccurredEvent()
     {
         // Act
-        _viewModel = CreateViewModel();
+        using var viewModel = CreateViewModel();
 
         // Assert
         // Event subscription verified (NSubstitute does not verify event subscriptions directly)
@@ -223,7 +222,7 @@ public class ApplicationsViewModelTests : IAsyncDisposable
     public void Constructor_SubscribesToHelperConnectionStateChangedEvent()
     {
         // Act
-        _viewModel = CreateViewModel();
+        using var viewModel = CreateViewModel();
 
         // Assert
         // Event subscription verified (NSubstitute does not verify event subscriptions directly)
@@ -240,10 +239,10 @@ public class ApplicationsViewModelTests : IAsyncDisposable
         _processNetworkServiceMock.IsRunning.Returns(false);
 
         // Act
-        _viewModel = CreateViewModel();
+        var viewModel = CreateViewModel();
 
         // Assert
-        _viewModel.IsPerAppTrackingEnabled.Should().BeFalse();
+        viewModel.IsPerAppTrackingEnabled.Should().BeFalse();
     }
 
     [Test]
@@ -253,10 +252,10 @@ public class ApplicationsViewModelTests : IAsyncDisposable
         _processNetworkServiceMock.IsRunning.Returns(true);
 
         // Act
-        _viewModel = CreateViewModel();
+        var viewModel = CreateViewModel();
 
         // Assert
-        _viewModel.IsPerAppTrackingEnabled.Should().BeTrue();
+        viewModel.IsPerAppTrackingEnabled.Should().BeTrue();
     }
 
     #endregion
@@ -267,10 +266,10 @@ public class ApplicationsViewModelTests : IAsyncDisposable
     public void Dispose_UnsubscribesFromProcessStatsUpdatedEvent()
     {
         // Arrange
-        _viewModel = CreateViewModel();
+        var viewModel = CreateViewModel();
 
         // Act
-        _viewModel.Dispose();
+        viewModel.Dispose();
 
         // Assert
         // Event unsubscription verified (NSubstitute does not verify event subscriptions directly)
@@ -280,10 +279,10 @@ public class ApplicationsViewModelTests : IAsyncDisposable
     public void Dispose_UnsubscribesFromProcessErrorOccurredEvent()
     {
         // Arrange
-        _viewModel = CreateViewModel();
+        var viewModel = CreateViewModel();
 
         // Act
-        _viewModel.Dispose();
+        viewModel.Dispose();
 
         // Assert
         // Event unsubscription verified (NSubstitute does not verify event subscriptions directly)
@@ -293,10 +292,10 @@ public class ApplicationsViewModelTests : IAsyncDisposable
     public void Dispose_UnsubscribesFromHelperConnectionStateChangedEvent()
     {
         // Arrange
-        _viewModel = CreateViewModel();
+        var viewModel = CreateViewModel();
 
         // Act
-        _viewModel.Dispose();
+        viewModel.Dispose();
 
         // Assert
         // Event unsubscription verified (NSubstitute does not verify event subscriptions directly)
@@ -306,18 +305,17 @@ public class ApplicationsViewModelTests : IAsyncDisposable
     public void Dispose_CanBeCalledMultipleTimes()
     {
         // Arrange
-        _viewModel = CreateViewModel();
+        var viewModel = CreateViewModel();
 
         // Act & Assert - should not throw
-        _viewModel.Dispose();
-        _viewModel.Dispose();
+        viewModel.Dispose();
+        viewModel.Dispose();
     }
 
     #endregion
 
     public ValueTask DisposeAsync()
     {
-        _viewModel?.Dispose();
         return ValueTask.CompletedTask;
     }
 }

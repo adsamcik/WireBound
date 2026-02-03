@@ -10,13 +10,12 @@ namespace WireBound.Tests.ViewModels;
 /// <summary>
 /// Unit tests for OverviewViewModel
 /// </summary>
-public class OverviewViewModelTests : IAsyncDisposable
+public class OverviewViewModelTests
 {
     private readonly INetworkMonitorService _networkMonitorMock;
     private readonly ISystemMonitorService _systemMonitorMock;
     private readonly IDataPersistenceService _persistenceMock;
     private readonly ILogger<OverviewViewModel> _loggerMock;
-    private OverviewViewModel? _viewModel;
 
     public OverviewViewModelTests()
     {
@@ -82,48 +81,48 @@ public class OverviewViewModelTests : IAsyncDisposable
     public void Constructor_InitializesDefaultSpeedValues()
     {
         // Act
-        _viewModel = CreateViewModel();
+        var viewModel = CreateViewModel();
 
         // Assert
-        _viewModel.DownloadSpeed.Should().Be("0 B/s");
-        _viewModel.UploadSpeed.Should().Be("0 B/s");
+        viewModel.DownloadSpeed.Should().Be("0 B/s");
+        viewModel.UploadSpeed.Should().Be("0 B/s");
     }
 
     [Test]
     public void Constructor_InitializesPeakSpeedValues()
     {
         // Act
-        _viewModel = CreateViewModel();
+        var viewModel = CreateViewModel();
 
         // Assert
-        _viewModel.PeakDownloadSpeed.Should().Be("0 B/s");
-        _viewModel.PeakUploadSpeed.Should().Be("0 B/s");
+        viewModel.PeakDownloadSpeed.Should().Be("0 B/s");
+        viewModel.PeakUploadSpeed.Should().Be("0 B/s");
     }
 
     [Test]
     public void Constructor_InitializesUsageValues()
     {
         // Act
-        _viewModel = CreateViewModel();
+        var viewModel = CreateViewModel();
 
         // Assert
-        _viewModel.TodayDownload.Should().Be("0 B");
-        _viewModel.TodayUpload.Should().Be("0 B");
-        _viewModel.SessionDownload.Should().Be("0 B");
-        _viewModel.SessionUpload.Should().Be("0 B");
+        viewModel.TodayDownload.Should().Be("0 B");
+        viewModel.TodayUpload.Should().Be("0 B");
+        viewModel.SessionDownload.Should().Be("0 B");
+        viewModel.SessionUpload.Should().Be("0 B");
     }
 
     [Test]
     public void Constructor_InitializesTrendIndicators()
     {
         // Act
-        _viewModel = CreateViewModel();
+        var viewModel = CreateViewModel();
 
         // Assert
-        _viewModel.DownloadTrendIcon.Should().Be("");
-        _viewModel.DownloadTrendText.Should().Be("stable");
-        _viewModel.UploadTrendIcon.Should().Be("");
-        _viewModel.UploadTrendText.Should().Be("stable");
+        viewModel.DownloadTrendIcon.Should().Be("");
+        viewModel.DownloadTrendText.Should().Be("stable");
+        viewModel.UploadTrendIcon.Should().Be("");
+        viewModel.UploadTrendText.Should().Be("stable");
     }
 
     [Test]
@@ -138,63 +137,63 @@ public class OverviewViewModelTests : IAsyncDisposable
         _systemMonitorMock.GetCurrentStats().Returns(systemStats);
 
         // Act
-        _viewModel = CreateViewModel();
+        var viewModel = CreateViewModel();
 
         // Assert
-        _viewModel.CpuPercent.Should().Be(25);
-        _viewModel.MemoryPercent.Should().Be(50);
-        _viewModel.CpuUsageFormatted.Should().Be("25%");
-        _viewModel.MemoryUsageFormatted.Should().Be("50%");
+        viewModel.CpuPercent.Should().Be(25);
+        viewModel.MemoryPercent.Should().Be(50);
+        viewModel.CpuUsageFormatted.Should().Be("25%");
+        viewModel.MemoryUsageFormatted.Should().Be("50%");
     }
 
     [Test]
     public void Constructor_InitializesChartSeries()
     {
         // Act
-        _viewModel = CreateViewModel();
+        var viewModel = CreateViewModel();
 
         // Assert
-        _viewModel.ChartSeries.Should().NotBeNull();
-        _viewModel.ChartSeries.Should().HaveCount(2); // Download and Upload series
+        viewModel.ChartSeries.Should().NotBeNull();
+        viewModel.ChartSeries.Should().HaveCount(2); // Download and Upload series
     }
 
     [Test]
     public void Constructor_InitializesChartAxes()
     {
         // Act
-        _viewModel = CreateViewModel();
+        var viewModel = CreateViewModel();
 
         // Assert
-        _viewModel.ChartXAxes.Should().NotBeNull();
-        _viewModel.ChartYAxes.Should().NotBeNull();
-        _viewModel.ChartSecondaryYAxes.Should().NotBeNull();
+        viewModel.ChartXAxes.Should().NotBeNull();
+        viewModel.ChartYAxes.Should().NotBeNull();
+        viewModel.ChartSecondaryYAxes.Should().NotBeNull();
     }
 
     [Test]
     public void Constructor_InitializesDefaultTimeRange()
     {
         // Act
-        _viewModel = CreateViewModel();
+        var viewModel = CreateViewModel();
 
         // Assert
-        _viewModel.SelectedTimeRange.Should().Be(TimeRange.OneMinute);
+        viewModel.SelectedTimeRange.Should().Be(TimeRange.OneMinute);
     }
 
     [Test]
     public void Constructor_InitializesAdaptersCollection()
     {
         // Act
-        _viewModel = CreateViewModel();
+        var viewModel = CreateViewModel();
 
         // Assert
-        _viewModel.Adapters.Should().NotBeNull();
+        viewModel.Adapters.Should().NotBeNull();
     }
 
     [Test]
     public void Constructor_SubscribesToNetworkStatsUpdated()
     {
         // Act
-        _viewModel = CreateViewModel();
+        var viewModel = CreateViewModel();
 
         // Assert
         // Event subscription verified (NSubstitute does not verify event subscriptions directly)
@@ -204,7 +203,7 @@ public class OverviewViewModelTests : IAsyncDisposable
     public void Constructor_SubscribesToSystemStatsUpdated()
     {
         // Act
-        _viewModel = CreateViewModel();
+        var viewModel = CreateViewModel();
 
         // Assert
         // Event subscription verified (NSubstitute does not verify event subscriptions directly)
@@ -222,10 +221,10 @@ public class OverviewViewModelTests : IAsyncDisposable
         _networkMonitorMock.GetAdapters(false).Returns(adapters);
 
         // Act
-        _viewModel = CreateViewModel();
+        var viewModel = CreateViewModel();
 
         // Assert
-        _viewModel.Adapters.Should().HaveCount(2);
+        viewModel.Adapters.Should().HaveCount(2);
     }
 
     [Test]
@@ -235,7 +234,7 @@ public class OverviewViewModelTests : IAsyncDisposable
         _persistenceMock.GetTodayUsageAsync().Returns((1024L * 1024 * 100, 1024L * 1024 * 50));
 
         // Act
-        _viewModel = CreateViewModel();
+        var viewModel = CreateViewModel();
 
         // Allow async operation to complete
         Thread.Sleep(100);
@@ -311,12 +310,12 @@ public class OverviewViewModelTests : IAsyncDisposable
         // Arrange
         var adapter = new NetworkAdapter { Id = "eth0", Name = "Ethernet", IsActive = true };
         _networkMonitorMock.GetAdapters(false).Returns(new List<NetworkAdapter> { adapter });
-        _viewModel = CreateViewModel();
+        var viewModel = CreateViewModel();
 
-        var adapterItem = _viewModel.Adapters.First();
+        var adapterItem = viewModel.Adapters.First();
 
         // Act
-        _viewModel.SelectedAdapter = adapterItem;
+        viewModel.SelectedAdapter = adapterItem;
 
         // Assert
         _networkMonitorMock.Received(1).SetAdapter("eth0");
@@ -328,11 +327,11 @@ public class OverviewViewModelTests : IAsyncDisposable
         // Arrange
         var adapter = new NetworkAdapter { Id = "eth0", Name = "Ethernet", IsActive = true };
         _networkMonitorMock.GetAdapters(false).Returns(new List<NetworkAdapter> { adapter });
-        _viewModel = CreateViewModel();
-        _viewModel.SelectedAdapter = _viewModel.Adapters.First();
+        var viewModel = CreateViewModel();
+        viewModel.SelectedAdapter = viewModel.Adapters.First();
 
         // Act
-        _viewModel.SelectedAdapter = null;
+        viewModel.SelectedAdapter = null;
 
         // Assert
         _networkMonitorMock.Received(1).SetAdapter(string.Empty);
@@ -342,10 +341,10 @@ public class OverviewViewModelTests : IAsyncDisposable
     public void ShowAdvancedAdapters_WhenChanged_ReloadsAdapters()
     {
         // Arrange
-        _viewModel = CreateViewModel();
+        var viewModel = CreateViewModel();
 
         // Act
-        _viewModel.ShowAdvancedAdapters = true;
+        viewModel.ShowAdvancedAdapters = true;
 
         // Assert
         _networkMonitorMock.Received(1).GetAdapters(true);
@@ -364,11 +363,11 @@ public class OverviewViewModelTests : IAsyncDisposable
         _networkMonitorMock.GetAdapters(false).Returns(adapters);
 
         // Act
-        _viewModel = CreateViewModel();
+        var viewModel = CreateViewModel();
 
         // Assert - only active adapters should be loaded
-        _viewModel.Adapters.Should().HaveCount(2);
-        _viewModel.Adapters.Should().NotContain(a => a.Id == "eth1");
+        viewModel.Adapters.Should().HaveCount(2);
+        viewModel.Adapters.Should().NotContain(a => a.Id == "eth1");
     }
 
     #endregion
@@ -379,91 +378,91 @@ public class OverviewViewModelTests : IAsyncDisposable
     public void ToggleCpuOverlayCommand_TogglesShowCpuOverlay()
     {
         // Arrange
-        _viewModel = CreateViewModel();
-        var initialValue = _viewModel.ShowCpuOverlay;
+        var viewModel = CreateViewModel();
+        var initialValue = viewModel.ShowCpuOverlay;
 
         // Act
-        _viewModel.ToggleCpuOverlayCommand.Execute(null);
+        viewModel.ToggleCpuOverlayCommand.Execute(null);
 
         // Assert
-        _viewModel.ShowCpuOverlay.Should().Be(!initialValue);
+        viewModel.ShowCpuOverlay.Should().Be(!initialValue);
     }
 
     [Test]
     public void ToggleMemoryOverlayCommand_TogglesShowMemoryOverlay()
     {
         // Arrange
-        _viewModel = CreateViewModel();
-        var initialValue = _viewModel.ShowMemoryOverlay;
+        var viewModel = CreateViewModel();
+        var initialValue = viewModel.ShowMemoryOverlay;
 
         // Act
-        _viewModel.ToggleMemoryOverlayCommand.Execute(null);
+        viewModel.ToggleMemoryOverlayCommand.Execute(null);
 
         // Assert
-        _viewModel.ShowMemoryOverlay.Should().Be(!initialValue);
+        viewModel.ShowMemoryOverlay.Should().Be(!initialValue);
     }
 
     [Test]
     public void ShowCpuOverlay_WhenEnabled_RebuildsSeriesToIncludeCpuSeries()
     {
         // Arrange
-        _viewModel = CreateViewModel();
-        var initialSeriesCount = _viewModel.ChartSeries.Length;
+        var viewModel = CreateViewModel();
+        var initialSeriesCount = viewModel.ChartSeries.Length;
 
         // Act
-        _viewModel.ShowCpuOverlay = true;
+        viewModel.ShowCpuOverlay = true;
 
         // Assert
-        _viewModel.ChartSeries.Length.Should().Be(initialSeriesCount + 1);
-        _viewModel.ChartSeries.Should().Contain(s => s.Name == "CPU");
+        viewModel.ChartSeries.Length.Should().Be(initialSeriesCount + 1);
+        viewModel.ChartSeries.Should().Contain(s => s.Name == "CPU");
     }
 
     [Test]
     public void ShowMemoryOverlay_WhenEnabled_RebuildsSeriesToIncludeMemorySeries()
     {
         // Arrange
-        _viewModel = CreateViewModel();
-        var initialSeriesCount = _viewModel.ChartSeries.Length;
+        var viewModel = CreateViewModel();
+        var initialSeriesCount = viewModel.ChartSeries.Length;
 
         // Act
-        _viewModel.ShowMemoryOverlay = true;
+        viewModel.ShowMemoryOverlay = true;
 
         // Assert
-        _viewModel.ChartSeries.Length.Should().Be(initialSeriesCount + 1);
-        _viewModel.ChartSeries.Should().Contain(s => s.Name == "Memory");
+        viewModel.ChartSeries.Length.Should().Be(initialSeriesCount + 1);
+        viewModel.ChartSeries.Should().Contain(s => s.Name == "Memory");
     }
 
     [Test]
     public void ShowCpuOverlay_WhenDisabled_RebuildsSeriesToRemoveCpuSeries()
     {
         // Arrange
-        _viewModel = CreateViewModel();
-        _viewModel.ShowCpuOverlay = true;
-        var countWithCpu = _viewModel.ChartSeries.Length;
+        var viewModel = CreateViewModel();
+        viewModel.ShowCpuOverlay = true;
+        var countWithCpu = viewModel.ChartSeries.Length;
 
         // Act
-        _viewModel.ShowCpuOverlay = false;
+        viewModel.ShowCpuOverlay = false;
 
         // Assert
-        _viewModel.ChartSeries.Length.Should().Be(countWithCpu - 1);
-        _viewModel.ChartSeries.Should().NotContain(s => s.Name == "CPU");
+        viewModel.ChartSeries.Length.Should().Be(countWithCpu - 1);
+        viewModel.ChartSeries.Should().NotContain(s => s.Name == "CPU");
     }
 
     [Test]
     public void ShowBothOverlays_RebuildsSeriesToIncludeBoth()
     {
         // Arrange
-        _viewModel = CreateViewModel();
-        var initialCount = _viewModel.ChartSeries.Length;
+        var viewModel = CreateViewModel();
+        var initialCount = viewModel.ChartSeries.Length;
 
         // Act
-        _viewModel.ShowCpuOverlay = true;
-        _viewModel.ShowMemoryOverlay = true;
+        viewModel.ShowCpuOverlay = true;
+        viewModel.ShowMemoryOverlay = true;
 
         // Assert
-        _viewModel.ChartSeries.Length.Should().Be(initialCount + 2);
-        _viewModel.ChartSeries.Should().Contain(s => s.Name == "CPU");
-        _viewModel.ChartSeries.Should().Contain(s => s.Name == "Memory");
+        viewModel.ChartSeries.Length.Should().Be(initialCount + 2);
+        viewModel.ChartSeries.Should().Contain(s => s.Name == "CPU");
+        viewModel.ChartSeries.Should().Contain(s => s.Name == "Memory");
     }
 
     #endregion
@@ -474,13 +473,13 @@ public class OverviewViewModelTests : IAsyncDisposable
     public void SetTimeRangeCommand_SetsSelectedTimeRange()
     {
         // Arrange
-        _viewModel = CreateViewModel();
+        var viewModel = CreateViewModel();
 
         // Act
-        _viewModel.SetTimeRangeCommand.Execute(TimeRange.FiveMinutes);
+        viewModel.SetTimeRangeCommand.Execute(TimeRange.FiveMinutes);
 
         // Assert
-        _viewModel.SelectedTimeRange.Should().Be(TimeRange.FiveMinutes);
+        viewModel.SelectedTimeRange.Should().Be(TimeRange.FiveMinutes);
     }
 
     [Test]
@@ -491,13 +490,13 @@ public class OverviewViewModelTests : IAsyncDisposable
     public void SetTimeRangeCommand_AcceptsAllTimeRanges(TimeRange range)
     {
         // Arrange
-        _viewModel = CreateViewModel();
+        var viewModel = CreateViewModel();
 
         // Act
-        _viewModel.SetTimeRangeCommand.Execute(range);
+        viewModel.SetTimeRangeCommand.Execute(range);
 
         // Assert
-        _viewModel.SelectedTimeRange.Should().Be(range);
+        viewModel.SelectedTimeRange.Should().Be(range);
     }
 
     #endregion
@@ -508,10 +507,10 @@ public class OverviewViewModelTests : IAsyncDisposable
     public void Dispose_UnsubscribesFromNetworkStatsUpdated()
     {
         // Arrange
-        _viewModel = CreateViewModel();
+        var viewModel = CreateViewModel();
 
         // Act
-        _viewModel.Dispose();
+        viewModel.Dispose();
 
         // Assert
         // Event unsubscription verified (NSubstitute does not verify event subscriptions directly)
@@ -521,10 +520,10 @@ public class OverviewViewModelTests : IAsyncDisposable
     public void Dispose_UnsubscribesFromSystemStatsUpdated()
     {
         // Arrange
-        _viewModel = CreateViewModel();
+        var viewModel = CreateViewModel();
 
         // Act
-        _viewModel.Dispose();
+        viewModel.Dispose();
 
         // Assert
         // Event unsubscription verified (NSubstitute does not verify event subscriptions directly)
@@ -534,11 +533,11 @@ public class OverviewViewModelTests : IAsyncDisposable
     public void Dispose_CanBeCalledMultipleTimes()
     {
         // Arrange
-        _viewModel = CreateViewModel();
+        var viewModel = CreateViewModel();
 
         // Act & Assert - should not throw
-        _viewModel.Dispose();
-        _viewModel.Dispose();
+        viewModel.Dispose();
+        viewModel.Dispose();
     }
 
     #endregion
@@ -549,30 +548,30 @@ public class OverviewViewModelTests : IAsyncDisposable
     public void GpuPercent_InitiallyNull()
     {
         // Act
-        _viewModel = CreateViewModel();
+        var viewModel = CreateViewModel();
 
         // Assert
-        _viewModel.GpuPercent.Should().BeNull();
+        viewModel.GpuPercent.Should().BeNull();
     }
 
     [Test]
     public void IsGpuAvailable_InitiallyFalse()
     {
         // Act
-        _viewModel = CreateViewModel();
+        var viewModel = CreateViewModel();
 
         // Assert
-        _viewModel.IsGpuAvailable.Should().BeFalse();
+        viewModel.IsGpuAvailable.Should().BeFalse();
     }
 
     [Test]
     public void GpuUsageFormatted_InitiallyNA()
     {
         // Act
-        _viewModel = CreateViewModel();
+        var viewModel = CreateViewModel();
 
         // Assert
-        _viewModel.GpuUsageFormatted.Should().Be("N/A");
+        viewModel.GpuUsageFormatted.Should().Be("N/A");
     }
 
     #endregion
@@ -583,11 +582,11 @@ public class OverviewViewModelTests : IAsyncDisposable
     public void DownloadSpeed_RaisesPropertyChanged()
     {
         // Arrange
-        _viewModel = CreateViewModel();
-        using var monitor = _viewModel.Monitor();
+        var viewModel = CreateViewModel();
+        using var monitor = viewModel.Monitor();
 
         // Act
-        _viewModel.GetType().GetProperty("DownloadSpeed")!.SetValue(_viewModel, "100 KB/s");
+        viewModel.GetType().GetProperty("DownloadSpeed")!.SetValue(viewModel, "100 KB/s");
 
         // Assert
         monitor.Should().RaisePropertyChangeFor(x => x.DownloadSpeed);
@@ -597,11 +596,11 @@ public class OverviewViewModelTests : IAsyncDisposable
     public void UploadSpeed_RaisesPropertyChanged()
     {
         // Arrange
-        _viewModel = CreateViewModel();
-        using var monitor = _viewModel.Monitor();
+        var viewModel = CreateViewModel();
+        using var monitor = viewModel.Monitor();
 
         // Act
-        _viewModel.GetType().GetProperty("UploadSpeed")!.SetValue(_viewModel, "50 KB/s");
+        viewModel.GetType().GetProperty("UploadSpeed")!.SetValue(viewModel, "50 KB/s");
 
         // Assert
         monitor.Should().RaisePropertyChangeFor(x => x.UploadSpeed);
@@ -611,11 +610,11 @@ public class OverviewViewModelTests : IAsyncDisposable
     public void CpuPercent_RaisesPropertyChanged()
     {
         // Arrange
-        _viewModel = CreateViewModel();
-        using var monitor = _viewModel.Monitor();
+        var viewModel = CreateViewModel();
+        using var monitor = viewModel.Monitor();
 
         // Act
-        _viewModel.GetType().GetProperty("CpuPercent")!.SetValue(_viewModel, 50.0);
+        viewModel.GetType().GetProperty("CpuPercent")!.SetValue(viewModel, 50.0);
 
         // Assert
         monitor.Should().RaisePropertyChangeFor(x => x.CpuPercent);
@@ -625,11 +624,11 @@ public class OverviewViewModelTests : IAsyncDisposable
     public void MemoryPercent_RaisesPropertyChanged()
     {
         // Arrange
-        _viewModel = CreateViewModel();
-        using var monitor = _viewModel.Monitor();
+        var viewModel = CreateViewModel();
+        using var monitor = viewModel.Monitor();
 
         // Act
-        _viewModel.GetType().GetProperty("MemoryPercent")!.SetValue(_viewModel, 75.0);
+        viewModel.GetType().GetProperty("MemoryPercent")!.SetValue(viewModel, 75.0);
 
         // Assert
         monitor.Should().RaisePropertyChangeFor(x => x.MemoryPercent);
@@ -639,11 +638,11 @@ public class OverviewViewModelTests : IAsyncDisposable
     public void SelectedTimeRange_RaisesPropertyChanged()
     {
         // Arrange
-        _viewModel = CreateViewModel();
-        using var monitor = _viewModel.Monitor();
+        var viewModel = CreateViewModel();
+        using var monitor = viewModel.Monitor();
 
         // Act
-        _viewModel.SelectedTimeRange = TimeRange.OneHour;
+        viewModel.SelectedTimeRange = TimeRange.OneHour;
 
         // Assert
         monitor.Should().RaisePropertyChangeFor(x => x.SelectedTimeRange);
@@ -653,11 +652,11 @@ public class OverviewViewModelTests : IAsyncDisposable
     public void ShowCpuOverlay_RaisesPropertyChanged()
     {
         // Arrange
-        _viewModel = CreateViewModel();
-        using var monitor = _viewModel.Monitor();
+        var viewModel = CreateViewModel();
+        using var monitor = viewModel.Monitor();
 
         // Act
-        _viewModel.ShowCpuOverlay = true;
+        viewModel.ShowCpuOverlay = true;
 
         // Assert
         monitor.Should().RaisePropertyChangeFor(x => x.ShowCpuOverlay);
@@ -667,11 +666,11 @@ public class OverviewViewModelTests : IAsyncDisposable
     public void ShowMemoryOverlay_RaisesPropertyChanged()
     {
         // Arrange
-        _viewModel = CreateViewModel();
-        using var monitor = _viewModel.Monitor();
+        var viewModel = CreateViewModel();
+        using var monitor = viewModel.Monitor();
 
         // Act
-        _viewModel.ShowMemoryOverlay = true;
+        viewModel.ShowMemoryOverlay = true;
 
         // Assert
         monitor.Should().RaisePropertyChangeFor(x => x.ShowMemoryOverlay);
@@ -720,17 +719,11 @@ public class OverviewViewModelTests : IAsyncDisposable
         _networkMonitorMock.GetAdapters(false).Returns(adapters);
 
         // Act
-        _viewModel = CreateViewModel();
+        var viewModel = CreateViewModel();
 
         // Assert
-        _viewModel.Adapters.Should().BeEmpty();
+        viewModel.Adapters.Should().BeEmpty();
     }
 
     #endregion
-
-    public ValueTask DisposeAsync()
-    {
-        _viewModel?.Dispose();
-        return ValueTask.CompletedTask;
-    }
 }

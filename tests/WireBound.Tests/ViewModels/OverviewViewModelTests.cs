@@ -728,7 +728,9 @@ public class OverviewViewModelTests : IAsyncDisposable
 
     #endregion
 
-    public ValueTask DisposeAsync() {
+    public ValueTask DisposeAsync()
+    {
         _viewModel?.Dispose();
-    ; return ValueTask.CompletedTask; }
+        return ValueTask.CompletedTask;
+    }
 }

@@ -417,7 +417,7 @@ public class ConnectionsViewModelTests : IAsyncDisposable
         await _viewModel.RefreshCommand.ExecuteAsync(null);
 
         // Assert
-        _processNetworkServiceMock.Received(1).GetConnectionStatsAsync();
+        await _processNetworkServiceMock.Received(1).GetConnectionStatsAsync();
     }
 
     [Test]
@@ -715,7 +715,9 @@ public class ConnectionsViewModelTests : IAsyncDisposable
 
     #endregion
 
-    public ValueTask DisposeAsync() {
+    public ValueTask DisposeAsync()
+    {
         _viewModel?.Dispose();
-    ; return ValueTask.CompletedTask; }
+        return ValueTask.CompletedTask;
+    }
 }

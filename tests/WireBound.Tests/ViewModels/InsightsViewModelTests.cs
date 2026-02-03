@@ -685,7 +685,7 @@ public class InsightsViewModelTests : IAsyncDisposable
         _persistenceMock.ClearReceivedCalls();
 
         // Act
-        _viewModel.RefreshCommand.Execute(null);
+        await _viewModel.RefreshCommand.ExecuteAsync(null);
         await Task.Delay(200);
 
         // Assert
@@ -879,7 +879,9 @@ public class InsightsViewModelTests : IAsyncDisposable
 
     #endregion
 
-    public ValueTask DisposeAsync() {
+    public ValueTask DisposeAsync()
+    {
         _viewModel?.Dispose();
-    ; return ValueTask.CompletedTask; }
+        return ValueTask.CompletedTask;
+    }
 }

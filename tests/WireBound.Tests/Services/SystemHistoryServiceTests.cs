@@ -39,11 +39,13 @@ public class SystemHistoryServiceTests : IAsyncDisposable
         _service = new SystemHistoryService(_serviceProvider, _loggerMock);
     }
 
-    public ValueTask DisposeAsync() {
+    public ValueTask DisposeAsync()
+    {
         _service.Dispose();
         _context.Dispose();
         GC.SuppressFinalize(this);
-    ; return ValueTask.CompletedTask; }
+        return ValueTask.CompletedTask;
+    }
 
     #region Helper Methods
 

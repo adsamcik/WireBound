@@ -22,6 +22,7 @@ public sealed class LinuxPlatformServices : IPlatformServices
         services.AddSingleton<IWiFiInfoProvider, LinuxWiFiInfoProvider>();
         services.AddSingleton<IProcessNetworkProviderFactory, LinuxProcessNetworkProviderFactory>();
         services.AddSingleton<IElevationService, LinuxElevationService>();
+        services.AddSingleton<IHelperProcessManager, LinuxHelperProcessManager>();
         services.AddSingleton<ICpuInfoProvider, LinuxCpuInfoProvider>();
         services.AddSingleton<IMemoryInfoProvider, LinuxMemoryInfoProvider>();
     }

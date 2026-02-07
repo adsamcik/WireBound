@@ -22,6 +22,7 @@ public sealed class WindowsPlatformServices : IPlatformServices
         services.AddSingleton<IWiFiInfoProvider, WindowsWiFiInfoProvider>();
         services.AddSingleton<IProcessNetworkProviderFactory, WindowsProcessNetworkProviderFactory>();
         services.AddSingleton<IElevationService, WindowsElevationService>();
+        services.AddSingleton<IHelperProcessManager, WindowsHelperProcessManager>();
         services.AddSingleton<ICpuInfoProvider, WindowsCpuInfoProvider>();
         services.AddSingleton<IMemoryInfoProvider, WindowsMemoryInfoProvider>();
     }

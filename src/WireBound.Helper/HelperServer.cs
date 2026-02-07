@@ -1,6 +1,5 @@
 using System.IO.Pipes;
 using System.Net.Sockets;
-using System.Text.Json;
 using Serilog;
 using WireBound.IPC;
 using WireBound.IPC.Messages;
@@ -15,16 +14,19 @@ namespace WireBound.Helper;
 /// </summary>
 public class HelperServer : IDisposable
 {
-    private readonly byte[] _secret = HmacAuthenticator.GenerateSecret();
-    private readonly Dictionary<string, SessionInfo> _sessions = new();
+    private readonly byte[] _secret;
+    private readonly SessionManager _sessionManager = new();
+    private readonly RateLimiter _rateLimiter = new();
     private readonly DateTimeOffset _startTime = DateTimeOffset.UtcNow;
     private readonly ConnectionTracker _connectionTracker = new();
 
+    public HelperServer()
+    {
+        _secret = SecretManager.GenerateAndStore();
+    }
+
     public async Task RunAsync(CancellationToken cancellationToken)
     {
-        // Write the secret to a temp file that the parent process can read
-        WriteSecretFile();
-
         if (OperatingSystem.IsWindows())
         {
             await RunNamedPipeServerAsync(cancellationToken);
@@ -37,22 +39,6 @@ public class HelperServer : IDisposable
         {
             Log.Error("Unsupported platform");
         }
-    }
-
-    private void WriteSecretFile()
-    {
-        var secretPath = GetSecretFilePath();
-        var dir = Path.GetDirectoryName(secretPath)!;
-        if (!Directory.Exists(dir))
-            Directory.CreateDirectory(dir);
-        File.WriteAllBytes(secretPath, _secret);
-        Log.Information("Secret written to {Path}", secretPath);
-    }
-
-    internal static string GetSecretFilePath()
-    {
-        var appData = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
-        return Path.Combine(appData, "WireBound", ".helper-secret");
     }
 
     private async Task RunNamedPipeServerAsync(CancellationToken cancellationToken)
@@ -132,18 +118,28 @@ public class HelperServer : IDisposable
                 var message = await IpcTransport.ReceiveAsync(stream, cancellationToken);
                 if (message is null) break;
 
+                // Rate limit authenticated sessions
+                if (sessionId is not null && !_rateLimiter.TryAcquire(sessionId))
+                {
+                    var rateLimitResponse = CreateResponse(message.RequestId, MessageType.Error,
+                        new ErrorResponse { Error = "Rate limit exceeded" });
+                    await IpcTransport.SendAsync(stream, rateLimitResponse, cancellationToken);
+                    continue;
+                }
+
                 var response = message.Type switch
                 {
-                    IpcConstants.AuthenticateType => HandleAuthenticate(message, out sessionId),
-                    IpcConstants.ConnectionStatsType => HandleConnectionStats(message, sessionId),
-                    IpcConstants.HeartbeatType => HandleHeartbeat(sessionId),
-                    IpcConstants.ShutdownType => HandleShutdown(message, sessionId),
+                    MessageType.Authenticate => HandleAuthenticate(message, out sessionId),
+                    MessageType.ConnectionStats => HandleConnectionStats(message, sessionId),
+                    MessageType.ProcessStats => HandleProcessStats(message, sessionId),
+                    MessageType.Heartbeat => HandleHeartbeat(sessionId),
+                    MessageType.Shutdown => HandleShutdown(message, sessionId),
                     _ => CreateErrorResponse(message.RequestId, $"Unknown message type: {message.Type}")
                 };
 
                 await IpcTransport.SendAsync(stream, response, cancellationToken);
 
-                if (message.Type == IpcConstants.ShutdownType)
+                if (message.Type == MessageType.Shutdown)
                     break;
             }
         }
@@ -154,8 +150,11 @@ public class HelperServer : IDisposable
         }
         finally
         {
-            if (sessionId != null)
-                _sessions.Remove(sessionId);
+            if (sessionId is not null)
+            {
+                _sessionManager.RemoveSession(sessionId);
+                _rateLimiter.RemoveClient(sessionId);
+            }
             if (stream is IDisposable disposable)
                 disposable.Dispose();
         }
@@ -164,29 +163,41 @@ public class HelperServer : IDisposable
     private IpcMessage HandleAuthenticate(IpcMessage request, out string? sessionId)
     {
         sessionId = null;
-        var authRequest = JsonSerializer.Deserialize<AuthenticateRequest>(request.Payload);
-        if (authRequest is null)
-            return CreateErrorResponse(request.RequestId, "Invalid auth request");
+        AuthenticateRequest authRequest;
+        try
+        {
+            authRequest = IpcTransport.DeserializePayload<AuthenticateRequest>(request.Payload);
+        }
+        catch
+        {
+            return CreateResponse(request.RequestId, MessageType.Authenticate,
+                new AuthenticateResponse { Success = false, ErrorMessage = "Invalid auth request" });
+        }
 
         if (!HmacAuthenticator.Validate(authRequest.ClientPid, authRequest.Timestamp, authRequest.Signature, _secret))
         {
             Log.Warning("Authentication failed for PID {Pid}", authRequest.ClientPid);
-            return CreateResponse(request.RequestId, IpcConstants.AuthenticateType,
+            return CreateResponse(request.RequestId, MessageType.Authenticate,
                 new AuthenticateResponse { Success = false, ErrorMessage = "Authentication failed" });
         }
 
-        if (_sessions.Count >= IpcConstants.MaxConcurrentSessions)
+        var session = _sessionManager.CreateSession(authRequest.ClientPid, authRequest.ExecutablePath);
+        if (session is null)
         {
-            return CreateResponse(request.RequestId, IpcConstants.AuthenticateType,
+            return CreateResponse(request.RequestId, MessageType.Authenticate,
                 new AuthenticateResponse { Success = false, ErrorMessage = "Max sessions exceeded" });
         }
 
-        sessionId = Guid.NewGuid().ToString("N");
-        _sessions[sessionId] = new SessionInfo(authRequest.ClientPid, DateTimeOffset.UtcNow);
+        sessionId = session.SessionId;
         Log.Information("Authenticated client PID {Pid}, session {SessionId}", authRequest.ClientPid, sessionId);
 
-        return CreateResponse(request.RequestId, IpcConstants.AuthenticateType,
-            new AuthenticateResponse { Success = true, SessionId = sessionId });
+        return CreateResponse(request.RequestId, MessageType.Authenticate,
+            new AuthenticateResponse
+            {
+                Success = true,
+                SessionId = sessionId,
+                ExpiresAtUtc = session.ExpiresAtUtc.ToUnixTimeSeconds()
+            });
     }
 
     private IpcMessage HandleConnectionStats(IpcMessage request, string? sessionId)
@@ -195,17 +206,27 @@ public class HelperServer : IDisposable
             return CreateErrorResponse(request.RequestId, error);
 
         var stats = _connectionTracker.GetCurrentStats();
-        return CreateResponse(request.RequestId, IpcConstants.ConnectionStatsType, stats);
+        return CreateResponse(request.RequestId, MessageType.ConnectionStats, stats);
+    }
+
+    private IpcMessage HandleProcessStats(IpcMessage request, string? sessionId)
+    {
+        if (!ValidateSession(sessionId, out var error))
+            return CreateErrorResponse(request.RequestId, error);
+
+        // ProcessStats aggregation will be implemented by platform-specific helpers
+        return CreateResponse(request.RequestId, MessageType.ProcessStats,
+            new ProcessStatsResponse { Success = true });
     }
 
     private IpcMessage HandleHeartbeat(string? sessionId)
     {
-        return CreateResponse(Guid.NewGuid().ToString("N"), IpcConstants.HeartbeatType,
+        return CreateResponse(Guid.NewGuid().ToString("N"), MessageType.Heartbeat,
             new HeartbeatResponse
             {
                 Alive = true,
-                Uptime = DateTimeOffset.UtcNow - _startTime,
-                ActiveSessions = _sessions.Count
+                UptimeSeconds = (long)(DateTimeOffset.UtcNow - _startTime).TotalSeconds,
+                ActiveSessions = _sessionManager.ActiveCount
             });
     }
 
@@ -215,22 +236,16 @@ public class HelperServer : IDisposable
             return CreateErrorResponse(request.RequestId, error);
 
         Log.Information("Shutdown requested by session {SessionId}", sessionId);
-        return CreateResponse(request.RequestId, IpcConstants.ShutdownType,
-            new { Success = true });
+        return CreateResponse(request.RequestId, MessageType.Shutdown,
+            new HeartbeatResponse { Alive = false });
     }
 
     private bool ValidateSession(string? sessionId, out string error)
     {
-        if (sessionId is null || !_sessions.TryGetValue(sessionId, out var session))
+        var session = _sessionManager.ValidateSession(sessionId);
+        if (session is null)
         {
             error = "Invalid or expired session";
-            return false;
-        }
-
-        if (DateTimeOffset.UtcNow - session.CreatedAt > IpcConstants.MaxSessionDuration)
-        {
-            _sessions.Remove(sessionId);
-            error = "Session expired";
             return false;
         }
 
@@ -238,13 +253,13 @@ public class HelperServer : IDisposable
         return true;
     }
 
-    private static IpcMessage CreateResponse<T>(string requestId, string type, T payload)
+    private static IpcMessage CreateResponse<T>(string requestId, MessageType type, T payload)
     {
         return new IpcMessage
         {
             Type = type,
             RequestId = requestId,
-            Payload = JsonSerializer.Serialize(payload)
+            Payload = IpcTransport.SerializePayload(payload)
         };
     }
 
@@ -252,24 +267,15 @@ public class HelperServer : IDisposable
     {
         return new IpcMessage
         {
-            Type = "error",
+            Type = MessageType.Error,
             RequestId = requestId,
-            Payload = JsonSerializer.Serialize(new { Error = error })
+            Payload = IpcTransport.SerializePayload(new ErrorResponse { Error = error })
         };
     }
 
     public void Dispose()
     {
         _connectionTracker.Dispose();
-        // Clean up secret file
-        try
-        {
-            var secretPath = GetSecretFilePath();
-            if (File.Exists(secretPath))
-                File.Delete(secretPath);
-        }
-        catch { /* best effort cleanup */ }
+        SecretManager.Delete();
     }
-
-    private record SessionInfo(int ClientPid, DateTimeOffset CreatedAt);
 }

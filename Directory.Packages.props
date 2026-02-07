@@ -34,6 +34,9 @@
     <PackageVersion Include="Serilog.Sinks.Debug" Version="3.0.0" />
     <PackageVersion Include="Serilog.Sinks.File" Version="7.0.0" />
 
+    <!-- IPC -->
+    <PackageVersion Include="MessagePack" Version="3.1.4" />
+
     <!-- Platform-specific -->
     <PackageVersion Include="ManagedNativeWifi" Version="3.0.2" />
     <PackageVersion Include="System.Diagnostics.PerformanceCounter" Version="10.0.2" />

@@ -1,5 +1,4 @@
 using System.IO.Pipes;
-using System.Text.Json;
 using WireBound.IPC;
 using WireBound.IPC.Messages;
 using WireBound.IPC.Security;
@@ -24,7 +23,7 @@ public class WindowsHelperConnection : IHelperConnection
             _pipe = new NamedPipeClientStream(".", IpcConstants.WindowsPipeName, PipeDirection.InOut, PipeOptions.Asynchronous);
             await _pipe.ConnectAsync(5000, cancellationToken);
 
-            var secret = ReadSecret();
+            var secret = SecretManager.Load();
             if (secret is null) return false;
 
             var pid = Environment.ProcessId;
@@ -35,21 +34,22 @@ public class WindowsHelperConnection : IHelperConnection
             {
                 ClientPid = pid,
                 Timestamp = timestamp,
-                Signature = signature
+                Signature = signature,
+                ExecutablePath = Environment.ProcessPath ?? string.Empty
             };
 
             var request = new IpcMessage
             {
-                Type = IpcConstants.AuthenticateType,
-                Payload = JsonSerializer.Serialize(authRequest)
+                Type = MessageType.Authenticate,
+                Payload = IpcTransport.SerializePayload(authRequest)
             };
 
             await IpcTransport.SendAsync(_pipe, request, cancellationToken);
             var response = await IpcTransport.ReceiveAsync(_pipe, cancellationToken);
             if (response is null) return false;
 
-            var authResponse = JsonSerializer.Deserialize<AuthenticateResponse>(response.Payload);
-            if (authResponse is null || !authResponse.Success) return false;
+            var authResponse = IpcTransport.DeserializePayload<AuthenticateResponse>(response.Payload);
+            if (!authResponse.Success) return false;
 
             _sessionId = authResponse.SessionId;
             return true;
@@ -80,16 +80,17 @@ public class WindowsHelperConnection : IHelperConnection
 
         var messageType = request switch
         {
-            ConnectionStatsRequest => IpcConstants.ConnectionStatsType,
-            HeartbeatRequest => IpcConstants.HeartbeatType,
-            ShutdownRequest => IpcConstants.ShutdownType,
+            ConnectionStatsRequest => MessageType.ConnectionStats,
+            ProcessStatsRequest => MessageType.ProcessStats,
+            HeartbeatRequest => MessageType.Heartbeat,
+            ShutdownRequest => MessageType.Shutdown,
             _ => throw new ArgumentException($"Unknown request type: {typeof(TRequest).Name}")
         };
 
         var message = new IpcMessage
         {
             Type = messageType,
-            Payload = JsonSerializer.Serialize(request)
+            Payload = IpcTransport.SerializePayload(request)
         };
 
         await IpcTransport.SendAsync(_pipe, message, cancellationToken);
@@ -101,19 +102,11 @@ public class WindowsHelperConnection : IHelperConnection
             throw new InvalidOperationException("Lost connection to helper");
         }
 
-        return JsonSerializer.Deserialize<TResponse>(response.Payload)
-               ?? throw new InvalidOperationException("Failed to deserialize response");
+        return IpcTransport.DeserializePayload<TResponse>(response.Payload);
     }
 
     public async ValueTask DisposeAsync()
     {
         await DisconnectAsync();
-    }
-
-    private static byte[]? ReadSecret()
-    {
-        var appData = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
-        var path = Path.Combine(appData, "WireBound", ".helper-secret");
-        return File.Exists(path) ? File.ReadAllBytes(path) : null;
     }
 }

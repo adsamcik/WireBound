@@ -86,9 +86,11 @@ public class ConnectionTracker : IDisposable
                     .Take(100) // Limit for performance
                     .Select(c => new ConnectionByteStats
                     {
-                        LocalEndpoint = c.LocalEndPoint.ToString(),
-                        RemoteEndpoint = c.RemoteEndPoint.ToString(),
-                        Protocol = "TCP",
+                        LocalAddress = c.LocalEndPoint.Address.ToString(),
+                        LocalPort = c.LocalEndPoint.Port,
+                        RemoteAddress = c.RemoteEndPoint.Address.ToString(),
+                        RemotePort = c.RemoteEndPoint.Port,
+                        Protocol = 6, // TCP
                         BytesSent = 0,
                         BytesReceived = 0
                     })

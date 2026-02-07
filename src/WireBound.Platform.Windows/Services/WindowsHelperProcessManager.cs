@@ -239,14 +239,28 @@ public sealed class WindowsHelperProcessManager : IHelperProcessManager
             cancellationToken.ThrowIfCancellationRequested();
 
             var processes = Process.GetProcessesByName(helperName);
-            if (processes.Length > 0)
+            try
             {
-                _helperProcess = processes[0];
-                _helperProcess.EnableRaisingEvents = true;
-                _helperProcess.Exited += OnHelperProcessExited;
+                if (processes.Length > 0)
+                {
+                    _helperProcess = processes[0];
+                    _helperProcess.EnableRaisingEvents = true;
+                    _helperProcess.Exited += OnHelperProcessExited;
 
-                await WaitForIpcReadyAsync(cancellationToken);
-                return HelperStartResult.Success(_helperProcess.Id);
+                    // Dispose all other Process objects to avoid handle leaks
+                    for (var j = 1; j < processes.Length; j++)
+                        processes[j].Dispose();
+
+                    await WaitForIpcReadyAsync(cancellationToken);
+                    return HelperStartResult.Success(_helperProcess.Id);
+                }
+            }
+            catch
+            {
+                // Dispose all on failure
+                foreach (var p in processes)
+                    p.Dispose();
+                throw;
             }
 
             await Task.Delay(100, cancellationToken);

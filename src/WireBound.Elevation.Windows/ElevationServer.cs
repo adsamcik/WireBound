@@ -118,9 +118,9 @@ public sealed partial class ElevationServer : IDisposable
 
     /// <summary>
     /// Creates a named pipe with restrictive ACL:
-    /// - SYSTEM: Full control
-    /// - Administrators: Full control
+    /// - SYSTEM: Full control (required for the elevated service)
     /// - Launching user (callerSid): Read/Write (so the non-elevated app can connect)
+    /// No other principals (including Administrators) get access — least privilege.
     /// </summary>
     private NamedPipeServerStream CreateSecurePipe()
     {
@@ -128,11 +128,6 @@ public sealed partial class ElevationServer : IDisposable
 
         security.AddAccessRule(new PipeAccessRule(
             new SecurityIdentifier(WellKnownSidType.LocalSystemSid, null),
-            PipeAccessRights.FullControl,
-            AccessControlType.Allow));
-
-        security.AddAccessRule(new PipeAccessRule(
-            new SecurityIdentifier(WellKnownSidType.BuiltinAdministratorsSid, null),
             PipeAccessRights.FullControl,
             AccessControlType.Allow));
 
@@ -414,6 +409,11 @@ public sealed partial class ElevationServer : IDisposable
     public void Dispose()
     {
         _tracker.Dispose();
+
+        // Zero the in-memory secret before releasing the reference
+        if (_secret.Length > 0)
+            Array.Clear(_secret, 0, _secret.Length);
+
         SecretManager.Delete();
     }
 }

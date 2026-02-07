@@ -10,9 +10,6 @@
     <Project Path="src/WireBound.Platform.Windows/WireBound.Platform.Windows.csproj" />
     <Project Path="src/WireBound.Platform.Linux/WireBound.Platform.Linux.csproj" />
   </Folder>
-  <Folder Name="/src/Helper/">
-    <Project Path="src/WireBound.Helper/WireBound.Helper.csproj" />
-  </Folder>
   <Folder Name="/src/Elevation/">
     <Project Path="src/WireBound.Elevation.Windows/WireBound.Elevation.Windows.csproj" />
     <Project Path="src/WireBound.Elevation.Linux/WireBound.Elevation.Linux.csproj" />

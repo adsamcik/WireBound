@@ -33,7 +33,12 @@ public sealed class ElevationServer : IDisposable
 
         var socketDir = Path.GetDirectoryName(IpcConstants.LinuxSocketPath)!;
         if (!Directory.Exists(socketDir))
+        {
             Directory.CreateDirectory(socketDir);
+            // Restrict directory: root-only access prevents socket path manipulation
+            File.SetUnixFileMode(socketDir,
+                UnixFileMode.UserRead | UnixFileMode.UserWrite | UnixFileMode.UserExecute);
+        }
 
         // Clean up stale socket
         if (File.Exists(IpcConstants.LinuxSocketPath))
@@ -43,6 +48,13 @@ public sealed class ElevationServer : IDisposable
         // The elevation helper is launched by a regular user via pkexec/systemd,
         // so SUDO_UID (or PKEXEC_UID) tells us which user should be allowed to connect.
         _expectedPeerUid = ResolveExpectedPeerUid();
+        if (_expectedPeerUid < 0)
+        {
+            Log.Error("Cannot determine expected peer UID — refusing to start without UID validation");
+            throw new InvalidOperationException(
+                "Unable to resolve the UID of the launching user. " +
+                "Ensure the helper is launched via pkexec, sudo, or a systemd service with SUDO_UID/PKEXEC_UID set.");
+        }
         Log.Information("Expected peer UID: {Uid}", _expectedPeerUid);
 
         var endpoint = new UnixDomainSocketEndPoint(IpcConstants.LinuxSocketPath);
@@ -66,7 +78,7 @@ public sealed class ElevationServer : IDisposable
                 var (clientPid, clientUid) = GetPeerCredentials(client);
 
                 // Verify the connecting user is the expected launching user
-                if (_expectedPeerUid >= 0 && clientUid != _expectedPeerUid)
+                if (clientUid != _expectedPeerUid)
                 {
                     Log.Warning("Rejected connection from UID {ActualUid} (expected {ExpectedUid}, PID {Pid})",
                         clientUid, _expectedPeerUid, clientPid);
@@ -150,7 +162,7 @@ public sealed class ElevationServer : IDisposable
             Log.Warning(ex, "Failed to resolve expected peer UID from fallback");
         }
 
-        Log.Warning("Could not determine expected peer UID; SO_PEERCRED check disabled");
+        Log.Warning("Could not determine expected peer UID from any source (PKEXEC_UID, SUDO_UID, loginuid)");
         return -1;
     }
 
@@ -408,6 +420,11 @@ public sealed class ElevationServer : IDisposable
     public void Dispose()
     {
         _tracker.Dispose();
+
+        // Zero the in-memory secret before releasing the reference
+        if (_secret.Length > 0)
+            Array.Clear(_secret, 0, _secret.Length);
+
         SecretManager.Delete();
 
         try { File.Delete(IpcConstants.LinuxSocketPath); }

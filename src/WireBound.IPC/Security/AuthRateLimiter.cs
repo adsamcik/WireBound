@@ -65,10 +65,10 @@ public sealed class AuthRateLimiter
 
         public bool TryAcquire(int maxPerSecond)
         {
-            var now = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
-
             lock (_lock)
             {
+                var now = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
+
                 if (now - _windowStart >= 1000)
                 {
                     _windowStart = now;

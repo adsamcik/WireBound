@@ -358,7 +358,11 @@ public sealed class NetlinkConnectionTracker : IDisposable
     public void Dispose()
     {
         Stop();
-        _refreshTimer.Dispose();
+
+        // Wait for any in-flight timer callback to complete before disposing
+        using var timerDone = new ManualResetEvent(false);
+        if (!_refreshTimer.Dispose(timerDone))
+            timerDone.WaitOne(TimeSpan.FromSeconds(5));
     }
 
     private class ConnectionEntry

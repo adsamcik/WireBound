@@ -75,7 +75,11 @@ public sealed class EtwConnectionTracker : IDisposable
         try
         {
             // Clean up any stale session from a previous crash
-            try { TraceEventSession.GetActiveSession(SessionName)?.Stop(); }
+            try
+            {
+                using var stale = TraceEventSession.GetActiveSession(SessionName);
+                stale?.Stop();
+            }
             catch { /* ignore */ }
 
             using var session = new TraceEventSession(SessionName);
@@ -137,6 +141,8 @@ public sealed class EtwConnectionTracker : IDisposable
 
     /// <summary>
     /// Refreshes the mapping of connections to PIDs using GetExtendedTcpTable P/Invoke.
+    /// Uses a retry loop to handle ERROR_INSUFFICIENT_BUFFER (122) when the TCP table
+    /// grows between the size query and the data fetch.
     /// </summary>
     private void RefreshConnectionPidMapping()
     {
@@ -147,52 +153,79 @@ public sealed class EtwConnectionTracker : IDisposable
             GetExtendedTcpTable(IntPtr.Zero, ref size, order: true,
                 AF_INET, TcpTableClass.TcpTableOwnerPidAll, 0);
 
-            var buffer = Marshal.AllocHGlobal(size);
-            try
+            // Retry loop: the TCP table can grow between size query and data fetch
+            const int maxRetries = 3;
+            for (var attempt = 0; attempt < maxRetries; attempt++)
             {
-                var result = GetExtendedTcpTable(buffer, ref size, order: true,
-                    AF_INET, TcpTableClass.TcpTableOwnerPidAll, 0);
-
-                if (result != 0)
+                // Add 10% padding to reduce retry likelihood
+                var allocSize = size + (size / 10);
+                var buffer = Marshal.AllocHGlobal(allocSize);
+                try
                 {
-                    Log.Debug("GetExtendedTcpTable failed with error code {ErrorCode}", result);
-                    return;
-                }
+                    var result = GetExtendedTcpTable(buffer, ref allocSize, order: true,
+                        AF_INET, TcpTableClass.TcpTableOwnerPidAll, 0);
 
-                var rowCount = Marshal.ReadInt32(buffer);
-                var rowPtr = buffer + Marshal.SizeOf<int>();
-                var rowSize = Marshal.SizeOf<MibTcpRowOwnerPid>();
-
-                for (var i = 0; i < rowCount; i++)
-                {
-                    var row = Marshal.PtrToStructure<MibTcpRowOwnerPid>(rowPtr + i * rowSize);
-
-                    var localAddr = new IPAddress(row.LocalAddr).ToString();
-                    var localPort = (row.LocalPort >> 8) | ((row.LocalPort & 0xFF) << 8);
-                    var remoteAddr = new IPAddress(row.RemoteAddr).ToString();
-                    var remotePort = (row.RemotePort >> 8) | ((row.RemotePort & 0xFF) << 8);
-
-                    var key = MakeConnectionKey(localAddr, localPort, remoteAddr, remotePort);
-                    _connectionToPid[key] = row.OwningPid;
-
-                    if (row.OwningPid != 0 && !_pidToProcessName.ContainsKey(row.OwningPid))
+                    if (result == ErrorInsufficientBuffer)
                     {
-                        try
+                        size = allocSize; // Use the updated size for next attempt
+                        Log.Debug("GetExtendedTcpTable buffer too small, retrying (attempt {Attempt})", attempt + 1);
+                        continue;
+                    }
+
+                    if (result != 0)
+                    {
+                        Log.Debug("GetExtendedTcpTable failed with error code {ErrorCode}", result);
+                        return;
+                    }
+
+                    var rowCount = Marshal.ReadInt32(buffer);
+                    var rowPtr = buffer + Marshal.SizeOf<int>();
+                    var rowSize = Marshal.SizeOf<MibTcpRowOwnerPid>();
+
+                    // Validate rowCount against allocated buffer to prevent overread
+                    var maxRows = (allocSize - Marshal.SizeOf<int>()) / rowSize;
+                    if (rowCount < 0 || rowCount > maxRows)
+                    {
+                        Log.Warning("GetExtendedTcpTable returned invalid row count {RowCount} (max {MaxRows})",
+                            rowCount, maxRows);
+                        return;
+                    }
+
+                    for (var i = 0; i < rowCount; i++)
+                    {
+                        var row = Marshal.PtrToStructure<MibTcpRowOwnerPid>(rowPtr + i * rowSize);
+
+                        var localAddr = new IPAddress(row.LocalAddr).ToString();
+                        var localPort = (row.LocalPort >> 8) | ((row.LocalPort & 0xFF) << 8);
+                        var remoteAddr = new IPAddress(row.RemoteAddr).ToString();
+                        var remotePort = (row.RemotePort >> 8) | ((row.RemotePort & 0xFF) << 8);
+
+                        var key = MakeConnectionKey(localAddr, localPort, remoteAddr, remotePort);
+                        _connectionToPid[key] = row.OwningPid;
+
+                        if (row.OwningPid != 0 && !_pidToProcessName.ContainsKey(row.OwningPid))
                         {
-                            using var proc = System.Diagnostics.Process.GetProcessById(row.OwningPid);
-                            _pidToProcessName[row.OwningPid] = proc.ProcessName;
-                        }
-                        catch
-                        {
-                            _pidToProcessName[row.OwningPid] = "Unknown";
+                            try
+                            {
+                                using var proc = System.Diagnostics.Process.GetProcessById(row.OwningPid);
+                                _pidToProcessName[row.OwningPid] = proc.ProcessName;
+                            }
+                            catch
+                            {
+                                _pidToProcessName[row.OwningPid] = "Unknown";
+                            }
                         }
                     }
+
+                    return; // Success — exit retry loop
+                }
+                finally
+                {
+                    Marshal.FreeHGlobal(buffer);
                 }
             }
-            finally
-            {
-                Marshal.FreeHGlobal(buffer);
-            }
+
+            Log.Warning("GetExtendedTcpTable failed after {MaxRetries} retries due to buffer growth", maxRetries);
         }
         catch (Exception ex)
         {
@@ -203,6 +236,7 @@ public sealed class EtwConnectionTracker : IDisposable
     #region P/Invoke for GetExtendedTcpTable
 
     private const int AF_INET = 2;
+    private const int ErrorInsufficientBuffer = 122;
 
     private enum TcpTableClass
     {
@@ -361,7 +395,12 @@ public sealed class EtwConnectionTracker : IDisposable
     public void Dispose()
     {
         Stop();
-        _refreshTimer.Dispose();
+
+        // Wait for any in-flight timer callback to complete before disposing
+        using var timerDone = new ManualResetEvent(false);
+        if (!_refreshTimer.Dispose(timerDone))
+            timerDone.WaitOne(TimeSpan.FromSeconds(5));
+
         _etwSession?.Dispose();
     }
 

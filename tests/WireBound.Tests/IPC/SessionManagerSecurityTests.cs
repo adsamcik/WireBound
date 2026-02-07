@@ -26,13 +26,21 @@ public class SessionManagerSecurityTests
     {
         var manager = new SessionManager();
         var results = new SessionInfo?[20];
-        var barrier = new Barrier(20);
 
-        Parallel.For(0, 20, i =>
+        // Use Task-based concurrency with countdown for tighter synchronization
+        using var ready = new CountdownEvent(20);
+        using var go = new ManualResetEventSlim(false);
+
+        var tasks = Enumerable.Range(0, 20).Select(i => Task.Run(() =>
         {
-            barrier.SignalAndWait();
+            ready.Signal();
+            go.Wait();
             results[i] = manager.CreateSession(i + 100, "/app");
-        });
+        })).ToArray();
+
+        ready.Wait();
+        go.Set();
+        Task.WaitAll(tasks, TimeSpan.FromSeconds(10)).Should().BeTrue("all tasks should complete within timeout");
 
         var created = results.Count(r => r is not null);
         created.Should().BeLessThanOrEqualTo(10, "should never exceed max concurrent sessions");

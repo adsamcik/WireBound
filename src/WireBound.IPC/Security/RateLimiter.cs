@@ -44,12 +44,10 @@ public sealed class RateLimiter
 
             lock (_lock)
             {
-                var windowStart = Interlocked.Read(ref _windowStart);
-
                 // Start new window if current one expired
-                if (now - windowStart >= 1000)
+                if (now - _windowStart >= 1000)
                 {
-                    Interlocked.Exchange(ref _windowStart, now);
+                    _windowStart = now;
                     _count = 1;
                     return true;
                 }

@@ -4,7 +4,7 @@
 
 .DESCRIPTION
     This script builds WireBound in Release configuration and creates
-    distributable packages for Windows, Linux, and macOS.
+    distributable packages for Windows and Linux.
 
 .PARAMETER Version
     The version number to use (e.g., "1.0.0"). If not specified, uses the version from the project file.
@@ -14,7 +14,7 @@
 
 .PARAMETER Runtime
     The target runtime identifier. Defaults to "win-x64".
-    Supported: win-x64, linux-x64, osx-arm64, osx-x64
+    Supported: win-x64, linux-x64
 
 .PARAMETER SelfContained
     Whether to create a self-contained deployment. Defaults to $true.
@@ -28,14 +28,12 @@
 .EXAMPLE
     .\publish.ps1 -Version "1.0.0" -Runtime "linux-x64"
 
-.EXAMPLE
-    .\publish.ps1 -Clean -Runtime "osx-arm64"
 #>
 
 param(
     [string]$Version,
     [string]$OutputDir = "./publish",
-    [ValidateSet("win-x64", "linux-x64", "osx-arm64", "osx-x64")]
+    [ValidateSet("win-x64", "linux-x64")]
     [string]$Runtime = "win-x64",
     [switch]$SelfContained = $true,
     [switch]$Clean
@@ -114,6 +112,29 @@ if ($SelfContained) {
 
 if ($LASTEXITCODE -ne 0) { throw "Build failed" }
 
+# Publish Helper
+Write-Step "Publishing WireBound.Helper for $Runtime..."
+$HelperProjectPath = Resolve-Path "$PSScriptRoot/../src/WireBound.Helper/WireBound.Helper.csproj" -ErrorAction Stop
+
+$helperPublishArgs = @(
+    "publish", $HelperProjectPath,
+    "--configuration", "Release",
+    "--runtime", $Runtime,
+    "--output", $portableOutput,
+    "-p:Version=$Version"
+)
+
+if ($SelfContained) {
+    $helperPublishArgs += "--self-contained", "true"
+} else {
+    $helperPublishArgs += "--self-contained", "false"
+}
+
+& dotnet @helperPublishArgs
+
+if ($LASTEXITCODE -ne 0) { throw "Helper build failed" }
+Write-Success "Helper published"
+
 # Create archive
 $targetIsWindows = $Runtime.StartsWith("win")
 $archiveExt = if ($targetIsWindows) { "zip" } else { "tar.gz" }
@@ -162,10 +183,5 @@ if ($targetIsWindows) {
     Write-Host "   1. Extract: tar -xzf $($archive.Name)"
     Write-Host "   2. Make executable: chmod +x WireBound.Avalonia"
     Write-Host "   3. Run: ./WireBound.Avalonia"
-} else {
-    Write-Host "📋 To install (macOS):"
-    Write-Host "   1. Extract: tar -xzf $($archive.Name)"
-    Write-Host "   2. Run: ./WireBound.Avalonia"
-    Write-Host "   Note: You may need to allow the app in Security & Privacy settings"
 }
 Write-Host ""

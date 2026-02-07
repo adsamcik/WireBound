@@ -89,8 +89,6 @@ jobs:
             name: Linux
           - runtime: win-x64
             name: Windows
-          - runtime: osx-arm64
-            name: macOS
     
     steps:
       - name: Checkout repository
@@ -112,6 +110,14 @@ jobs:
       - name: Publish ${{ matrix.name }} build
         run: |
           dotnet publish src/WireBound.Avalonia/WireBound.Avalonia.csproj \
+            --configuration Release \
+            --runtime ${{ matrix.runtime }} \
+            --self-contained true \
+            --output ./publish/${{ matrix.runtime }}
+
+      - name: Publish Helper
+        run: |
+          dotnet publish src/WireBound.Helper/WireBound.Helper.csproj \
             --configuration Release \
             --runtime ${{ matrix.runtime }} \
             --self-contained true \

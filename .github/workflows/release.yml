@@ -35,8 +35,6 @@ jobs:
             archive: tar.gz
           - runtime: win-x64
             archive: zip
-          - runtime: osx-arm64
-            archive: tar.gz
     
     steps:
       - name: Checkout repository
@@ -67,6 +65,15 @@ jobs:
       - name: Publish build
         run: |
           dotnet publish ${{ env.PROJECT_PATH }} \
+            --configuration Release \
+            --runtime ${{ matrix.runtime }} \
+            --self-contained true \
+            --output ./publish/${{ matrix.runtime }} \
+            -p:Version=${{ steps.version.outputs.VERSION }}
+
+      - name: Publish Helper
+        run: |
+          dotnet publish src/WireBound.Helper/WireBound.Helper.csproj \
             --configuration Release \
             --runtime ${{ matrix.runtime }} \
             --self-contained true \
@@ -126,10 +133,9 @@ jobs:
           ### Downloads
           - **Linux (x64)**: \`WireBound-$version-linux-x64.tar.gz\` - Extract and run \`WireBound.Avalonia\`
           - **Windows (x64)**: \`WireBound-$version-win-x64.zip\` - Extract and run \`WireBound.Avalonia.exe\`
-          - **macOS (ARM64)**: \`WireBound-$version-osx-arm64.tar.gz\` - Extract and run \`WireBound.Avalonia\`
           
           ### System Requirements
-          - Linux / Windows 10+ / macOS
+          - Linux / Windows 10+
           - Self-contained (no runtime required)
           
           ### What's New

@@ -1,8 +1,15 @@
+<!--
+context-init:version: 3.0.0
+context-init:generated: 2026-02-07T14:21:00Z
+context-init:mode: full-init
+-->
+
 # Architecture
 
 ## System Overview
 
-```
+<!-- context-init:managed -->
+```text
 ┌─────────────────────────────────────────────────────────────────────────────┐
 │                             User Interface Layer                             │
 │  WireBound.Avalonia                                                          │
@@ -10,10 +17,11 @@
 │  │    Views    │  │  ViewModels │  │  Controls   │  │     Converters      │ │
 │  │  (AXAML)    │  │  (MVVM+DI)  │  │  (Custom)   │  │  (Value Converters) │ │
 │  └─────────────┘  └─────────────┘  └─────────────┘  └─────────────────────┘ │
-│  ┌─────────────────────────────────────────────────────────────────────────┐│
-│  │                        UI Services                                       ││
-│  │  NavigationService, ViewFactory, TrayIconService, LocalizationService   ││
-│  └─────────────────────────────────────────────────────────────────────────┘│
+│  ┌─────────────────────────────────────────────────────────────────────────┐ │
+│  │                        UI Services                                      │ │
+│  │  NavigationService, ViewFactory, TrayIconService, LocalizationService   │ │
+│  │  NetworkPollingBackgroundService, SystemMonitorService, DnsResolver      │ │
+│  └─────────────────────────────────────────────────────────────────────────┘ │
 └──────────────────────────────────────┬──────────────────────────────────────┘
                                        │ DI / Service Resolution
 ┌──────────────────────────────────────┼──────────────────────────────────────┐
@@ -24,17 +32,23 @@
 │  │ NetworkStats│  │ Interfaces  │  │ DbContext   │  │ ByteFormatter       │ │
 │  │ AppSettings │  │ INetwork... │  │ Migrations  │  │ ChartColors         │ │
 │  │ SystemStats │  │ ISystem...  │  │             │  │ CircularBuffer      │ │
+│  │ SpeedUnit   │  │ IProcess... │  │             │  │ LttbDownsampler     │ │
 │  └─────────────┘  └─────────────┘  └─────────────┘  └─────────────────────┘ │
 └──────────────────────────────────────┬──────────────────────────────────────┘
                                        │ Interface Implementation
 ┌──────────────────────────────────────┼──────────────────────────────────────┐
 │                           Platform Abstraction                               │
 │  WireBound.Platform.Abstract                                                 │
-│  ┌─────────────────────────────────────────────────────────────────────────┐│
-│  │  IPlatformServices, ICpuInfoProvider, IMemoryInfoProvider,              ││
-│  │  IProcessNetworkProvider, IStartupService, IWiFiInfoProvider,           ││
-│  │  IElevationService, IDnsResolverService                                 ││
-│  └─────────────────────────────────────────────────────────────────────────┘│
+│  ┌─────────────────────────────────────────────────────────────────────────┐ │
+│  │  IPlatformServices, ICpuInfoProvider, IMemoryInfoProvider,              │ │
+│  │  IProcessNetworkProvider, IProcessNetworkProviderFactory,               │ │
+│  │  IStartupService, IWiFiInfoProvider, IElevationService,                 │ │
+│  │  IDnsResolverService, IHelperConnection, IHelperProcessManager          │ │
+│  └─────────────────────────────────────────────────────────────────────────┘ │
+│  ┌─────────────────────────────────────────────────────────────────────────┐ │
+│  │  Models: ProcessNetworkStats, ConnectionInfo, ConnectionStats,          │ │
+│  │          CpuInfoData, MemoryInfoData                                    │ │
+│  └─────────────────────────────────────────────────────────────────────────┘ │
 └──────────────────────────────────────┬──────────────────────────────────────┘
            ┌───────────────────────────┼───────────────────────────┐
            │                           │                           │
@@ -47,6 +61,8 @@
 │  WindowsMemoryInfo...  │  │  LinuxMemoryInfo...    │  │  StubMemoryInfo...     │
 │  WindowsStartupService │  │  LinuxStartupService   │  │  StubStartupService    │
 │  WindowsWiFiInfoProvider│ │  LinuxWiFiInfoProvider │  │  StubWiFiInfoProvider  │
+│  WindowsProcessNetwork │  │  LinuxProcessNetwork   │  │  StubProcessNetwork    │
+│  WindowsElevation...   │  │  LinuxElevation...     │  │  StubElevation...      │
 │                        │  │                        │  │                        │
 │  Uses: WMI, PerfCounter│  │  Uses: /proc, nmcli    │  │  Returns: Safe defaults│
 │  Registry, Native APIs │  │  ss, iw commands       │  │                        │
@@ -55,97 +71,152 @@
 
 ## Component Map
 
+<!-- context-init:managed -->
+
 ### WireBound.Avalonia (UI Application)
 
-#### Views
-| View | Purpose | Key Dependencies |
-|------|---------|------------------|
-| `MainWindow` | Application shell, navigation rail, content host | MainViewModel |
-| `OverviewView` | Quick dashboard with network + system metrics | OverviewViewModel |
-| `ChartsView` | Real-time interactive chart with time range selection | ChartsViewModel |
-| `SystemView` | Dedicated CPU/RAM monitoring with gauges | SystemViewModel |
-| `ApplicationsView` | Per-application network usage tracking | ApplicationsViewModel |
-| `ConnectionsView` | Active network connections list | ConnectionsViewModel |
-| `InsightsView` | Tabbed analytics: usage, trends, correlations | InsightsViewModel |
-| `SettingsView` | App configuration and preferences | SettingsViewModel |
+#### Views → ViewModels
 
-#### ViewModels
-| ViewModel | Responsibilities | Services Used |
-|-----------|------------------|---------------|
-| `MainViewModel` | Navigation state, app version | INavigationService, IViewFactory |
-| `OverviewViewModel` | Network + system stats aggregation | INetworkMonitorService, ISystemMonitorService, IDataPersistenceService |
-| `ChartsViewModel` | Live chart data management | INetworkPollingBackgroundService, ISpeedSnapshotRepository |
-| `SystemViewModel` | CPU/RAM display and history | ISystemMonitorService, ISystemHistoryService |
-| `ApplicationsViewModel` | Per-app bandwidth totals | IProcessNetworkService |
-| `ConnectionsViewModel` | Active TCP/UDP connections | IProcessNetworkService, IDnsResolverService |
-| `InsightsViewModel` | Historical analytics, trends | IDataPersistenceService, ISystemHistoryService |
-| `SettingsViewModel` | User preferences | ISettingsRepository |
+| View | ViewModel | Purpose |
+|------|-----------|---------|
+| `MainWindow` | `MainViewModel` | App shell, navigation rail, content host |
+| `OverviewView` | `OverviewViewModel` | Dashboard with network + system metrics |
+| `ChartsView` | `ChartsViewModel` | Real-time interactive chart, time range selection |
+| `SystemView` | `SystemViewModel` | CPU/RAM gauges and history |
+| `ApplicationsView` | `ApplicationsViewModel` | Per-application network usage |
+| `ConnectionsView` | `ConnectionsViewModel` | Active TCP/UDP connections |
+| `InsightsView` | `InsightsViewModel` | Tabbed analytics: usage, trends, correlations |
+| `SettingsView` | `SettingsViewModel` | App configuration and preferences |
+
+#### ViewModel Dependencies
+
+| ViewModel | Services Used |
+|-----------|---------------|
+| `MainViewModel` | INavigationService, IViewFactory |
+| `OverviewViewModel` | INetworkMonitorService, ISystemMonitorService, IDataPersistenceService |
+| `ChartsViewModel` | INetworkPollingBackgroundService, ISpeedSnapshotRepository |
+| `SystemViewModel` | ISystemMonitorService, ISystemHistoryService |
+| `ApplicationsViewModel` | IProcessNetworkService |
+| `ConnectionsViewModel` | IProcessNetworkService, IDnsResolverService |
+| `InsightsViewModel` | IDataPersistenceService, ISystemHistoryService |
+| `SettingsViewModel` | ISettingsRepository |
 
 #### Custom Controls
-| Control | Purpose |
+
+| Control | Purpose | Key Properties |
+|---------|---------|----------------|
+| `CircularGauge` | Radial progress for CPU/RAM percentage | Value, StrokeColor, Size |
+| `MiniSparkline` | Inline 60-second trend chart | Data points collection |
+| `SystemHealthStrip` | Header bar with CPU/RAM at-a-glance | System stats binding |
+
+#### UI Services
+
+| Service | Purpose |
 |---------|---------|
-| `CircularGauge` | Radial progress indicator for CPU/RAM percentage |
-| `MiniSparkline` | Inline trend chart (60-second history) |
-| `SystemHealthStrip` | Header bar with CPU/RAM/GPU at-a-glance |
+| `NavigationService` | Route-based navigation with events |
+| `ViewFactory` | Creates views from DI container |
+| `CrossPlatformNetworkMonitorService` | Polls `NetworkInterface.GetIPStatistics()` |
+| `NetworkPollingBackgroundService` | Timer-based polling (1s interval) |
+| `DataPersistenceService` | Implements 5 repository interfaces |
+| `SystemMonitorService` | Aggregates CPU/RAM from platform providers |
+| `SystemHistoryService` | Manages historical system stats |
+| `ProcessNetworkService` | Per-process bandwidth tracking |
+| `DnsResolverService` | Async DNS resolution with caching |
+| `WiFiInfoService` | WiFi SSID/signal from platform provider |
+| `LocalizationService` | i18n string provider |
+| `TrayIconService` | System tray integration |
+
+#### Converters & Helpers
+
+| Component | Purpose |
+|-----------|---------|
+| `SelectedRowConverter` | DataGrid row selection converter |
+| `SpeedUnitConverter` | Speed unit display formatting |
+| `ChartSeriesFactory` | Creates LiveCharts series objects |
+| `ChartDataManager` | Manages chart data lifecycle |
 
 ### WireBound.Core (Shared Library)
 
-#### Models
+#### Models (17)
+
 | Model | Purpose |
 |-------|---------|
 | `NetworkStats` | Real-time speed (Bps) and cumulative bytes |
 | `NetworkAdapter` | Adapter info: name, type, MAC, speed |
 | `HourlyUsage` / `DailyUsage` | Historical network data aggregations |
 | `HourlySystemStats` / `DailySystemStats` | Historical CPU/RAM aggregations |
-| `AppSettings` | User preferences (polling interval, themes, etc.) |
-| `AppUsageRecord` | Per-application bandwidth record |
+| `AppSettings` | User preferences (polling interval, theme, etc.) |
+| `AppUsageRecord` / `AddressUsageRecord` | Per-app and per-address bandwidth |
 | `SpeedSnapshot` | Point-in-time speed for chart history |
+| `SpeedUnit` | Speed display unit enumeration |
 | `CpuStats` / `MemoryStats` / `SystemStats` | System resource measurements |
-| `TimeRangeOption` | Time range selector options for charts (30s, 1m, 5m, etc.) |
+| `ConnectionInfo` / `ConnectionStats` | Active connection tracking |
+| `TimeRangeOption` | Chart time range selector options |
 
-#### Service Interfaces
+#### Service Interfaces (14)
+
 | Interface | Purpose |
 |-----------|---------|
 | `INetworkMonitorService` | Poll network adapters, calculate speeds |
-| `IDataPersistenceService` | High-level data save/load |
+| `INetworkPollingBackgroundService` | Background timer with StatsUpdated event |
+| `IDataPersistenceService` | High-level data persistence |
 | `INetworkUsageRepository` | Hourly/daily usage CRUD |
 | `IAppUsageRepository` | Per-app usage CRUD |
 | `ISettingsRepository` | App settings CRUD |
 | `ISpeedSnapshotRepository` | Speed history for charts |
 | `ISystemMonitorService` | Current CPU/RAM stats |
 | `ISystemHistoryService` | Historical system stats management |
+| `IProcessNetworkService` | Per-process network stats |
 | `INavigationService` | View navigation events |
-| `ILocalizationService` | String translations |
+| `ILocalizationService` | i18n string provider |
 | `ITrayIconService` | System tray functionality |
+| `IWiFiInfoService` | WiFi connection info |
 
-#### Helpers
+#### Helpers (6)
+
 | Helper | Purpose |
 |--------|---------|
-| `ByteFormatter` | Format bytes to human-readable (KB, MB, GB) |
+| `ByteFormatter` | Format bytes → human-readable (KB, MB, GB) |
 | `ChartColors` | Consistent chart color palette |
-| `CircularBuffer<T>` | O(1) fixed-size buffer for chart data |
-| `LttbDownsampler` | Largest-Triangle-Three-Buckets downsampling |
-| `AdaptiveThresholdCalculator` | Dynamic threshold calculation |
-| `TrendIndicatorCalculator` | Trend direction detection |
-| `TrendIndicatorCalculator` | Trend direction detection |
+| `CircularBuffer<T>` | O(1) fixed-size ring buffer for chart data |
+| `LttbDownsampler` | Largest-Triangle-Three-Buckets chart downsampling |
+| `AdaptiveThresholdCalculator` | Dynamic threshold computation |
+| `TrendIndicatorCalculator` | Trend direction detection (up/down/stable) |
 
-### WireBound.Platform.Abstract (Interfaces)
+### WireBound.Platform.Abstract (Interfaces + Models)
 
-| Interface | Purpose | Windows Impl | Linux Impl |
-|-----------|---------|--------------|------------|
-| `IPlatformServices` | Factory for registering all platform services | WindowsPlatformServices | LinuxPlatformServices |
-| `ICpuInfoProvider` | Get CPU usage percentage | PerformanceCounter | /proc/stat |
-| `IMemoryInfoProvider` | Get RAM usage | GlobalMemoryStatusEx | /proc/meminfo |
-| `IProcessNetworkProvider` | Per-process network stats | GetExtendedTcpTable | /proc/net/* |
-| `IStartupService` | Register/unregister startup | Registry | XDG autostart |
-| `IWiFiInfoProvider` | WiFi SSID, signal strength | ManagedNativeWifi | nmcli/iw |
-| `IElevationService` | Admin/root privilege check | UAC | pkexec |
+#### Platform Service Interfaces (10)
 
-## Data Flow
+| Interface | Purpose | Windows | Linux |
+|-----------|---------|---------|-------|
+| `IPlatformServices` | Factory to register all platform services | WindowsPlatformServices | LinuxPlatformServices |
+| `ICpuInfoProvider` | CPU usage % | PerformanceCounter | /proc/stat |
+| `IMemoryInfoProvider` | RAM usage | GlobalMemoryStatusEx | /proc/meminfo |
+| `IProcessNetworkProvider` | Per-process network | GetExtendedTcpTable | /proc/net/* |
+| `IProcessNetworkProviderFactory` | Creates process providers | Factory pattern | Factory pattern |
+| `IStartupService` | System startup config | Registry | XDG autostart |
+| `IWiFiInfoProvider` | WiFi SSID/signal | ManagedNativeWifi | nmcli/iw |
+| `IElevationService` | Admin privilege check | UAC | pkexec |
+| `IDnsResolverService` | DNS resolution | System DNS | System DNS |
+| `IHelperConnection` / `IHelperProcessManager` | Helper process IPC | Named pipes | Unix sockets |
+
+#### Platform Models (5)
+
+| Model | Purpose |
+|-------|---------|
+| `ProcessNetworkStats` | Per-process bytes sent/received |
+| `ConnectionInfo` | Active connection details |
+| `ConnectionStats` | Connection statistics |
+| `CpuInfoData` | CPU usage data transfer object |
+| `MemoryInfoData` | Memory usage data transfer object |
+
+## Data Flows
+
+<!-- context-init:managed -->
 
 ### Network Monitoring Flow
 
-```
+```text
 NetworkPollingBackgroundService (Timer: 1s)
        │
        ▼
@@ -172,7 +243,7 @@ NetworkPollingBackgroundService raises StatsUpdated event
 
 ### Navigation Flow
 
-```
+```text
 User clicks nav item
        │
        ▼
@@ -183,9 +254,6 @@ INavigationService.NavigateTo(route)
        │
        ▼
 NavigationChanged event raised
-       │
-       ▼
-MainViewModel.OnNavigationChanged()
        │
        ▼
 IViewFactory.CreateView(route)
@@ -202,7 +270,7 @@ ContentControl binding updates UI
 
 ### Platform Service Registration
 
-```
+```text
 App.ConfigureServices()
        │
        ├──► StubPlatformServices.Register() ── Always first (defaults)
@@ -212,24 +280,47 @@ App.ConfigureServices()
        └──► if Linux: LinuxPlatformServices.Register() ── Overrides stubs
 ```
 
-## External Integrations
+### System Monitoring Flow
 
-| Service | Purpose | Configuration |
-|---------|---------|---------------|
-| SQLite | Local persistence | `LocalApplicationData/WireBound/wirebound.db` |
-| Serilog | Structured logging | Configured in `Program.cs` |
-| LiveChartsCore | Charting library | Configured in `App.Initialize()` |
+```text
+SystemMonitorService (periodic poll)
+       │
+       ├──► ICpuInfoProvider.GetCpuUsagePercentAsync()
+       ├──► IMemoryInfoProvider.GetMemoryInfoAsync()
+       │
+       ▼
+SystemStats aggregated
+       │
+       ├──► SystemViewModel ──► CircularGauge + history charts
+       ├──► OverviewViewModel ──► SystemHealthStrip
+       └──► SystemHistoryService ──► HourlySystemStats / DailySystemStats
+```
 
 ## Database Schema
 
-### Core Tables
+<!-- context-init:managed -->
 
-| Table | Columns | Purpose |
-|-------|---------|---------|
-| `HourlyUsages` | Id, Date, Hour, BytesSent, BytesReceived | Hourly network aggregates |
-| `DailyUsages` | Id, Date, BytesSent, BytesReceived | Daily network aggregates |
-| `HourlySystemStats` | Id, Date, Hour, AvgCpuPercent, AvgMemoryPercent, MaxCpuPercent, MaxMemoryPercent | Hourly system stats |
-| `DailySystemStats` | Id, Date, AvgCpuPercent, AvgMemoryPercent, MaxCpuPercent, MaxMemoryPercent | Daily system stats |
-| `AppSettings` | Id, PollingIntervalMs, MinimizeToTray, StartMinimized, ... | User preferences |
-| `AppUsageRecords` | Id, ProcessName, Date, BytesSent, BytesReceived | Per-app bandwidth |
-| `SpeedSnapshots` | Id, Timestamp, DownloadBps, UploadBps | Speed history for charts |
+| Table | Key Columns | Purpose |
+|-------|-------------|---------|
+| `HourlyUsages` | Date, Hour, BytesSent, BytesReceived | Hourly network aggregates |
+| `DailyUsages` | Date, BytesSent, BytesReceived | Daily network aggregates |
+| `HourlySystemStats` | Date, Hour, AvgCpuPercent, AvgMemoryPercent, MaxCpu, MaxMemory | Hourly system stats |
+| `DailySystemStats` | Date, AvgCpuPercent, AvgMemoryPercent, MaxCpu, MaxMemory | Daily system stats |
+| `AppSettings` | PollingIntervalMs, MinimizeToTray, StartMinimized, ... | User preferences |
+| `AppUsageRecords` | ProcessName, Date, BytesSent, BytesReceived | Per-app bandwidth |
+| `SpeedSnapshots` | Timestamp, DownloadBps, UploadBps | Speed history for charts |
+
+**Storage**: `LocalApplicationData/WireBound/wirebound.db`
+
+## External Integrations
+
+<!-- context-init:managed -->
+
+| Integration | Purpose | Configuration |
+|-------------|---------|---------------|
+| SQLite | Local persistence | `LocalApplicationData/WireBound/wirebound.db` |
+| Serilog | Structured logging | `LocalApplicationData/WireBound/logs/`, daily rolling, 14-day retention |
+| LiveChartsCore | Charting | Initialized in `App.Initialize()` with SkiaSharp backend |
+| System.Net.NetworkInterface | Network stats | .NET built-in, cross-platform |
+
+<!-- context-init:user-content-below -->

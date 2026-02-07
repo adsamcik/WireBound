@@ -15,9 +15,6 @@ This document describes how to build and publish WireBound releases.
 
 # Build for Linux
 .\scripts\publish.ps1 -Version "1.0.0" -Runtime linux-x64
-
-# Build for macOS (Apple Silicon)
-.\scripts\publish.ps1 -Version "1.0.0" -Runtime osx-arm64
 ```
 
 ### Creating a Release
@@ -36,7 +33,7 @@ This document describes how to build and publish WireBound releases.
 
 | Workflow | Trigger | Purpose |
 |----------|---------|---------|
-| `ci.yml` | Push/PR to main | Build validation across Windows, Linux, macOS |
+| `ci.yml` | Push/PR to main | Build validation across Windows, Linux |
 | `release.yml` | Version tags (`v*.*.*`) | Create GitHub releases with all platform builds |
 | `nightly.yml` | Daily at 2 AM UTC | Automated nightly builds for all platforms |
 
@@ -57,14 +54,12 @@ You can trigger a release manually:
 |----------|---------|----------------|
 | Windows x64 | `win-x64` | `.zip` |
 | Linux x64 | `linux-x64` | `.tar.gz` |
-| macOS ARM64 | `osx-arm64` | `.tar.gz` |
-| macOS x64 | `osx-x64` | `.tar.gz` |
 
 ### Package Contents
 
 - **Format:** Self-contained application bundle
 - **Contents:** Executable with all dependencies (no .NET runtime required)
-- **Executable:** `WireBound.Avalonia.exe` (Windows) or `WireBound.Avalonia` (Linux/macOS)
+- **Executable:** `WireBound.Avalonia.exe` (Windows) or `WireBound.Avalonia` (Linux)
 
 ## Version Numbering
 
@@ -103,18 +98,6 @@ chmod +x WireBound.Avalonia
 ./WireBound.Avalonia
 ```
 
-### macOS
-
-```bash
-# Download and extract
-tar -xzf WireBound-<version>-osx-arm64.tar.gz
-
-# Run (may require security approval)
-./WireBound.Avalonia
-```
-
-> **Note:** On first run, macOS may block the app. Go to **System Preferences** → **Security & Privacy** and click "Open Anyway".
-
 ## Troubleshooting
 
 ### Build Failures
@@ -142,15 +125,6 @@ dotnet restore --runtime win-x64
 chmod +x WireBound.Avalonia
 # Install X11/Wayland dependencies if needed
 sudo apt install libx11-6 libice6 libsm6
-```
-
-### macOS Issues
-
-**Problem:** "App is damaged and can't be opened"
-**Solution:** Remove quarantine attribute:
-
-```bash
-xattr -cr WireBound.Avalonia
 ```
 
 ## Release Checklist

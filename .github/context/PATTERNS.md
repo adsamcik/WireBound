@@ -1,6 +1,14 @@
+<!--
+context-init:version: 3.0.0
+context-init:generated: 2026-02-07T14:21:00Z
+context-init:mode: full-init
+-->
+
 # Coding Patterns
 
 ## Naming Conventions
+
+<!-- context-init:managed -->
 
 | Type | Pattern | Example | Notes |
 |------|---------|---------|-------|
@@ -18,8 +26,14 @@
 | ViewModels | ...ViewModel | `OverviewViewModel` | |
 | Views | ...View / ...Window | `OverviewView` | |
 | Tests | ...Tests | `OverviewViewModelTests` | |
+| Platform services | Platform + Name | `WindowsCpuInfoProvider` | |
+| Stubs | Stub + Name | `StubCpuInfoProvider` | |
+
+**Where to see it**: Any file in `src/` follows these patterns consistently.
 
 ## MVVM Pattern
+
+<!-- context-init:managed -->
 
 ### ViewModel Structure
 
@@ -29,15 +43,12 @@ using CommunityToolkit.Mvvm.Input;
 
 namespace WireBound.Avalonia.ViewModels;
 
-/// <summary>
-/// Summary of what this ViewModel manages.
-/// </summary>
 public partial class ExampleViewModel : ObservableObject, IDisposable
 {
     private readonly INetworkMonitorService _networkMonitor;
     private bool _disposed;
 
-    // Observable properties use source generators
+    // Source-generated observable properties
     [ObservableProperty]
     private string _downloadSpeed = "0 B/s";
 
@@ -47,30 +58,19 @@ public partial class ExampleViewModel : ObservableObject, IDisposable
     public ExampleViewModel(INetworkMonitorService networkMonitor)
     {
         _networkMonitor = networkMonitor;
-        
-        // Subscribe to events
         _networkMonitor.StatsUpdated += OnStatsUpdated;
     }
 
     // Partial method for property change side effects
-    partial void OnIsLoadingChanged(bool value)
-    {
-        // React to property changes
-    }
+    partial void OnIsLoadingChanged(bool value) { }
 
-    // Commands use source generators
+    // Source-generated relay command
     [RelayCommand]
     private async Task RefreshAsync()
     {
         IsLoading = true;
-        try
-        {
-            // Do work
-        }
-        finally
-        {
-            IsLoading = false;
-        }
+        try { /* work */ }
+        finally { IsLoading = false; }
     }
 
     private void OnStatsUpdated(object? sender, NetworkStats stats)
@@ -87,329 +87,272 @@ public partial class ExampleViewModel : ObservableObject, IDisposable
 }
 ```
 
-### Where to See It
-- `src/WireBound.Avalonia/ViewModels/MainViewModel.cs`
-- `src/WireBound.Avalonia/ViewModels/OverviewViewModel.cs`
+**Key points**:
+- Class must be `partial` for source generators
+- Use `[ObservableProperty]` on private fields (generates public PascalCase property)
+- Use `[RelayCommand]` on methods (generates `...Command` property)
+- Subscribe/unsubscribe from events in constructor/Dispose
+
+**Where to see it**: `src/WireBound.Avalonia/ViewModels/OverviewViewModel.cs`, `MainViewModel.cs`
 
 ## Platform Abstraction Pattern
 
-### Interface Definition (Platform.Abstract)
+<!-- context-init:managed -->
+
+### Three-layer implementation
+
+1. **Interface** in `WireBound.Platform.Abstract/Services/`
+2. **Platform implementations** in `Platform.Windows/Services/` and `Platform.Linux/Services/`
+3. **Stub fallback** in `Platform.Stub/Services/`
 
 ```csharp
-namespace WireBound.Platform.Abstract.Services;
-
-/// <summary>
-/// Provides CPU usage information.
-/// </summary>
+// 1. Interface (Platform.Abstract)
 public interface ICpuInfoProvider
 {
-    /// <summary>
-    /// Gets current CPU usage as percentage (0-100).
-    /// </summary>
     Task<double> GetCpuUsagePercentAsync();
 }
-```
 
-### Platform Implementation (Platform.Windows)
-
-```csharp
-using System.Runtime.Versioning;
-using WireBound.Platform.Abstract.Services;
-
-namespace WireBound.Platform.Windows.Services;
-
+// 2. Windows implementation
 [SupportedOSPlatform("windows")]
-public sealed class WindowsCpuInfoProvider : ICpuInfoProvider
-{
-    public async Task<double> GetCpuUsagePercentAsync()
-    {
-        // Windows-specific implementation using PerformanceCounter
-    }
-}
-```
+public sealed class WindowsCpuInfoProvider : ICpuInfoProvider { ... }
 
-### Stub Implementation (Platform.Stub)
+// 3. Linux implementation
+[SupportedOSPlatform("linux")]
+public sealed class LinuxCpuInfoProvider : ICpuInfoProvider { ... }
 
-```csharp
-using WireBound.Platform.Abstract.Services;
-
-namespace WireBound.Platform.Stub.Services;
-
-/// <summary>
-/// Stub implementation for unsupported platforms or testing.
-/// </summary>
+// 4. Stub (always required)
 public sealed class StubCpuInfoProvider : ICpuInfoProvider
 {
     public Task<double> GetCpuUsagePercentAsync() => Task.FromResult(0.0);
 }
 ```
 
-### Registration (Platform.Windows)
-
+**Registration** (stubs first, platform overrides second):
 ```csharp
-[SupportedOSPlatform("windows")]
-public sealed class WindowsPlatformServices : IPlatformServices
-{
-    public static readonly WindowsPlatformServices Instance = new();
-    
-    public void Register(IServiceCollection services)
-    {
-        services.AddSingleton<ICpuInfoProvider, WindowsCpuInfoProvider>();
-        // ... other services
-    }
-}
-```
-
-## Dependency Injection Pattern
-
-### Service Registration Order
-
-```csharp
-// 1. Register core services first
-services.AddDbContext<WireBoundDbContext>();
-services.AddSingleton<INetworkMonitorService, CrossPlatformNetworkMonitorService>();
-
-// 2. Register stubs as defaults
 StubPlatformServices.Instance.Register(services);
-
-// 3. Override with platform-specific implementations
 if (OperatingSystem.IsWindows())
     WindowsPlatformServices.Instance.Register(services);
 else if (OperatingSystem.IsLinux())
     LinuxPlatformServices.Instance.Register(services);
-
-// 4. Register ViewModels (usually singletons)
-services.AddSingleton<MainViewModel>();
-
-// 5. Register Views (usually transient)
-services.AddTransient<OverviewView>();
 ```
 
-### Interface Segregation for Repositories
+**Where to see it**: `src/WireBound.Platform.*/Services/` directories
+
+## Dependency Injection Pattern
+
+<!-- context-init:managed -->
+
+### Registration order in `App.ConfigureServices()`
 
 ```csharp
-// Register impl once, expose multiple interfaces
+// 1. Core infrastructure (logging, database)
+services.AddDbContext<WireBoundDbContext>();
+
+// 2. Core services
+services.AddSingleton<INetworkMonitorService, CrossPlatformNetworkMonitorService>();
+
+// 3. Stubs as defaults
+StubPlatformServices.Instance.Register(services);
+
+// 4. Platform overrides
+if (OperatingSystem.IsWindows())
+    WindowsPlatformServices.Instance.Register(services);
+
+// 5. Interface segregation (one impl → many interfaces)
 services.AddSingleton<DataPersistenceService>();
 services.AddSingleton<IDataPersistenceService>(sp => sp.GetRequiredService<DataPersistenceService>());
 services.AddSingleton<INetworkUsageRepository>(sp => sp.GetRequiredService<DataPersistenceService>());
-services.AddSingleton<ISettingsRepository>(sp => sp.GetRequiredService<DataPersistenceService>());
+
+// 6. ViewModels (singletons)
+services.AddSingleton<MainViewModel>();
+
+// 7. Views (transient — fresh instance per navigation)
+services.AddTransient<OverviewView>();
 ```
 
-## Async Patterns
-
-### Fire-and-Forget with Error Handling
-
-```csharp
-// Use for async init that shouldn't block
-_ = InitializeAsyncServicesAsync();
-
-private async Task InitializeAsyncServicesAsync()
-{
-    try
-    {
-        await StartBackgroundServicesAsync();
-    }
-    catch (Exception ex)
-    {
-        Log.Error(ex, "Failed async initialization");
-    }
-}
-```
-
-### UI Thread Updates
-
-```csharp
-// Always update Avalonia UI from UI thread
-await Dispatcher.UIThread.InvokeAsync(() =>
-{
-    ChartSeries.Add(newPoint);
-});
-```
+**Where to see it**: `src/WireBound.Avalonia/App.axaml.cs`
 
 ## Testing Patterns
 
-### Test Structure
+<!-- context-init:managed -->
+
+### Test structure (TUnit + NSubstitute + AwesomeAssertions)
 
 ```csharp
-[Collection("LiveCharts")]  // Collection for shared context
-public class OverviewViewModelTests : IDisposable
+public class OverviewViewModelTests : IAsyncDisposable
 {
-    private readonly Mock<INetworkMonitorService> _networkMonitorMock;
+    private readonly INetworkMonitorService _networkMonitor;
     private OverviewViewModel? _viewModel;
 
     public OverviewViewModelTests()
     {
-        _networkMonitorMock = new Mock<INetworkMonitorService>();
+        _networkMonitor = Substitute.For<INetworkMonitorService>();
         SetupDefaultMocks();
     }
 
     private void SetupDefaultMocks()
     {
-        _networkMonitorMock
-            .Setup(x => x.GetCurrentStats())
-            .Returns(CreateDefaultNetworkStats());
+        _networkMonitor.GetCurrentStats().Returns(CreateDefaultStats());
     }
 
     private OverviewViewModel CreateViewModel()
     {
-        return new OverviewViewModel(
-            _networkMonitorMock.Object,
-            // ... other mocks
-        );
+        return new OverviewViewModel(_networkMonitor, /* other deps */);
     }
 
-    [Fact]
-    public void Constructor_InitializesDefaultSpeedValues()
+    [Test]
+    public async Task Constructor_InitializesDefaultSpeedValues()
     {
-        // Arrange (in CreateViewModel)
-        
-        // Act
         _viewModel = CreateViewModel();
-
-        // Assert
         _viewModel.DownloadSpeed.Should().Be("0 B/s");
     }
 
-    public void Dispose()
+    public async ValueTask DisposeAsync()
     {
         _viewModel?.Dispose();
     }
 }
 ```
 
-### Assertion Library
+**Key points**:
+- Use `[Test]` attribute (TUnit), NOT `[Fact]` (xUnit)
+- Use `Substitute.For<T>()` (NSubstitute), NOT `new Mock<T>()` (Moq)
+- Use `.Should().Be()` assertions (AwesomeAssertions)
+- Database tests extend `DatabaseTestBase` for in-memory EF Core setup
+- Tests touching LiveCharts need `LiveChartsHook` assembly fixture
 
-Use `AwesomeAssertions` (FluentAssertions-style):
+**Where to see it**: `tests/WireBound.Tests/ViewModels/`, `tests/WireBound.Tests/Fixtures/`
+
+## Async Patterns
+
+<!-- context-init:managed -->
+
+### Fire-and-forget with error handling
 
 ```csharp
-result.Should().Be(expected);
-result.Should().BeGreaterThan(0);
-collection.Should().HaveCount(3);
-action.Should().Throw<InvalidOperationException>();
+_ = InitializeAsyncServicesAsync();
+
+private async Task InitializeAsyncServicesAsync()
+{
+    try { await StartBackgroundServicesAsync(); }
+    catch (Exception ex) { Log.Error(ex, "Failed async initialization"); }
+}
 ```
+
+### UI thread updates (required for Avalonia/LiveCharts)
+
+```csharp
+await Dispatcher.UIThread.InvokeAsync(() =>
+{
+    ChartSeries.Add(newPoint);
+});
+```
+
+### Background service error isolation
+
+```csharp
+while (!_cancellationToken.IsCancellationRequested)
+{
+    try
+    {
+        var stats = await _monitor.GetCurrentStatsAsync();
+        StatsUpdated?.Invoke(this, stats);
+    }
+    catch (Exception ex)
+    {
+        Log.Warning(ex, "Polling iteration failed, continuing...");
+    }
+    await Task.Delay(_interval, _cancellationToken);
+}
+```
+
+**Where to see it**: `src/WireBound.Avalonia/Services/NetworkPollingBackgroundService.cs`
 
 ## Error Handling
 
-### Standard Try-Catch Pattern
+<!-- context-init:managed -->
+
+### Standard pattern: catch, log, return safe default
 
 ```csharp
 public async Task<AppSettings> LoadSettingsAsync()
 {
-    try
-    {
-        return await _repository.GetSettingsAsync();
-    }
+    try { return await _repository.GetSettingsAsync(); }
     catch (Exception ex)
     {
         Log.Error(ex, "Failed to load settings");
-        return new AppSettings(); // Return defaults
+        return new AppSettings(); // safe default
     }
 }
 ```
 
-### Background Service Error Isolation
+No custom error types or Result pattern — uses try/catch with Serilog logging throughout.
 
-```csharp
-private async Task PollAsync()
-{
-    while (!_cancellationToken.IsCancellationRequested)
-    {
-        try
-        {
-            var stats = await _monitor.GetCurrentStatsAsync();
-            StatsUpdated?.Invoke(this, stats);
-        }
-        catch (Exception ex)
-        {
-            Log.Warning(ex, "Polling iteration failed, continuing...");
-        }
-        
-        await Task.Delay(_interval, _cancellationToken);
-    }
-}
-```
+**Where to see it**: Most service methods in `src/WireBound.Avalonia/Services/`
 
 ## AXAML Styling Patterns
 
-### Resource References
+<!-- context-init:managed -->
+
+### Resource references
 
 ```xml
-<!-- Use StaticResource for theme colors -->
 <Border Background="{StaticResource SurfaceBackground}">
-    <TextBlock 
+    <TextBlock
         Text="{Binding DownloadSpeed}"
         Foreground="{StaticResource DownloadColor}"
         FontWeight="{StaticResource HeadingWeight}"/>
 </Border>
 ```
 
-### Control Templates
+### Custom control usage
 
 ```xml
-<!-- Custom control with bindable properties -->
-<controls:CircularGauge 
+<controls:CircularGauge
     Value="{Binding CpuUsagePercent}"
     StrokeColor="{StaticResource CpuColor}"
     Size="80"/>
 ```
 
-### Accessibility
+### Accessibility (required for all interactive elements)
 
 ```xml
-<!-- Always add AutomationProperties -->
-<Button 
+<Button
     Command="{Binding RefreshCommand}"
     AutomationProperties.Name="Refresh network statistics"
-    AutomationProperties.HelpText="Click to refresh the current network statistics">
+    AutomationProperties.HelpText="Click to refresh">
     ⟳
 </Button>
 ```
 
-## DateTime Usage Guidelines
+**Where to see it**: `src/WireBound.Avalonia/Views/*.axaml`, `src/WireBound.Avalonia/Styles/`
 
-This is a **local desktop monitoring application**. DateTime usage follows these intentional patterns:
+## DateTime Usage
 
-### Use `DateTime.Now` (Local Time)
+<!-- context-init:managed -->
 
-| Scenario | Rationale |
-| -------- | --------- |
-| Hourly/daily aggregations | User's "today" should match their local calendar day |
-| Speed snapshot timestamps | Displayed in local time to user |
-| UI date pickers and filters | Users work in local time |
-| Data retention cleanup | Cutoffs based on local day boundaries |
-| LastUpdated fields | Shown to user in local time |
+This is a **local desktop app** — DateTime follows intentional patterns:
 
-### Use `DateTime.UtcNow`
-
-| Scenario | Rationale |
-| -------- | --------- |
-| Cache TTL checks | Internal timing, not displayed to user |
-| Cross-timezone comparisons | N/A for desktop app |
-| Distributed timestamps | N/A for desktop app |
-
-### Example
+| Use `DateTime.Now` (Local) | Use `DateTime.UtcNow` |
+|---|---|
+| Hourly/daily aggregations | Cache TTL checks |
+| Speed snapshot timestamps | Internal timing |
+| UI date pickers/filters | |
+| Data retention cleanup | |
 
 ```csharp
-// ✅ Correct: Aggregations use local time (user's day/hour)
-var now = DateTime.Now;
-var currentHour = new DateTime(now.Year, now.Month, now.Day, now.Hour, 0, 0);
-var today = DateOnly.FromDateTime(now);
+// ✅ Aggregations use local time
+var today = DateOnly.FromDateTime(DateTime.Now);
 
-// ✅ Correct: Cache TTL uses UTC (internal, not displayed)
-if (DateTime.UtcNow - entry.CachedAt < CacheTtl)
-    return cached;
+// ✅ Cache TTL uses UTC
+if (DateTime.UtcNow - entry.CachedAt < CacheTtl) return cached;
 ```
 
-### Where to See It
-- `src/WireBound.Avalonia/Services/DataPersistenceService.cs` - Local time for aggregations
-- `src/WireBound.Avalonia/Services/SystemHistoryService.cs` - Local time for aggregations  
-- `src/WireBound.Avalonia/Services/DnsResolverService.cs` - UTC for cache TTL
-
----
+**Where to see it**: `DataPersistenceService.cs` (local), `DnsResolverService.cs` (UTC cache)
 
 ## Commit Conventions
 
-Use conventional commits:
+<!-- context-init:managed -->
 
 ```
 type(scope): description
@@ -423,3 +366,5 @@ chore(deps): update LiveCharts to 2.0.1
 ```
 
 Types: `feat`, `fix`, `docs`, `style`, `refactor`, `test`, `chore`
+
+<!-- context-init:user-content-below -->

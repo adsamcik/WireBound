@@ -214,26 +214,6 @@ The class documentation has been updated to explain this design decision and gui
 
 ---
 
-### 🔵 MI-4: No macOS Implementation
-
-**Location**: [App.axaml.cs](../src/WireBound.Avalonia/App.axaml.cs#L122-L127)
-**Dimension**: Functionality
-**Problem**: Platform registration only handles Windows and Linux; macOS falls through to stub services.
-
-```csharp
-if (OperatingSystem.IsWindows())
-    WindowsPlatformServices.Instance.Register(services);
-else if (OperatingSystem.IsLinux())
-    LinuxPlatformServices.Instance.Register(services);
-// macOS will use stub services
-```
-
-**Impact**: macOS users get non-functional platform-specific features.
-
-**Suggested Fix**: Document the macOS limitation clearly or implement `MacPlatformServices`.
-
----
-
 ## What's Good ✨
 
 1. **Excellent Architecture**: Clean MVVM pattern with source generators (`[ObservableProperty]`, `[RelayCommand]`) reduces boilerplate significantly.
@@ -322,8 +302,7 @@ else if (OperatingSystem.IsLinux())
 
 ### Long-Term (Roadmap)
 1. Complete elevated helper implementation
-2. Add macOS platform support
-3. Migrate from static `ByteFormatter` to injected service
+2. Migrate from static `ByteFormatter` to injected service
 
 ---
 

@@ -7,6 +7,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **Data Export Service** - CSV export for daily/hourly usage data via Settings → Data Management
+- **Database Backup** - One-click SQLite backup via Settings → Data Management using safe online backup API
+- **AddressUsageRecord Persistence** - Per-address network usage now tracked in database with indexes
+- **Accent Button Style** - New `Button.Accent` style for action buttons
+- **AccentBrush Resource** - New brush resource for accent-colored text
+- **SuccessBgTintBrush Resource** - New tinted success background brush
+
+### Fixed
+
+- Converter `ConvertBack` methods no longer throw `NotImplementedException`
+- Localization service initialized at app startup (`Strings.Initialize`)
+- Database migration for `AddressUsageRecords` table on existing databases
+- Database backup uses SQLite online backup API instead of file copy (handles locked databases)
+- Export/backup buttons guarded against double-click with `IsExporting` flag
+- Data export handles null/empty data gracefully with logging
+
 ## [0.6.0] - 2026-02-01
 
 ### Security
@@ -59,7 +77,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - IProcessNetworkProvider interface for platform-specific network monitoring
   - Windows: IP Helper API (GetExtendedTcpTable/GetExtendedUdpTable)
   - Linux: /proc/net/* and /proc/[pid]/fd parsing
-  - ProcessPollingBackgroundService for coordinating per-app polling
+  - NetworkPollingBackgroundService for coordinating per-app polling
 - **Comprehensive Test Suite** - 311 tests for unified monitoring features
   - OverviewViewModelTests, InsightsViewModelTests, SystemHistoryServiceTests
   - ChartColorsTests, ByteFormatterTests, HourlySystemStatsTests

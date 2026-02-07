@@ -1,267 +1,222 @@
+<!--
+context-init:version: 3.0.0
+context-init:generated: 2026-02-07T14:21:00Z
+context-init:mode: full-init
+-->
+
 # Development Guide
 
 ## Prerequisites
 
-- **Windows 10/11, Linux, or macOS**
-- **.NET 10 SDK** - [Download](https://dotnet.microsoft.com/download)
-- **Visual Studio 2022** or **VS Code with C# Dev Kit**
+<!-- context-init:managed -->
+
+- **OS**: Windows 10/11 or Linux
+- **.NET 10 SDK** (10.0.102) — [Download](https://dotnet.microsoft.com/download)
+- **IDE**: Visual Studio 2022, VS Code with C# Dev Kit, or JetBrains Rider
 - **Git**
 
 ## Setup
 
+<!-- context-init:managed -->
+
 ```powershell
-# Clone the repository
 git clone https://github.com/adsamcik/wire-bound.git
 cd wire-bound
+dotnet restore
+dotnet build
+dotnet run --project src/WireBound.Avalonia/WireBound.Avalonia.csproj
+```
 
+## Project Structure
+
+<!-- context-init:managed -->
+
+```
+wire-bound/
+├── src/
+│   ├── WireBound.Avalonia/          # Main UI application (WinExe)
+│   │   ├── Controls/                # CircularGauge, MiniSparkline, SystemHealthStrip
+│   │   ├── Converters/              # SelectedRowConverter, SpeedUnitConverter
+│   │   ├── Helpers/                 # ChartSeriesFactory, ChartDataManager
+│   │   ├── Services/                # 14 service implementations
+│   │   ├── Styles/                  # Colors.axaml, Styles.axaml
+│   │   ├── ViewModels/              # 8 ViewModels + AdapterDisplayItem
+│   │   └── Views/                   # 8 Views (AXAML + code-behind)
+│   ├── WireBound.Core/              # Shared library
+│   │   ├── Data/                    # WireBoundDbContext
+│   │   ├── Helpers/                 # 6 utility classes
+│   │   ├── Models/                  # 17 domain models
+│   │   ├── Services/                # 14 service interfaces
+│   │   └── Routes.cs                # Navigation route constants
+│   ├── WireBound.Platform.Abstract/ # Platform interfaces (10) + models (5)
+│   ├── WireBound.Platform.Windows/  # Windows implementations (7 services)
+│   ├── WireBound.Platform.Linux/    # Linux implementations (7 services)
+│   └── WireBound.Platform.Stub/     # Stub fallbacks (7 services)
+├── tests/
+│   └── WireBound.Tests/             # Unit tests (TUnit + NSubstitute)
+│       ├── Fixtures/                # DatabaseTestBase, LiveChartsHook
+│       ├── Helpers/                 # Helper class tests
+│       ├── Models/                  # Model tests
+│       ├── Services/                # Service tests
+│       └── ViewModels/              # ViewModel tests (8 files)
+├── docs/                            # Design docs, limitations, publishing
+├── scripts/                         # Build and publish scripts
+└── publish/                         # Published artifacts
+```
+
+## Common Commands
+
+<!-- context-init:managed -->
+
+```powershell
 # Restore dependencies
 dotnet restore
 
 # Build all projects
 dotnet build
 
+# Build release
+dotnet build -c Release
+
 # Run the application
 dotnet run --project src/WireBound.Avalonia/WireBound.Avalonia.csproj
-```
 
-## Project Structure
-
-```
-wire-bound/
-├── src/
-│   ├── WireBound.Avalonia/      # Main UI application
-│   ├── WireBound.Core/          # Shared library (models, interfaces, helpers)
-│   ├── WireBound.Platform.Abstract/  # Platform interfaces
-│   ├── WireBound.Platform.Windows/   # Windows implementations
-│   ├── WireBound.Platform.Linux/     # Linux implementations
-│   └── WireBound.Platform.Stub/      # Fallback implementations
-├── tests/
-│   └── WireBound.Tests/         # Unit tests
-├── docs/                        # Design documentation
-├── scripts/                     # Build/publish scripts
-└── publish/                     # Published artifacts
-```
-
-## Development Workflow
-
-### Running Locally
-
-```powershell
-# Standard run
-dotnet run --project src/WireBound.Avalonia/WireBound.Avalonia.csproj
-
-# Hot reload (watch mode)
+# Run with hot reload
 dotnet watch run --project src/WireBound.Avalonia/WireBound.Avalonia.csproj
-```
 
-### Running Tests
-
-```powershell
-# All tests
+# Run all tests
 dotnet test
 
-# Specific test file
+# Run specific test class
 dotnet test --filter "FullyQualifiedName~OverviewViewModelTests"
 
-# With coverage (requires coverlet)
+# Run with coverage
 dotnet test --collect:"XPlat Code Coverage"
-```
 
-### Debugging
-
-#### VS Code
-1. Open the workspace
-2. Press `F5` to start debugging
-3. Select ".NET Core Launch" configuration
-
-#### Visual Studio
-1. Open `WireBound.slnx`
-2. Set `WireBound.Avalonia` as startup project
-3. Press `F5`
-
-## Build & Publish
-
-### Development Build
-
-```powershell
-dotnet build
-```
-
-### Release Build
-
-```powershell
-dotnet build -c Release
-```
-
-### Publish for Distribution
-
-```powershell
-# Windows x64
-.\scripts\publish.ps1 -Version "1.0.0" -Runtime win-x64
-
-# Linux x64
-.\scripts\publish.ps1 -Version "1.0.0" -Runtime linux-x64
-
-# macOS ARM64
-.\scripts\publish.ps1 -Version "1.0.0" -Runtime osx-arm64
-
-# All platforms
+# Publish all platforms
 .\scripts\publish.ps1 -Version "1.0.0"
+
+# Publish specific platform
+.\scripts\publish.ps1 -Version "1.0.0" -Runtime win-x64
+.\scripts\publish.ps1 -Version "1.0.0" -Runtime linux-x64
 ```
 
 ## Common Tasks
 
+<!-- context-init:managed -->
+
 ### Adding a New View
 
-1. **Create ViewModel** in `src/WireBound.Avalonia/ViewModels/`:
+1. Create ViewModel in `src/WireBound.Avalonia/ViewModels/`:
+   ```csharp
+   public partial class NewFeatureViewModel : ObservableObject
+   {
+       [ObservableProperty]
+       private string _title = "New Feature";
+   }
+   ```
 
-```csharp
-public partial class NewFeatureViewModel : ObservableObject
-{
-    [ObservableProperty]
-    private string _title = "New Feature";
-}
-```
+2. Create View in `src/WireBound.Avalonia/Views/` (AXAML + code-behind)
 
-2. **Create View** in `src/WireBound.Avalonia/Views/`:
+3. Add route to `src/WireBound.Core/Routes.cs`:
+   ```csharp
+   public const string NewFeature = "NewFeature";
+   ```
 
-```xml
-<UserControl xmlns="https://github.com/avaloniaui"
-             x:Class="WireBound.Avalonia.Views.NewFeatureView">
-    <TextBlock Text="{Binding Title}"/>
-</UserControl>
-```
+4. Register in DI (`App.axaml.cs`):
+   ```csharp
+   services.AddSingleton<NewFeatureViewModel>();
+   services.AddTransient<NewFeatureView>();
+   ```
 
-3. **Add Route** to `src/WireBound.Core/Routes.cs`:
+5. Add to `ViewFactory.cs` route→view mapping
 
-```csharp
-public const string NewFeature = "NewFeature";
-```
-
-4. **Register in DI** in `App.axaml.cs`:
-
-```csharp
-services.AddSingleton<NewFeatureViewModel>();
-services.AddTransient<NewFeatureView>();
-```
-
-5. **Add to ViewFactory** in `ViewFactory.cs`
-
-6. **Add to Navigation** in `MainViewModel.cs`
+6. Add to `MainViewModel.cs` navigation items
 
 ### Adding a Platform-Specific Feature
 
-1. **Define interface** in `WireBound.Platform.Abstract/Services/`:
-
-```csharp
-public interface INewProvider
-{
-    Task<string> GetDataAsync();
-}
-```
-
-2. **Create stub** in `WireBound.Platform.Stub/Services/`:
-
-```csharp
-public sealed class StubNewProvider : INewProvider
-{
-    public Task<string> GetDataAsync() => Task.FromResult("N/A");
-}
-```
-
-3. **Create Windows impl** in `WireBound.Platform.Windows/Services/`:
-
-```csharp
-[SupportedOSPlatform("windows")]
-public sealed class WindowsNewProvider : INewProvider
-{
-    public async Task<string> GetDataAsync()
-    {
-        // Windows-specific code
-    }
-}
-```
-
-4. **Create Linux impl** in `WireBound.Platform.Linux/Services/`:
-
-```csharp
-[SupportedOSPlatform("linux")]
-public sealed class LinuxNewProvider : INewProvider
-{
-    public async Task<string> GetDataAsync()
-    {
-        // Linux-specific code (e.g., read /proc)
-    }
-}
-```
-
-5. **Register in platform services**:
-   - `StubPlatformServices.Register()` - Add stub
-   - `WindowsPlatformServices.Register()` - Add Windows impl
-   - `LinuxPlatformServices.Register()` - Add Linux impl
+1. Define interface in `WireBound.Platform.Abstract/Services/`
+2. Create stub in `WireBound.Platform.Stub/Services/`
+3. Create Windows impl in `WireBound.Platform.Windows/Services/` with `[SupportedOSPlatform("windows")]`
+4. Create Linux impl in `WireBound.Platform.Linux/Services/` with `[SupportedOSPlatform("linux")]`
+5. Register in all three `*PlatformServices.Register()` methods
 
 ### Adding a Database Table
 
-1. **Create model** in `WireBound.Core/Models/`:
-
-```csharp
-public sealed class NewRecord
-{
-    public int Id { get; set; }
-    public DateTime Timestamp { get; set; }
-    public string Data { get; set; } = string.Empty;
-}
-```
-
-2. **Add DbSet** to `WireBoundDbContext`:
-
-```csharp
-public DbSet<NewRecord> NewRecords { get; set; } = null!;
-```
-
-3. **Add migration** in `ApplyMigrations()` if needed
-
-4. **Add repository interface** and implementation
+1. Create model in `WireBound.Core/Models/`
+2. Add `DbSet<T>` to `WireBoundDbContext`
+3. Add migration logic in `ApplyMigrations()` if schema changes
+4. Add repository interface and implementation
 
 ### Adding Styles
 
-1. **Colors** go in `src/WireBound.Avalonia/Styles/Colors.axaml`
-2. **Spacing/sizing** go in `Styles.axaml`
-3. **Reference design system** in `docs/DESIGN_SYSTEM.md`
+1. Colors → `src/WireBound.Avalonia/Styles/Colors.axaml`
+2. Spacing/sizing → `src/WireBound.Avalonia/Styles/Styles.axaml`
+3. Reference `docs/DESIGN_SYSTEM.md` for the design system
 
 ## Environment Variables
 
+<!-- context-init:managed -->
+
 | Variable | Purpose | Required | Default |
 |----------|---------|----------|---------|
-| None currently | - | - | - |
+| *(none currently)* | — | — | — |
 
-Database location: `%LOCALAPPDATA%/WireBound/wirebound.db` (Windows) or `~/.local/share/WireBound/wirebound.db` (Linux)
+### File Locations
+
+| File | Windows | Linux |
+|------|---------|-------|
+| Database | `%LOCALAPPDATA%\WireBound\wirebound.db` | `~/.local/share/WireBound/wirebound.db` |
+| Logs | `%LOCALAPPDATA%\WireBound\logs\` | `~/.local/share/WireBound/logs/` |
+
+## Debugging
+
+<!-- context-init:managed -->
+
+### VS Code
+1. Open workspace
+2. Press `F5` → select ".NET Core Launch"
+
+### Visual Studio
+1. Open `WireBound.slnx`
+2. Set `WireBound.Avalonia` as startup project
+3. Press `F5`
+
+### Rider
+1. Open `WireBound.slnx`
+2. Run `WireBound.Avalonia` configuration
 
 ## Troubleshooting
+
+<!-- context-init:managed -->
 
 | Issue | Solution |
 |-------|----------|
 | Build fails with analyzer errors | Run `dotnet restore` then `dotnet build` |
 | Database locked | Close other instances of the app |
 | Charts not updating | Ensure `LiveCharts.Configure()` called in `App.Initialize()` |
-| Platform service not found | Check platform registration order in `App.ConfigureServices()` |
-| Tests fail with LiveCharts errors | Ensure test is in `[Collection("LiveCharts")]` |
+| Platform service not found | Check registration order: stubs → platform override in `App.ConfigureServices()` |
+| Tests fail with LiveCharts errors | Ensure `LiveChartsHook` assembly hook is present |
 | Network stats showing zero | Check if network adapter is selected in settings |
+| Package version conflicts | Versions are central in `Directory.Packages.props` — don't add versions in `.csproj` |
+| Schema migration errors | Check `ApplyMigrations()` in `WireBoundDbContext` |
+| UI thread exceptions | Wrap chart/UI updates in `Dispatcher.UIThread.InvokeAsync()` |
 
 ## Code Quality
 
-### Linting
+<!-- context-init:managed -->
 
-The project uses built-in .NET analyzers. No additional linter setup required.
-
-### Code Style
-
-Follow patterns in `.github/context/PATTERNS.md`
+- Built-in .NET analyzers (no additional linter setup)
+- Trimming analyzers enabled (`IsTrimmable=true`)
+- Code style enforcement via analyzers
+- Follow patterns in `.github/context/PATTERNS.md`
 
 ### Pre-commit Checklist
 
-- [ ] Code compiles: `dotnet build`
-- [ ] Tests pass: `dotnet test`
-- [ ] No new warnings
-- [ ] Accessibility added to new UI elements
-- [ ] Stub implementations for new platform interfaces
+1. `dotnet build` — no errors or new warnings
+2. `dotnet test` — all tests pass
+3. Accessibility: `AutomationProperties` on new interactive elements
+4. Stub implementations for any new platform interfaces
+5. Conventional commit message: `type(scope): description`
+
+<!-- context-init:user-content-below -->

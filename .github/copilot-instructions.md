@@ -1,216 +1,132 @@
-# WireBound Development Instructions
+<!-- context-init:version:3.0.0 -->
+<!-- context-init:generated:2026-02-07T14:21:00Z -->
 
-## Project Overview
-WireBound is a cross-platform network traffic and system monitoring application built with .NET 10 and Avalonia UI.
+# WireBound
 
-## Architecture
-- **MVVM Pattern**: Using CommunityToolkit.Mvvm for ViewModels
-- **Dependency Injection**: Microsoft.Extensions.DependencyInjection
-- **Background Services**: Timer-based network polling service
-- **Database**: SQLite with Entity Framework Core
-- **Charts**: LiveChartsCore.SkiaSharpView.Avalonia for real-time visualization
-- **UI Framework**: Avalonia (cross-platform - Windows, Linux, macOS)
-- **Platform Abstraction**: Separate projects for platform-specific implementations
+<!-- context-init:managed -->
+Cross-platform network traffic and system monitoring app. .NET 10, Avalonia UI, SQLite. Privacy-first — all data local.
 
-## Project Structure
+## Tech Stack
 
-```
-src/
-├── WireBound.Core/              # Shared core library
-│   ├── Data/                    # Database context (WireBoundDbContext)
-│   ├── Helpers/                 # Utility classes (ByteFormatter, ChartColors, LttbDownsampler, CircularBuffer, AdaptiveThresholdCalculator, TrendIndicatorCalculator)
-│   ├── Models/                  # Domain models
-│   └── Services/                # Service interfaces
-│
-├── WireBound.Platform.Abstract/ # Platform abstraction layer
-│   ├── Models/                  # Platform-specific models (ProcessNetworkStats, ConnectionInfo, CpuInfoData, MemoryInfoData)
-│   └── Services/                # Platform service interfaces
-│
-├── WireBound.Platform.Windows/  # Windows-specific implementations
-│   └── Services/                # Windows services (WiFi, Process network, Startup, CPU, Memory, Elevation)
-│
-├── WireBound.Platform.Linux/    # Linux-specific implementations
-│   └── Services/                # Linux services (WiFi, Process network, Startup, CPU, Memory, Elevation)
-│
-├── WireBound.Platform.Stub/     # Stub implementations for development/testing
-│   └── Services/                # Stub service implementations
-│
-└── WireBound.Avalonia/          # Cross-platform UI application
-    ├── Controls/                # Custom controls (CircularGauge, MiniSparkline, SystemHealthStrip)
-    ├── Converters/              # XAML value converters (SelectedRowConverter, SpeedUnitConverter)
-    ├── Helpers/                 # UI helpers (ChartSeriesFactory, ChartDataManager)
-    ├── Services/                # Application services
-    ├── Styles/                  # AXAML styles and themes (Colors.axaml, Styles.axaml)
-    ├── ViewModels/              # MVVM ViewModels
-    └── Views/                   # AXAML views
-```
+<!-- context-init:managed -->
+| Technology | Version | Purpose |
+|-----------|---------|---------|
+| .NET | 10.0 (SDK 10.0.102) | Runtime |
+| Avalonia | 11.3.11 | Cross-platform UI |
+| CommunityToolkit.Mvvm | 8.4.0 | MVVM source generators |
+| EF Core SQLite | 10.0.2 | Local database |
+| LiveChartsCore | 2.0.0-rc6.1 | Real-time charts |
+| Serilog | 4.3.0 | Structured logging |
+| TUnit | latest | Test framework |
+| NSubstitute | latest | Mocking |
+| AwesomeAssertions | latest | Fluent assertions |
 
-## Key Components
+## Project Layout
 
-### Services (WireBound.Core)
-- `INetworkMonitorService` - Polls network statistics
-- `IDataPersistenceService` - Saves data to SQLite
-- `INetworkPollingBackgroundService` - Background timer service
-- `INavigationService` - View navigation
-- `ILocalizationService` - Internationalization
-- `ITrayIconService` - System tray functionality
-- `IWiFiInfoService` - WiFi connection information
-- `IProcessNetworkService` - Per-process network statistics
-- `ISystemMonitorService` - System resource monitoring (CPU, Memory)
-- `ISystemHistoryService` - Historical system stats management
+<!-- context-init:managed -->
+| Project | Purpose |
+|---------|---------|
+| `WireBound.Avalonia` | UI app (Views, ViewModels, Services, Controls) |
+| `WireBound.Core` | Shared library (Models, Interfaces, Helpers, DbContext) |
+| `WireBound.Platform.Abstract` | Platform service interfaces |
+| `WireBound.Platform.Windows` | Windows implementations |
+| `WireBound.Platform.Linux` | Linux implementations |
+| `WireBound.Platform.Stub` | Fallback/test implementations |
+| `WireBound.Tests` | Unit tests |
 
-### Platform Abstractions (WireBound.Platform.Abstract)
-- `IPlatformServices` - Platform service factory
-- `IProcessNetworkProvider` - Per-process network data provider
-- `IProcessNetworkProviderFactory` - Factory for process network providers
-- `IWiFiInfoProvider` - WiFi information provider
-- `IStartupService` - System startup configuration
-- `IDnsResolverService` - DNS resolution
-- `IHelperConnection` - Helper process communication
-- `IElevationService` - Admin privilege management
-- `ICpuInfoProvider` - CPU usage information provider
-- `IMemoryInfoProvider` - Memory usage information provider
+## Code Style
 
-### Models (WireBound.Core)
-- `NetworkStats` - Real-time speed and usage data
-- `NetworkAdapter` - Network interface information
-- `DailyUsage` / `HourlyUsage` - Historical network usage data
-- `DailySystemStats` / `HourlySystemStats` - Historical system stats
-- `AppSettings` - User preferences
-- `ConnectionInfo` / `ConnectionStats` - Active connection tracking
-- `AppUsageRecord` / `AddressUsageRecord` - Per-app and per-address usage
-- `SpeedSnapshot` - Point-in-time speed measurement
-- `SpeedUnit` - Speed display unit enumeration
-- `CpuStats` / `MemoryStats` / `SystemStats` - System resource statistics
+<!-- context-init:managed -->
+| Type | Convention | Example |
+|------|-----------|---------|
+| Files | PascalCase = class name | `NetworkAdapter.cs` |
+| Interfaces | `I` prefix | `INetworkMonitorService` |
+| ViewModels | `...ViewModel` | `OverviewViewModel` |
+| Views | `...View` / `...Window` | `OverviewView` |
+| Platform services | Platform prefix | `WindowsCpuInfoProvider` |
+| Tests | `...Tests` | `OverviewViewModelTests` |
+| Private fields | `_camelCase` | `_networkMonitor` |
+| Async methods | `...Async` suffix | `SaveSettingsAsync()` |
+| Constants | PascalCase | `Routes.Overview` |
 
-### ViewModels (WireBound.Avalonia)
-- `MainViewModel` - Navigation control and app state
-- `OverviewViewModel` - Quick overview with key metrics (network + system combined)
-- `ChartsViewModel` - Real-time interactive chart with time range selection
-- `ApplicationsViewModel` - Per-application network usage
-- `ConnectionsViewModel` - Active network connections
-- `SystemViewModel` - System resource monitoring (CPU, Memory)
-- `InsightsViewModel` - Tabbed analytics (Usage, Trends, Correlations)
-- `SettingsViewModel` - App configuration
+## Patterns to Follow
 
-### Views (WireBound.Avalonia)
-- `MainWindow` - Main application window
-- `OverviewView` - Quick overview dashboard (network + system metrics)
-- `ChartsView` - Real-time interactive chart with time range selector
-- `ApplicationsView` - Per-application usage tracking
-- `ConnectionsView` - Active connections display
-- `SystemView` - System resource monitoring with gauges
-- `InsightsView` - Tabbed analytics (Usage, Trends, Correlations)
-- `SettingsView` - App configuration
+<!-- context-init:managed -->
+### MVVM (Source Generators)
+```csharp
+// Good: Use attributes for observable properties and commands
+public partial class MyViewModel : ObservableObject
+{
+    [ObservableProperty]
+    private string _title = "";
 
-### Custom Controls (WireBound.Avalonia)
-- `CircularGauge` - Circular gauge for displaying percentage values
-- `MiniSparkline` - Compact sparkline chart for inline data visualization
-- `SystemHealthStrip` - Status strip showing system health indicators
+    [RelayCommand]
+    private async Task RefreshAsync() { }
+}
 
-## Development Guidelines
-
-### Adding New Features
-1. Create models in `WireBound.Core/Models`
-2. Add service interfaces in `WireBound.Core/Services`
-3. For platform-specific features:
-   - Add interface in `WireBound.Platform.Abstract/Services`
-   - Implement in `WireBound.Platform.Windows/Services` and `WireBound.Platform.Linux/Services`
-   - Add stub in `WireBound.Platform.Stub/Services`
-4. For UI services, implement in `WireBound.Avalonia/Services`
-5. Register services in `App.axaml.cs`
-6. Create ViewModels with `ObservableObject` base
-7. Create Views in `WireBound.Avalonia/Views`
-
-### Platform-Specific Code
-- Windows implementations use Windows APIs (e.g., `netsh`, Windows ETW)
-- Linux implementations use Linux tools (e.g., `ss`, `nmcli`, `/proc`)
-- Always provide a stub implementation for development and unsupported platforms
-
-### Database Changes
-1. Modify `WireBoundDbContext` in `WireBound.Core/Data`
-2. Add migrations with EF Core tools
-3. Ensure `EnsureCreated()` handles new tables
-
-### Styling
-- Styles defined in `WireBound.Avalonia/Styles/`
-- Use Avalonia styling system with `{StaticResource}`
-- Follow the design system in `docs/DESIGN_SYSTEM.md`
-
-## Build Commands
-
-```powershell
-# Restore dependencies
-dotnet restore
-
-# Build all projects
-dotnet build
-
-# Run the application
-dotnet run --project src/WireBound.Avalonia/WireBound.Avalonia.csproj
-
-# Publish for distribution
-.\scripts\publish.ps1 -Version "1.0.0"
-
-# Publish for specific platform
-.\scripts\publish.ps1 -Version "1.0.0" -Runtime linux-x64
+// Bad: Manual INotifyPropertyChanged
+public class MyViewModel : INotifyPropertyChanged { ... }
 ```
 
-## Supported Platforms
-- Windows x64
-- Linux x64
-- macOS ARM64 / x64
+### Platform Abstraction
+```csharp
+// Good: Interface in Abstract, impl per platform, stub fallback
+// Platform.Abstract/Services/IMyProvider.cs
+public interface IMyProvider { Task<string> GetDataAsync(); }
 
-## Testing Network Accuracy
-Download a known file size and compare with app readings.
-Cross-platform network monitoring uses .NET's `NetworkInterface` class.
+// Platform.Stub/Services/StubMyProvider.cs
+public sealed class StubMyProvider : IMyProvider { ... }
 
-## Workflow
-- Commit changes at crucial points:
-  - After completing a logical unit of work (e.g., adding a new model, service, or view)
-  - After implementing a working feature, even if not fully polished
-  - Before starting a risky refactoring or significant change
-  - After fixing a bug or resolving an issue
-  - When switching context to a different part of the codebase
-- Always commit when work is complete with a clear, descriptive commit message
-- Use conventional commit format: `type(scope): description` (e.g., `feat(system): add CPU monitoring service`)
+// Platform.Windows/Services/WindowsMyProvider.cs
+[SupportedOSPlatform("windows")]
+public sealed class WindowsMyProvider : IMyProvider { ... }
+```
 
-## AI Skills Usage
+### DI Registration Order
+```csharp
+// Good: Stubs first (defaults), then platform overrides
+StubPlatformServices.Instance.Register(services);
+if (OperatingSystem.IsWindows())
+    WindowsPlatformServices.Instance.Register(services);
+```
 
-**IMPORTANT**: Always leverage specialized skills for higher-quality results. Read the skill file before starting work.
+### Interface Segregation
+```csharp
+// Good: Single impl, multiple interfaces
+services.AddSingleton<DataPersistenceService>();
+services.AddSingleton<IDataPersistenceService>(sp => sp.GetRequiredService<DataPersistenceService>());
+services.AddSingleton<INetworkUsageRepository>(sp => sp.GetRequiredService<DataPersistenceService>());
+```
 
-### When to Use Each Skill
+## Testing
 
-| Task Type | Skill to Use | Trigger Phrases |
-|-----------|--------------|-----------------|
-| **Any coding work** | `swe` | Writing, editing, fixing, debugging, refactoring, adding features |
-| **Reviewing code/PRs** | `code-review` | "review this", "audit code", "check this PR", "assess quality" |
-| **Writing/improving tests** | `test-gen` | "write tests", "improve coverage", "mutation testing", "set up testing" |
-| **Security concerns** | `security-audit` | "find vulnerabilities", "security check", "threat model", "OWASP" |
-| **Research topics** | `deep-research` | "research", "investigate", "compare options", "deep dive" |
-| **Generating ideas** | `brainstorming` | "brainstorm", "generate ideas", "what are ways to" |
-| **Validating ideas** | `idea-stress-test` | "is this a good idea", "critique", "poke holes in" |
-| **Unclear requirements** | `problem-discovery` | "not sure what I need", "something feels wrong" |
-| **Stuck creatively** | `creative-unblock` | "I'm stuck", "out of ideas", "hitting a wall" |
+<!-- context-init:managed -->
+- Framework: **TUnit** (use `[Test]`, NOT `[Fact]`)
+- Mocking: **NSubstitute** (use `Substitute.For<T>()`, NOT `new Mock<T>()`)
+- Assertions: **AwesomeAssertions** (`.Should().Be(...)`)
+- Location: `tests/WireBound.Tests/`
+- Run: `dotnet test`
+- LiveCharts tests need `LiveChartsHook` assembly fixture
 
-### Skill Usage Guidelines
+## Scripts
 
-1. **Default to `swe` for all coding tasks** - It enforces verification loops, test-driven development, and incremental changes
-2. **Use `code-review` before merging** - Catches issues early with adversarial review techniques
-3. **Use `test-gen` for test coverage** - Includes mutation testing and edge case discovery
-4. **Use `security-audit` for sensitive code** - Especially for network/system monitoring code that handles connections and process data
-5. **Use `deep-research` when uncertain** - Better than guessing; synthesizes multiple sources with confidence ratings
+<!-- context-init:managed -->
+- `dotnet restore` — restore dependencies
+- `dotnet build` — build all projects
+- `dotnet test` — run all tests
+- `dotnet run --project src/WireBound.Avalonia/WireBound.Avalonia.csproj` — run app
+- `.\scripts\publish.ps1 -Version "X.Y.Z"` — publish all platforms
+- `.\scripts\publish.ps1 -Version "X.Y.Z" -Runtime win-x64` — publish specific platform
 
-### For Complex Multi-Step Tasks
+## Do NOT
 
-Use the **Plan** agent to research and outline multi-step plans before implementation. This is especially useful for:
-- Adding new platform-specific features (Windows + Linux implementations)
-- Major architectural changes
-- Cross-cutting concerns affecting multiple projects
+<!-- context-init:managed -->
+- Use xUnit attributes (`[Fact]`, `[Theory]`) — use TUnit (`[Test]`)
+- Use Moq — use NSubstitute
+- Use `DateTime.UtcNow` for user-facing timestamps — use `DateTime.Now` (local desktop app)
+- Add package versions in `.csproj` — use `Directory.Packages.props`
+- Use EF Core migrations CLI — use `ApplyMigrations()` in DbContext
+- Skip stub implementations for new platform interfaces
+- Update charts off the UI thread — use `Dispatcher.UIThread`
 
-### Quality Verification
-
-After any significant change:
-1. Build the solution: `dotnet build`
-2. Run relevant tests: `dotnet test`
-3. Consider using `code-review` skill for self-review before committing
+<!-- context-init:user-content-below -->

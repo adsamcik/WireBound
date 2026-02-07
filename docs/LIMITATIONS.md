@@ -89,19 +89,13 @@ The elevated helper is planned but not yet scheduled. Track progress:
 | Per-process byte counters | ⚠️ Requires helper | eBPF needs root |
 | Startup on login | ✅ Full | XDG autostart |
 
-### macOS
-
-| Feature | Availability | Notes |
-|---------|--------------|-------|
-| All features | ⚠️ Platform stub | macOS implementation pending |
-
 ---
 
 ## Data Persistence Limitations
 
 - **Historical data**: Stored locally in SQLite—no cloud sync
-- **Export format**: Currently no export functionality
-- **Backup**: Manual backup of `wirebound.db` required
+- **Export format**: CSV export available in Settings → Data Management
+- **Backup**: One-click backup available in Settings → Data Management
 
 ---
 

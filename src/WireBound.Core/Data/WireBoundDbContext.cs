@@ -19,6 +19,7 @@ public sealed class WireBoundDbContext : DbContext
     public DbSet<SpeedSnapshot> SpeedSnapshots { get; set; } = null!;
     public DbSet<HourlySystemStats> HourlySystemStats { get; set; } = null!;
     public DbSet<DailySystemStats> DailySystemStats { get; set; } = null!;
+    public DbSet<AddressUsageRecord> AddressUsageRecords { get; set; } = null!;
 
     /// <summary>
     /// Creates a new instance of WireBoundDbContext with default options.
@@ -102,6 +103,20 @@ public sealed class WireBoundDbContext : DbContext
             .HasIndex(d => d.Date)
             .IsUnique();
 
+        // AddressUsageRecord indexes for per-address network tracking
+        modelBuilder.Entity<AddressUsageRecord>()
+            .HasIndex(a => new { a.Timestamp, a.RemoteAddress, a.Granularity })
+            .IsUnique();
+
+        modelBuilder.Entity<AddressUsageRecord>()
+            .HasIndex(a => a.RemoteAddress);
+
+        modelBuilder.Entity<AddressUsageRecord>()
+            .HasIndex(a => new { a.Granularity, a.Timestamp });
+
+        modelBuilder.Entity<AddressUsageRecord>()
+            .HasIndex(a => a.AppIdentifier);
+
         // Seed default settings
         modelBuilder.Entity<AppSettings>().HasData(new AppSettings { Id = 1 });
     }
@@ -128,6 +143,29 @@ public sealed class WireBoundDbContext : DbContext
             AddColumnIfNotExists(connection, "Settings", "IsPerAppTrackingEnabled", "INTEGER NOT NULL DEFAULT 0");
             AddColumnIfNotExists(connection, "Settings", "AppDataRetentionDays", "INTEGER NOT NULL DEFAULT 0");
             AddColumnIfNotExists(connection, "Settings", "AppDataAggregateAfterDays", "INTEGER NOT NULL DEFAULT 7");
+
+            // Add update check setting (defaults to enabled)
+            AddColumnIfNotExists(connection, "Settings", "CheckForUpdates", "INTEGER NOT NULL DEFAULT 1");
+
+            // Create AddressUsageRecords table if missing (added for per-address tracking feature)
+            CreateTableIfNotExists(connection, "AddressUsageRecords", """
+                CREATE TABLE IF NOT EXISTS AddressUsageRecords (
+                    Id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    RemoteAddress TEXT NOT NULL DEFAULT '',
+                    Hostname TEXT,
+                    PrimaryPort INTEGER NOT NULL DEFAULT 0,
+                    Protocol TEXT NOT NULL DEFAULT 'TCP',
+                    Timestamp TEXT NOT NULL DEFAULT '0001-01-01',
+                    Granularity INTEGER NOT NULL DEFAULT 0,
+                    BytesSent INTEGER NOT NULL DEFAULT 0,
+                    BytesReceived INTEGER NOT NULL DEFAULT 0,
+                    ConnectionCount INTEGER NOT NULL DEFAULT 0,
+                    PeakSendSpeed INTEGER NOT NULL DEFAULT 0,
+                    PeakReceiveSpeed INTEGER NOT NULL DEFAULT 0,
+                    AppIdentifier TEXT,
+                    LastUpdated TEXT NOT NULL DEFAULT '0001-01-01'
+                )
+                """);
 
             // Legacy: remove UseSpeedInBits if it exists and SpeedUnit exists
             // (handled by SQLite ignoring non-existent columns on DROP)
@@ -210,5 +248,21 @@ public sealed class WireBoundDbContext : DbContext
             alterCommand.CommandText = $"ALTER TABLE {table} ADD COLUMN {column} {definition}";
             alterCommand.ExecuteNonQuery();
         }
+    }
+
+    /// <summary>
+    /// Creates a table if it doesn't already exist in the database.
+    /// Used for incremental schema migrations when new entity types are added.
+    /// </summary>
+    /// <param name="connection">The database connection.</param>
+    /// <param name="tableName">The table name (must be alphanumeric/underscore only).</param>
+    /// <param name="createSql">The full CREATE TABLE IF NOT EXISTS SQL statement.</param>
+    private static void CreateTableIfNotExists(System.Data.Common.DbConnection connection, string tableName, string createSql)
+    {
+        ValidateSqlIdentifier(tableName, nameof(tableName));
+
+        using var command = connection.CreateCommand();
+        command.CommandText = createSql;
+        command.ExecuteNonQuery();
     }
 }

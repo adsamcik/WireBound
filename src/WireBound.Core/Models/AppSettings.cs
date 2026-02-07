@@ -129,4 +129,11 @@ public class AppSettings
     /// Whether to show correlation insights between network and system metrics.
     /// </summary>
     public bool ShowCorrelationInsights { get; set; } = true;
+
+    // === Updates ===
+
+    /// <summary>
+    /// Whether to check for updates on startup via GitHub Releases API.
+    /// </summary>
+    public bool CheckForUpdates { get; set; } = true;
 }

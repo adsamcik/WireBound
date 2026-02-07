@@ -57,6 +57,9 @@
         "resolved": "10.0.2",
         "contentHash": "me7W69hkjdu5EzHXCQSXv9OS3uAkMXT26oZuWTaabeoO5BPxSVuRVJ2FSfIW8xyGxBb6mKCE6ZKg7TLk3IzJBQ=="
       },
+      "wirebound.ipc": {
+        "type": "Project"
+      },
       "wirebound.platform.abstract": {
         "type": "Project",
         "dependencies": {

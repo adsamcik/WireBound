@@ -27,6 +27,7 @@
   </ItemGroup>
 
   <ItemGroup>
+    <ProjectReference Include="..\WireBound.IPC\WireBound.IPC.csproj" />
     <ProjectReference Include="..\WireBound.Platform.Abstract\WireBound.Platform.Abstract.csproj" />
   </ItemGroup>
 

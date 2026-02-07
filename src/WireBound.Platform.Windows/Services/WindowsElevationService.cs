@@ -226,15 +226,44 @@ public sealed class WindowsElevationService : IElevationService, IAsyncDisposabl
     /// </summary>
     private async Task<IHelperConnection?> ConnectToHelperAsync(CancellationToken cancellationToken)
     {
-        // TODO: Implement actual named pipe connection when helper is implemented
-        // The connection would:
-        // 1. Connect to named pipe: \\.\pipe\WireBound.Helper
-        // 2. Perform authentication handshake with HMAC signature
-        // 3. Establish session with timeout
-        // 4. Return connected IHelperConnection
+        const int maxRetries = 3;
+        const int retryDelayMs = 500;
 
-        _logger?.LogDebug("Helper connection not yet implemented");
+        for (var attempt = 1; attempt <= maxRetries; attempt++)
+        {
+            try
+            {
+                _logger?.LogDebug("Attempting to connect to helper (attempt {Attempt}/{Max})", attempt, maxRetries);
+                var connection = new WindowsHelperConnection();
+                var connected = await connection.ConnectAsync(cancellationToken);
+
+                if (connected)
+                {
+                    connection.ConnectionLost += OnConnectionLost;
+                    return connection;
+                }
+
+                await connection.DisposeAsync();
+            }
+            catch (Exception ex) when (attempt < maxRetries)
+            {
+                _logger?.LogWarning(ex, "Connection attempt {Attempt} failed, retrying", attempt);
+            }
+
+            if (attempt < maxRetries)
+            {
+                await Task.Delay(retryDelayMs * attempt, cancellationToken);
+            }
+        }
+
+        _logger?.LogError("Failed to connect to helper after {MaxRetries} attempts", maxRetries);
         return null;
+    }
+
+    private void OnConnectionLost(object? sender, HelperConnectionLostEventArgs e)
+    {
+        _logger?.LogWarning("Helper connection lost: {Reason}", e.Reason);
+        OnHelperConnectionStateChanged(false, e.Reason);
     }
 
     /// <summary>

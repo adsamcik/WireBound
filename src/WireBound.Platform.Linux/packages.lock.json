@@ -23,6 +23,9 @@
         "resolved": "4.3.0",
         "contentHash": "+cDryFR0GRhsGOnZSKwaDzRRl4MupvJ42FhCE4zhQRVanX0Jpg6WuCBk59OVhVDPmab1bB+nRykAnykYELA9qQ=="
       },
+      "wirebound.ipc": {
+        "type": "Project"
+      },
       "wirebound.platform.abstract": {
         "type": "Project",
         "dependencies": {

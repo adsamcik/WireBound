@@ -248,7 +248,7 @@ public sealed partial class ElevationServer : IDisposable
         }
     }
 
-    private IpcMessage HandleAuthenticate(IpcMessage request, out string? sessionId)
+    internal IpcMessage HandleAuthenticate(IpcMessage request, out string? sessionId)
     {
         sessionId = null;
         AuthenticateRequest authRequest;
@@ -300,7 +300,7 @@ public sealed partial class ElevationServer : IDisposable
             });
     }
 
-    private IpcMessage HandleConnectionStats(IpcMessage request, string? sessionId)
+    internal IpcMessage HandleConnectionStats(IpcMessage request, string? sessionId)
     {
         if (!ValidateSession(sessionId, out var error))
             return CreateErrorResponse(request.RequestId, error);
@@ -309,7 +309,7 @@ public sealed partial class ElevationServer : IDisposable
         return CreateResponse(request.RequestId, MessageType.ConnectionStats, stats);
     }
 
-    private IpcMessage HandleProcessStats(IpcMessage request, string? sessionId)
+    internal IpcMessage HandleProcessStats(IpcMessage request, string? sessionId)
     {
         if (!ValidateSession(sessionId, out var error))
             return CreateErrorResponse(request.RequestId, error);
@@ -328,7 +328,7 @@ public sealed partial class ElevationServer : IDisposable
         return CreateResponse(request.RequestId, MessageType.ProcessStats, stats);
     }
 
-    private IpcMessage HandleHeartbeat()
+    internal IpcMessage HandleHeartbeat()
     {
         return CreateResponse(Guid.NewGuid().ToString("N"), MessageType.Heartbeat,
             new HeartbeatResponse
@@ -339,7 +339,7 @@ public sealed partial class ElevationServer : IDisposable
             });
     }
 
-    private IpcMessage HandleShutdown(IpcMessage request, string? sessionId)
+    internal IpcMessage HandleShutdown(IpcMessage request, string? sessionId)
     {
         if (!ValidateSession(sessionId, out var error))
             return CreateErrorResponse(request.RequestId, error);
@@ -349,7 +349,7 @@ public sealed partial class ElevationServer : IDisposable
             new HeartbeatResponse { Alive = false });
     }
 
-    private bool ValidateSession(string? sessionId, out string error)
+    internal bool ValidateSession(string? sessionId, out string error)
     {
         var session = _sessionManager.ValidateSession(sessionId);
         if (session is null)

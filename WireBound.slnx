@@ -15,6 +15,7 @@
   </Folder>
   <Folder Name="/src/Elevation/">
     <Project Path="src/WireBound.Elevation.Windows/WireBound.Elevation.Windows.csproj" />
+    <Project Path="src/WireBound.Elevation.Linux/WireBound.Elevation.Linux.csproj" />
   </Folder>
   <Folder Name="/tests/">
     <Project Path="tests/WireBound.Tests/WireBound.Tests.csproj" />

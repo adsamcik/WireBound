@@ -145,6 +145,23 @@
                         </StackPanel>
                     </StackPanel>
                     
+                    <!-- Theme -->
+                    <Border Background="{DynamicResource BorderSubtleBrush}" CornerRadius="12" Padding="16">
+                        <Grid ColumnDefinitions="*, Auto">
+                            <StackPanel Spacing="4">
+                                <TextBlock Text="Theme" Classes="CardTitle" />
+                                <TextBlock Text="Choose between dark, light, or system theme" Classes="Caption" />
+                            </StackPanel>
+                            <ComboBox Grid.Column="1"
+                                      ItemsSource="{Binding ThemeOptions}"
+                                      SelectedItem="{Binding SelectedTheme}"
+                                      MinWidth="140"
+                                      VerticalAlignment="Center"
+                                      AutomationProperties.Name="Theme selector"
+                                      AutomationProperties.HelpText="Choose the application color theme" />
+                        </Grid>
+                    </Border>
+                    
                     <!-- Start with Windows -->
                     <Border Background="{DynamicResource BorderSubtleBrush}" CornerRadius="12" Padding="16">
                         <Grid ColumnDefinitions="*, Auto">
@@ -197,6 +214,41 @@
                                           AutomationProperties.HelpText="Start the application minimized to the system tray" />
                         </Grid>
                     </Border>
+                    
+                    <!-- Check for Updates -->
+                    <Border Background="{DynamicResource BorderSubtleBrush}" CornerRadius="12" Padding="16">
+                        <Grid ColumnDefinitions="*, Auto">
+                            <StackPanel Spacing="4">
+                                <TextBlock Text="Check for Updates on Startup" Classes="CardTitle" />
+                                <TextBlock Text="Privacy-safe: only checks GitHub Releases, no telemetry" Classes="Caption" />
+                            </StackPanel>
+                            <ToggleSwitch Grid.Column="1"
+                                          IsChecked="{Binding CheckForUpdates}"
+                                          VerticalAlignment="Center"
+                                          AutomationProperties.Name="Check for Updates on Startup"
+                                          AutomationProperties.HelpText="Check GitHub for new releases when the application starts" />
+                        </Grid>
+                    </Border>
+                    
+                    <!-- Update Available Notification -->
+                    <Border Background="{DynamicResource AccentBgTintBrush}" CornerRadius="12" Padding="16"
+                            IsVisible="{Binding UpdateAvailable}">
+                        <Grid ColumnDefinitions="*, Auto">
+                            <StackPanel Spacing="4">
+                                <TextBlock Text="{Binding LatestVersion, StringFormat='Update available: v{0}'}"
+                                           Classes="CardTitle"
+                                           Foreground="{DynamicResource AccentBrush}" />
+                                <TextBlock Text="A new version of WireBound is available" Classes="Caption" />
+                            </StackPanel>
+                            <Button Grid.Column="1"
+                                    Content="View Release"
+                                    Command="{Binding OpenUpdateUrlCommand}"
+                                    Classes="Accent"
+                                    VerticalAlignment="Center"
+                                    AutomationProperties.Name="View Release"
+                                    AutomationProperties.HelpText="Open the release page in your browser" />
+                        </Grid>
+                    </Border>
                 </StackPanel>
             </Border>
 
@@ -226,20 +278,6 @@
                                           IsChecked="{Binding ShowSystemMetricsInHeader}"
                                           VerticalAlignment="Center"
                                           AutomationProperties.Name="Show System Metrics in Header" />
-                        </Grid>
-                    </Border>
-                    
-                    <!-- Show GPU Metrics -->
-                    <Border Background="{DynamicResource BorderSubtleBrush}" CornerRadius="12" Padding="16">
-                        <Grid ColumnDefinitions="*, Auto">
-                            <StackPanel Spacing="4">
-                                <TextBlock Text="Show GPU Metrics" Classes="CardTitle" />
-                                <TextBlock Text="Display GPU usage in the system health strip" Classes="Caption" />
-                            </StackPanel>
-                            <ToggleSwitch Grid.Column="1"
-                                          IsChecked="{Binding ShowGpuMetrics}"
-                                          VerticalAlignment="Center"
-                                          AutomationProperties.Name="Show GPU Metrics" />
                         </Grid>
                     </Border>
                     
@@ -441,6 +479,42 @@
                        Classes="Caption"
                        HorizontalAlignment="Center"
                        Opacity="0.6" />
+
+            <!-- Data Management -->
+            <Border Classes="ElevatedCard" Margin="0,8,0,0">
+                <StackPanel Spacing="12">
+                    <StackPanel Spacing="2">
+                        <TextBlock Text="Data Management" Classes="SectionHeader" />
+                        <TextBlock Text="Export usage data or back up the database" Classes="Caption" />
+                    </StackPanel>
+
+                    <Grid ColumnDefinitions="*,Auto,Auto" RowDefinitions="Auto">
+                        <TextBlock Text="Export daily usage data to CSV or back up the database."
+                                   Classes="Caption"
+                                   Opacity="0.7"
+                                   VerticalAlignment="Center" />
+                        <Button Grid.Column="1"
+                                Content="Export CSV"
+                                Command="{Binding ExportDailyDataCommand}"
+                                IsEnabled="{Binding !IsExporting}"
+                                Classes="Accent"
+                                Margin="0,0,8,0"
+                                AutomationProperties.Name="Export Daily Data"
+                                AutomationProperties.HelpText="Export daily usage data to a CSV file" />
+                        <Button Grid.Column="2"
+                                Content="Backup DB"
+                                Command="{Binding BackupDatabaseCommand}"
+                                IsEnabled="{Binding !IsExporting}"
+                                AutomationProperties.Name="Backup Database"
+                                AutomationProperties.HelpText="Create a backup copy of the database" />
+                    </Grid>
+
+                    <TextBlock Text="{Binding ExportStatus}"
+                               Classes="Caption"
+                               Opacity="0.7"
+                               IsVisible="{Binding ExportStatus, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
+                </StackPanel>
+            </Border>
                    
         </StackPanel>
     </ScrollViewer>

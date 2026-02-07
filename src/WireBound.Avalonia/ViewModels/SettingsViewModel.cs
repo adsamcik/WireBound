@@ -2,6 +2,7 @@ using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using Microsoft.Extensions.Logging;
 using System.Collections.ObjectModel;
+using System.Diagnostics;
 using WireBound.Core.Models;
 using WireBound.Core.Services;
 using WireBound.Platform.Abstract.Services;
@@ -20,6 +21,8 @@ public sealed partial class SettingsViewModel : ObservableObject, IDisposable
     private readonly IStartupService _startupService;
     private readonly IElevationService _elevationService;
     private readonly IProcessNetworkService _processNetworkService;
+    private readonly IDataExportService _dataExport;
+    private readonly IUpdateService _updateService;
     private readonly ILogger<SettingsViewModel>? _logger;
     private CancellationTokenSource? _autoSaveCts;
     private bool _isLoading = true;
@@ -54,6 +57,11 @@ public sealed partial class SettingsViewModel : ObservableObject, IDisposable
 
     public SpeedUnit[] SpeedUnits { get; } = Enum.GetValues<SpeedUnit>();
 
+    [ObservableProperty]
+    private string _selectedTheme = "Dark";
+
+    public string[] ThemeOptions { get; } = ["Dark", "Light", "System"];
+
     // Dashboard Customization
     [ObservableProperty]
     private bool _showSystemMetricsInHeader = true;
@@ -63,9 +71,6 @@ public sealed partial class SettingsViewModel : ObservableObject, IDisposable
 
     [ObservableProperty]
     private bool _showMemoryOverlayByDefault;
-
-    [ObservableProperty]
-    private bool _showGpuMetrics = true;
 
     [ObservableProperty]
     private string _defaultTimeRange = "FiveMinutes";
@@ -89,6 +94,19 @@ public sealed partial class SettingsViewModel : ObservableObject, IDisposable
 
     [ObservableProperty]
     private bool _showCorrelationInsights = true;
+
+    // Update Check
+    [ObservableProperty]
+    private bool _checkForUpdates = true;
+
+    [ObservableProperty]
+    private bool _updateAvailable;
+
+    [ObservableProperty]
+    private string? _latestVersion;
+
+    [ObservableProperty]
+    private string? _updateUrl;
 
     [ObservableProperty]
     private bool _isElevated;
@@ -142,12 +160,18 @@ public sealed partial class SettingsViewModel : ObservableObject, IDisposable
     partial void OnShowSystemMetricsInHeaderChanged(bool value) => ScheduleAutoSave();
     partial void OnShowCpuOverlayByDefaultChanged(bool value) => ScheduleAutoSave();
     partial void OnShowMemoryOverlayByDefaultChanged(bool value) => ScheduleAutoSave();
-    partial void OnShowGpuMetricsChanged(bool value) => ScheduleAutoSave();
     partial void OnDefaultTimeRangeChanged(string value) => ScheduleAutoSave();
     partial void OnPerformanceModeEnabledChanged(bool value) => ScheduleAutoSave();
     partial void OnChartUpdateIntervalMsChanged(int value) => ScheduleAutoSave();
     partial void OnDefaultInsightsPeriodChanged(string value) => ScheduleAutoSave();
     partial void OnShowCorrelationInsightsChanged(bool value) => ScheduleAutoSave();
+    partial void OnCheckForUpdatesChanged(bool value) => ScheduleAutoSave();
+
+    partial void OnSelectedThemeChanged(string value)
+    {
+        ScheduleAutoSave();
+        Helpers.ThemeHelper.ApplyTheme(value);
+    }
 
     private void ScheduleAutoSave()
     {
@@ -181,6 +205,8 @@ public sealed partial class SettingsViewModel : ObservableObject, IDisposable
         IStartupService startupService,
         IElevationService elevationService,
         IProcessNetworkService processNetworkService,
+        IDataExportService dataExport,
+        IUpdateService updateService,
         ILogger<SettingsViewModel>? logger = null)
     {
         _persistence = persistence;
@@ -188,6 +214,8 @@ public sealed partial class SettingsViewModel : ObservableObject, IDisposable
         _startupService = startupService;
         _elevationService = elevationService;
         _processNetworkService = processNetworkService;
+        _dataExport = dataExport;
+        _updateService = updateService;
         _logger = logger;
 
         LoadSettings();
@@ -214,11 +242,12 @@ public sealed partial class SettingsViewModel : ObservableObject, IDisposable
             StartMinimized = settings.StartMinimized;
             SelectedSpeedUnit = settings.SpeedUnit;
 
+            SelectedTheme = settings.Theme;
+
             // Dashboard Customization
             ShowSystemMetricsInHeader = settings.ShowSystemMetricsInHeader;
             ShowCpuOverlayByDefault = settings.ShowCpuOverlayByDefault;
             ShowMemoryOverlayByDefault = settings.ShowMemoryOverlayByDefault;
-            ShowGpuMetrics = settings.ShowGpuMetrics;
             DefaultTimeRange = settings.DefaultTimeRange;
 
             // Performance Mode
@@ -228,6 +257,9 @@ public sealed partial class SettingsViewModel : ObservableObject, IDisposable
             // Insights Page
             DefaultInsightsPeriod = settings.DefaultInsightsPeriod;
             ShowCorrelationInsights = settings.ShowCorrelationInsights;
+
+            // Updates
+            CheckForUpdates = settings.CheckForUpdates;
 
             // Load startup state from OS (not from saved settings)
             await LoadStartupStateAsync();
@@ -293,11 +325,12 @@ public sealed partial class SettingsViewModel : ObservableObject, IDisposable
             StartWithWindows = StartWithWindows,
             SpeedUnit = SelectedSpeedUnit,
 
+            Theme = SelectedTheme,
+
             // Dashboard Customization
             ShowSystemMetricsInHeader = ShowSystemMetricsInHeader,
             ShowCpuOverlayByDefault = ShowCpuOverlayByDefault,
             ShowMemoryOverlayByDefault = ShowMemoryOverlayByDefault,
-            ShowGpuMetrics = ShowGpuMetrics,
             DefaultTimeRange = DefaultTimeRange,
 
             // Performance Mode
@@ -306,7 +339,10 @@ public sealed partial class SettingsViewModel : ObservableObject, IDisposable
 
             // Insights Page
             DefaultInsightsPeriod = DefaultInsightsPeriod,
-            ShowCorrelationInsights = ShowCorrelationInsights
+            ShowCorrelationInsights = ShowCorrelationInsights,
+
+            // Updates
+            CheckForUpdates = CheckForUpdates
         };
 
         // Apply speed unit setting globally
@@ -374,6 +410,109 @@ public sealed partial class SettingsViewModel : ObservableObject, IDisposable
         finally
         {
             IsRequestingElevation = false;
+        }
+    }
+
+    [ObservableProperty]
+    private string? _exportStatus;
+
+    [ObservableProperty]
+    private bool _isExporting;
+
+    [RelayCommand]
+    private async Task ExportDailyDataAsync()
+    {
+        if (IsExporting) return;
+        IsExporting = true;
+
+        try
+        {
+            var folder = Path.Combine(
+                Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments),
+                "WireBound");
+            Directory.CreateDirectory(folder);
+
+            var filePath = Path.Combine(folder, $"wirebound-daily-{DateTime.Now:yyyyMMdd-HHmmss}.csv");
+            var endDate = DateOnly.FromDateTime(DateTime.Today);
+            var startDate = endDate.AddDays(-365);
+
+            await _dataExport.ExportDailyUsageToCsvAsync(filePath, startDate, endDate);
+            ExportStatus = $"Exported to {filePath}";
+            _logger?.LogInformation("Daily data exported to {FilePath}", filePath);
+        }
+        catch (Exception ex)
+        {
+            ExportStatus = $"Export failed: {ex.Message}";
+            _logger?.LogError(ex, "Failed to export daily data");
+        }
+        finally
+        {
+            IsExporting = false;
+        }
+    }
+
+    [RelayCommand]
+    private async Task BackupDatabaseAsync()
+    {
+        if (IsExporting) return;
+        IsExporting = true;
+
+        try
+        {
+            var sourceDb = Path.Combine(
+                Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+                "WireBound",
+                "wirebound.db");
+
+            if (!File.Exists(sourceDb))
+            {
+                ExportStatus = "Database file not found";
+                return;
+            }
+
+            var folder = Path.Combine(
+                Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments),
+                "WireBound", "Backups");
+            Directory.CreateDirectory(folder);
+
+            var backupPath = Path.Combine(folder, $"wirebound-backup-{DateTime.Now:yyyyMMdd-HHmmss}.db");
+
+            // Use SQLite online backup to safely copy a database that may be in use
+            using var sourceConnection = new Microsoft.Data.Sqlite.SqliteConnection($"Data Source={sourceDb};Mode=ReadOnly");
+            using var backupConnection = new Microsoft.Data.Sqlite.SqliteConnection($"Data Source={backupPath}");
+            await Task.Run(() =>
+            {
+                sourceConnection.Open();
+                backupConnection.Open();
+                sourceConnection.BackupDatabase(backupConnection);
+            });
+
+            ExportStatus = $"Backup saved to {backupPath}";
+            _logger?.LogInformation("Database backed up to {BackupPath}", backupPath);
+        }
+        catch (Exception ex)
+        {
+            ExportStatus = $"Backup failed: {ex.Message}";
+            _logger?.LogError(ex, "Failed to backup database");
+        }
+        finally
+        {
+            IsExporting = false;
+        }
+    }
+
+    [RelayCommand]
+    private void OpenUpdateUrl()
+    {
+        if (string.IsNullOrEmpty(UpdateUrl)) return;
+
+        try
+        {
+            Process.Start(new ProcessStartInfo(UpdateUrl) { UseShellExecute = true });
+        }
+        catch (Exception ex)
+        {
+            _logger?.LogError(ex, "Failed to open update URL");
         }
     }
 

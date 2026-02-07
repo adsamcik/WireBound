@@ -234,7 +234,7 @@ public sealed class CrossPlatformNetworkMonitorService : INetworkMonitorService
         if (description.Contains("virtualbox") || description.Contains("vbox"))
             return true;
 
-        // Parallels adapters (macOS)
+        // Parallels adapters
         if (description.Contains("parallels"))
             return true;
 

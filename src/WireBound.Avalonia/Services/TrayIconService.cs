@@ -12,7 +12,7 @@ namespace WireBound.Avalonia.Services;
 
 /// <summary>
 /// Service for managing the system tray icon functionality.
-/// Cross-platform implementation supporting Windows, macOS, and Linux (with AppIndicator).
+/// Cross-platform implementation supporting Windows and Linux (with AppIndicator).
 /// Features a dynamic activity graph similar to Windows Task Manager.
 /// </summary>
 public sealed class TrayIconService : ITrayIconService
@@ -101,8 +101,8 @@ public sealed class TrayIconService : ITrayIconService
     /// </summary>
     private static bool CheckTraySupport()
     {
-        // Windows and macOS generally support tray icons
-        if (OperatingSystem.IsWindows() || OperatingSystem.IsMacOS())
+        // Windows generally supports tray icons
+        if (OperatingSystem.IsWindows())
         {
             return true;
         }

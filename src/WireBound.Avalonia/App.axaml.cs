@@ -40,6 +40,10 @@ public partial class App : Application
         ConfigureServices(services);
         _serviceProvider = services.BuildServiceProvider();
 
+        // Initialize static localization accessor
+        var localizationService = _serviceProvider.GetRequiredService<ILocalizationService>();
+        Strings.Initialize(localizationService);
+
         // Initialize database (synchronous, fast operation)
         InitializeDatabase();
 
@@ -78,11 +82,17 @@ public partial class App : Application
             // Initialize tray icon and apply settings
             await InitializeTrayIconAsync(mainWindow);
 
+            // Apply saved theme preference
+            await ApplyThemeFromSettingsAsync();
+
             // Check if we should start minimized
             await ApplyStartMinimizedSettingAsync(mainWindow);
 
             // Start background services
             await StartBackgroundServicesAsync();
+
+            // Check for updates (non-blocking, privacy-safe)
+            await CheckForUpdatesAsync();
         }
         catch (Exception ex)
         {
@@ -136,6 +146,12 @@ public partial class App : Application
 
         // Register DNS resolver service for reverse lookups
         services.AddSingleton<IDnsResolverService, DnsResolverService>();
+
+        // Register data export service
+        services.AddSingleton<IDataExportService, DataExportService>();
+
+        // Register update check service
+        services.AddSingleton<IUpdateService, GitHubUpdateService>();
 
         // Register app-specific services
         services.AddSingleton<INavigationService, NavigationService>();
@@ -256,6 +272,24 @@ public partial class App : Application
         }
     }
 
+    private async Task ApplyThemeFromSettingsAsync()
+    {
+        if (_serviceProvider is null) return;
+
+        try
+        {
+            var persistence = _serviceProvider.GetRequiredService<IDataPersistenceService>();
+            var settings = await persistence.GetSettingsAsync();
+            await Dispatcher.UIThread.InvokeAsync(() =>
+                Helpers.ThemeHelper.ApplyTheme(settings.Theme));
+            Log.Information("Applied theme: {Theme}", settings.Theme);
+        }
+        catch (Exception ex)
+        {
+            Log.Error(ex, "Failed to apply theme from settings");
+        }
+    }
+
     private async Task ApplyStartMinimizedSettingAsync(MainWindow mainWindow)
     {
         if (_serviceProvider is null) return;
@@ -281,6 +315,31 @@ public partial class App : Application
         catch (Exception ex)
         {
             Log.Error(ex, "Failed to apply start minimized setting");
+        }
+    }
+
+    private async Task CheckForUpdatesAsync()
+    {
+        try
+        {
+            var persistence = _serviceProvider!.GetRequiredService<IDataPersistenceService>();
+            var settings = await persistence.GetSettingsAsync();
+            if (!settings.CheckForUpdates) return;
+
+            var updateService = _serviceProvider!.GetRequiredService<IUpdateService>();
+            var update = await updateService.CheckForUpdateAsync();
+            if (update is not null)
+            {
+                var settingsVm = _serviceProvider!.GetRequiredService<SettingsViewModel>();
+                settingsVm.UpdateAvailable = true;
+                settingsVm.LatestVersion = update.Version;
+                settingsVm.UpdateUrl = update.DownloadUrl;
+                Log.Information("Update available: {Version}", update.Version);
+            }
+        }
+        catch (Exception ex)
+        {
+            Log.Warning(ex, "Update check failed");
         }
     }
 

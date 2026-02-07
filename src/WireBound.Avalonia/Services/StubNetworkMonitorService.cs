@@ -5,7 +5,7 @@ namespace WireBound.Avalonia.Services;
 
 /// <summary>
 /// Stub network monitor service for non-Windows platforms.
-/// Returns placeholder data until Linux/macOS implementations are available.
+/// Returns placeholder data until platform-specific implementations are available.
 /// </summary>
 public sealed class StubNetworkMonitorService : INetworkMonitorService
 {

@@ -125,7 +125,7 @@ public class PercentToGridLengthConverter : IValueConverter
 
     public object? ConvertBack(object? value, Type targetType, object? parameter, CultureInfo culture)
     {
-        throw new NotImplementedException();
+        return global::Avalonia.Data.BindingOperations.DoNothing;
     }
 }
 
@@ -148,7 +148,7 @@ public class PercentToRemainingGridLengthConverter : IValueConverter
 
     public object? ConvertBack(object? value, Type targetType, object? parameter, CultureInfo culture)
     {
-        throw new NotImplementedException();
+        return global::Avalonia.Data.BindingOperations.DoNothing;
     }
 }
 
@@ -174,76 +174,7 @@ public class PercentToWidthConverter : IValueConverter
 
     public object? ConvertBack(object? value, Type targetType, object? parameter, CultureInfo culture)
     {
-        throw new NotImplementedException();
+        return global::Avalonia.Data.BindingOperations.DoNothing;
     }
 }
 
-/// <summary>
-/// Converts a SortColumn enum to a sort indicator (↑ or ↓) when the column matches the parameter
-/// </summary>
-public class SortIndicatorConverter : IValueConverter
-{
-    public static readonly SortIndicatorConverter Instance = new();
-
-    public object? Convert(object? value, Type targetType, object? parameter, CultureInfo culture)
-    {
-        // This simple converter just returns an indicator if the column matches
-        // The actual ascending/descending requires a MultiValueConverter
-        if (value is WireBound.Avalonia.ViewModels.SortColumn currentColumn &&
-            parameter is string columnName)
-        {
-            var paramColumn = columnName switch
-            {
-                "Date" => WireBound.Avalonia.ViewModels.SortColumn.Date,
-                "Download" => WireBound.Avalonia.ViewModels.SortColumn.Download,
-                "Upload" => WireBound.Avalonia.ViewModels.SortColumn.Upload,
-                "Total" => WireBound.Avalonia.ViewModels.SortColumn.Total,
-                _ => WireBound.Avalonia.ViewModels.SortColumn.Date
-            };
-
-            if (currentColumn == paramColumn)
-            {
-                return "●"; // Active indicator - direction shown separately
-            }
-        }
-        return "";
-    }
-
-    public object? ConvertBack(object? value, Type targetType, object? parameter, CultureInfo culture)
-    {
-        throw new NotImplementedException();
-    }
-}
-
-/// <summary>
-/// Converts SortColumn + SortAscending to display the correct arrow indicator
-/// </summary>
-public class SortDirectionConverter : IMultiValueConverter
-{
-    public static readonly SortDirectionConverter Instance = new();
-
-    public object? Convert(IList<object?> values, Type targetType, object? parameter, CultureInfo culture)
-    {
-        if (values.Count < 2) return "";
-
-        if (values[0] is WireBound.Avalonia.ViewModels.SortColumn currentColumn &&
-            values[1] is bool ascending &&
-            parameter is string columnName)
-        {
-            var paramColumn = columnName switch
-            {
-                "Date" => WireBound.Avalonia.ViewModels.SortColumn.Date,
-                "Download" => WireBound.Avalonia.ViewModels.SortColumn.Download,
-                "Upload" => WireBound.Avalonia.ViewModels.SortColumn.Upload,
-                "Total" => WireBound.Avalonia.ViewModels.SortColumn.Total,
-                _ => WireBound.Avalonia.ViewModels.SortColumn.Date
-            };
-
-            if (currentColumn == paramColumn)
-            {
-                return ascending ? "↑" : "↓";
-            }
-        }
-        return "";
-    }
-}

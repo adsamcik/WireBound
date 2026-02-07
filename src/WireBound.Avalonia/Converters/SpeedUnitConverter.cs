@@ -26,6 +26,6 @@ public class SpeedUnitConverter : IValueConverter
 
     public object? ConvertBack(object? value, Type targetType, object? parameter, CultureInfo culture)
     {
-        throw new NotSupportedException();
+        return global::Avalonia.Data.BindingOperations.DoNothing;
     }
 }

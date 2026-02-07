@@ -542,40 +542,6 @@ public class OverviewViewModelTests
 
     #endregion
 
-    #region GPU Properties Tests
-
-    [Test]
-    public void GpuPercent_InitiallyNull()
-    {
-        // Act
-        var viewModel = CreateViewModel();
-
-        // Assert
-        viewModel.GpuPercent.Should().BeNull();
-    }
-
-    [Test]
-    public void IsGpuAvailable_InitiallyFalse()
-    {
-        // Act
-        var viewModel = CreateViewModel();
-
-        // Assert
-        viewModel.IsGpuAvailable.Should().BeFalse();
-    }
-
-    [Test]
-    public void GpuUsageFormatted_InitiallyNA()
-    {
-        // Act
-        var viewModel = CreateViewModel();
-
-        // Assert
-        viewModel.GpuUsageFormatted.Should().Be("N/A");
-    }
-
-    #endregion
-
     #region Property Change Notification Tests
 
     [Test]

@@ -18,6 +18,8 @@ public class SettingsViewModelTests : IAsyncDisposable
     private readonly IStartupService _startupService;
     private readonly IElevationService _elevationService;
     private readonly IProcessNetworkService _processNetworkService;
+    private readonly IDataExportService _dataExport;
+    private readonly IUpdateService _updateService;
     private readonly ILogger<SettingsViewModel> _logger;
 
     public SettingsViewModelTests()
@@ -27,6 +29,8 @@ public class SettingsViewModelTests : IAsyncDisposable
         _startupService = Substitute.For<IStartupService>();
         _elevationService = Substitute.For<IElevationService>();
         _processNetworkService = Substitute.For<IProcessNetworkService>();
+        _dataExport = Substitute.For<IDataExportService>();
+        _updateService = Substitute.For<IUpdateService>();
         _logger = Substitute.For<ILogger<SettingsViewModel>>();
 
         SetupDefaultMocks();
@@ -81,6 +85,8 @@ public class SettingsViewModelTests : IAsyncDisposable
             _startupService,
             _elevationService,
             _processNetworkService,
+            _dataExport,
+            _updateService,
             _logger);
     }
 

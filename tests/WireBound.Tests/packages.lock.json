@@ -684,6 +684,9 @@
           "WireBound.Platform.Abstract": "[1.0.0, )"
         }
       },
+      "wirebound.ipc": {
+        "type": "Project"
+      },
       "wirebound.platform.abstract": {
         "type": "Project",
         "dependencies": {
@@ -695,6 +698,7 @@
         "dependencies": {
           "Microsoft.Extensions.Logging.Abstractions": "[10.0.2, )",
           "Serilog": "[4.3.0, )",
+          "WireBound.IPC": "[1.0.0, )",
           "WireBound.Platform.Abstract": "[1.0.0, )"
         }
       },
@@ -711,6 +715,7 @@
           "Microsoft.Extensions.Logging.Abstractions": "[10.0.2, )",
           "Serilog": "[4.3.0, )",
           "System.Diagnostics.PerformanceCounter": "[10.0.2, )",
+          "WireBound.IPC": "[1.0.0, )",
           "WireBound.Platform.Abstract": "[1.0.0, )"
         }
       },

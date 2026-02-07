@@ -200,7 +200,7 @@ public sealed class NetlinkConnectionTracker : IDisposable
     /// For example, ::1 is stored as "00000000000000000000000001000000" where the last group
     /// "01000000" is 0x00000001 in little-endian.
     /// </summary>
-    private static IPEndPoint? ParseHexEndpoint(string hexEndpoint, bool isIpv6)
+    internal static IPEndPoint? ParseHexEndpoint(string hexEndpoint, bool isIpv6)
     {
         var colonIdx = hexEndpoint.IndexOf(':');
         if (colonIdx < 0) return null;

@@ -703,6 +703,14 @@
           "WireBound.Platform.Windows": "[1.0.0, )"
         }
       },
+      "wirebound-elevation": {
+        "type": "Project",
+        "dependencies": {
+          "Serilog": "[4.3.0, )",
+          "Serilog.Sinks.File": "[7.0.0, )",
+          "WireBound.IPC": "[1.0.0, )"
+        }
+      },
       "wirebound.core": {
         "type": "Project",
         "dependencies": {

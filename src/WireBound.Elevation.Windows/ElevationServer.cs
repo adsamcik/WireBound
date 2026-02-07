@@ -148,7 +148,7 @@ public sealed partial class ElevationServer : IDisposable
             security);
     }
 
-    private static int GetClientPid(NamedPipeServerStream server)
+    internal static int GetClientPid(NamedPipeServerStream server)
     {
         try
         {
@@ -364,7 +364,7 @@ public sealed partial class ElevationServer : IDisposable
     /// <summary>
     /// Validates that the client's executable path matches the expected WireBound application.
     /// </summary>
-    private static bool ValidateExecutablePath(string executablePath, int pid)
+    internal static bool ValidateExecutablePath(string executablePath, int pid)
     {
         try
         {

@@ -110,7 +110,7 @@ public sealed class ElevationServer : IDisposable
     /// Gets the peer process ID and user ID using SO_PEERCRED socket option.
     /// Returns (pid, uid) from the ucred struct.
     /// </summary>
-    private static (int Pid, int Uid) GetPeerCredentials(Socket socket)
+    internal static (int Pid, int Uid) GetPeerCredentials(Socket socket)
     {
         try
         {
@@ -132,7 +132,7 @@ public sealed class ElevationServer : IDisposable
     /// Determines the UID of the user who launched this elevated process.
     /// Checks SUDO_UID, PKEXEC_UID, then falls back to the owner of the secret file.
     /// </summary>
-    private static int ResolveExpectedPeerUid()
+    internal static int ResolveExpectedPeerUid()
     {
         // pkexec sets PKEXEC_UID, sudo sets SUDO_UID
         var uidStr = Environment.GetEnvironmentVariable("PKEXEC_UID")
@@ -376,7 +376,7 @@ public sealed class ElevationServer : IDisposable
     /// <summary>
     /// Validates that the client's executable path matches /proc/[pid]/exe symlink.
     /// </summary>
-    private static bool ValidateExecutablePath(string claimedPath, int pid)
+    internal static bool ValidateExecutablePath(string claimedPath, int pid)
     {
         try
         {

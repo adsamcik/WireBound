@@ -389,7 +389,7 @@ public sealed class EtwConnectionTracker : IDisposable
         }
     }
 
-    private static string MakeConnectionKey(string localAddr, int localPort, string remoteAddr, int remotePort) =>
+    internal static string MakeConnectionKey(string localAddr, int localPort, string remoteAddr, int remotePort) =>
         $"{localAddr}:{localPort}-{remoteAddr}:{remotePort}";
 
     public void Dispose()

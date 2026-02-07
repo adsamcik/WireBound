@@ -25,6 +25,7 @@
     <ProjectReference Include="..\..\src\WireBound.Avalonia\WireBound.Avalonia.csproj" />
     <ProjectReference Include="..\..\src\WireBound.IPC\WireBound.IPC.csproj" />
     <ProjectReference Include="..\..\src\WireBound.Elevation.Windows\WireBound.Elevation.Windows.csproj" />
+    <ProjectReference Include="..\..\src\WireBound.Elevation.Linux\WireBound.Elevation.Linux.csproj" />
   </ItemGroup>
 
 </Project>

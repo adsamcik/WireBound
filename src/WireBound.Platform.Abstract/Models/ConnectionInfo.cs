@@ -65,7 +65,7 @@ public class ConnectionInfo
     /// <summary>
     /// When this connection was first observed
     /// </summary>
-    public DateTime FirstSeen { get; set; } = DateTime.UtcNow;
+    public DateTime FirstSeen { get; set; } = DateTime.Now;
 
     /// <summary>
     /// Whether this is an IPv6 connection

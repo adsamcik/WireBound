@@ -86,12 +86,12 @@ public class ConnectionStats
     /// <summary>
     /// When this connection was first observed
     /// </summary>
-    public DateTime FirstSeen { get; set; } = DateTime.UtcNow;
+    public DateTime FirstSeen { get; set; } = DateTime.Now;
 
     /// <summary>
     /// When traffic was last detected on this connection
     /// </summary>
-    public DateTime LastActivity { get; set; } = DateTime.UtcNow;
+    public DateTime LastActivity { get; set; } = DateTime.Now;
 
     // === Computed Properties ===
 

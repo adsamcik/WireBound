@@ -165,6 +165,7 @@
     <Color x:Key="WarningBgTint">#25FFB627</Color>
     <Color x:Key="ErrorBgTint">#25F45B69</Color>
     <Color x:Key="AccentBgTint">#15A855F7</Color>
+    <Color x:Key="SuccessBgTint">#1500C9A7</Color>
     <Color x:Key="InfoBgTint">#2500E5FF</Color>
     
     <!-- Selection colors (for row highlighting) -->
@@ -173,6 +174,9 @@
     
     <!-- BoxShadow glow color -->
     <Color x:Key="PrimaryGlowColor">#8000E5FF</Color>
+    <!-- Accent Brush (used for update notifications, correlation values) -->
+    <SolidColorBrush x:Key="AccentBrush" Color="{StaticResource SecondaryColor}" />
+    
     <SolidColorBrush x:Key="BackgroundBrush" Color="{StaticResource BackgroundColor}" />
     <SolidColorBrush x:Key="SurfaceBrush" Color="{StaticResource SurfaceColor}" />
     <SolidColorBrush x:Key="CardBrush" Color="{StaticResource CardColor}" />
@@ -201,6 +205,7 @@
     <SolidColorBrush x:Key="WarningBgTintBrush" Color="{StaticResource WarningBgTint}" />
     <SolidColorBrush x:Key="ErrorBgTintBrush" Color="{StaticResource ErrorBgTint}" />
     <SolidColorBrush x:Key="AccentBgTintBrush" Color="{StaticResource AccentBgTint}" />
+    <SolidColorBrush x:Key="SuccessBgTintBrush" Color="{StaticResource SuccessBgTint}" />
     <SolidColorBrush x:Key="InfoBgTintBrush" Color="{StaticResource InfoBgTint}" />
     
     <!-- Selection brushes -->

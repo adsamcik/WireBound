@@ -54,7 +54,7 @@ public sealed class LinuxElevationService : IElevationService, IAsyncDisposable
     /// <summary>
     /// Helper executable name on Linux.
     /// </summary>
-    private const string HelperExecutableName = "wirebound-helper";
+    private const string HelperExecutableName = "wirebound-elevation";
 
     public LinuxElevationService(
         ILogger<LinuxElevationService>? logger = null,

@@ -16,8 +16,10 @@ public sealed class ElevationServer : IDisposable
     private readonly byte[] _secret;
     private readonly SessionManager _sessionManager = new();
     private readonly RateLimiter _rateLimiter = new();
+    private readonly AuthRateLimiter _authRateLimiter = new();
     private readonly DateTimeOffset _startTime = DateTimeOffset.UtcNow;
     private readonly NetlinkConnectionTracker _tracker = new();
+    private int _expectedPeerUid = -1;
 
     public ElevationServer()
     {
@@ -37,14 +39,21 @@ public sealed class ElevationServer : IDisposable
         if (File.Exists(IpcConstants.LinuxSocketPath))
             File.Delete(IpcConstants.LinuxSocketPath);
 
+        // Determine the expected client UID before binding.
+        // The elevation helper is launched by a regular user via pkexec/systemd,
+        // so SUDO_UID (or PKEXEC_UID) tells us which user should be allowed to connect.
+        _expectedPeerUid = ResolveExpectedPeerUid();
+        Log.Information("Expected peer UID: {Uid}", _expectedPeerUid);
+
         var endpoint = new UnixDomainSocketEndPoint(IpcConstants.LinuxSocketPath);
         using var listener = new Socket(AddressFamily.Unix, SocketType.Stream, ProtocolType.Unspecified);
         listener.Bind(endpoint);
 
-        // Set socket file permissions: owner read/write + group read/write (root:wirebound)
+        // Set socket file permissions BEFORE listen() to eliminate the race window
+        // where an unauthorized client could connect between bind() and chmod.
+        // 0600: owner (root) read/write only — no group or other access.
         File.SetUnixFileMode(IpcConstants.LinuxSocketPath,
-            UnixFileMode.UserRead | UnixFileMode.UserWrite |
-            UnixFileMode.GroupRead | UnixFileMode.GroupWrite);
+            UnixFileMode.UserRead | UnixFileMode.UserWrite);
 
         listener.Listen(IpcConstants.MaxConcurrentSessions);
         Log.Information("Starting Unix socket server: {Path}", IpcConstants.LinuxSocketPath);
@@ -54,8 +63,18 @@ public sealed class ElevationServer : IDisposable
             try
             {
                 var client = await listener.AcceptAsync(cancellationToken);
-                var clientPid = GetPeerPid(client);
-                Log.Information("Client connected via Unix socket (PID: {Pid})", clientPid);
+                var (clientPid, clientUid) = GetPeerCredentials(client);
+
+                // Verify the connecting user is the expected launching user
+                if (_expectedPeerUid >= 0 && clientUid != _expectedPeerUid)
+                {
+                    Log.Warning("Rejected connection from UID {ActualUid} (expected {ExpectedUid}, PID {Pid})",
+                        clientUid, _expectedPeerUid, clientPid);
+                    client.Dispose();
+                    continue;
+                }
+
+                Log.Information("Client connected via Unix socket (PID: {Pid}, UID: {Uid})", clientPid, clientUid);
                 _ = HandleClientAsync(new NetworkStream(client, ownsSocket: true), clientPid, cancellationToken);
             }
             catch (OperationCanceledException)
@@ -76,27 +95,69 @@ public sealed class ElevationServer : IDisposable
     }
 
     /// <summary>
-    /// Gets the peer process ID using SO_PEERCRED socket option.
+    /// Gets the peer process ID and user ID using SO_PEERCRED socket option.
+    /// Returns (pid, uid) from the ucred struct.
     /// </summary>
-    private static int GetPeerPid(Socket socket)
+    private static (int Pid, int Uid) GetPeerCredentials(Socket socket)
     {
         try
         {
             // SO_PEERCRED returns ucred struct: { pid, uid, gid } (3 ints = 12 bytes)
             var buffer = new byte[12];
             socket.GetRawSocketOption(1 /* SOL_SOCKET */, 17 /* SO_PEERCRED */, buffer);
-            return BitConverter.ToInt32(buffer, 0); // First 4 bytes = pid
+            var pid = BitConverter.ToInt32(buffer, 0);
+            var uid = BitConverter.ToInt32(buffer, 4);
+            return (pid, uid);
         }
         catch (Exception ex)
         {
-            Log.Warning(ex, "Failed to get peer PID via SO_PEERCRED");
-            return 0;
+            Log.Warning(ex, "Failed to get peer credentials via SO_PEERCRED");
+            return (0, -1);
         }
+    }
+
+    /// <summary>
+    /// Determines the UID of the user who launched this elevated process.
+    /// Checks SUDO_UID, PKEXEC_UID, then falls back to the owner of the secret file.
+    /// </summary>
+    private static int ResolveExpectedPeerUid()
+    {
+        // pkexec sets PKEXEC_UID, sudo sets SUDO_UID
+        var uidStr = Environment.GetEnvironmentVariable("PKEXEC_UID")
+                  ?? Environment.GetEnvironmentVariable("SUDO_UID");
+
+        if (uidStr is not null && int.TryParse(uidStr, out var uid))
+            return uid;
+
+        // Fallback: owner of the secret file (created by the unprivileged user)
+        try
+        {
+            var secretPath = WireBound.IPC.Security.SecretManager.GetSecretFilePath();
+            if (File.Exists(secretPath))
+            {
+                // Can't get owner UID from .NET File API alone; use /proc/self/loginuid
+                var loginUidPath = "/proc/self/loginuid";
+                if (File.Exists(loginUidPath))
+                {
+                    var loginUid = File.ReadAllText(loginUidPath).Trim();
+                    if (int.TryParse(loginUid, out var loginUidValue) && loginUidValue >= 0)
+                        return loginUidValue;
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            Log.Warning(ex, "Failed to resolve expected peer UID from fallback");
+        }
+
+        Log.Warning("Could not determine expected peer UID; SO_PEERCRED check disabled");
+        return -1;
     }
 
     private async Task HandleClientAsync(Stream stream, int peerPid, CancellationToken cancellationToken)
     {
         string? sessionId = null;
+        var clientId = stream.GetHashCode().ToString();
         try
         {
             while (!cancellationToken.IsCancellationRequested)
@@ -104,6 +165,19 @@ public sealed class ElevationServer : IDisposable
                 var message = await IpcTransport.ReceiveAsync(stream, cancellationToken);
                 if (message is null) break;
 
+                // Pre-auth rate limiting for authentication attempts
+                if (sessionId is null && message.Type == MessageType.Authenticate)
+                {
+                    if (!_authRateLimiter.TryAcquire(clientId))
+                    {
+                        var rateLimitResp = CreateResponse(message.RequestId, MessageType.Error,
+                            new ErrorResponse { Error = "Auth rate limit exceeded" });
+                        await IpcTransport.SendAsync(stream, rateLimitResp, cancellationToken);
+                        continue;
+                    }
+                }
+
+                // Post-auth rate limiting for all other requests
                 if (sessionId is not null && !_rateLimiter.TryAcquire(sessionId))
                 {
                     var rateLimitResp = CreateResponse(message.RequestId, MessageType.Error,
@@ -121,6 +195,25 @@ public sealed class ElevationServer : IDisposable
                     MessageType.Shutdown => HandleShutdown(message, sessionId),
                     _ => CreateErrorResponse(message.RequestId, $"Unknown message type: {message.Type}")
                 };
+
+                // Track auth failures and disconnect after too many consecutive failures
+                if (message.Type == MessageType.Authenticate)
+                {
+                    if (sessionId is null)
+                    {
+                        if (_authRateLimiter.RecordFailure(clientId))
+                        {
+                            Log.Warning("Client {ClientId} (PID: {Pid}) exceeded max consecutive auth failures, disconnecting",
+                                clientId, peerPid);
+                            await IpcTransport.SendAsync(stream, response, cancellationToken);
+                            break;
+                        }
+                    }
+                    else
+                    {
+                        _authRateLimiter.RecordSuccess(clientId);
+                    }
+                }
 
                 await IpcTransport.SendAsync(stream, response, cancellationToken);
 
@@ -140,6 +233,7 @@ public sealed class ElevationServer : IDisposable
                 _sessionManager.RemoveSession(sessionId);
                 _rateLimiter.RemoveClient(sessionId);
             }
+            _authRateLimiter.RemoveClient(clientId);
             if (stream is IDisposable disposable)
                 disposable.Dispose();
         }
@@ -285,8 +379,9 @@ public sealed class ElevationServer : IDisposable
         }
         catch
         {
+            // Fail closed: if we can't verify, deny access
             Log.Warning("Could not verify executable path for PID {Pid}", pid);
-            return true; // Secret validation is primary auth
+            return false;
         }
     }
 

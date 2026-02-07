@@ -1,5 +1,6 @@
 using System.Collections.Concurrent;
 using System.Net;
+using System.Runtime.InteropServices;
 using Microsoft.Diagnostics.Tracing;
 using Microsoft.Diagnostics.Tracing.Session;
 using Serilog;
@@ -135,26 +136,62 @@ public sealed class EtwConnectionTracker : IDisposable
     }
 
     /// <summary>
-    /// Refreshes the mapping of connections to PIDs using GetExtendedTcpTable.
+    /// Refreshes the mapping of connections to PIDs using GetExtendedTcpTable P/Invoke.
     /// </summary>
     private void RefreshConnectionPidMapping()
     {
         try
         {
-            var properties = System.Net.NetworkInformation.IPGlobalProperties.GetIPGlobalProperties();
-            var connections = properties.GetActiveTcpConnections();
+            var size = 0;
+            // First call to get required buffer size
+            GetExtendedTcpTable(IntPtr.Zero, ref size, order: true,
+                AF_INET, TcpTableClass.TcpTableOwnerPidAll, 0);
 
-            foreach (var conn in connections)
+            var buffer = Marshal.AllocHGlobal(size);
+            try
             {
-                var key = MakeConnectionKey(
-                    conn.LocalEndPoint.Address.ToString(),
-                    conn.LocalEndPoint.Port,
-                    conn.RemoteEndPoint.Address.ToString(),
-                    conn.RemoteEndPoint.Port);
+                var result = GetExtendedTcpTable(buffer, ref size, order: true,
+                    AF_INET, TcpTableClass.TcpTableOwnerPidAll, 0);
 
-                // .NET doesn't expose PID directly from TcpConnectionInformation.
-                // We rely on ETW events which include the TCB (Transmission Control Block)
-                // identifier for correlation.
+                if (result != 0)
+                {
+                    Log.Debug("GetExtendedTcpTable failed with error code {ErrorCode}", result);
+                    return;
+                }
+
+                var rowCount = Marshal.ReadInt32(buffer);
+                var rowPtr = buffer + Marshal.SizeOf<int>();
+                var rowSize = Marshal.SizeOf<MibTcpRowOwnerPid>();
+
+                for (var i = 0; i < rowCount; i++)
+                {
+                    var row = Marshal.PtrToStructure<MibTcpRowOwnerPid>(rowPtr + i * rowSize);
+
+                    var localAddr = new IPAddress(row.LocalAddr).ToString();
+                    var localPort = (row.LocalPort >> 8) | ((row.LocalPort & 0xFF) << 8);
+                    var remoteAddr = new IPAddress(row.RemoteAddr).ToString();
+                    var remotePort = (row.RemotePort >> 8) | ((row.RemotePort & 0xFF) << 8);
+
+                    var key = MakeConnectionKey(localAddr, localPort, remoteAddr, remotePort);
+                    _connectionToPid[key] = row.OwningPid;
+
+                    if (row.OwningPid != 0 && !_pidToProcessName.ContainsKey(row.OwningPid))
+                    {
+                        try
+                        {
+                            using var proc = System.Diagnostics.Process.GetProcessById(row.OwningPid);
+                            _pidToProcessName[row.OwningPid] = proc.ProcessName;
+                        }
+                        catch
+                        {
+                            _pidToProcessName[row.OwningPid] = "Unknown";
+                        }
+                    }
+                }
+            }
+            finally
+            {
+                Marshal.FreeHGlobal(buffer);
             }
         }
         catch (Exception ex)
@@ -162,6 +199,37 @@ public sealed class EtwConnectionTracker : IDisposable
             Log.Debug(ex, "Error refreshing connection-PID mapping");
         }
     }
+
+    #region P/Invoke for GetExtendedTcpTable
+
+    private const int AF_INET = 2;
+
+    private enum TcpTableClass
+    {
+        TcpTableOwnerPidAll = 5
+    }
+
+    [StructLayout(LayoutKind.Sequential)]
+    private struct MibTcpRowOwnerPid
+    {
+        public uint State;
+        public uint LocalAddr;
+        public int LocalPort;
+        public uint RemoteAddr;
+        public int RemotePort;
+        public int OwningPid;
+    }
+
+    [DllImport("iphlpapi.dll", SetLastError = true)]
+    private static extern int GetExtendedTcpTable(
+        IntPtr pTcpTable,
+        ref int pdwSize,
+        [MarshalAs(UnmanagedType.Bool)] bool order,
+        int ulAf,
+        TcpTableClass tableClass,
+        int reserved);
+
+    #endregion
 
     public ConnectionStatsResponse GetConnectionStats()
     {

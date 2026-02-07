@@ -1,5 +1,6 @@
 using System.Diagnostics;
 using System.Runtime.Versioning;
+using System.Security.Principal;
 using Microsoft.Extensions.Logging;
 using WireBound.Platform.Abstract.Services;
 
@@ -35,6 +36,12 @@ public sealed class WindowsHelperProcessManager : IHelperProcessManager
             return Path.Combine(appDir, "WireBound.Elevation.exe");
         }
     }
+
+    /// <summary>
+    /// Gets the SID of the current (non-elevated) user to pass to the helper process.
+    /// </summary>
+    private static string CurrentUserSid =>
+        WindowsIdentity.GetCurrent().User!.Value;
 
     public event EventHandler<HelperExitedEventArgs>? HelperExited;
 
@@ -110,9 +117,11 @@ public sealed class WindowsHelperProcessManager : IHelperProcessManager
         {
             _logger?.LogInformation("Registering scheduled task for helper auto-start");
 
+            var sid = CurrentUserSid;
+
             // Use schtasks.exe to create a task that runs at logon with highest privileges
             var args = $"/Create /TN \"{TaskFolder}\\{TaskName}\" " +
-                       $"/TR \"\\\"{HelperPath}\\\"\" " +
+                       $"/TR \"\\\"{HelperPath}\\\" --caller-sid {sid}\" " +
                        "/SC ONLOGON " +
                        "/RL HIGHEST " +
                        "/F " + // Force overwrite if exists
@@ -191,6 +200,7 @@ public sealed class WindowsHelperProcessManager : IHelperProcessManager
             var startInfo = new ProcessStartInfo
             {
                 FileName = HelperPath,
+                Arguments = $"--caller-sid {CurrentUserSid}",
                 UseShellExecute = true,
                 Verb = "runas", // Triggers UAC prompt
                 CreateNoWindow = true

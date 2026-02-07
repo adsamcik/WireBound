@@ -1,6 +1,7 @@
 using System.IO.Pipes;
 using System.Security.AccessControl;
 using System.Security.Principal;
+using System.Text.RegularExpressions;
 using Serilog;
 using WireBound.IPC;
 using WireBound.IPC.Messages;
@@ -13,19 +14,76 @@ namespace WireBound.Elevation.Windows;
 /// Elevated IPC server for Windows using named pipes with ACL protection.
 /// Accepts authenticated clients and serves per-connection byte statistics via ETW.
 /// </summary>
-public sealed class ElevationServer : IDisposable
+public sealed partial class ElevationServer : IDisposable
 {
     private readonly byte[] _secret;
+    private readonly SecurityIdentifier _callerSid;
     private readonly SessionManager _sessionManager = new();
     private readonly RateLimiter _rateLimiter = new();
+    private readonly AuthRateLimiter _authRateLimiter = new();
     private readonly DateTimeOffset _startTime = DateTimeOffset.UtcNow;
     private readonly EtwConnectionTracker _tracker = new();
 
-    public ElevationServer()
+    /// <summary>
+    /// Creates the elevation server, granting pipe access to the specified caller SID.
+    /// </summary>
+    /// <param name="callerSid">
+    /// The SID of the non-elevated user who launched this helper.
+    /// Must be a valid SID string (e.g. "S-1-5-21-..."). Used in the named pipe ACL
+    /// so the non-elevated main app can connect.
+    /// </param>
+    /// <exception cref="ArgumentException">Thrown when callerSid is invalid.</exception>
+    public ElevationServer(string callerSid)
     {
+        _callerSid = ValidateAndParseSid(callerSid);
         _secret = SecretManager.GenerateAndStore();
         Log.Information("Secret stored at {Path}", SecretManager.GetSecretFilePath());
+        Log.Information("Pipe ACL grants access to caller SID: {Sid}", _callerSid.Value);
     }
+
+    /// <summary>
+    /// Validates a SID string for format correctness and security constraints.
+    /// Rejects well-known dangerous SIDs (Everyone, Anonymous, World).
+    /// </summary>
+    internal static SecurityIdentifier ValidateAndParseSid(string sidString)
+    {
+        if (string.IsNullOrWhiteSpace(sidString))
+            throw new ArgumentException("Caller SID must not be empty.", nameof(sidString));
+
+        // Strict format validation: only allow characters valid in a SID string
+        if (!SidFormatRegex().IsMatch(sidString))
+            throw new ArgumentException($"Caller SID has invalid format: {sidString}", nameof(sidString));
+
+        SecurityIdentifier sid;
+        try
+        {
+            sid = new SecurityIdentifier(sidString);
+        }
+        catch (ArgumentException)
+        {
+            throw new ArgumentException($"Caller SID is not a valid Windows SID: {sidString}", nameof(sidString));
+        }
+
+        // Reject overly broad or dangerous well-known SIDs
+        if (sid.IsWellKnown(WellKnownSidType.WorldSid) ||            // S-1-1-0  (Everyone)
+            sid.IsWellKnown(WellKnownSidType.AnonymousSid) ||         // S-1-5-7  (Anonymous)
+            sid.IsWellKnown(WellKnownSidType.AuthenticatedUserSid) || // S-1-5-11 (Authenticated Users)
+            sid.IsWellKnown(WellKnownSidType.NetworkSid))             // S-1-5-2  (Network)
+        {
+            throw new ArgumentException(
+                $"Caller SID must identify a specific user account, not a broad group: {sidString}",
+                nameof(sidString));
+        }
+
+        return sid;
+    }
+
+    /// <summary>
+    /// Matches a valid SID format: S-1-{authority}-{sub-authorities...}
+    /// Only digits, hyphens, and the leading 'S' are permitted.
+    /// </summary>
+    [GeneratedRegex(@"^S-1-\d{1,14}(-\d{1,10}){1,15}$", RegexOptions.Compiled)]
+    private static partial Regex SidFormatRegex();
 
     public async Task RunAsync(CancellationToken cancellationToken)
     {
@@ -62,9 +120,9 @@ public sealed class ElevationServer : IDisposable
     /// Creates a named pipe with restrictive ACL:
     /// - SYSTEM: Full control
     /// - Administrators: Full control
-    /// - Current user: Read/Write (so the non-elevated app can connect)
+    /// - Launching user (callerSid): Read/Write (so the non-elevated app can connect)
     /// </summary>
-    private static NamedPipeServerStream CreateSecurePipe()
+    private NamedPipeServerStream CreateSecurePipe()
     {
         var security = new PipeSecurity();
 
@@ -78,9 +136,9 @@ public sealed class ElevationServer : IDisposable
             PipeAccessRights.FullControl,
             AccessControlType.Allow));
 
-        // Allow the current user (who launched the main app) to connect
+        // Allow the launching user (non-elevated) to connect
         security.AddAccessRule(new PipeAccessRule(
-            WindowsIdentity.GetCurrent().User!,
+            _callerSid,
             PipeAccessRights.ReadWrite,
             AccessControlType.Allow));
 
@@ -114,6 +172,7 @@ public sealed class ElevationServer : IDisposable
     private async Task HandleClientAsync(Stream stream, CancellationToken cancellationToken)
     {
         string? sessionId = null;
+        var clientId = stream.GetHashCode().ToString();
         try
         {
             while (!cancellationToken.IsCancellationRequested)
@@ -121,6 +180,19 @@ public sealed class ElevationServer : IDisposable
                 var message = await IpcTransport.ReceiveAsync(stream, cancellationToken);
                 if (message is null) break;
 
+                // Pre-auth rate limiting for authentication attempts
+                if (sessionId is null && message.Type == MessageType.Authenticate)
+                {
+                    if (!_authRateLimiter.TryAcquire(clientId))
+                    {
+                        var rateLimitResp = CreateResponse(message.RequestId, MessageType.Error,
+                            new ErrorResponse { Error = "Auth rate limit exceeded" });
+                        await IpcTransport.SendAsync(stream, rateLimitResp, cancellationToken);
+                        continue;
+                    }
+                }
+
+                // Post-auth rate limiting for all other requests
                 if (sessionId is not null && !_rateLimiter.TryAcquire(sessionId))
                 {
                     var rateLimitResp = CreateResponse(message.RequestId, MessageType.Error,
@@ -138,6 +210,24 @@ public sealed class ElevationServer : IDisposable
                     MessageType.Shutdown => HandleShutdown(message, sessionId),
                     _ => CreateErrorResponse(message.RequestId, $"Unknown message type: {message.Type}")
                 };
+
+                // Track auth failures and disconnect after too many consecutive failures
+                if (message.Type == MessageType.Authenticate)
+                {
+                    if (sessionId is null)
+                    {
+                        if (_authRateLimiter.RecordFailure(clientId))
+                        {
+                            Log.Warning("Client {ClientId} exceeded max consecutive auth failures, disconnecting", clientId);
+                            await IpcTransport.SendAsync(stream, response, cancellationToken);
+                            break;
+                        }
+                    }
+                    else
+                    {
+                        _authRateLimiter.RecordSuccess(clientId);
+                    }
+                }
 
                 await IpcTransport.SendAsync(stream, response, cancellationToken);
 
@@ -157,6 +247,7 @@ public sealed class ElevationServer : IDisposable
                 _sessionManager.RemoveSession(sessionId);
                 _rateLimiter.RemoveClient(sessionId);
             }
+            _authRateLimiter.RemoveClient(clientId);
             if (stream is IDisposable disposable)
                 disposable.Dispose();
         }
@@ -294,9 +385,9 @@ public sealed class ElevationServer : IDisposable
         }
         catch
         {
-            // If we can't verify, log warning but allow (secret validation is primary auth)
+            // Fail closed: if we can't verify, deny access
             Log.Warning("Could not verify executable path for PID {Pid}", pid);
-            return true;
+            return false;
         }
     }
 

@@ -80,7 +80,9 @@ public class LinuxHelperConnection : IHelperConnection
         where TRequest : class
         where TResponse : class
     {
-        if (_stream is null || _socket is not { Connected: true })
+        var stream = _stream;
+        var socket = _socket;
+        if (stream is null || socket is not { Connected: true })
             throw new InvalidOperationException("Not connected to helper");
 
         var messageType = request switch
@@ -98,8 +100,8 @@ public class LinuxHelperConnection : IHelperConnection
             Payload = IpcTransport.SerializePayload(request)
         };
 
-        await IpcTransport.SendAsync(_stream, message, cancellationToken);
-        var response = await IpcTransport.ReceiveAsync(_stream, cancellationToken);
+        await IpcTransport.SendAsync(stream, message, cancellationToken);
+        var response = await IpcTransport.ReceiveAsync(stream, cancellationToken);
 
         if (response is null)
         {

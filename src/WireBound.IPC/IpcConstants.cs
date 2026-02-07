@@ -18,4 +18,6 @@ public static class IpcConstants
 
     // Auth
     public const int TimestampFreshnessSeconds = 30;
+    public const int MaxAuthAttemptsPerSecond = 5;
+    public const int MaxConsecutiveAuthFailures = 5;
 }

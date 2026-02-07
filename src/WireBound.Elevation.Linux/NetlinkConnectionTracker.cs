@@ -193,6 +193,12 @@ public sealed class NetlinkConnectionTracker : IDisposable
     /// Parses hex-encoded IP:port from /proc/net/tcp format.
     /// IPv4: "0100007F:0050" → 127.0.0.1:80
     /// IPv6: "00000000000000000000000001000000:0050"
+    /// 
+    /// Linux stores IPv6 addresses as 4 groups of 32-bit values in host byte order
+    /// (little-endian on x86). Each 8-hex-char group must be parsed as a 32-bit LE integer
+    /// and then written in network byte order (big-endian) to form the correct 16-byte address.
+    /// For example, ::1 is stored as "00000000000000000000000001000000" where the last group
+    /// "01000000" is 0x00000001 in little-endian.
     /// </summary>
     private static IPEndPoint? ParseHexEndpoint(string hexEndpoint, bool isIpv6)
     {
@@ -210,9 +216,20 @@ public sealed class NetlinkConnectionTracker : IDisposable
             if (isIpv6)
             {
                 if (addrHex.Length != 32) return null;
+
+                // Linux stores IPv6 as 4×32-bit integers in host (little-endian) byte order.
+                // Parse each 8-char group as a uint, then convert to big-endian bytes.
                 var bytes = new byte[16];
-                for (var j = 0; j < 16; j++)
-                    bytes[j] = byte.Parse(addrHex.AsSpan(j * 2, 2), NumberStyles.HexNumber);
+                for (var g = 0; g < 4; g++)
+                {
+                    var groupHex = addrHex.AsSpan(g * 8, 8);
+                    var hostOrder = uint.Parse(groupHex, NumberStyles.HexNumber);
+                    // Convert from little-endian host order to network (big-endian) order
+                    bytes[g * 4 + 0] = (byte)(hostOrder & 0xFF);
+                    bytes[g * 4 + 1] = (byte)((hostOrder >> 8) & 0xFF);
+                    bytes[g * 4 + 2] = (byte)((hostOrder >> 16) & 0xFF);
+                    bytes[g * 4 + 3] = (byte)((hostOrder >> 24) & 0xFF);
+                }
                 return new IPEndPoint(new IPAddress(bytes), port);
             }
             else

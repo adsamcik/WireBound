@@ -75,7 +75,8 @@ public class WindowsHelperConnection : IHelperConnection
         where TRequest : class
         where TResponse : class
     {
-        if (_pipe is null || !_pipe.IsConnected)
+        var pipe = _pipe;
+        if (pipe is null || !pipe.IsConnected)
             throw new InvalidOperationException("Not connected to helper");
 
         var messageType = request switch
@@ -93,8 +94,8 @@ public class WindowsHelperConnection : IHelperConnection
             Payload = IpcTransport.SerializePayload(request)
         };
 
-        await IpcTransport.SendAsync(_pipe, message, cancellationToken);
-        var response = await IpcTransport.ReceiveAsync(_pipe, cancellationToken);
+        await IpcTransport.SendAsync(pipe, message, cancellationToken);
+        var response = await IpcTransport.ReceiveAsync(pipe, cancellationToken);
 
         if (response is null)
         {

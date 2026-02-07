@@ -9,30 +9,40 @@ namespace WireBound.IPC.Security;
 public sealed class SessionManager
 {
     private readonly ConcurrentDictionary<string, SessionInfo> _sessions = new();
+    private readonly SemaphoreSlim _createLock = new(1, 1);
     private readonly TimeSpan _maxDuration = IpcConstants.MaxSessionDuration;
     private readonly int _maxConcurrent = IpcConstants.MaxConcurrentSessions;
 
     /// <summary>
     /// Creates a new session for an authenticated client.
     /// Returns null if the maximum number of concurrent sessions is reached.
+    /// Uses a lock to prevent TOCTOU race between count check and add.
     /// </summary>
     public SessionInfo? CreateSession(int clientPid, string executablePath)
     {
         CleanExpiredSessions();
 
-        if (_sessions.Count >= _maxConcurrent)
-            return null;
-
-        var session = new SessionInfo
+        _createLock.Wait();
+        try
         {
-            SessionId = Guid.NewGuid().ToString("N"),
-            ClientPid = clientPid,
-            ExecutablePath = executablePath,
-            CreatedAtUtc = DateTimeOffset.UtcNow,
-            ExpiresAtUtc = DateTimeOffset.UtcNow.Add(_maxDuration)
-        };
+            if (_sessions.Count >= _maxConcurrent)
+                return null;
 
-        return _sessions.TryAdd(session.SessionId, session) ? session : null;
+            var session = new SessionInfo
+            {
+                SessionId = Guid.NewGuid().ToString("N"),
+                ClientPid = clientPid,
+                ExecutablePath = executablePath,
+                CreatedAtUtc = DateTimeOffset.UtcNow,
+                ExpiresAtUtc = DateTimeOffset.UtcNow.Add(_maxDuration)
+            };
+
+            return _sessions.TryAdd(session.SessionId, session) ? session : null;
+        }
+        finally
+        {
+            _createLock.Release();
+        }
     }
 
     /// <summary>

@@ -51,7 +51,7 @@ public sealed class WindowsElevationService : IElevationService, IAsyncDisposabl
     /// <summary>
     /// Helper executable name.
     /// </summary>
-    private const string HelperExecutableName = "WireBound.Helper.exe";
+    private const string HelperExecutableName = "WireBound.Elevation.exe";
 
     public WindowsElevationService(
         ILogger<WindowsElevationService>? logger = null,

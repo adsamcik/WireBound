@@ -18,6 +18,16 @@ try
 {
     Log.Information("WireBound Elevation starting (PID: {Pid})", Environment.ProcessId);
 
+    // Parse the required --caller-sid argument
+    var callerSid = ParseCallerSid(args);
+    if (callerSid is null)
+    {
+        Log.Fatal("Missing required argument: --caller-sid <SID>");
+        Console.Error.WriteLine("Usage: WireBound.Elevation --caller-sid <SID>");
+        Environment.ExitCode = 1;
+        return;
+    }
+
     using var cts = new CancellationTokenSource();
     Console.CancelKeyPress += (_, e) =>
     {
@@ -27,8 +37,14 @@ try
 
     AppDomain.CurrentDomain.ProcessExit += (_, _) => cts.Cancel();
 
-    using var server = new ElevationServer();
+    using var server = new ElevationServer(callerSid);
     await server.RunAsync(cts.Token);
+}
+catch (ArgumentException ex)
+{
+    Log.Fatal(ex, "Invalid caller SID argument");
+    Console.Error.WriteLine($"Error: {ex.Message}");
+    Environment.ExitCode = 1;
 }
 catch (OperationCanceledException)
 {
@@ -43,4 +59,15 @@ finally
 {
     Log.Information("WireBound Elevation exiting");
     Log.CloseAndFlush();
+}
+
+static string? ParseCallerSid(string[] args)
+{
+    for (var i = 0; i < args.Length - 1; i++)
+    {
+        if (string.Equals(args[i], "--caller-sid", StringComparison.OrdinalIgnoreCase))
+            return args[i + 1];
+    }
+
+    return null;
 }

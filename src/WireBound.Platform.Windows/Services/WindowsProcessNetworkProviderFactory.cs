@@ -40,9 +40,10 @@ public sealed class WindowsProcessNetworkProviderFactory : IProcessNetworkProvid
     public IProcessNetworkProvider GetProvider()
     {
         // Return elevated provider if helper is connected, otherwise basic provider
-        if (HasElevatedProvider && _elevatedProvider != null)
+        var elevated = Volatile.Read(ref _elevatedProvider);
+        if (HasElevatedProvider && elevated != null)
         {
-            return _elevatedProvider;
+            return elevated;
         }
         return _basicProvider;
     }
@@ -53,12 +54,13 @@ public sealed class WindowsProcessNetworkProviderFactory : IProcessNetworkProvid
         {
             var helperConnection = _elevationService!.GetHelperConnection();
             if (helperConnection is not null)
-                _elevatedProvider = new WindowsElevatedProcessNetworkProvider(helperConnection);
+                Volatile.Write(ref _elevatedProvider, new WindowsElevatedProcessNetworkProvider(helperConnection));
         }
         else
         {
-            _elevatedProvider?.Dispose();
-            _elevatedProvider = null;
+            var old = Volatile.Read(ref _elevatedProvider);
+            Volatile.Write(ref _elevatedProvider, null);
+            old?.Dispose();
         }
         ProviderChanged?.Invoke(this, new ProviderChangedEventArgs(GetProvider()));
     }

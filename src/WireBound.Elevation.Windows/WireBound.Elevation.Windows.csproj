@@ -11,6 +11,10 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <InternalsVisibleTo Include="WireBound.Tests" />
+  </ItemGroup>
+
+  <ItemGroup>
     <ProjectReference Include="..\WireBound.IPC\WireBound.IPC.csproj" />
   </ItemGroup>
 

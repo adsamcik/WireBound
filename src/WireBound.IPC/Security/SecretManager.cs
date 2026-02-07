@@ -1,3 +1,4 @@
+using System.Runtime.Versioning;
 using System.Security.Cryptography;
 using System.Text;
 
@@ -70,17 +71,55 @@ public static class SecretManager
     }
 
     /// <summary>
-    /// Sets restrictive file permissions so only the current user (and root/admin) can read.
+    /// Sets restrictive file permissions so only the current user (and SYSTEM/root) can read.
     /// </summary>
     private static void RestrictFileAccess(string path)
     {
-        if (OperatingSystem.IsLinux())
+        if (OperatingSystem.IsWindows())
+        {
+            SetWindowsAcl(path);
+        }
+        else if (OperatingSystem.IsLinux())
         {
             // chmod 600 — owner read/write only
             File.SetUnixFileMode(path,
                 UnixFileMode.UserRead | UnixFileMode.UserWrite);
         }
-        // Windows: The file inherits %LOCALAPPDATA% ACLs which are user-private by default.
-        // No additional ACL manipulation needed.
+    }
+
+    /// <summary>
+    /// Sets explicit Windows ACL: only current user + SYSTEM can access the file.
+    /// Removes all inherited ACLs to prevent enterprise/roaming profile leakage.
+    /// </summary>
+    [SupportedOSPlatform("windows")]
+    private static void SetWindowsAcl(string path)
+    {
+        var fileInfo = new FileInfo(path);
+        var security = fileInfo.GetAccessControl();
+
+        // Remove all inherited rules so enterprise/roaming ACLs don't leak access
+        security.SetAccessRuleProtection(isProtected: true, preserveInheritance: false);
+        var existingRules = security.GetAccessRules(
+            includeExplicit: true, includeInherited: true,
+            targetType: typeof(System.Security.Principal.SecurityIdentifier));
+        foreach (System.Security.AccessControl.FileSystemAccessRule rule in existingRules)
+        {
+            security.RemoveAccessRule(rule);
+        }
+
+        // Grant current user full control
+        security.AddAccessRule(new System.Security.AccessControl.FileSystemAccessRule(
+            System.Security.Principal.WindowsIdentity.GetCurrent().User!,
+            System.Security.AccessControl.FileSystemRights.FullControl,
+            System.Security.AccessControl.AccessControlType.Allow));
+
+        // Grant SYSTEM full control (needed for elevated helper)
+        security.AddAccessRule(new System.Security.AccessControl.FileSystemAccessRule(
+            new System.Security.Principal.SecurityIdentifier(
+                System.Security.Principal.WellKnownSidType.LocalSystemSid, null),
+            System.Security.AccessControl.FileSystemRights.FullControl,
+            System.Security.AccessControl.AccessControlType.Allow));
+
+        fileInfo.SetAccessControl(security);
     }
 }

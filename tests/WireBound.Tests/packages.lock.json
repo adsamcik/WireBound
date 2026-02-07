@@ -187,6 +187,14 @@
           "SQLitePCLRaw.core": "2.1.11"
         }
       },
+      "Microsoft.Diagnostics.NETCore.Client": {
+        "type": "Transitive",
+        "resolved": "0.2.510501",
+        "contentHash": "juoqJYMDs+lRrrZyOkXXMImJHneCF23cuvO4waFRd2Ds7j+ZuGIPbJm0Y/zz34BdeaGiiwGWraMUlln05W1PCQ==",
+        "dependencies": {
+          "Microsoft.Extensions.Logging": "6.0.0"
+        }
+      },
       "Microsoft.DiaSymReader": {
         "type": "Transitive",
         "resolved": "2.0.0",
@@ -635,6 +643,11 @@
         "resolved": "10.0.2",
         "contentHash": "TJPpTLF5MFPobq09c9BQ5X8QuviQfsKvH0Jbm7MkGylGvfIdRqJQLZDPC5sMRFkk9aZhmgir1NJKekip2NxfaA=="
       },
+      "System.Reflection.TypeExtensions": {
+        "type": "Transitive",
+        "resolved": "4.7.0",
+        "contentHash": "VybpaOQQhqE6siHppMktjfGBw1GCwvCqiufqmP8F1nj7fTUNtW35LOEt3UZTEsECfo+ELAl/9o9nJx3U91i7vA=="
+      },
       "System.Security.Cryptography.ProtectedData": {
         "type": "Transitive",
         "resolved": "10.0.2",
@@ -697,6 +710,15 @@
           "Microsoft.EntityFrameworkCore.Sqlite": "[10.0.2, )",
           "Microsoft.Extensions.Logging.Abstractions": "[10.0.2, )",
           "WireBound.Platform.Abstract": "[1.0.0, )"
+        }
+      },
+      "WireBound.Elevation": {
+        "type": "Project",
+        "dependencies": {
+          "Microsoft.Diagnostics.Tracing.TraceEvent": "[3.1.29, )",
+          "Serilog": "[4.3.0, )",
+          "Serilog.Sinks.File": "[7.0.0, )",
+          "WireBound.IPC": "[1.0.0, )"
         }
       },
       "wirebound.ipc": {
@@ -822,6 +844,16 @@
           "MessagePack.Annotations": "3.1.4",
           "MessagePackAnalyzer": "3.1.4",
           "Microsoft.NET.StringTools": "17.11.4"
+        }
+      },
+      "Microsoft.Diagnostics.Tracing.TraceEvent": {
+        "type": "CentralTransitive",
+        "requested": "[3.1.29, )",
+        "resolved": "3.1.29",
+        "contentHash": "QYj2YorkI0e/qBMZ+EPed2QIhVH4Jkx1+KrT/PLTgnyzkx+xtqvKe44JjCR3z8J/sNFvpJn8ORmemOYx58kbRg==",
+        "dependencies": {
+          "Microsoft.Diagnostics.NETCore.Client": "0.2.510501",
+          "System.Reflection.TypeExtensions": "4.7.0"
         }
       },
       "Microsoft.EntityFrameworkCore.Sqlite": {

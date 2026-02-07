@@ -9,9 +9,16 @@ namespace WireBound.IPC.Transport;
 /// </summary>
 public static class IpcTransport
 {
+    /// <summary>
+    /// Secure MessagePack options that enable UntrustedData protection against
+    /// hash-flooding and other deserialization attacks.
+    /// </summary>
+    private static readonly MessagePackSerializerOptions SecureOptions =
+        MessagePackSerializerOptions.Standard.WithSecurity(MessagePackSecurity.UntrustedData);
+
     public static async Task SendAsync(Stream stream, IpcMessage message, CancellationToken ct = default)
     {
-        var bytes = MessagePackSerializer.Serialize(message, cancellationToken: ct);
+        var bytes = MessagePackSerializer.Serialize(message, SecureOptions, ct);
         if (bytes.Length > IpcConstants.MaxMessageSize)
             throw new InvalidOperationException($"Message exceeds max size: {bytes.Length}");
 
@@ -24,36 +31,50 @@ public static class IpcTransport
         await stream.FlushAsync(ct);
     }
 
-    public static async Task<IpcMessage?> ReceiveAsync(Stream stream, CancellationToken ct = default)
+    private static readonly TimeSpan DefaultReceiveTimeout = TimeSpan.FromSeconds(30);
+
+    public static async Task<IpcMessage?> ReceiveAsync(Stream stream, CancellationToken ct = default, TimeSpan? timeout = null)
     {
-        var lengthBuffer = new byte[4];
-        var bytesRead = await ReadExactAsync(stream, lengthBuffer, ct);
-        if (bytesRead < 4) return null;
+        var effectiveTimeout = timeout ?? DefaultReceiveTimeout;
+        using var timeoutCts = CancellationTokenSource.CreateLinkedTokenSource(ct);
+        timeoutCts.CancelAfter(effectiveTimeout);
 
-        if (BitConverter.IsLittleEndian)
-            Array.Reverse(lengthBuffer);
-        var length = BitConverter.ToInt32(lengthBuffer, 0);
+        try
+        {
+            var lengthBuffer = new byte[4];
+            var bytesRead = await ReadExactAsync(stream, lengthBuffer, timeoutCts.Token);
+            if (bytesRead < 4) return null;
 
-        if (length <= 0 || length > IpcConstants.MaxMessageSize) return null;
+            if (BitConverter.IsLittleEndian)
+                Array.Reverse(lengthBuffer);
+            var length = BitConverter.ToInt32(lengthBuffer, 0);
 
-        var buffer = new byte[length];
-        bytesRead = await ReadExactAsync(stream, buffer, ct);
-        if (bytesRead < length) return null;
+            if (length <= 0 || length > IpcConstants.MaxMessageSize) return null;
 
-        return MessagePackSerializer.Deserialize<IpcMessage>(buffer, cancellationToken: ct);
+            var buffer = new byte[length];
+            bytesRead = await ReadExactAsync(stream, buffer, timeoutCts.Token);
+            if (bytesRead < length) return null;
+
+            return MessagePackSerializer.Deserialize<IpcMessage>(buffer, SecureOptions, timeoutCts.Token);
+        }
+        catch (OperationCanceledException) when (!ct.IsCancellationRequested)
+        {
+            // Timeout expired, not caller cancellation
+            return null;
+        }
     }
 
     /// <summary>
     /// Serializes a payload DTO into the MessagePack binary format for embedding in IpcMessage.Payload.
     /// </summary>
     public static byte[] SerializePayload<T>(T payload) =>
-        MessagePackSerializer.Serialize(payload);
+        MessagePackSerializer.Serialize(payload, SecureOptions);
 
     /// <summary>
     /// Deserializes a payload DTO from the MessagePack binary stored in IpcMessage.Payload.
     /// </summary>
     public static T DeserializePayload<T>(byte[] payload) =>
-        MessagePackSerializer.Deserialize<T>(payload);
+        MessagePackSerializer.Deserialize<T>(payload, SecureOptions);
 
     private static async Task<int> ReadExactAsync(Stream stream, byte[] buffer, CancellationToken ct)
     {

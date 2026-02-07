@@ -2,12 +2,16 @@
   <Folder Name="/src/">
     <Project Path="src/WireBound.Core/WireBound.Core.csproj" />
     <Project Path="src/WireBound.Avalonia/WireBound.Avalonia.csproj" />
+    <Project Path="src/WireBound.IPC/WireBound.IPC.csproj" />
   </Folder>
   <Folder Name="/src/Platform/">
     <Project Path="src/WireBound.Platform.Abstract/WireBound.Platform.Abstract.csproj" />
     <Project Path="src/WireBound.Platform.Stub/WireBound.Platform.Stub.csproj" />
     <Project Path="src/WireBound.Platform.Windows/WireBound.Platform.Windows.csproj" />
     <Project Path="src/WireBound.Platform.Linux/WireBound.Platform.Linux.csproj" />
+  </Folder>
+  <Folder Name="/src/Helper/">
+    <Project Path="src/WireBound.Helper/WireBound.Helper.csproj" />
   </Folder>
   <Folder Name="/tests/">
     <Project Path="tests/WireBound.Tests/WireBound.Tests.csproj" />

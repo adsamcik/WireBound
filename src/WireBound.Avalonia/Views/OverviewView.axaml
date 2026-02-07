@@ -46,16 +46,14 @@
             <controls:SystemHealthStrip Grid.Column="2"
                                         CpuPercent="{Binding CpuPercent}"
                                         MemoryPercent="{Binding MemoryPercent}"
-                                        GpuPercent="{Binding GpuPercent}"
-                                        ShowGpu="{Binding IsGpuAvailable}"
                                         VerticalAlignment="Center"
                                         AutomationProperties.Name="System Health Strip"
-                                        AutomationProperties.HelpText="Quick view of CPU, RAM, and GPU usage" />
+                                        AutomationProperties.HelpText="Quick view of CPU and RAM usage" />
         </Grid>
 
         <!-- SCROLLABLE CONTENT -->
         <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto">
-            <Grid RowDefinitions="Auto, Auto, Auto" ColumnDefinitions="*, *">
+            <Grid x:Name="SpeedCardsGrid" RowDefinitions="Auto, Auto, Auto" ColumnDefinitions="*, *">
 
                 <!-- DOWNLOAD SPEED CARD - Hero Design -->
                 <Border Classes="ElevatedCard" Margin="0,0,10,0">
@@ -422,45 +420,6 @@
                                 <TextBlock Text="{Binding MemoryUsageFormatted}"
                                            FontSize="14" FontWeight="Bold"
                                            Foreground="{DynamicResource MemoryBrush}"
-                                           HorizontalAlignment="Center" />
-                            </StackPanel>
-
-                            <!-- GPU Section (conditionally visible) -->
-                            <Border Grid.Column="3"
-                                    Width="1"
-                                    Background="{DynamicResource DividerBrush}"
-                                    Margin="16,8"
-                                    VerticalAlignment="Stretch"
-                                    IsVisible="{Binding IsGpuAvailable}" />
-
-                            <StackPanel Grid.Column="4" 
-                                        HorizontalAlignment="Center" 
-                                        Spacing="8"
-                                        IsVisible="{Binding IsGpuAvailable}">
-                                <controls:CircularGauge Classes="Normal"
-                                                        Value="{Binding GpuPercent, FallbackValue=0}"
-                                                        GaugeColor="{DynamicResource GpuBrush}"
-                                                        BackgroundColor="{DynamicResource GpuBgTintBrush}"
-                                                        Label="GPU"
-                                                        ShowLabel="True" />
-                                <TextBlock Text="{Binding GpuUsageFormatted}"
-                                           FontSize="14" FontWeight="Bold"
-                                           Foreground="{DynamicResource GpuBrush}"
-                                           HorizontalAlignment="Center" />
-                            </StackPanel>
-
-                            <!-- Placeholder when GPU not available -->
-                            <StackPanel Grid.Column="3" Grid.ColumnSpan="2"
-                                        HorizontalAlignment="Center"
-                                        VerticalAlignment="Center"
-                                        IsVisible="{Binding !IsGpuAvailable}">
-                                <TextBlock Text="GPU monitoring"
-                                           Classes="Caption"
-                                           Opacity="0.5"
-                                           HorizontalAlignment="Center" />
-                                <TextBlock Text="not available"
-                                           Classes="Caption"
-                                           Opacity="0.5"
                                            HorizontalAlignment="Center" />
                             </StackPanel>
                         </Grid>

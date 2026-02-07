@@ -115,19 +115,10 @@ public sealed partial class OverviewViewModel : ObservableObject, IDisposable
     private double _memoryPercent;
 
     [ObservableProperty]
-    private double? _gpuPercent;
-
-    [ObservableProperty]
-    private bool _isGpuAvailable;
-
-    [ObservableProperty]
     private string _cpuUsageFormatted = "0%";
 
     [ObservableProperty]
     private string _memoryUsageFormatted = "0%";
-
-    [ObservableProperty]
-    private string _gpuUsageFormatted = "N/A";
 
     #endregion
 
@@ -277,12 +268,6 @@ public sealed partial class OverviewViewModel : ObservableObject, IDisposable
         // Update Memory properties
         MemoryPercent = stats.Memory.UsagePercent;
         MemoryUsageFormatted = $"{stats.Memory.UsagePercent:F0}%";
-
-        // GPU properties are not currently supported in SystemStats
-        // Future: Add GPU monitoring when available
-        IsGpuAvailable = false;
-        GpuPercent = null;
-        GpuUsageFormatted = "N/A";
 
         // Update overlay chart data if enabled
         if (ShowCpuOverlay || ShowMemoryOverlay)

@@ -51,11 +51,13 @@ public sealed class WindowsProcessNetworkProviderFactory : IProcessNetworkProvid
     {
         if (e.IsConnected)
         {
-            // TODO: Create elevated provider that uses helper connection
-            // _elevatedProvider = new WindowsElevatedProcessNetworkProvider(_elevationService!.GetHelperConnection()!);
+            var helperConnection = _elevationService!.GetHelperConnection();
+            if (helperConnection is not null)
+                _elevatedProvider = new WindowsElevatedProcessNetworkProvider(helperConnection);
         }
         else
         {
+            _elevatedProvider?.Dispose();
             _elevatedProvider = null;
         }
         ProviderChanged?.Invoke(this, new ProviderChangedEventArgs(GetProvider()));

@@ -37,6 +37,9 @@
     <!-- IPC -->
     <PackageVersion Include="MessagePack" Version="3.1.4" />
 
+    <!-- ETW (Windows only) -->
+    <PackageVersion Include="Microsoft.Diagnostics.Tracing.TraceEvent" Version="3.1.29" />
+
     <!-- Platform-specific -->
     <PackageVersion Include="ManagedNativeWifi" Version="3.0.2" />
     <PackageVersion Include="System.Diagnostics.PerformanceCounter" Version="10.0.2" />

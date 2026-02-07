@@ -13,6 +13,9 @@
   <Folder Name="/src/Helper/">
     <Project Path="src/WireBound.Helper/WireBound.Helper.csproj" />
   </Folder>
+  <Folder Name="/src/Elevation/">
+    <Project Path="src/WireBound.Elevation.Windows/WireBound.Elevation.Windows.csproj" />
+  </Folder>
   <Folder Name="/tests/">
     <Project Path="tests/WireBound.Tests/WireBound.Tests.csproj" />
   </Folder>

@@ -23,6 +23,7 @@
   <ItemGroup>
     <ProjectReference Include="..\..\src\WireBound.Core\WireBound.Core.csproj" />
     <ProjectReference Include="..\..\src\WireBound.Avalonia\WireBound.Avalonia.csproj" />
+    <ProjectReference Include="..\..\src\WireBound.IPC\WireBound.IPC.csproj" />
   </ItemGroup>
 
 </Project>

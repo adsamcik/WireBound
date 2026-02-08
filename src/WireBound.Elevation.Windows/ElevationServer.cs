@@ -164,7 +164,7 @@ public sealed partial class ElevationServer : IDisposable
         }
     }
 
-    private async Task HandleClientAsync(Stream stream, CancellationToken cancellationToken)
+    internal async Task HandleClientAsync(Stream stream, CancellationToken cancellationToken)
     {
         string? sessionId = null;
         var clientId = stream.GetHashCode().ToString();
@@ -386,7 +386,7 @@ public sealed partial class ElevationServer : IDisposable
         }
     }
 
-    private static IpcMessage CreateResponse<T>(string requestId, MessageType type, T payload)
+    internal static IpcMessage CreateResponse<T>(string requestId, MessageType type, T payload)
     {
         return new IpcMessage
         {
@@ -396,7 +396,7 @@ public sealed partial class ElevationServer : IDisposable
         };
     }
 
-    private static IpcMessage CreateErrorResponse(string requestId, string error)
+    internal static IpcMessage CreateErrorResponse(string requestId, string error)
     {
         return new IpcMessage
         {

@@ -7,6 +7,7 @@ namespace WireBound.Tests.IPC;
 /// Note: Tests that write to the secret file path may conflict with a running
 /// WireBound instance. Tests are designed to be resilient to this.
 /// </summary>
+[NotInParallel("SecretFile")]
 public class SecretManagerTests
 {
     [Test]

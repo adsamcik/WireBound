@@ -166,7 +166,7 @@ public sealed class ElevationServer : IDisposable
         return -1;
     }
 
-    private async Task HandleClientAsync(Stream stream, int peerPid, CancellationToken cancellationToken)
+    internal async Task HandleClientAsync(Stream stream, int peerPid, CancellationToken cancellationToken)
     {
         string? sessionId = null;
         var clientId = stream.GetHashCode().ToString();
@@ -251,7 +251,7 @@ public sealed class ElevationServer : IDisposable
         }
     }
 
-    private IpcMessage HandleAuthenticate(IpcMessage request, int peerPid, out string? sessionId)
+    internal IpcMessage HandleAuthenticate(IpcMessage request, int peerPid, out string? sessionId)
     {
         sessionId = null;
         AuthenticateRequest authRequest;
@@ -312,7 +312,7 @@ public sealed class ElevationServer : IDisposable
             });
     }
 
-    private IpcMessage HandleConnectionStats(IpcMessage request, string? sessionId)
+    internal IpcMessage HandleConnectionStats(IpcMessage request, string? sessionId)
     {
         if (!ValidateSession(sessionId, out var error))
             return CreateErrorResponse(request.RequestId, error);
@@ -321,7 +321,7 @@ public sealed class ElevationServer : IDisposable
         return CreateResponse(request.RequestId, MessageType.ConnectionStats, stats);
     }
 
-    private IpcMessage HandleProcessStats(IpcMessage request, string? sessionId)
+    internal IpcMessage HandleProcessStats(IpcMessage request, string? sessionId)
     {
         if (!ValidateSession(sessionId, out var error))
             return CreateErrorResponse(request.RequestId, error);
@@ -340,7 +340,7 @@ public sealed class ElevationServer : IDisposable
         return CreateResponse(request.RequestId, MessageType.ProcessStats, stats);
     }
 
-    private IpcMessage HandleHeartbeat()
+    internal IpcMessage HandleHeartbeat()
     {
         return CreateResponse(Guid.NewGuid().ToString("N"), MessageType.Heartbeat,
             new HeartbeatResponse
@@ -351,7 +351,7 @@ public sealed class ElevationServer : IDisposable
             });
     }
 
-    private IpcMessage HandleShutdown(IpcMessage request, string? sessionId)
+    internal IpcMessage HandleShutdown(IpcMessage request, string? sessionId)
     {
         if (!ValidateSession(sessionId, out var error))
             return CreateErrorResponse(request.RequestId, error);
@@ -361,7 +361,7 @@ public sealed class ElevationServer : IDisposable
             new HeartbeatResponse { Alive = false });
     }
 
-    private bool ValidateSession(string? sessionId, out string error)
+    internal bool ValidateSession(string? sessionId, out string error)
     {
         var session = _sessionManager.ValidateSession(sessionId);
         if (session is null)
@@ -397,7 +397,7 @@ public sealed class ElevationServer : IDisposable
         }
     }
 
-    private static IpcMessage CreateResponse<T>(string requestId, MessageType type, T payload)
+    internal static IpcMessage CreateResponse<T>(string requestId, MessageType type, T payload)
     {
         return new IpcMessage
         {
@@ -407,7 +407,7 @@ public sealed class ElevationServer : IDisposable
         };
     }
 
-    private static IpcMessage CreateErrorResponse(string requestId, string error)
+    internal static IpcMessage CreateErrorResponse(string requestId, string error)
     {
         return new IpcMessage
         {

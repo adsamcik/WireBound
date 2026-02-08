@@ -12,6 +12,7 @@ namespace WireBound.Tests.IPC;
 /// Security regression tests — each test targets a specific past vulnerability
 /// to ensure it never regresses. Tests document the vulnerability being prevented.
 /// </summary>
+[NotInParallel("SecretFile")]
 public class SecurityRegressionTests
 {
     // ═══════════════════════════════════════════════════════════════════════

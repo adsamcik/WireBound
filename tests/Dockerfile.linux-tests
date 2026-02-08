@@ -1,0 +1,37 @@
+# Runs WireBound tests in a Linux container to exercise:
+# - /proc filesystem (BuildInodeToPidMap, ParseProcNetTcp)
+# - Unix domain sockets (GetPeerCredentials via SO_PEERCRED)
+# - Linux elevation server (ResolveExpectedPeerUid, ValidateExecutablePath)
+
+FROM mcr.microsoft.com/dotnet/sdk:10.0 AS build
+
+WORKDIR /src
+
+# Copy solution-level files first for layer caching
+COPY Directory.Packages.props .
+COPY nuget.config .
+COPY global.json .
+COPY WireBound.slnx .
+
+# Copy all project files and lock files for restore (layer cached unless these change)
+COPY src/WireBound.Core/WireBound.Core.csproj src/WireBound.Core/packages.lock.json src/WireBound.Core/
+COPY src/WireBound.Avalonia/WireBound.Avalonia.csproj src/WireBound.Avalonia/packages.lock.json src/WireBound.Avalonia/
+COPY src/WireBound.IPC/WireBound.IPC.csproj src/WireBound.IPC/packages.lock.json src/WireBound.IPC/
+COPY src/WireBound.Elevation.Windows/WireBound.Elevation.Windows.csproj src/WireBound.Elevation.Windows/packages.lock.json src/WireBound.Elevation.Windows/
+COPY src/WireBound.Elevation.Linux/WireBound.Elevation.Linux.csproj src/WireBound.Elevation.Linux/packages.lock.json src/WireBound.Elevation.Linux/
+COPY src/WireBound.Platform.Abstract/WireBound.Platform.Abstract.csproj src/WireBound.Platform.Abstract/packages.lock.json src/WireBound.Platform.Abstract/
+COPY src/WireBound.Platform.Windows/WireBound.Platform.Windows.csproj src/WireBound.Platform.Windows/packages.lock.json src/WireBound.Platform.Windows/
+COPY src/WireBound.Platform.Linux/WireBound.Platform.Linux.csproj src/WireBound.Platform.Linux/packages.lock.json src/WireBound.Platform.Linux/
+COPY src/WireBound.Platform.Stub/WireBound.Platform.Stub.csproj src/WireBound.Platform.Stub/packages.lock.json src/WireBound.Platform.Stub/
+COPY tests/WireBound.Tests/WireBound.Tests.csproj tests/WireBound.Tests/packages.lock.json tests/WireBound.Tests/
+
+# Restore with --force-evaluate: lock files were generated on Windows and
+# may reference platform-specific packages that differ on Linux
+RUN dotnet restore tests/WireBound.Tests/WireBound.Tests.csproj --force-evaluate
+
+# Copy everything and build
+COPY . .
+RUN dotnet build tests/WireBound.Tests/WireBound.Tests.csproj -c Release --no-restore
+
+# Run tests — additional args (e.g. --treenode-filter) are passed via docker run
+ENTRYPOINT ["dotnet", "exec", "tests/WireBound.Tests/bin/Release/net10.0/WireBound.Tests.dll"]

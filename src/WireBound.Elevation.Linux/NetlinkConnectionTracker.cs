@@ -44,7 +44,7 @@ public sealed class NetlinkConnectionTracker : IDisposable
         _refreshTimer.Change(Timeout.Infinite, Timeout.Infinite);
     }
 
-    private void RefreshData()
+    internal void RefreshData()
     {
         if (!_running) return;
 
@@ -63,7 +63,7 @@ public sealed class NetlinkConnectionTracker : IDisposable
     /// <summary>
     /// Builds a mapping from socket inode numbers to PIDs by scanning /proc/[pid]/fd.
     /// </summary>
-    private Dictionary<long, int> BuildInodeToPidMap()
+    internal Dictionary<long, int> BuildInodeToPidMap()
     {
         var map = new Dictionary<long, int>();
 
@@ -123,7 +123,7 @@ public sealed class NetlinkConnectionTracker : IDisposable
     /// Parses /proc/net/tcp or /proc/net/tcp6 to enumerate active TCP connections
     /// with their socket inode numbers for PID mapping.
     /// </summary>
-    private void ParseProcNetTcp(string path, Dictionary<long, int> inodeToPid, bool isIpv6)
+    internal void ParseProcNetTcp(string path, Dictionary<long, int> inodeToPid, bool isIpv6)
     {
         if (!File.Exists(path)) return;
 
@@ -345,7 +345,7 @@ public sealed class NetlinkConnectionTracker : IDisposable
         }
     }
 
-    private void CleanStaleConnections()
+    internal void CleanStaleConnections()
     {
         var cutoff = DateTimeOffset.UtcNow.AddSeconds(-10);
         foreach (var kvp in _connections)

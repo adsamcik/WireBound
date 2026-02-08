@@ -229,25 +229,95 @@
                                           AutomationProperties.HelpText="Check GitHub for new releases when the application starts" />
                         </Grid>
                     </Border>
-                    
-                    <!-- Update Available Notification -->
-                    <Border Background="{DynamicResource AccentBgTintBrush}" CornerRadius="12" Padding="16"
-                            IsVisible="{Binding UpdateAvailable}">
+
+                    <!-- Auto-Download Updates (only visible in installed mode) -->
+                    <Border Background="{DynamicResource BorderSubtleBrush}" CornerRadius="12" Padding="16"
+                            IsVisible="{Binding IsUpdateSupported}">
                         <Grid ColumnDefinitions="*, Auto">
                             <StackPanel Spacing="4">
-                                <TextBlock Text="{Binding LatestVersion, StringFormat='Update available: v{0}'}"
-                                           Classes="CardTitle"
-                                           Foreground="{DynamicResource AccentBrush}" />
-                                <TextBlock Text="A new version of WireBound is available" Classes="Caption" />
+                                <TextBlock Text="Auto-Download Updates" Classes="CardTitle" />
+                                <TextBlock Text="Downloads updates silently. You'll be prompted before restart. Skipped on metered connections." Classes="Caption" />
                             </StackPanel>
-                            <Button Grid.Column="1"
-                                    Content="View Release"
-                                    Command="{Binding OpenUpdateUrlCommand}"
-                                    Classes="Accent"
-                                    VerticalAlignment="Center"
-                                    AutomationProperties.Name="View Release"
-                                    AutomationProperties.HelpText="Open the release page in your browser" />
+                            <ToggleSwitch Grid.Column="1"
+                                          IsChecked="{Binding AutoDownloadUpdates}"
+                                          VerticalAlignment="Center"
+                                          AutomationProperties.Name="Auto-Download Updates" />
                         </Grid>
+                    </Border>
+
+                    <!-- Up-to-date / Check Now (when no update available) -->
+                    <Border Background="{DynamicResource BorderSubtleBrush}" CornerRadius="12" Padding="16"
+                            IsVisible="{Binding !UpdateAvailable}">
+                        <Grid ColumnDefinitions="*, Auto">
+                            <TextBlock Text="You're on the latest version" Classes="CardTitle" />
+                            <Button Grid.Column="1"
+                                    Content="Check Now"
+                                    Command="{Binding CheckForUpdateManuallyCommand}"
+                                    VerticalAlignment="Center"
+                                    AutomationProperties.Name="Check for Updates Now" />
+                        </Grid>
+                    </Border>
+
+                    <!-- Update Available — multi-state card -->
+                    <Border Background="{DynamicResource AccentBgTintBrush}" CornerRadius="12" Padding="16"
+                            IsVisible="{Binding UpdateAvailable}">
+                        <StackPanel Spacing="12">
+                            <!-- Header: version info -->
+                            <TextBlock Text="{Binding LatestVersion, StringFormat='Update available: v{0}'}"
+                                       Classes="CardTitle"
+                                       Foreground="{DynamicResource AccentBrush}" />
+
+                            <!-- Error message -->
+                            <TextBlock Text="{Binding UpdateError}"
+                                       Foreground="{DynamicResource ErrorBrush}"
+                                       TextWrapping="Wrap"
+                                       IsVisible="{Binding UpdateError, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
+
+                            <!-- State: Ready to download (installed mode) -->
+                            <StackPanel Orientation="Horizontal" Spacing="8"
+                                        IsVisible="{Binding IsUpdateSupported}">
+
+                                <!-- Download button (not downloading, not ready) -->
+                                <Button Content="Download Update"
+                                        Command="{Binding DownloadUpdateCommand}"
+                                        Classes="Accent"
+                                        IsVisible="{Binding !IsDownloading}"
+                                        AutomationProperties.Name="Download Update" />
+
+                                <!-- Progress bar (downloading) -->
+                                <StackPanel Orientation="Horizontal" Spacing="8"
+                                            IsVisible="{Binding IsDownloading}">
+                                    <ProgressBar Value="{Binding DownloadProgress}"
+                                                 Minimum="0" Maximum="100"
+                                                 Width="200" Height="20"
+                                                 AutomationProperties.Name="Download Progress" />
+                                    <TextBlock Text="{Binding DownloadProgress, StringFormat='{}{0}%'}"
+                                               VerticalAlignment="Center" />
+                                    <Button Content="Cancel"
+                                            Command="{Binding CancelDownloadCommand}"
+                                            AutomationProperties.Name="Cancel Download" />
+                                </StackPanel>
+
+                                <!-- Restart button (download complete) -->
+                                <Button Content="Restart to Update"
+                                        Command="{Binding ApplyUpdateAndRestartCommand}"
+                                        Classes="Accent"
+                                        IsVisible="{Binding IsReadyToRestart}"
+                                        AutomationProperties.Name="Restart to Apply Update" />
+                            </StackPanel>
+
+                            <!-- State: Portable mode fallback -->
+                            <StackPanel Spacing="4"
+                                        IsVisible="{Binding !IsUpdateSupported}">
+                                <Button Content="View Release"
+                                        Command="{Binding OpenUpdateUrlCommand}"
+                                        Classes="Accent"
+                                        AutomationProperties.Name="View Release" />
+                                <TextBlock Text="In-app updates are available with the installed version"
+                                           Classes="Caption"
+                                           Foreground="{DynamicResource MutedTextBrush}" />
+                            </StackPanel>
+                        </StackPanel>
                     </Border>
                 </StackPanel>
             </Border>

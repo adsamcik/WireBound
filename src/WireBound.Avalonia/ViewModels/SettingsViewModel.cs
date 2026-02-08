@@ -25,6 +25,7 @@ public sealed partial class SettingsViewModel : ObservableObject, IDisposable
     private readonly IUpdateService _updateService;
     private readonly ILogger<SettingsViewModel>? _logger;
     private CancellationTokenSource? _autoSaveCts;
+    private CancellationTokenSource? _downloadCts;
     private bool _isLoading = true;
     private const int AutoSaveDelayMs = 500;
 
@@ -100,6 +101,9 @@ public sealed partial class SettingsViewModel : ObservableObject, IDisposable
     private bool _checkForUpdates = true;
 
     [ObservableProperty]
+    private bool _autoDownloadUpdates = true;
+
+    [ObservableProperty]
     private bool _updateAvailable;
 
     [ObservableProperty]
@@ -107,6 +111,26 @@ public sealed partial class SettingsViewModel : ObservableObject, IDisposable
 
     [ObservableProperty]
     private string? _updateUrl;
+
+    [ObservableProperty]
+    private bool _isUpdateSupported;
+
+    [ObservableProperty]
+    private bool _isDownloading;
+
+    [ObservableProperty]
+    private int _downloadProgress;
+
+    [ObservableProperty]
+    private bool _isReadyToRestart;
+
+    [ObservableProperty]
+    private string? _updateError;
+
+    /// <summary>
+    /// The pending update check result (holds native Velopack info for download/apply).
+    /// </summary>
+    public UpdateCheckResult? PendingUpdate { get; set; }
 
     [ObservableProperty]
     private bool _isElevated;
@@ -166,6 +190,7 @@ public sealed partial class SettingsViewModel : ObservableObject, IDisposable
     partial void OnDefaultInsightsPeriodChanged(string value) => ScheduleAutoSave();
     partial void OnShowCorrelationInsightsChanged(bool value) => ScheduleAutoSave();
     partial void OnCheckForUpdatesChanged(bool value) => ScheduleAutoSave();
+    partial void OnAutoDownloadUpdatesChanged(bool value) => ScheduleAutoSave();
 
     partial void OnSelectedThemeChanged(string value)
     {
@@ -260,6 +285,8 @@ public sealed partial class SettingsViewModel : ObservableObject, IDisposable
 
             // Updates
             CheckForUpdates = settings.CheckForUpdates;
+            AutoDownloadUpdates = settings.AutoDownloadUpdates;
+            IsUpdateSupported = _updateService.IsUpdateSupported;
 
             // Load startup state from OS (not from saved settings)
             await LoadStartupStateAsync();
@@ -342,7 +369,8 @@ public sealed partial class SettingsViewModel : ObservableObject, IDisposable
             ShowCorrelationInsights = ShowCorrelationInsights,
 
             // Updates
-            CheckForUpdates = CheckForUpdates
+            CheckForUpdates = CheckForUpdates,
+            AutoDownloadUpdates = AutoDownloadUpdates
         };
 
         // Apply speed unit setting globally
@@ -516,6 +544,85 @@ public sealed partial class SettingsViewModel : ObservableObject, IDisposable
         }
     }
 
+    [RelayCommand]
+    private async Task DownloadUpdateAsync()
+    {
+        if (PendingUpdate is null || IsDownloading) return;
+
+        IsDownloading = true;
+        UpdateError = null;
+        DownloadProgress = 0;
+        _downloadCts = new CancellationTokenSource();
+
+        try
+        {
+            await _updateService.DownloadUpdateAsync(
+                PendingUpdate,
+                progress => DownloadProgress = progress,
+                _downloadCts.Token);
+
+            IsReadyToRestart = true;
+            IsDownloading = false;
+            _logger?.LogInformation("Update downloaded, ready to restart");
+        }
+        catch (OperationCanceledException)
+        {
+            _logger?.LogInformation("Update download cancelled by user");
+            IsDownloading = false;
+        }
+        catch (Exception ex)
+        {
+            UpdateError = $"Download failed: {ex.Message}";
+            _logger?.LogError(ex, "Failed to download update");
+            IsDownloading = false;
+        }
+    }
+
+    [RelayCommand]
+    private void CancelDownload()
+    {
+        _downloadCts?.Cancel();
+    }
+
+    [RelayCommand]
+    private void ApplyUpdateAndRestart()
+    {
+        if (PendingUpdate is null) return;
+
+        try
+        {
+            _updateService.ApplyUpdateAndRestart(PendingUpdate);
+        }
+        catch (Exception ex)
+        {
+            UpdateError = $"Update failed: {ex.Message}";
+            _logger?.LogError(ex, "Failed to apply update and restart");
+        }
+    }
+
+    [RelayCommand]
+    private async Task CheckForUpdateManuallyAsync()
+    {
+        try
+        {
+            UpdateError = null;
+            var update = await _updateService.CheckForUpdateAsync();
+            if (update is not null)
+            {
+                UpdateAvailable = true;
+                LatestVersion = update.Version;
+                UpdateUrl = update.ReleaseNotesUrl;
+                PendingUpdate = update;
+                IsUpdateSupported = _updateService.IsUpdateSupported;
+            }
+        }
+        catch (Exception ex)
+        {
+            UpdateError = $"Check failed: {ex.Message}";
+            _logger?.LogError(ex, "Manual update check failed");
+        }
+    }
+
     /// <summary>
     /// Disposes resources and unsubscribes from events.
     /// </summary>
@@ -524,6 +631,10 @@ public sealed partial class SettingsViewModel : ObservableObject, IDisposable
         _autoSaveCts?.Cancel();
         _autoSaveCts?.Dispose();
         _autoSaveCts = null;
+
+        _downloadCts?.Cancel();
+        _downloadCts?.Dispose();
+        _downloadCts = null;
 
         _elevationService.HelperConnectionStateChanged -= OnHelperConnectionStateChanged;
     }

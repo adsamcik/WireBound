@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.7.0] - 2026-02-08
+
 ### Security
 
 - **IPC Security Infrastructure** - SecretManager for shared secret storage with OS-level file protection, SessionManager with expiry and concurrency limits, RateLimiter with sliding-window per-client rate limiting
@@ -21,7 +23,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Windows Elevation Helper** - Elevated helper process with ETW-based network connection tracking
 - **Linux Elevation Helper** - Elevated helper process with /proc-based connection tracking
 - **Helper Lifecycle Management** - Task Scheduler integration (Windows) and systemd service (Linux)
-- **Elevated Provider Integration** - Elevated network providers wired into platform service factories with retry logic
+- **Elevated Provider Integration** - Elevated network providers wired into platform service factories with retry logic and real-time polling
+- **Provider Hot-Swap** - ProcessNetworkService handles runtime provider changes atomically with auto-start
+- **Clipboard Copy** - CopyToClipboardAsync implemented using Avalonia clipboard API
+- **StubDnsResolverService** - Stub fallback for DNS resolver platform service
 - **Theme Support** - Dark/light theme support with accent button style
 - **Responsive Navigation Rail** - Collapsible navigation rail with responsive layout
 - **Update Check Service** - GitHub releases-based update checking
@@ -32,7 +37,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Accent Button Style** - New `Button.Accent` style for action buttons
 - **AccentBrush / SuccessBgTintBrush Resources** - New brush resources for accent-colored text and success backgrounds
 - **Docker Test Infrastructure** - Dockerfile and script for running Linux-specific tests in containers
-- **Comprehensive Test Suite** - 1189 tests covering elevation, IPC, security, services, helpers, converters, and models
+- **Comprehensive Test Suite** - 1194 tests covering elevation, IPC, security, services, helpers, converters, and models
 
 ### Changed
 
@@ -40,6 +45,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Overview Layout** - Removed GPU metrics, added responsive layout
 - **Removed Obsolete ViewModels** - Removed Dashboard and History ViewModels in favor of Overview and Insights
 - **CI/CD** - Added Helper publish step, removed macOS target
+- **Applications/Connections Status** - Changed 'COMING SOON' badges to 'LIMITED' to reflect implemented helper-based tracking
 
 ### Fixed
 

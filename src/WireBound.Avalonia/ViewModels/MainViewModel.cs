@@ -1,11 +1,17 @@
 using System.Reflection;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
+using CommunityToolkit.Mvvm.Messaging;
 using WireBound.Avalonia.Services;
 using WireBound.Core;
 using WireBound.Core.Services;
 
 namespace WireBound.Avalonia.ViewModels;
+
+/// <summary>
+/// Message sent when an update is available, so MainViewModel can show a badge.
+/// </summary>
+public record UpdateAvailableMessage(string Version);
 
 /// <summary>
 /// Navigation item for the sidebar
@@ -20,12 +26,15 @@ public partial class NavigationItem : ObservableObject
 
     [ObservableProperty]
     private string _route = string.Empty;
+
+    [ObservableProperty]
+    private bool _hasBadge;
 }
 
 /// <summary>
 /// Main view model handling navigation and app state
 /// </summary>
-public partial class MainViewModel : ObservableObject, IDisposable
+public partial class MainViewModel : ObservableObject, IRecipient<UpdateAvailableMessage>, IDisposable
 {
     private readonly INavigationService _navigationService;
     private readonly IViewFactory _viewFactory;
@@ -74,6 +83,21 @@ public partial class MainViewModel : ObservableObject, IDisposable
         _currentView = _viewFactory.CreateView(Routes.Overview);
 
         _navigationService.NavigationChanged += OnNavigationChanged;
+
+        // Register for update badge messages
+        WeakReferenceMessenger.Default.Register(this);
+    }
+
+    /// <summary>
+    /// Receives update available messages and sets the badge on the Settings nav item.
+    /// </summary>
+    public void Receive(UpdateAvailableMessage message)
+    {
+        var settingsItem = NavigationItems.FirstOrDefault(n => n.Route == Routes.Settings);
+        if (settingsItem != null)
+        {
+            settingsItem.HasBadge = true;
+        }
     }
 
     public List<NavigationItem> NavigationItems { get; }
@@ -89,6 +113,12 @@ public partial class MainViewModel : ObservableObject, IDisposable
         if (value != null)
         {
             _navigationService.NavigateTo(value.Route);
+
+            // Clear badge when navigating to Settings
+            if (value.Route == Routes.Settings)
+            {
+                value.HasBadge = false;
+            }
         }
     }
 
@@ -108,5 +138,6 @@ public partial class MainViewModel : ObservableObject, IDisposable
         if (_disposed) return;
         _disposed = true;
         _navigationService.NavigationChanged -= OnNavigationChanged;
+        WeakReferenceMessenger.Default.Unregister<UpdateAvailableMessage>(this);
     }
 }

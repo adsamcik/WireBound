@@ -23,6 +23,7 @@ public sealed class TrayIconService : ITrayIconService
     private bool _minimizeToTray;
     private bool _showActivityGraph = true;
     private bool _isTraySupported = true;
+    private NativeMenuItem? _updateMenuItem;
 
     // Activity graph data - stores last N readings for the mini-graph
     private const int GraphHistorySize = 16;
@@ -309,6 +310,28 @@ public sealed class TrayIconService : ITrayIconService
         }
 
         UpdateTooltip(downloadSpeedBps, uploadSpeedBps);
+    }
+
+    /// <inheritdoc />
+    public void SetUpdateAvailable(string? version, Action? onClicked)
+    {
+        Dispatcher.UIThread.Post(() =>
+        {
+            if (_updateMenuItem != null)
+            {
+                _trayIcon?.Menu?.Items.Remove(_updateMenuItem);
+                _updateMenuItem = null;
+            }
+
+            if (version != null && onClicked != null && _trayIcon?.Menu != null)
+            {
+                _updateMenuItem = new NativeMenuItem($"Update available: v{version}");
+                _updateMenuItem.Click += (_, _) => onClicked();
+                // Insert after "Show WireBound" (position 1), before separator
+                var insertIndex = Math.Min(1, _trayIcon.Menu.Items.Count);
+                _trayIcon.Menu.Items.Insert(insertIndex, _updateMenuItem);
+            }
+        });
     }
 
     /// <summary>

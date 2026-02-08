@@ -14,6 +14,8 @@ public sealed class WindowsElevatedProcessNetworkProvider : IProcessNetworkProvi
 {
     private readonly IHelperConnection _connection;
     private volatile bool _monitoring;
+    private CancellationTokenSource? _monitoringCts;
+    private Task? _monitoringTask;
 
     public WindowsElevatedProcessNetworkProvider(IHelperConnection connection)
     {
@@ -27,21 +29,64 @@ public sealed class WindowsElevatedProcessNetworkProvider : IProcessNetworkProvi
 
     public bool IsMonitoring => _monitoring;
 
-#pragma warning disable CS0067 // Event will be used when real-time polling is implemented
     public event EventHandler<ProcessNetworkProviderEventArgs>? StatsUpdated;
-#pragma warning restore CS0067
     public event EventHandler<ProcessNetworkProviderErrorEventArgs>? ErrorOccurred;
 
     public Task<bool> StartMonitoringAsync(CancellationToken cancellationToken = default)
     {
+        if (_monitoring) return Task.FromResult(true);
+
         _monitoring = true;
+        _monitoringCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+        _monitoringTask = PollAsync(_monitoringCts.Token);
         return Task.FromResult(true);
     }
 
-    public Task StopMonitoringAsync()
+    public async Task StopMonitoringAsync()
     {
         _monitoring = false;
-        return Task.CompletedTask;
+
+        if (_monitoringCts != null)
+        {
+            await _monitoringCts.CancelAsync();
+
+            if (_monitoringTask != null)
+            {
+                try { await _monitoringTask; }
+                catch (OperationCanceledException) { }
+            }
+
+            _monitoringCts.Dispose();
+            _monitoringCts = null;
+        }
+    }
+
+    private async Task PollAsync(CancellationToken cancellationToken)
+    {
+        while (!cancellationToken.IsCancellationRequested)
+        {
+            try
+            {
+                await Task.Delay(2000, cancellationToken);
+
+                if (!_connection.IsConnected) continue;
+
+                var stats = await GetProcessStatsAsync(cancellationToken);
+                if (stats.Count > 0)
+                {
+                    StatsUpdated?.Invoke(this, new ProcessNetworkProviderEventArgs(
+                        stats, DateTimeOffset.Now, TimeSpan.FromSeconds(2)));
+                }
+            }
+            catch (OperationCanceledException)
+            {
+                break;
+            }
+            catch (Exception ex)
+            {
+                ErrorOccurred?.Invoke(this, new ProcessNetworkProviderErrorEventArgs(ex.Message));
+            }
+        }
     }
 
     public async Task<IReadOnlyList<ProcessNetworkStats>> GetProcessStatsAsync(CancellationToken cancellationToken = default)
@@ -146,5 +191,7 @@ public sealed class WindowsElevatedProcessNetworkProvider : IProcessNetworkProvi
     public void Dispose()
     {
         _monitoring = false;
+        _monitoringCts?.Cancel();
+        _monitoringCts?.Dispose();
     }
 }

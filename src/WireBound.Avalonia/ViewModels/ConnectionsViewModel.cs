@@ -1,3 +1,5 @@
+using Avalonia;
+using Avalonia.Controls.ApplicationLifetimes;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using System.Collections.ObjectModel;
@@ -433,9 +435,14 @@ public sealed partial class ConnectionsViewModel : ObservableObject, IDisposable
     }
 
     [RelayCommand]
-    private void CopyToClipboard(string text)
+    private async Task CopyToClipboardAsync(string text)
     {
-        // Would need clipboard service
+        if (Application.Current?.ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop)
+        {
+            var clipboard = desktop.MainWindow?.Clipboard;
+            if (clipboard != null)
+                await clipboard.SetTextAsync(text);
+        }
     }
 
     public void Dispose()

@@ -108,11 +108,11 @@
                                            Foreground="{DynamicResource PrimaryBrush}" />
                                 <Border Background="{DynamicResource AccentBgTintBrush}" 
                                         CornerRadius="6" Padding="8,2">
-                                    <TextBlock Text="COMING SOON" FontSize="10" FontWeight="Bold"
+                                    <TextBlock Text="LIMITED" FontSize="10" FontWeight="Bold"
                                                Foreground="{DynamicResource PrimaryBrush}" />
                                 </Border>
                             </StackPanel>
-                            <TextBlock Text="Per-connection byte counts are estimated. Accurate tracking with elevated helper is in development."
+                            <TextBlock Text="Per-connection byte counts are estimated. Accurate tracking requires starting the elevated helper."
                                        Classes="Subtitle" TextWrapping="Wrap" />
                         </StackPanel>
                     </StackPanel>

@@ -36,7 +36,8 @@ param(
     [ValidateSet("win-x64", "linux-x64")]
     [string]$Runtime = "win-x64",
     [switch]$SelfContained = $true,
-    [switch]$Clean
+    [switch]$Clean,
+    [switch]$Velopack
 )
 
 $ErrorActionPreference = "Stop"
@@ -157,6 +158,41 @@ if ($targetIsWindows) {
 }
 
 Write-Success "Archive created: $archivePath"
+
+# Velopack packaging (optional)
+if ($Velopack) {
+    Write-Step "Creating Velopack package..."
+
+    # Check for vpk CLI
+    $vpkPath = Get-Command vpk -ErrorAction SilentlyContinue
+    if (-not $vpkPath) {
+        Write-Warning "vpk CLI not found. Install with: dotnet tool install -g vpk"
+        Write-Warning "Skipping Velopack packaging"
+    } else {
+        $velopackOutput = Join-Path $OutputDir "velopack" $Runtime
+        New-Item -ItemType Directory -Path $velopackOutput -Force | Out-Null
+
+        $exeName = if ($targetIsWindows) { "WireBound.Avalonia.exe" } else { "WireBound.Avalonia" }
+
+        $vpkArgs = @(
+            "pack",
+            "-u", "WireBound",
+            "-v", $Version,
+            "-p", $portableOutput,
+            "-o", $velopackOutput,
+            "-e", $exeName,
+            "--channel", $Runtime
+        )
+
+        & vpk @vpkArgs
+
+        if ($LASTEXITCODE -ne 0) {
+            Write-Warning "Velopack packaging failed (non-fatal)"
+        } else {
+            Write-Success "Velopack package created in $velopackOutput"
+        }
+    }
+}
 
 # Summary
 Write-Host ""

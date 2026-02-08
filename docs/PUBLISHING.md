@@ -7,7 +7,7 @@ This document describes how to build and publish WireBound releases.
 ### Local Build
 
 ```powershell
-# Build for Windows (default)
+# Build portable for Windows (default)
 .\scripts\publish.ps1 -Version "1.0.0"
 
 # Build with clean output
@@ -15,6 +15,12 @@ This document describes how to build and publish WireBound releases.
 
 # Build for Linux
 .\scripts\publish.ps1 -Version "1.0.0" -Runtime linux-x64
+
+# Build with Velopack installer (requires vpk CLI)
+.\scripts\publish.ps1 -Version "1.0.0" -Velopack
+
+# Install vpk CLI
+dotnet tool install -g vpk
 ```
 
 ### Creating a Release
@@ -47,6 +53,26 @@ You can trigger a release manually:
 4. Click **Run workflow**
 
 ## Build Outputs
+
+### Distribution Formats
+
+| Format | Platform | File | Auto-Update |
+|--------|----------|------|-------------|
+| Velopack Installer | Windows x64 | `WireBound-Setup.exe` | ✅ In-app |
+| Velopack AppImage | Linux x64 | `WireBound.AppImage` | ✅ In-app |
+| Portable ZIP | Windows x64 | `WireBound-<ver>-win-x64.zip` | ❌ Check-and-notify |
+| Portable TAR.GZ | Linux x64 | `WireBound-<ver>-linux-x64.tar.gz` | ❌ Check-and-notify |
+
+### Velopack Integration
+
+WireBound uses [Velopack](https://velopack.io) for installed-mode auto-updates:
+
+- **Delta updates**: Only changed files are downloaded
+- **Automatic rollback**: If new version crashes on startup, reverts to previous
+- **GitHub Releases**: Updates served directly from GitHub (no appcast needed)
+- **Cross-platform**: Windows (Setup.exe) and Linux (AppImage)
+
+Portable builds still receive update notifications but link to GitHub for manual download.
 
 ### Supported Platforms
 

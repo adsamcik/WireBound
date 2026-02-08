@@ -80,6 +80,44 @@ jobs:
             --output ./publish/${{ matrix.runtime }} \
             -p:Version=${{ steps.version.outputs.VERSION }}
 
+      - name: Install Velopack CLI
+        run: dotnet tool install -g vpk
+
+      - name: Download previous Velopack release
+        run: vpk download github --repoUrl https://github.com/adsamcik/WireBound --channel ${{ matrix.runtime }} -o ./velopack-prev
+        continue-on-error: true
+
+      - name: Package with Velopack (Windows)
+        if: matrix.runtime == 'win-x64'
+        run: |
+          vpk pack -u WireBound -v ${{ steps.version.outputs.VERSION }} \
+            -p ./publish/${{ matrix.runtime }} \
+            -o ./velopack/${{ matrix.runtime }} \
+            -e WireBound.Avalonia.exe \
+            --channel ${{ matrix.runtime }} \
+            --delta ./velopack-prev || true
+
+      - name: Package with Velopack (Linux)
+        if: matrix.runtime == 'linux-x64'
+        run: |
+          vpk pack -u WireBound -v ${{ steps.version.outputs.VERSION }} \
+            -p ./publish/${{ matrix.runtime }} \
+            -o ./velopack/${{ matrix.runtime }} \
+            -e WireBound.Avalonia \
+            --channel ${{ matrix.runtime }} \
+            --delta ./velopack-prev || true
+
+      - name: Upload Velopack to GitHub Release
+        if: always()
+        run: |
+          vpk upload github \
+            --repoUrl https://github.com/adsamcik/WireBound \
+            --tag v${{ steps.version.outputs.VERSION }} \
+            --token ${{ secrets.GITHUB_TOKEN }} \
+            --channel ${{ matrix.runtime }} \
+            -o ./velopack/${{ matrix.runtime }} || echo "Velopack upload skipped"
+        continue-on-error: true
+
       - name: Create archive (zip)
         if: matrix.archive == 'zip'
         run: |

@@ -53,6 +53,9 @@
     
     <!-- Entity Framework -->
     <PackageReference Include="Microsoft.EntityFrameworkCore.Sqlite" />
+
+    <!-- Auto-update -->
+    <PackageReference Include="Velopack" />
   </ItemGroup>
 
   <ItemGroup>

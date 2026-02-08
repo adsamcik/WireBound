@@ -37,6 +37,9 @@
     <!-- IPC -->
     <PackageVersion Include="MessagePack" Version="3.1.4" />
 
+    <!-- Auto-update -->
+    <PackageVersion Include="Velopack" Version="0.0.1298" />
+
     <!-- ETW (Windows only) -->
     <PackageVersion Include="Microsoft.Diagnostics.Tracing.TraceEvent" Version="3.1.29" />
 

@@ -1,6 +1,7 @@
 using Avalonia;
 using Serilog;
 using System;
+using Velopack;
 
 namespace WireBound.Avalonia;
 
@@ -12,6 +13,16 @@ class Program
     [STAThread]
     public static void Main(string[] args)
     {
+        // Velopack lifecycle hooks — MUST be the very first line.
+        // Safe no-op when not installed via Velopack (portable/dev mode).
+        VelopackApp.Build()
+            .OnRestarted(v =>
+            {
+                // Flag for showing What's New dialog after update restart
+                Environment.SetEnvironmentVariable("WIREBOUND_UPDATED_TO", v?.ToString());
+            })
+            .Run();
+
         // Configure Serilog early
         var logPath = Path.Combine(
             Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),

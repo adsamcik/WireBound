@@ -6,9 +6,9 @@ This document describes current limitations in WireBound and provides transparen
 
 ## Per-Process Network Byte Tracking
 
-### Current Status: **Partial Implementation**
+### Current Status: **Requires Elevation for Full Accuracy**
 
-WireBound can show **which processes have active network connections**, but **per-connection byte counting is limited** until the elevated helper process is implemented.
+WireBound can show **which processes have active network connections**, but **per-connection byte counting is limited** when the elevated helper process is not running.
 
 ### What Works Now
 
@@ -38,19 +38,19 @@ Accurate per-connection byte tracking requires low-level access to network stati
 
 Without elevation, WireBound uses **estimation algorithms** that distribute total adapter traffic proportionally across active connections. These estimates are marked in the UI.
 
-### What the Elevated Helper Will Provide
+### What the Elevated Helper Provides
 
-The planned helper process architecture will enable:
+The elevated helper process architecture enables accurate byte tracking:
 
-1. **Windows Helper** (`WireBound.Helper.exe`)
-   - Runs as a Windows service with administrator privileges
+1. **Windows Helper** (`WireBound.Elevation.exe`)
+   - Runs with administrator privileges (via Task Scheduler or UAC prompt)
    - Uses ETW to capture per-socket byte transfers
-   - Communicates via named pipe (`\\.\pipe\WireBound.Helper`)
+   - Communicates via named pipe (`\\.\pipe\WireBound.Elevation`)
 
-2. **Linux Helper** (`wirebound-helper`)
-   - Runs as root via systemd or polkit
-   - Uses eBPF for efficient packet accounting
-   - Communicates via Unix domain socket (`/run/wirebound/helper.sock`)
+2. **Linux Helper** (`wirebound-elevation`)
+   - Runs as root via systemd service or pkexec
+   - Uses Netlink for per-connection byte accounting
+   - Communicates via Unix domain socket (`/run/wirebound/elevation.sock`)
 
 ### How to Know If Byte Tracking Is Limited
 
@@ -60,12 +60,16 @@ In the Connections and Applications views, look for:
 - Byte values displayed with an estimation marker
 - The "Requires Elevation" prompt (when helper is not running)
 
-### Roadmap
+### Implementation Status
 
-The elevated helper is planned but not yet scheduled. Track progress:
+The elevated helper architecture is fully implemented across these projects:
 
+- `WireBound.IPC` — Transport, security (HMAC authentication, SID validation), message serialization
+- `WireBound.Elevation.Windows` — ETW-based per-connection byte tracking
+- `WireBound.Elevation.Linux` — Netlink-based per-connection byte tracking
 - Design document: [DESIGN_PER_ADDRESS_TRACKING.md](./DESIGN_PER_ADDRESS_TRACKING.md)
-- Helper IPC design: Planned for `WireBound.IPC` project
+
+To enable accurate byte tracking, start the elevated helper from the Applications or Connections view.
 
 ---
 
@@ -101,7 +105,7 @@ The elevated helper is planned but not yet scheduled. Track progress:
 
 ## Contributing
 
-If you'd like to help implement the elevated helper or other missing features, see:
+If you'd like to help improve the elevated helper or other features, see:
 
 - [DESIGN_PER_ADDRESS_TRACKING.md](./DESIGN_PER_ADDRESS_TRACKING.md) for architecture
-- [Contributing guidelines](../CONTRIBUTING.md) (if available)
+- [Contributing guidelines](../CONTRIBUTING.md)

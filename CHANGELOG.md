@@ -7,14 +7,39 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Security
+
+- **IPC Security Infrastructure** - SecretManager for shared secret storage with OS-level file protection, SessionManager with expiry and concurrency limits, RateLimiter with sliding-window per-client rate limiting
+- **Critical Fixes** - Windows pipe ACL uses caller SID, ValidateExecutablePath fails closed, Linux socket permissions 0600 with chmod before listen, Windows secret file gets explicit ACL (current user + SYSTEM only)
+- **High Severity Fixes** - Auth rate limiting with per-client failure tracking and auto-disconnect, MessagePack UntrustedData security mode, IPC receive timeout (30s default), connection TOCTOU mitigation, factory race fix with Volatile.Read/Write, SessionManager TOCTOU fix with SemaphoreSlim
+- **Linux SO_PEERCRED Validation** - PID/UID validation against launcher for Unix socket connections
+- **IPv6 Parsing Fix** - Corrected /proc/net/tcp6 parsing with 4×32-bit little-endian groups
+
 ### Added
 
+- **IPC Library** - Binary IPC library for helper process communication using MessagePack protocol with length-prefixed framing
+- **Windows Elevation Helper** - Elevated helper process with ETW-based network connection tracking
+- **Linux Elevation Helper** - Elevated helper process with /proc-based connection tracking
+- **Helper Lifecycle Management** - Task Scheduler integration (Windows) and systemd service (Linux)
+- **Elevated Provider Integration** - Elevated network providers wired into platform service factories with retry logic
+- **Theme Support** - Dark/light theme support with accent button style
+- **Responsive Navigation Rail** - Collapsible navigation rail with responsive layout
+- **Update Check Service** - GitHub releases-based update checking
+- **Settings Enhancements** - Theme selector, update check toggle, data export/backup in Settings view
 - **Data Export Service** - CSV export for daily/hourly usage data via Settings → Data Management
 - **Database Backup** - One-click SQLite backup via Settings → Data Management using safe online backup API
 - **AddressUsageRecord Persistence** - Per-address network usage now tracked in database with indexes
 - **Accent Button Style** - New `Button.Accent` style for action buttons
-- **AccentBrush Resource** - New brush resource for accent-colored text
-- **SuccessBgTintBrush Resource** - New tinted success background brush
+- **AccentBrush / SuccessBgTintBrush Resources** - New brush resources for accent-colored text and success backgrounds
+- **Docker Test Infrastructure** - Dockerfile and script for running Linux-specific tests in containers
+- **Comprehensive Test Suite** - 1189 tests covering elevation, IPC, security, services, helpers, converters, and models
+
+### Changed
+
+- **IPC Protocol** - Migrated from JSON to MessagePack binary serialization with MessageType enum replacing string-based types
+- **Overview Layout** - Removed GPU metrics, added responsive layout
+- **Removed Obsolete ViewModels** - Removed Dashboard and History ViewModels in favor of Overview and Insights
+- **CI/CD** - Added Helper publish step, removed macOS target
 
 ### Fixed
 
@@ -24,6 +49,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Database backup uses SQLite online backup API instead of file copy (handles locked databases)
 - Export/backup buttons guarded against double-click with `IsExporting` flag
 - Data export handles null/empty data gracefully with logging
+- Connection timestamps use `DateTime.Now` instead of `DateTime.UtcNow` for local desktop context
 
 ## [0.6.0] - 2026-02-01
 

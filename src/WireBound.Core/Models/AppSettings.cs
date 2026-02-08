@@ -136,4 +136,10 @@ public class AppSettings
     /// Whether to check for updates on startup via GitHub Releases API.
     /// </summary>
     public bool CheckForUpdates { get; set; } = true;
+
+    /// <summary>
+    /// Whether to automatically download updates in the background after detection.
+    /// Restart is always manual. Only applies to Velopack-installed mode.
+    /// </summary>
+    public bool AutoDownloadUpdates { get; set; } = true;
 }

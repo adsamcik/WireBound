@@ -8,6 +8,10 @@ using WireBound.Core.Services;
 
 namespace WireBound.Avalonia.Services;
 
+/// <summary>
+/// Legacy update service using GitHub API only (no in-app download/apply).
+/// Kept as fallback; VelopackUpdateService is the primary implementation.
+/// </summary>
 public class GitHubUpdateService : IUpdateService
 {
     private const string GitHubApiUrl = "https://api.github.com/repos/adsamcik/WireBound/releases/latest";
@@ -23,7 +27,9 @@ public class GitHubUpdateService : IUpdateService
 
     public string CurrentVersion => Assembly.GetEntryAssembly()?.GetName().Version?.ToString(3) ?? "0.0.0";
 
-    public async Task<UpdateInfo?> CheckForUpdateAsync(CancellationToken cancellationToken = default)
+    public bool IsUpdateSupported => false;
+
+    public async Task<UpdateCheckResult?> CheckForUpdateAsync(CancellationToken cancellationToken = default)
     {
         try
         {
@@ -40,11 +46,11 @@ public class GitHubUpdateService : IUpdateService
 
             if (latest <= current) return null;
 
-            return new UpdateInfo(
+            return new UpdateCheckResult(
                 latestVersion,
                 release.HtmlUrl,
-                release.HtmlUrl,
-                release.PublishedAt);
+                release.PublishedAt,
+                null);
         }
         catch (Exception ex)
         {
@@ -52,6 +58,12 @@ public class GitHubUpdateService : IUpdateService
             return null;
         }
     }
+
+    public Task DownloadUpdateAsync(UpdateCheckResult update, Action<int>? progress = null, CancellationToken cancellationToken = default)
+        => throw new NotSupportedException("In-app download is not supported by GitHubUpdateService. Use VelopackUpdateService.");
+
+    public void ApplyUpdateAndRestart(UpdateCheckResult update)
+        => throw new NotSupportedException("In-app update is not supported by GitHubUpdateService. Use VelopackUpdateService.");
 
     private record GitHubRelease(
         [property: JsonPropertyName("tag_name")] string TagName,

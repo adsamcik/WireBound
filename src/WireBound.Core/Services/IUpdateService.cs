@@ -2,8 +2,19 @@ namespace WireBound.Core.Services;
 
 public interface IUpdateService
 {
-    Task<UpdateInfo?> CheckForUpdateAsync(CancellationToken cancellationToken = default);
+    Task<UpdateCheckResult?> CheckForUpdateAsync(CancellationToken cancellationToken = default);
+    Task DownloadUpdateAsync(UpdateCheckResult update, Action<int>? progress = null, CancellationToken cancellationToken = default);
+    void ApplyUpdateAndRestart(UpdateCheckResult update);
+    bool IsUpdateSupported { get; }
     string CurrentVersion { get; }
 }
 
-public record UpdateInfo(string Version, string DownloadUrl, string ReleaseNotesUrl, DateTimeOffset PublishedAt);
+/// <summary>
+/// Framework-agnostic update check result. NativeUpdateInfo holds the Velopack UpdateInfo
+/// object (opaque to Core layer).
+/// </summary>
+public record UpdateCheckResult(
+    string Version,
+    string? ReleaseNotesUrl,
+    DateTimeOffset? PublishedAt,
+    object? NativeUpdateInfo);

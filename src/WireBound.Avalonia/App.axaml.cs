@@ -3,6 +3,7 @@ using Avalonia.Controls;
 using Avalonia.Controls.ApplicationLifetimes;
 using Avalonia.Markup.Xaml;
 using Avalonia.Threading;
+using CommunityToolkit.Mvvm.Messaging;
 using LiveChartsCore;
 using LiveChartsCore.SkiaSharpView;
 using Microsoft.Extensions.DependencyInjection;
@@ -93,6 +94,9 @@ public partial class App : Application
 
             // Check for updates (non-blocking, privacy-safe)
             await CheckForUpdatesAsync();
+
+            // Show What's New dialog if this is a post-update restart
+            await ShowWhatsNewIfUpdatedAsync(mainWindow);
         }
         catch (Exception ex)
         {
@@ -150,8 +154,8 @@ public partial class App : Application
         // Register data export service
         services.AddSingleton<IDataExportService, DataExportService>();
 
-        // Register update check service
-        services.AddSingleton<IUpdateService, GitHubUpdateService>();
+        // Register update check service (Velopack for installed mode, GitHub API fallback for portable)
+        services.AddSingleton<IUpdateService, VelopackUpdateService>();
 
         // Register app-specific services
         services.AddSingleton<INavigationService, NavigationService>();
@@ -328,18 +332,115 @@ public partial class App : Application
 
             var updateService = _serviceProvider!.GetRequiredService<IUpdateService>();
             var update = await updateService.CheckForUpdateAsync();
-            if (update is not null)
+            if (update is null) return;
+
+            // Populate SettingsViewModel with update info
+            var settingsVm = _serviceProvider!.GetRequiredService<SettingsViewModel>();
+            settingsVm.UpdateAvailable = true;
+            settingsVm.LatestVersion = update.Version;
+            settingsVm.UpdateUrl = update.ReleaseNotesUrl;
+            settingsVm.PendingUpdate = update;
+            settingsVm.IsUpdateSupported = updateService.IsUpdateSupported;
+            Log.Information("Update available: {Version}", update.Version);
+
+            // Send nav badge message
+            WeakReferenceMessenger.Default.Send(new UpdateAvailableMessage(update.Version));
+
+            // Show tray icon update item
+            var trayService = _serviceProvider!.GetService<ITrayIconService>();
+            trayService?.SetUpdateAvailable(update.Version, () =>
             {
-                var settingsVm = _serviceProvider!.GetRequiredService<SettingsViewModel>();
-                settingsVm.UpdateAvailable = true;
-                settingsVm.LatestVersion = update.Version;
-                settingsVm.UpdateUrl = update.DownloadUrl;
-                Log.Information("Update available: {Version}", update.Version);
+                Dispatcher.UIThread.Post(() =>
+                {
+                    trayService.ShowMainWindow();
+                    _serviceProvider?.GetService<INavigationService>()?.NavigateTo(Core.Routes.Settings);
+                });
+            });
+
+            // Auto-download if enabled, supported, and not on metered network
+            if (settings.AutoDownloadUpdates && updateService.IsUpdateSupported)
+            {
+                try
+                {
+                    var costProvider = _serviceProvider!.GetRequiredService<INetworkCostProvider>();
+                    if (!await costProvider.IsMeteredAsync())
+                    {
+                        await updateService.DownloadUpdateAsync(update);
+                        settingsVm.IsReadyToRestart = true;
+                        Log.Information("Update auto-downloaded, ready to restart");
+                    }
+                    else
+                    {
+                        Log.Information("Skipped auto-download: metered network detected");
+                    }
+                }
+                catch (Exception ex)
+                {
+                    Log.Warning(ex, "Auto-download failed, user can download manually");
+                }
             }
         }
         catch (Exception ex)
         {
             Log.Warning(ex, "Update check failed");
+        }
+    }
+
+    private async Task ShowWhatsNewIfUpdatedAsync(MainWindow mainWindow)
+    {
+        try
+        {
+            var updatedTo = Environment.GetEnvironmentVariable("WIREBOUND_UPDATED_TO");
+            if (string.IsNullOrEmpty(updatedTo)) return;
+
+            // Clear the flag so it only shows once
+            Environment.SetEnvironmentVariable("WIREBOUND_UPDATED_TO", null);
+
+            // Fetch release notes from GitHub API
+            var notes = await FetchReleaseNotesAsync(updatedTo);
+
+            await Dispatcher.UIThread.InvokeAsync(() =>
+            {
+                var whatsNewWindow = new WhatsNewWindow(updatedTo, notes);
+                whatsNewWindow.ShowDialog(mainWindow);
+            });
+
+            Log.Information("Showed What's New dialog for version {Version}", updatedTo);
+        }
+        catch (Exception ex)
+        {
+            Log.Warning(ex, "Failed to show What's New dialog");
+        }
+    }
+
+    private static async Task<string> FetchReleaseNotesAsync(string version)
+    {
+        try
+        {
+            using var http = new HttpClient();
+            http.DefaultRequestHeaders.UserAgent.ParseAdd("WireBound");
+            var tag = version.StartsWith('v') ? version : $"v{version}";
+            var url = $"https://api.github.com/repos/adsamcik/WireBound/releases/tags/{tag}";
+            var response = await http.GetStringAsync(url);
+
+            // Simple JSON parsing for body field
+            var bodyStart = response.IndexOf("\"body\":", StringComparison.Ordinal);
+            if (bodyStart < 0) return $"Updated to version {version}.";
+
+            bodyStart = response.IndexOf('"', bodyStart + 7) + 1;
+            var bodyEnd = response.IndexOf("\"", bodyStart, StringComparison.Ordinal);
+
+            // Handle escaped quotes and newlines
+            var body = response[bodyStart..bodyEnd]
+                .Replace("\\r\\n", "\n")
+                .Replace("\\n", "\n")
+                .Replace("\\\"", "\"");
+
+            return string.IsNullOrWhiteSpace(body) ? $"Updated to version {version}." : body;
+        }
+        catch
+        {
+            return $"Successfully updated to version {version}.";
         }
     }
 

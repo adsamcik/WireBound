@@ -14,7 +14,7 @@ public sealed class ProcessNetworkService : IProcessNetworkService
     private readonly IProcessNetworkProviderFactory _providerFactory;
     private IProcessNetworkProvider? _currentProvider;
     private readonly List<ProcessNetworkStats> _currentStats = [];
-    private readonly object _statsLock = new();
+    private readonly object _providerLock = new();
     private bool _disposed;
 
     public bool IsRunning => _currentProvider is { IsMonitoring: true };
@@ -27,6 +27,7 @@ public sealed class ProcessNetworkService : IProcessNetworkService
     public ProcessNetworkService(IProcessNetworkProviderFactory providerFactory)
     {
         _providerFactory = providerFactory;
+        _providerFactory.ProviderChanged += OnProviderChanged;
     }
 
     public async Task<bool> StartAsync()
@@ -36,9 +37,12 @@ public sealed class ProcessNetworkService : IProcessNetworkService
 
         try
         {
-            _currentProvider = _providerFactory.GetProvider();
-            _currentProvider.StatsUpdated += OnProviderStatsUpdated;
-            _currentProvider.ErrorOccurred += OnProviderErrorOccurred;
+            lock (_providerLock)
+            {
+                _currentProvider = _providerFactory.GetProvider();
+                _currentProvider.StatsUpdated += OnProviderStatsUpdated;
+                _currentProvider.ErrorOccurred += OnProviderErrorOccurred;
+            }
 
             await _currentProvider.StartMonitoringAsync();
             return true;
@@ -73,7 +77,7 @@ public sealed class ProcessNetworkService : IProcessNetworkService
 
     public IReadOnlyList<ProcessNetworkStats> GetCurrentStats()
     {
-        lock (_statsLock)
+        lock (_providerLock)
         {
             return _currentStats.ToList();
         }
@@ -81,7 +85,7 @@ public sealed class ProcessNetworkService : IProcessNetworkService
 
     public IReadOnlyList<ProcessNetworkStats> GetTopProcesses(int count)
     {
-        lock (_statsLock)
+        lock (_providerLock)
         {
             return _currentStats
                 .OrderByDescending(s => s.TotalSpeedBps)
@@ -92,17 +96,20 @@ public sealed class ProcessNetworkService : IProcessNetworkService
 
     public async Task<IReadOnlyList<Platform.Abstract.Models.ConnectionStats>> GetConnectionStatsAsync()
     {
-        if (_currentProvider == null)
+        IProcessNetworkProvider provider;
+        lock (_providerLock)
         {
-            _currentProvider = _providerFactory.GetProvider();
+            if (_currentProvider == null)
+                _currentProvider = _providerFactory.GetProvider();
+            provider = _currentProvider;
         }
 
-        return await _currentProvider.GetConnectionStatsAsync();
+        return await provider.GetConnectionStatsAsync();
     }
 
     private void OnProviderStatsUpdated(object? sender, ProcessNetworkProviderEventArgs e)
     {
-        lock (_statsLock)
+        lock (_providerLock)
         {
             _currentStats.Clear();
             _currentStats.AddRange(e.Stats);
@@ -119,10 +126,48 @@ public sealed class ProcessNetworkService : IProcessNetworkService
             requiresElevation: false));
     }
 
+    private async void OnProviderChanged(object? sender, ProviderChangedEventArgs e)
+    {
+        if (_disposed) return;
+
+        IProcessNetworkProvider? oldProvider;
+        bool wasMonitoring;
+
+        lock (_providerLock)
+        {
+            oldProvider = _currentProvider;
+            wasMonitoring = oldProvider is { IsMonitoring: true };
+
+            if (oldProvider != null)
+            {
+                oldProvider.StatsUpdated -= OnProviderStatsUpdated;
+                oldProvider.ErrorOccurred -= OnProviderErrorOccurred;
+            }
+
+            _currentProvider = e.NewProvider;
+            _currentProvider.StatsUpdated += OnProviderStatsUpdated;
+            _currentProvider.ErrorOccurred += OnProviderErrorOccurred;
+        }
+
+        if (oldProvider != null)
+        {
+            try { await oldProvider.StopMonitoringAsync(); }
+            catch { /* best effort */ }
+        }
+
+        if (wasMonitoring)
+        {
+            try { await _currentProvider.StartMonitoringAsync(); }
+            catch { /* best effort — already subscribed to ErrorOccurred */ }
+        }
+    }
+
     public void Dispose()
     {
         if (_disposed) return;
         _disposed = true;
+
+        _providerFactory.ProviderChanged -= OnProviderChanged;
 
         if (_currentProvider != null)
         {

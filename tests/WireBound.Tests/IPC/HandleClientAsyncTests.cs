@@ -32,6 +32,7 @@ public class HandleClientAsyncTests : IDisposable
                 .GetValue(_server)!;
             _available = true;
         }
+        catch (Exception) when (!OperatingSystem.IsWindows()) { _available = false; }
         catch (IOException) { _available = false; }
     }
 

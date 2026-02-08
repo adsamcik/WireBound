@@ -753,6 +753,161 @@ public class SettingsViewModelTests : IAsyncDisposable
 
     #endregion
 
+    #region Update Commands Tests
+
+    [Test]
+    public async Task DownloadUpdateCommand_WhenNoPendingUpdate_DoesNothing()
+    {
+        // Arrange
+        var viewModel = CreateViewModel();
+        await Task.Delay(150);
+
+        // Act
+        await viewModel.DownloadUpdateCommand.ExecuteAsync(null);
+
+        // Assert
+        await _updateService.DidNotReceive().DownloadUpdateAsync(
+            Arg.Any<UpdateCheckResult>(), Arg.Any<Action<int>?>(), Arg.Any<CancellationToken>());
+    }
+
+    [Test]
+    public async Task DownloadUpdateCommand_WhenPendingUpdate_DownloadsAndSetsReadyToRestart()
+    {
+        // Arrange
+        var viewModel = CreateViewModel();
+        await Task.Delay(150);
+
+        var update = new UpdateCheckResult("1.0.0", "https://example.com", null, null);
+        viewModel.PendingUpdate = update;
+
+        // Act
+        await viewModel.DownloadUpdateCommand.ExecuteAsync(null);
+
+        // Assert
+        await _updateService.Received(1).DownloadUpdateAsync(
+            update, Arg.Any<Action<int>?>(), Arg.Any<CancellationToken>());
+        viewModel.IsReadyToRestart.Should().BeTrue();
+        viewModel.IsDownloading.Should().BeFalse();
+    }
+
+    [Test]
+    public async Task DownloadUpdateCommand_WhenFails_SetsUpdateError()
+    {
+        // Arrange
+        var viewModel = CreateViewModel();
+        await Task.Delay(150);
+
+        var update = new UpdateCheckResult("1.0.0", "https://example.com", null, null);
+        viewModel.PendingUpdate = update;
+        _updateService.DownloadUpdateAsync(Arg.Any<UpdateCheckResult>(), Arg.Any<Action<int>?>(), Arg.Any<CancellationToken>())
+            .Returns(Task.FromException(new Exception("Network error")));
+
+        // Act
+        await viewModel.DownloadUpdateCommand.ExecuteAsync(null);
+
+        // Assert
+        viewModel.UpdateError.Should().Contain("Network error");
+        viewModel.IsDownloading.Should().BeFalse();
+        viewModel.IsReadyToRestart.Should().BeFalse();
+    }
+
+    [Test]
+    public async Task CheckForUpdateManuallyCommand_WhenUpdateFound_SetsUpdateAvailable()
+    {
+        // Arrange
+        var viewModel = CreateViewModel();
+        await Task.Delay(150);
+
+        var update = new UpdateCheckResult("2.0.0", "https://example.com/release", DateTimeOffset.UtcNow, null);
+        _updateService.CheckForUpdateAsync(Arg.Any<CancellationToken>()).Returns(update);
+        _updateService.IsUpdateSupported.Returns(true);
+
+        // Act
+        await viewModel.CheckForUpdateManuallyCommand.ExecuteAsync(null);
+
+        // Assert
+        viewModel.UpdateAvailable.Should().BeTrue();
+        viewModel.LatestVersion.Should().Be("2.0.0");
+        viewModel.PendingUpdate.Should().Be(update);
+        viewModel.IsUpdateSupported.Should().BeTrue();
+    }
+
+    [Test]
+    public async Task CheckForUpdateManuallyCommand_WhenNoUpdate_DoesNotSetAvailable()
+    {
+        // Arrange
+        var viewModel = CreateViewModel();
+        await Task.Delay(150);
+
+        _updateService.CheckForUpdateAsync(Arg.Any<CancellationToken>()).Returns((UpdateCheckResult?)null);
+
+        // Act
+        await viewModel.CheckForUpdateManuallyCommand.ExecuteAsync(null);
+
+        // Assert
+        viewModel.UpdateAvailable.Should().BeFalse();
+    }
+
+    [Test]
+    public void ApplyUpdateAndRestartCommand_WhenNoPendingUpdate_DoesNothing()
+    {
+        // Arrange
+        var viewModel = CreateViewModel();
+        Thread.Sleep(100);
+
+        // Act
+        viewModel.ApplyUpdateAndRestartCommand.Execute(null);
+
+        // Assert
+        _updateService.DidNotReceive().ApplyUpdateAndRestart(Arg.Any<UpdateCheckResult>());
+    }
+
+    [Test]
+    public void CancelDownloadCommand_CancelsDownloadToken()
+    {
+        // Arrange
+        var viewModel = CreateViewModel();
+        Thread.Sleep(100);
+
+        // Act & Assert - should not throw even without active download
+        var action = () => viewModel.CancelDownloadCommand.Execute(null);
+        action.Should().NotThrow();
+    }
+
+    [Test]
+    public async Task AutoDownloadUpdates_WhenChanged_SchedulesAutoSave()
+    {
+        // Arrange
+        var viewModel = CreateViewModel();
+        await Task.Delay(150);
+
+        // Act
+        viewModel.AutoDownloadUpdates = false;
+
+        // Wait for auto-save delay
+        await Task.Delay(700);
+
+        // Assert
+        await _persistence.Received().SaveSettingsAsync(
+            Arg.Is<AppSettings>(s => s.AutoDownloadUpdates == false));
+    }
+
+    [Test]
+    public void LoadSettings_SetsIsUpdateSupported()
+    {
+        // Arrange
+        _updateService.IsUpdateSupported.Returns(true);
+
+        // Act
+        var viewModel = CreateViewModel();
+        Thread.Sleep(150);
+
+        // Assert
+        viewModel.IsUpdateSupported.Should().BeTrue();
+    }
+
+    #endregion
+
     public ValueTask DisposeAsync()
     {
         return ValueTask.CompletedTask;

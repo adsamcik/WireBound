@@ -552,6 +552,11 @@
           "Microsoft.Testing.Platform": "2.0.2"
         }
       },
+      "NuGet.Versioning": {
+        "type": "Transitive",
+        "resolved": "6.14.0",
+        "contentHash": "4v4blkhCv8mpKtfx+z0G/X0daVCzdIaHSC51GkUspugi5JIMn2Bo8xm5PdZYF0U68gOBfz/+aPWMnpRd85Jbow=="
+      },
       "Serilog.Extensions.Logging": {
         "type": "Transitive",
         "resolved": "10.0.0",
@@ -696,6 +701,7 @@
           "Serilog.Extensions.Hosting": "[10.0.0, )",
           "Serilog.Sinks.Debug": "[3.0.0, )",
           "Serilog.Sinks.File": "[7.0.0, )",
+          "Velopack": "[0.0.1298, )",
           "WireBound.Core": "[1.0.0, )",
           "WireBound.Platform.Abstract": "[1.0.0, )",
           "WireBound.Platform.Linux": "[1.0.0, )",
@@ -979,6 +985,15 @@
         "contentHash": "aUW7WlSpuagd0rea9LSgMJ9c73aZ2FlzS3Mk4Aqfjz43sWBu0xcVfaBNoV0KOEWhrpk6tv1PV3xqSq82vsDfRA==",
         "dependencies": {
           "System.Configuration.ConfigurationManager": "10.0.2"
+        }
+      },
+      "Velopack": {
+        "type": "CentralTransitive",
+        "requested": "[0.0.1298, )",
+        "resolved": "0.0.1298",
+        "contentHash": "PJ6Nm28qJ4ChsHYzgHUJ8g+DGyyHes2+bwxY709+znMhgi8fMp8M1FTF8x6pZMjnsPCWVwoMlxVEyq0NLeRZtA==",
+        "dependencies": {
+          "NuGet.Versioning": "6.14.0"
         }
       }
     }

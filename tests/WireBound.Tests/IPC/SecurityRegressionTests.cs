@@ -39,6 +39,8 @@ public class SecurityRegressionTests
     [Test]
     public void SidInjection_EveryoneSid_Rejected()
     {
+        if (!OperatingSystem.IsWindows()) return;
+
         // S-1-1-0 is the "Everyone" well-known SID — must never be allowed
         var act = () => ElevationServer.ValidateAndParseSid("S-1-1-0");
         act.Should().Throw<ArgumentException>().Which.Message.Should().Contain("broad group");
@@ -47,6 +49,8 @@ public class SecurityRegressionTests
     [Test]
     public void SidInjection_AnonymousSid_Rejected()
     {
+        if (!OperatingSystem.IsWindows()) return;
+
         var act = () => ElevationServer.ValidateAndParseSid("S-1-5-7");
         act.Should().Throw<ArgumentException>().Which.Message.Should().Contain("broad group");
     }
@@ -54,6 +58,8 @@ public class SecurityRegressionTests
     [Test]
     public void SidInjection_AuthenticatedUsersSid_Rejected()
     {
+        if (!OperatingSystem.IsWindows()) return;
+
         var act = () => ElevationServer.ValidateAndParseSid("S-1-5-11");
         act.Should().Throw<ArgumentException>().Which.Message.Should().Contain("broad group");
     }
@@ -61,6 +67,8 @@ public class SecurityRegressionTests
     [Test]
     public void SidInjection_NetworkSid_Rejected()
     {
+        if (!OperatingSystem.IsWindows()) return;
+
         var act = () => ElevationServer.ValidateAndParseSid("S-1-5-2");
         act.Should().Throw<ArgumentException>().Which.Message.Should().Contain("broad group");
     }
@@ -68,6 +76,8 @@ public class SecurityRegressionTests
     [Test]
     public void SidValidation_ValidUserSid_Accepted()
     {
+        if (!OperatingSystem.IsWindows()) return;
+
         // Current user SID should always be valid
         var currentSid = WindowsIdentity.GetCurrent().User!.Value;
         var result = ElevationServer.ValidateAndParseSid(currentSid);
@@ -241,6 +251,8 @@ public class SecurityRegressionTests
     [Test]
     public void GetExtendedTcpTable_RetryLogic_IsPresent()
     {
+        if (!OperatingSystem.IsWindows()) return;
+
         // We can't easily simulate ERROR_INSUFFICIENT_BUFFER, but we can verify
         // the tracker handles the case where GetConnectionStats is called immediately
         // (no data collected yet) without throwing
@@ -256,6 +268,8 @@ public class SecurityRegressionTests
     [Test]
     public void ExecutableValidation_NonExistentPid_ReturnsFalse()
     {
+        if (!OperatingSystem.IsWindows()) return;
+
         // PID 0 or a very high PID that doesn't exist
         var result = ElevationServer.ValidateExecutablePath(@"C:\fake\path.exe", 999999);
         result.Should().BeFalse("fail-closed: can't verify → deny");
@@ -264,6 +278,8 @@ public class SecurityRegressionTests
     [Test]
     public void ExecutableValidation_WrongPath_ReturnsFalse()
     {
+        if (!OperatingSystem.IsWindows()) return;
+
         // Use current process PID but wrong path
         var pid = Environment.ProcessId;
         var result = ElevationServer.ValidateExecutablePath(@"C:\totally\wrong\path.exe", pid);
@@ -273,6 +289,8 @@ public class SecurityRegressionTests
     [Test]
     public void ExecutableValidation_CorrectPath_ReturnsTrue()
     {
+        if (!OperatingSystem.IsWindows()) return;
+
         // Use current process PID and its actual path
         var pid = Environment.ProcessId;
         var actualPath = System.Diagnostics.Process.GetCurrentProcess().MainModule?.FileName;

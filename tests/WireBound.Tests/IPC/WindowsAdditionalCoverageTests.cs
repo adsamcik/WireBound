@@ -18,6 +18,8 @@ public class WindowsAdditionalCoverageTests
     [Test]
     public void ValidateAndParseSid_SidWithMaxSubAuthorities_Succeeds()
     {
+        if (!OperatingSystem.IsWindows()) return;
+
         // Regex allows 1–15 sub-authorities; build one with exactly 15
         var sid = "S-1-5-21-1-2-3-4-5-6-7-8-9-10-11-12-13-14";
         var result = ElevationServer.ValidateAndParseSid(sid);
@@ -43,6 +45,8 @@ public class WindowsAdditionalCoverageTests
     [Test]
     public void ValidateAndParseSid_NetworkSid_Rejected()
     {
+        if (!OperatingSystem.IsWindows()) return;
+
         // S-1-5-2 is Network — broad group
         var act = () => ElevationServer.ValidateAndParseSid("S-1-5-2");
         act.Should().Throw<ArgumentException>();
@@ -51,6 +55,8 @@ public class WindowsAdditionalCoverageTests
     [Test]
     public void ValidateAndParseSid_AuthenticatedUserSid_Rejected()
     {
+        if (!OperatingSystem.IsWindows()) return;
+
         // S-1-5-11 is Authenticated Users — broad group
         var act = () => ElevationServer.ValidateAndParseSid("S-1-5-11");
         act.Should().Throw<ArgumentException>();
@@ -124,6 +130,8 @@ public class WindowsAdditionalCoverageTests
     [Test]
     public void ValidateExecutablePath_CurrentProcess_Matches()
     {
+        if (!OperatingSystem.IsWindows()) return;
+
         var pid = Environment.ProcessId;
         var path = Environment.ProcessPath!;
 
@@ -133,6 +141,8 @@ public class WindowsAdditionalCoverageTests
     [Test]
     public void ValidateExecutablePath_CaseDifferentPath_StillMatches()
     {
+        if (!OperatingSystem.IsWindows()) return;
+
         var pid = Environment.ProcessId;
         var path = Environment.ProcessPath!.ToUpperInvariant();
 
@@ -142,12 +152,16 @@ public class WindowsAdditionalCoverageTests
     [Test]
     public void ValidateExecutablePath_NonexistentPid_ReturnsFalse()
     {
+        if (!OperatingSystem.IsWindows()) return;
+
         ElevationServer.ValidateExecutablePath(@"C:\fake.exe", 999999).Should().BeFalse();
     }
 
     [Test]
     public void ValidateExecutablePath_EmptyPath_ReturnsFalse()
     {
+        if (!OperatingSystem.IsWindows()) return;
+
         var pid = Environment.ProcessId;
         ElevationServer.ValidateExecutablePath("", pid).Should().BeFalse();
     }
@@ -159,6 +173,8 @@ public class WindowsAdditionalCoverageTests
     [Test]
     public void MakeConnectionKey_WithIpv6Addresses_FormatsCorrectly()
     {
+        if (!OperatingSystem.IsWindows()) return;
+
         var key = EtwConnectionTracker.MakeConnectionKey(
             "2001:db8::1", 443, "fe80::1%eth0", 8080);
 

@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **Self-Updater (Velopack)** - In-app update download, apply, and restart for installed mode (Windows Setup.exe / Linux AppImage) with delta updates and automatic rollback
+- **Auto-Download Updates** - Background download when update detected; respects metered network detection; restart always requires user action
+- **What's New Dialog** - Post-update dialog showing release notes fetched from GitHub, displayed once after restart
+- **Navigation Badge** - Settings nav icon shows dot indicator when update is available
+- **Tray Menu Update Item** - "Update available" item in system tray context menu, navigates to Settings
+- **Metered Network Detection** - Platform-native detection (Windows WinRT ConnectionCost, Linux nmcli) with Platform.Abstract interface and Stub fallback
+- **Portable Mode Fallback** - Non-installed builds show "View Release" link instead of download button; `IsUpdateSupported` distinguishes modes
+
 ## [0.7.0] - 2026-02-08
 
 ### Security

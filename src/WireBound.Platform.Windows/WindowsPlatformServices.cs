@@ -25,5 +25,6 @@ public sealed class WindowsPlatformServices : IPlatformServices
         services.AddSingleton<IHelperProcessManager, WindowsHelperProcessManager>();
         services.AddSingleton<ICpuInfoProvider, WindowsCpuInfoProvider>();
         services.AddSingleton<IMemoryInfoProvider, WindowsMemoryInfoProvider>();
+        services.AddSingleton<INetworkCostProvider, WindowsNetworkCostProvider>();
     }
 }

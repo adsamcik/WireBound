@@ -1,3 +1,4 @@
+using Microsoft.Extensions.Logging;
 using WireBound.Core.Models;
 using WireBound.Core.Services;
 using WireBound.Platform.Abstract.Models;
@@ -12,6 +13,7 @@ namespace WireBound.Avalonia.Services;
 public sealed class ProcessNetworkService : IProcessNetworkService
 {
     private readonly IProcessNetworkProviderFactory _providerFactory;
+    private readonly ILogger<ProcessNetworkService>? _logger;
     private IProcessNetworkProvider? _currentProvider;
     private readonly List<ProcessNetworkStats> _currentStats = [];
     private readonly object _providerLock = new();
@@ -24,9 +26,12 @@ public sealed class ProcessNetworkService : IProcessNetworkService
     public event EventHandler<ProcessStatsUpdatedEventArgs>? StatsUpdated;
     public event EventHandler<ProcessNetworkErrorEventArgs>? ErrorOccurred;
 
-    public ProcessNetworkService(IProcessNetworkProviderFactory providerFactory)
+    public ProcessNetworkService(
+        IProcessNetworkProviderFactory providerFactory,
+        ILogger<ProcessNetworkService>? logger = null)
     {
         _providerFactory = providerFactory;
+        _logger = logger;
         _providerFactory.ProviderChanged += OnProviderChanged;
     }
 
@@ -152,13 +157,13 @@ public sealed class ProcessNetworkService : IProcessNetworkService
         if (oldProvider != null)
         {
             try { await oldProvider.StopMonitoringAsync(); }
-            catch { /* best effort */ }
+            catch (Exception ex) { _logger?.LogDebug(ex, "Best-effort stop of old provider failed"); }
         }
 
         if (wasMonitoring)
         {
             try { await _currentProvider.StartMonitoringAsync(); }
-            catch { /* best effort — already subscribed to ErrorOccurred */ }
+            catch (Exception ex) { _logger?.LogWarning(ex, "Failed to start new provider after provider change"); }
         }
     }
 

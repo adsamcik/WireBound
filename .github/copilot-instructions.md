@@ -130,3 +130,9 @@ services.AddSingleton<INetworkUsageRepository>(sp => sp.GetRequiredService<DataP
 - Update charts off the UI thread — use `Dispatcher.UIThread`
 
 <!-- context-init:user-content-below -->
+
+## Repository
+
+- **GitHub**: https://github.com/adsamcik/WireBound
+- **Owner**: adsamcik
+- **Repo**: WireBound

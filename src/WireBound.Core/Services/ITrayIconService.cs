@@ -33,7 +33,7 @@ public interface ITrayIconService : IDisposable
     /// <param name="downloadSpeedBps">Current download speed in bytes per second</param>
     /// <param name="uploadSpeedBps">Current upload speed in bytes per second</param>
     /// <param name="maxSpeedBps">Maximum speed for scaling (auto-scales if 0)</param>
-        void UpdateActivity(long downloadSpeedBps, long uploadSpeedBps, long maxSpeedBps = 0);
+    void UpdateActivity(long downloadSpeedBps, long uploadSpeedBps, long maxSpeedBps = 0);
 
     /// <summary>
     /// Sets whether an update is available, adding/removing a tray context menu item.

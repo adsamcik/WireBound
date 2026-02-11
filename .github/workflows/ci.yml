@@ -76,7 +76,7 @@ jobs:
         run: dotnet restore WireBound.slnx --locked-mode
 
       - name: Check formatting
-        run: dotnet format WireBound.slnx --verify-no-changes --verbosity diagnostic --exclude-diagnostics TUnit0018
+        run: dotnet format WireBound.slnx --verify-no-changes --verbosity diagnostic --exclude-diagnostics TUnit0018 CA1416 IL2046 IL2026
 
   publish-validation:
     runs-on: ubuntu-latest

@@ -280,16 +280,19 @@ public sealed class DnsResolverService : IDnsResolverService, IDisposable
         _disposed = true;
 
         _cts.Cancel();
-        try
-        {
-            _backgroundTask.Wait(TimeSpan.FromSeconds(2));
-        }
-        catch (Exception ex)
-        {
-            _logger?.LogDebug(ex, "Background task did not complete gracefully during disposal");
-        }
 
-        _cts.Dispose();
+        // Non-blocking wait: if the task doesn't complete in time, let it wind down naturally
+        if (!_backgroundTask.IsCompleted)
+        {
+            _ = _backgroundTask.ContinueWith(
+                static (t, state) => ((IDisposable)state!).Dispose(),
+                (IDisposable)_cts,
+                TaskScheduler.Default);
+        }
+        else
+        {
+            _cts.Dispose();
+        }
         _resolutionSemaphore.Dispose();
     }
 

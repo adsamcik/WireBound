@@ -202,10 +202,12 @@ public sealed partial class SettingsViewModel : ObservableObject, IDisposable
     {
         if (_isLoading) return;
 
-        // Cancel any pending auto-save
-        _autoSaveCts?.Cancel();
+        // Cancel and dispose any pending auto-save
+        var oldCts = _autoSaveCts;
         _autoSaveCts = new CancellationTokenSource();
         var token = _autoSaveCts.Token;
+        oldCts?.Cancel();
+        oldCts?.Dispose();
 
         _ = Task.Run(async () =>
         {
@@ -220,6 +222,10 @@ public sealed partial class SettingsViewModel : ObservableObject, IDisposable
             catch (OperationCanceledException)
             {
                 // Ignore cancellation
+            }
+            catch (Exception ex)
+            {
+                _logger?.LogError(ex, "Auto-save failed");
             }
         }, token);
     }
@@ -552,7 +558,11 @@ public sealed partial class SettingsViewModel : ObservableObject, IDisposable
         IsDownloading = true;
         UpdateError = null;
         DownloadProgress = 0;
+
+        var oldCts = _downloadCts;
         _downloadCts = new CancellationTokenSource();
+        oldCts?.Cancel();
+        oldCts?.Dispose();
 
         try
         {

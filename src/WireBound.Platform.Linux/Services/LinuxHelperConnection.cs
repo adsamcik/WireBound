@@ -57,7 +57,12 @@ public class LinuxHelperConnection : IHelperConnection
             _sessionId = authResponse.SessionId;
             return true;
         }
-        catch
+        catch (OperationCanceledException)
+        {
+            await DisconnectAsync();
+            return false;
+        }
+        catch (Exception)
         {
             await DisconnectAsync();
             return false;

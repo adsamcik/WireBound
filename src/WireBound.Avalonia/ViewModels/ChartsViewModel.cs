@@ -217,9 +217,9 @@ public sealed partial class ChartsViewModel : ObservableObject, IDisposable
             _downloadSpeedPoints.Add(new DateTimePoint(now, stats.DownloadSpeedBps));
             _uploadSpeedPoints.Add(new DateTimePoint(now, stats.UploadSpeedBps));
 
-            // Remove old points from display collections using batch removal (O(n) vs O(n²))
-            TrimPointsBeforeCutoff(_downloadSpeedPoints, cutoff);
-            TrimPointsBeforeCutoff(_uploadSpeedPoints, cutoff);
+            // Remove old points from display collections
+            ChartCollectionHelper.TrimBeforeCutoff(_downloadSpeedPoints, cutoff);
+            ChartCollectionHelper.TrimBeforeCutoff(_uploadSpeedPoints, cutoff);
 
             if (XAxes.Length > 0)
             {
@@ -267,13 +267,13 @@ public sealed partial class ChartsViewModel : ObservableObject, IDisposable
         if (ShowCpuOverlay)
         {
             _cpuHistoryPoints.Add(new DateTimePoint(now, stats.Cpu.UsagePercent));
-            TrimPointsBeforeCutoff(_cpuHistoryPoints, cutoff);
+            ChartCollectionHelper.TrimBeforeCutoff(_cpuHistoryPoints, cutoff);
         }
 
         if (ShowMemoryOverlay)
         {
             _memoryHistoryPoints.Add(new DateTimePoint(now, stats.Memory.UsagePercent));
-            TrimPointsBeforeCutoff(_memoryHistoryPoints, cutoff);
+            ChartCollectionHelper.TrimBeforeCutoff(_memoryHistoryPoints, cutoff);
         }
     }
 
@@ -309,45 +309,6 @@ public sealed partial class ChartsViewModel : ObservableObject, IDisposable
             SpeedSeries.Remove(_memoryOverlaySeries);
             _memoryHistoryPoints.Clear();
         }
-    }
-
-    /// <summary>
-    /// Efficiently removes all points before the cutoff time using batch removal.
-    /// This is O(n) compared to O(n²) for repeated RemoveAt(0) calls.
-    /// </summary>
-    private static void TrimPointsBeforeCutoff(ObservableCollection<DateTimePoint> points, DateTime cutoff)
-    {
-        if (points.Count == 0 || points[0].DateTime >= cutoff)
-            return;
-
-        // Find the first index where DateTime >= cutoff
-        var firstValidIndex = 0;
-        for (var i = 0; i < points.Count; i++)
-        {
-            if (points[i].DateTime >= cutoff)
-            {
-                firstValidIndex = i;
-                break;
-            }
-            // If we reach the end without finding a valid point, all points are old
-            if (i == points.Count - 1)
-            {
-                points.Clear();
-                return;
-            }
-        }
-
-        if (firstValidIndex == 0)
-            return;
-
-        // Keep only points from firstValidIndex onwards
-        var pointsToKeep = new DateTimePoint[points.Count - firstValidIndex];
-        for (var i = firstValidIndex; i < points.Count; i++)
-            pointsToKeep[i - firstValidIndex] = points[i];
-
-        points.Clear();
-        foreach (var point in pointsToKeep)
-            points.Add(point);
     }
 
     public void Dispose()

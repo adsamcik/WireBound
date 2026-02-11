@@ -3,9 +3,7 @@ using CommunityToolkit.Mvvm.Input;
 using LiveChartsCore;
 using LiveChartsCore.Defaults;
 using LiveChartsCore.SkiaSharpView;
-using LiveChartsCore.SkiaSharpView.Painting;
 using Microsoft.Extensions.Logging;
-using SkiaSharp;
 using System.Collections.ObjectModel;
 using Avalonia.Threading;
 using WireBound.Avalonia.Helpers;
@@ -180,7 +178,7 @@ public sealed partial class OverviewViewModel : ObservableObject, IDisposable
         // Initialize chart axes
         ChartXAxes = ChartSeriesFactory.CreateTimeXAxes();
         ChartYAxes = ChartSeriesFactory.CreateSpeedYAxes();
-        ChartSecondaryYAxes = CreatePercentageYAxes();
+        ChartSecondaryYAxes = ChartSeriesFactory.CreatePercentageYAxes();
 
         // Initialize chart series
         ChartSeries = CreateChartSeries();
@@ -326,168 +324,43 @@ public sealed partial class OverviewViewModel : ObservableObject, IDisposable
     {
         points.Add(new DateTimePoint(timestamp, value));
 
-        // Keep only the last MaxHistoryPoints using batch removal
-        TrimCollectionToMaxCount(points, MaxHistoryPoints);
+        // Keep only the last MaxHistoryPoints
+        ChartCollectionHelper.TrimToMaxCount(points, MaxHistoryPoints);
     }
 
     /// <summary>
-    /// Efficiently removes excess items from the beginning using batch removal.
-    /// This is O(n) compared to O(n²) for repeated RemoveAt(0) calls.
+    /// Creates the base download/upload chart series, using the shared factory.
     /// </summary>
-    private static void TrimCollectionToMaxCount(ObservableCollection<DateTimePoint> points, int maxCount)
-    {
-        var removeCount = points.Count - maxCount;
-        if (removeCount <= 0)
-            return;
-
-        // Copy items we want to keep to an array 
-        var keepCount = points.Count - removeCount;
-        var pointsToKeep = new DateTimePoint[keepCount];
-        for (var i = 0; i < keepCount; i++)
-            pointsToKeep[i] = points[removeCount + i];
-
-        // Clear and re-add (triggers fewer UI updates than multiple RemoveAt)
-        points.Clear();
-        foreach (var point in pointsToKeep)
-            points.Add(point);
-    }
-
     private ISeries[] CreateChartSeries()
     {
-        var series = new List<ISeries>();
-
-        // Download series
-        series.Add(new LineSeries<DateTimePoint>
+        var baseSeries = ChartSeriesFactory.CreateSpeedLineSeries(_downloadSpeedPoints, _uploadSpeedPoints);
+        // Ensure ScalesYAt = 0 (primary Y-axis)
+        foreach (var s in baseSeries)
         {
-            Name = "Download",
-            Values = _downloadSpeedPoints,
-            Fill = new LinearGradientPaint(
-                [ChartColors.DownloadAccentColor.WithAlpha(100), ChartColors.DownloadAccentColor.WithAlpha(0)],
-                new SKPoint(0.5f, 0),
-                new SKPoint(0.5f, 1)
-            ),
-            Stroke = new SolidColorPaint(ChartColors.DownloadAccentColor, 2),
-            GeometryFill = null,
-            GeometryStroke = null,
-            LineSmoothness = 1,
-            AnimationsSpeed = TimeSpan.Zero,
-            ScalesYAt = 0 // Primary Y-axis
-        });
-
-        // Upload series
-        series.Add(new LineSeries<DateTimePoint>
-        {
-            Name = "Upload",
-            Values = _uploadSpeedPoints,
-            Fill = new LinearGradientPaint(
-                [ChartColors.UploadAccentColor.WithAlpha(100), ChartColors.UploadAccentColor.WithAlpha(0)],
-                new SKPoint(0.5f, 0),
-                new SKPoint(0.5f, 1)
-            ),
-            Stroke = new SolidColorPaint(ChartColors.UploadAccentColor, 2),
-            GeometryFill = null,
-            GeometryStroke = null,
-            LineSmoothness = 1,
-            AnimationsSpeed = TimeSpan.Zero,
-            ScalesYAt = 0 // Primary Y-axis
-        });
-
-        return [.. series];
+            if (s is LineSeries<DateTimePoint> line)
+                line.ScalesYAt = 0;
+        }
+        return baseSeries;
     }
 
     private void RebuildChartSeries()
     {
-        var series = new List<ISeries>();
+        var series = new List<ISeries>(CreateChartSeries());
 
-        // Always include download/upload series
-        series.Add(new LineSeries<DateTimePoint>
-        {
-            Name = "Download",
-            Values = _downloadSpeedPoints,
-            Fill = new LinearGradientPaint(
-                [ChartColors.DownloadAccentColor.WithAlpha(100), ChartColors.DownloadAccentColor.WithAlpha(0)],
-                new SKPoint(0.5f, 0),
-                new SKPoint(0.5f, 1)
-            ),
-            Stroke = new SolidColorPaint(ChartColors.DownloadAccentColor, 2),
-            GeometryFill = null,
-            GeometryStroke = null,
-            LineSmoothness = 1,
-            AnimationsSpeed = TimeSpan.Zero,
-            ScalesYAt = 0
-        });
-
-        series.Add(new LineSeries<DateTimePoint>
-        {
-            Name = "Upload",
-            Values = _uploadSpeedPoints,
-            Fill = new LinearGradientPaint(
-                [ChartColors.UploadAccentColor.WithAlpha(100), ChartColors.UploadAccentColor.WithAlpha(0)],
-                new SKPoint(0.5f, 0),
-                new SKPoint(0.5f, 1)
-            ),
-            Stroke = new SolidColorPaint(ChartColors.UploadAccentColor, 2),
-            GeometryFill = null,
-            GeometryStroke = null,
-            LineSmoothness = 1,
-            AnimationsSpeed = TimeSpan.Zero,
-            ScalesYAt = 0
-        });
-
-        // Add CPU overlay if enabled
         if (ShowCpuOverlay)
         {
-            series.Add(new LineSeries<DateTimePoint>
-            {
-                Name = "CPU",
-                Values = _cpuOverlayPoints,
-                Fill = null,
-                Stroke = new SolidColorPaint(SKColors.DodgerBlue.WithAlpha(180), 1.5f),
-                GeometryFill = null,
-                GeometryStroke = null,
-                LineSmoothness = 0.5,
-                AnimationsSpeed = TimeSpan.Zero,
-                ScalesYAt = 1 // Secondary Y-axis (percentage)
-            });
+            series.Add(ChartSeriesFactory.CreateOverlayLineSeries(
+                "CPU", _cpuOverlayPoints, ChartColors.CpuColor, useDashedLine: true));
         }
 
-        // Add Memory overlay if enabled
         if (ShowMemoryOverlay)
         {
-            series.Add(new LineSeries<DateTimePoint>
-            {
-                Name = "Memory",
-                Values = _memoryOverlayPoints,
-                Fill = null,
-                Stroke = new SolidColorPaint(SKColors.MediumPurple.WithAlpha(180), 1.5f),
-                GeometryFill = null,
-                GeometryStroke = null,
-                LineSmoothness = 0.5,
-                AnimationsSpeed = TimeSpan.Zero,
-                ScalesYAt = 1 // Secondary Y-axis (percentage)
-            });
+            series.Add(ChartSeriesFactory.CreateOverlayLineSeries(
+                "Memory", _memoryOverlayPoints, ChartColors.MemoryColor, useDashedLine: true));
         }
 
         ChartSeries = [.. series];
         OnPropertyChanged(nameof(ChartSeries));
-    }
-
-    private static Axis[] CreatePercentageYAxes()
-    {
-        return
-        [
-            new Axis
-            {
-                Name = "%",
-                Position = LiveChartsCore.Measure.AxisPosition.End,
-                MinLimit = 0,
-                MaxLimit = 100,
-                LabelsPaint = new SolidColorPaint(SKColors.Gray),
-                TextSize = 10,
-                Labeler = value => $"{value:F0}%",
-                ShowSeparatorLines = false
-            }
-        ];
     }
 
     private static int GetTimeRangeSeconds(TimeRange range) => range switch

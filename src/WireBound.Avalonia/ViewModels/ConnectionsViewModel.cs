@@ -223,12 +223,16 @@ public sealed partial class ConnectionsViewModel : ObservableObject, IDisposable
 
     private async Task InitializeAsync()
     {
+        if (_disposed) return;
+
         if (_processNetworkService != null)
         {
             var started = await _processNetworkService.StartAsync();
+            if (_disposed) return;
             IsMonitoring = started;
         }
 
+        if (_disposed) return;
         _refreshTimer.Start();
         await RefreshConnectionsAsync();
     }

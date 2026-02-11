@@ -26,6 +26,8 @@
     <ProjectReference Include="..\..\src\WireBound.IPC\WireBound.IPC.csproj" />
     <ProjectReference Include="..\..\src\WireBound.Elevation.Windows\WireBound.Elevation.Windows.csproj" />
     <ProjectReference Include="..\..\src\WireBound.Elevation.Linux\WireBound.Elevation.Linux.csproj" />
+    <ProjectReference Include="..\..\src\WireBound.Platform.Linux\WireBound.Platform.Linux.csproj" />
+    <ProjectReference Include="..\..\src\WireBound.Platform.Windows\WireBound.Platform.Windows.csproj" />
   </ItemGroup>
 
 </Project>

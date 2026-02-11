@@ -17,7 +17,7 @@ public sealed class LinuxMemoryInfoProvider : IMemoryInfoProvider
         {
             if (File.Exists("/proc/meminfo"))
             {
-                var memInfo = ParseMemInfo();
+                var memInfo = ParseMemInfo("/proc/meminfo");
 
                 // MemTotal is total physical memory
                 var totalBytes = memInfo.GetValueOrDefault("MemTotal", 0) * 1024;
@@ -70,11 +70,16 @@ public sealed class LinuxMemoryInfoProvider : IMemoryInfoProvider
         };
     }
 
-    private static Dictionary<string, long> ParseMemInfo()
+    internal static Dictionary<string, long> ParseMemInfo(string filePath)
+    {
+        return ParseMemInfoLines(File.ReadLines(filePath));
+    }
+
+    internal static Dictionary<string, long> ParseMemInfoLines(IEnumerable<string> lines)
     {
         var result = new Dictionary<string, long>(StringComparer.OrdinalIgnoreCase);
 
-        foreach (var line in File.ReadLines("/proc/meminfo"))
+        foreach (var line in lines)
         {
             // Format: "MemTotal:       16384000 kB"
             var colonIndex = line.IndexOf(':');
@@ -100,7 +105,7 @@ public sealed class LinuxMemoryInfoProvider : IMemoryInfoProvider
     {
         try
         {
-            var memInfo = ParseMemInfo();
+            var memInfo = ParseMemInfo("/proc/meminfo");
             return memInfo.GetValueOrDefault("MemTotal", 0) * 1024;
         }
         catch

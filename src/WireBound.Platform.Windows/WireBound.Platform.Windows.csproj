@@ -22,6 +22,10 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <InternalsVisibleTo Include="WireBound.Tests" />
+  </ItemGroup>
+
+  <ItemGroup>
     <PackageReference Include="ManagedNativeWifi" />
     <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" />
     <PackageReference Include="Serilog" />

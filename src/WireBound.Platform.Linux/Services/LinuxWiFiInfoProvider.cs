@@ -85,7 +85,7 @@ public sealed partial class LinuxWiFiInfoProvider : IWiFiInfoProvider
         return result;
     }
 
-    private void ParseNmcliOutput(string output, Dictionary<string, WiFiInfo> result)
+    internal void ParseNmcliOutput(string output, Dictionary<string, WiFiInfo> result)
     {
         // Format: DEVICE:ACTIVE:SSID:SIGNAL:FREQ:CHAN:SECURITY
         foreach (var line in output.Split('\n', StringSplitOptions.RemoveEmptyEntries))
@@ -130,7 +130,7 @@ public sealed partial class LinuxWiFiInfoProvider : IWiFiInfoProvider
         }
     }
 
-    private List<string> ParseIwDevInterfaces(string output)
+    internal List<string> ParseIwDevInterfaces(string output)
     {
         var interfaces = new List<string>();
         var regex = InterfaceRegex();
@@ -143,7 +143,7 @@ public sealed partial class LinuxWiFiInfoProvider : IWiFiInfoProvider
         return interfaces;
     }
 
-    private WiFiInfo? ParseIwLinkOutput(string output)
+    internal WiFiInfo? ParseIwLinkOutput(string output)
     {
         if (output.Contains("Not connected"))
             return null;

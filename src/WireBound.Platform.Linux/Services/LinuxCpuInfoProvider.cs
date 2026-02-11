@@ -136,7 +136,7 @@ public sealed class LinuxCpuInfoProvider : ICpuInfoProvider
         };
     }
 
-    private static (double usage, long idle, long total) ParseCpuLine(string line)
+    internal static (double usage, long idle, long total) ParseCpuLine(string line)
     {
         // Format: cpu user nice system idle iowait irq softirq steal guest guest_nice
         var parts = line.Split(' ', StringSplitOptions.RemoveEmptyEntries);

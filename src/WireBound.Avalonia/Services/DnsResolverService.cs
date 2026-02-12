@@ -170,6 +170,8 @@ public sealed class DnsResolverService : IDnsResolverService, IDisposable
 
         lock (_lruLock)
         {
+            // Remove existing entry to prevent duplicates in the LRU list
+            _lruList.Remove(ipAddress);
             _lruList.AddFirst(ipAddress);
         }
     }

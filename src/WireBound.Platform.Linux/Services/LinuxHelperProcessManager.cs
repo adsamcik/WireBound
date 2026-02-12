@@ -273,10 +273,19 @@ public sealed class LinuxHelperProcessManager : IHelperProcessManager
         {
             _logger?.LogInformation("Starting helper with pkexec: {Path}", HelperPath);
 
+            // Validate that the helper path resolves within the application directory
+            var appDir = Path.GetFullPath(AppContext.BaseDirectory);
+            var helperFullPath = Path.GetFullPath(HelperPath);
+            if (!helperFullPath.StartsWith(appDir, StringComparison.Ordinal))
+            {
+                _logger?.LogWarning("Helper path {Path} is outside application directory {AppDir}", helperFullPath, appDir);
+                return HelperStartResult.Failed("Helper path is outside application directory");
+            }
+
             var startInfo = new ProcessStartInfo
             {
                 FileName = "pkexec",
-                Arguments = HelperPath,
+                Arguments = helperFullPath,
                 UseShellExecute = false,
                 CreateNoWindow = true
             };

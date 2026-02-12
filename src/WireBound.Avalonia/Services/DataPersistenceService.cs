@@ -280,8 +280,19 @@ public sealed class DataPersistenceService : IDataPersistenceService
             }
             else
             {
-                record.BytesReceived = Math.Max(record.BytesReceived, stat.SessionBytesReceived);
-                record.BytesSent = Math.Max(record.BytesSent, stat.SessionBytesSent);
+                // If session bytes decreased, the process restarted — accumulate
+                // the new session's bytes on top of what was already recorded.
+                // If session bytes increased, it's the same session — take the higher value.
+                if (stat.SessionBytesReceived < record.BytesReceived)
+                    record.BytesReceived += stat.SessionBytesReceived;
+                else
+                    record.BytesReceived = Math.Max(record.BytesReceived, stat.SessionBytesReceived);
+
+                if (stat.SessionBytesSent < record.BytesSent)
+                    record.BytesSent += stat.SessionBytesSent;
+                else
+                    record.BytesSent = Math.Max(record.BytesSent, stat.SessionBytesSent);
+
                 record.PeakDownloadSpeed = Math.Max(record.PeakDownloadSpeed, stat.DownloadSpeedBps);
                 record.PeakUploadSpeed = Math.Max(record.PeakUploadSpeed, stat.UploadSpeedBps);
                 record.LastUpdated = now;

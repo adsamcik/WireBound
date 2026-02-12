@@ -419,24 +419,20 @@ public partial class App : Application
         {
             using var http = new HttpClient();
             http.DefaultRequestHeaders.UserAgent.ParseAdd("WireBound");
+            http.Timeout = TimeSpan.FromSeconds(10);
             var tag = version.StartsWith('v') ? version : $"v{version}";
             var url = $"https://api.github.com/repos/adsamcik/WireBound/releases/tags/{tag}";
             var response = await http.GetStringAsync(url);
 
-            // Simple JSON parsing for body field
-            var bodyStart = response.IndexOf("\"body\":", StringComparison.Ordinal);
-            if (bodyStart < 0) return $"Updated to version {version}.";
+            using var doc = System.Text.Json.JsonDocument.Parse(response);
+            if (doc.RootElement.TryGetProperty("body", out var bodyElement))
+            {
+                var body = bodyElement.GetString();
+                if (!string.IsNullOrWhiteSpace(body))
+                    return body;
+            }
 
-            bodyStart = response.IndexOf('"', bodyStart + 7) + 1;
-            var bodyEnd = response.IndexOf("\"", bodyStart, StringComparison.Ordinal);
-
-            // Handle escaped quotes and newlines
-            var body = response[bodyStart..bodyEnd]
-                .Replace("\\r\\n", "\n")
-                .Replace("\\n", "\n")
-                .Replace("\\\"", "\"");
-
-            return string.IsNullOrWhiteSpace(body) ? $"Updated to version {version}." : body;
+            return $"Updated to version {version}.";
         }
         catch
         {

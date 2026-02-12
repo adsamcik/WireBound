@@ -22,6 +22,7 @@ public sealed class DataExportService : IDataExportService
 
     public async Task ExportDailyUsageToCsvAsync(string filePath, DateOnly startDate, DateOnly endDate)
     {
+        ValidateExportPath(filePath);
         _logger?.LogInformation("Exporting daily usage from {Start} to {End} to {Path}", startDate, endDate, filePath);
 
         var data = await _usageRepository.GetDailyUsageAsync(startDate, endDate);
@@ -54,6 +55,7 @@ public sealed class DataExportService : IDataExportService
 
     public async Task ExportHourlyUsageToCsvAsync(string filePath, DateOnly date)
     {
+        ValidateExportPath(filePath);
         _logger?.LogInformation("Exporting hourly usage for {Date} to {Path}", date, filePath);
 
         var data = await _usageRepository.GetHourlyUsageAsync(date);
@@ -90,5 +92,28 @@ public sealed class DataExportService : IDataExportService
             return $"\"{value.Replace("\"", "\"\"")}\"";
         }
         return value;
+    }
+
+    /// <summary>
+    /// Validates the export file path to prevent path traversal attacks.
+    /// </summary>
+    private static void ValidateExportPath(string filePath)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(filePath, nameof(filePath));
+
+        var fullPath = Path.GetFullPath(filePath);
+
+        // Reject paths containing traversal sequences
+        if (filePath.Contains("..", StringComparison.Ordinal))
+            throw new ArgumentException("Export path must not contain path traversal sequences.", nameof(filePath));
+
+        // Ensure the extension is .csv
+        if (!fullPath.EndsWith(".csv", StringComparison.OrdinalIgnoreCase))
+            throw new ArgumentException("Export path must have a .csv extension.", nameof(filePath));
+
+        // Ensure the parent directory exists
+        var directory = Path.GetDirectoryName(fullPath);
+        if (string.IsNullOrEmpty(directory) || !Directory.Exists(directory))
+            throw new ArgumentException("Export directory does not exist.", nameof(filePath));
     }
 }

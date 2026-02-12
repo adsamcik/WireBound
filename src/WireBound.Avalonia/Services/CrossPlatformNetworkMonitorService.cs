@@ -690,9 +690,10 @@ public sealed class CrossPlatformNetworkMonitorService : INetworkMonitorService
                 ConnectedVpnAdapters = connectedVpnAdapters,
                 ActiveVpnAdapters = activeVpnAdapters
             };
-
-            StatsUpdated?.Invoke(this, _currentStats);
         }
+
+        // Fire event outside the lock to prevent deadlocks if handlers call back into this service
+        StatsUpdated?.Invoke(this, _currentStats);
     }
 
     private NetworkStats CreateStats(AdapterState state)

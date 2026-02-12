@@ -23,6 +23,8 @@ public sealed class NetworkPollingBackgroundService : BackgroundService, INetwor
     private readonly Stopwatch _snapshotFlushStopwatch = new();
     private readonly Stopwatch _systemStatsAggregationStopwatch = new();
     private readonly List<(long download, long upload, DateTime time)> _snapshotBuffer = new(SnapshotBufferCapacity);
+    private PeriodicTimer? _timer;
+    private readonly object _timerLock = new();
 
     #region Constants
 
@@ -128,12 +130,25 @@ public sealed class NetworkPollingBackgroundService : BackgroundService, INetwor
         _systemStatsAggregationStopwatch.Start();
 
         // Use PeriodicTimer for more consistent timing than Task.Delay
-        using var timer = new PeriodicTimer(TimeSpan.FromMilliseconds(_pollIntervalMs));
+        _timer = new PeriodicTimer(TimeSpan.FromMilliseconds(_pollIntervalMs));
 
         try
         {
-            while (await timer.WaitForNextTickAsync(stoppingToken).ConfigureAwait(false))
+            while (!stoppingToken.IsCancellationRequested)
             {
+                try
+                {
+                    // WaitForNextTickAsync throws ObjectDisposedException when timer is
+                    // replaced by UpdatePollingInterval — we catch that and loop with the new timer.
+                    if (!await _timer.WaitForNextTickAsync(stoppingToken).ConfigureAwait(false))
+                        break;
+                }
+                catch (ObjectDisposedException)
+                {
+                    // Timer was replaced by UpdatePollingInterval — continue with new instance
+                    continue;
+                }
+
                 try
                 {
                     // Poll network stats
@@ -205,6 +220,9 @@ public sealed class NetworkPollingBackgroundService : BackgroundService, INetwor
 
         _logger.LogInformation("Network polling service stopping");
 
+        // Dispose the polling timer
+        _timer?.Dispose();
+
         // Flush any remaining buffered snapshots
         try
         {
@@ -254,6 +272,14 @@ public sealed class NetworkPollingBackgroundService : BackgroundService, INetwor
         }
 
         _pollIntervalMs = milliseconds;
+
+        // Recreate the timer so the new interval takes effect immediately
+        lock (_timerLock)
+        {
+            _timer?.Dispose();
+            _timer = new PeriodicTimer(TimeSpan.FromMilliseconds(milliseconds));
+        }
+
         _logger.LogInformation("Polling interval updated to {Interval}ms", milliseconds);
     }
 

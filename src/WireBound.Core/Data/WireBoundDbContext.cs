@@ -124,30 +124,66 @@ public sealed class WireBoundDbContext : DbContext
     /// <summary>
     /// Applies any necessary schema migrations for existing databases.
     /// EnsureCreated() only creates new tables, it doesn't add columns to existing tables.
-    /// This method handles incremental schema changes.
+    /// This method handles incremental schema changes by ensuring all tables and columns exist.
+    /// All operations are idempotent — safe to run on any database version.
     /// </summary>
     public void ApplyMigrations()
     {
         var connection = Database.GetDbConnection();
-        connection.Open();
+        var wasOpen = connection.State == System.Data.ConnectionState.Open;
+        if (!wasOpen)
+            connection.Open();
 
         try
         {
-            // Check and add SpeedUnit column to Settings table if missing (replaces old UseSpeedInBits)
-            AddColumnIfNotExists(connection, "Settings", "SpeedUnit", "INTEGER NOT NULL DEFAULT 0");
+            // Phase 1: Ensure all tables exist (for tables added after initial release)
+            CreateTableIfNotExists(connection, "AppUsageRecords", """
+                CREATE TABLE IF NOT EXISTS AppUsageRecords (
+                    Id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    AppIdentifier TEXT NOT NULL DEFAULT '',
+                    AppName TEXT NOT NULL DEFAULT '',
+                    ExecutablePath TEXT NOT NULL DEFAULT '',
+                    ProcessName TEXT NOT NULL DEFAULT '',
+                    Timestamp TEXT NOT NULL DEFAULT '0001-01-01',
+                    Granularity INTEGER NOT NULL DEFAULT 0,
+                    BytesReceived INTEGER NOT NULL DEFAULT 0,
+                    BytesSent INTEGER NOT NULL DEFAULT 0,
+                    PeakDownloadSpeed INTEGER NOT NULL DEFAULT 0,
+                    PeakUploadSpeed INTEGER NOT NULL DEFAULT 0,
+                    LastUpdated TEXT NOT NULL DEFAULT '0001-01-01'
+                )
+                """);
 
-            // Add StartMinimized column if missing
-            AddColumnIfNotExists(connection, "Settings", "StartMinimized", "INTEGER NOT NULL DEFAULT 0");
+            CreateTableIfNotExists(connection, "HourlySystemStats", """
+                CREATE TABLE IF NOT EXISTS HourlySystemStats (
+                    Id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    Hour TEXT NOT NULL DEFAULT '0001-01-01',
+                    AvgCpuPercent REAL NOT NULL DEFAULT 0,
+                    MaxCpuPercent REAL NOT NULL DEFAULT 0,
+                    MinCpuPercent REAL NOT NULL DEFAULT 0,
+                    AvgMemoryPercent REAL NOT NULL DEFAULT 0,
+                    MaxMemoryPercent REAL NOT NULL DEFAULT 0,
+                    AvgMemoryUsedBytes INTEGER NOT NULL DEFAULT 0,
+                    AvgGpuPercent REAL,
+                    MaxGpuPercent REAL,
+                    AvgGpuMemoryPercent REAL
+                )
+                """);
 
-            // Add per-app tracking columns if missing
-            AddColumnIfNotExists(connection, "Settings", "IsPerAppTrackingEnabled", "INTEGER NOT NULL DEFAULT 0");
-            AddColumnIfNotExists(connection, "Settings", "AppDataRetentionDays", "INTEGER NOT NULL DEFAULT 0");
-            AddColumnIfNotExists(connection, "Settings", "AppDataAggregateAfterDays", "INTEGER NOT NULL DEFAULT 7");
+            CreateTableIfNotExists(connection, "DailySystemStats", """
+                CREATE TABLE IF NOT EXISTS DailySystemStats (
+                    Id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    Date TEXT NOT NULL DEFAULT '0001-01-01',
+                    AvgCpuPercent REAL NOT NULL DEFAULT 0,
+                    MaxCpuPercent REAL NOT NULL DEFAULT 0,
+                    AvgMemoryPercent REAL NOT NULL DEFAULT 0,
+                    MaxMemoryPercent REAL NOT NULL DEFAULT 0,
+                    PeakMemoryUsedBytes INTEGER NOT NULL DEFAULT 0,
+                    AvgGpuPercent REAL,
+                    MaxGpuPercent REAL
+                )
+                """);
 
-            // Add update check setting (defaults to enabled)
-            AddColumnIfNotExists(connection, "Settings", "CheckForUpdates", "INTEGER NOT NULL DEFAULT 1");
-
-            // Create AddressUsageRecords table if missing (added for per-address tracking feature)
             CreateTableIfNotExists(connection, "AddressUsageRecords", """
                 CREATE TABLE IF NOT EXISTS AddressUsageRecords (
                     Id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -167,12 +203,112 @@ public sealed class WireBoundDbContext : DbContext
                 )
                 """);
 
-            // Legacy: remove UseSpeedInBits if it exists and SpeedUnit exists
-            // (handled by SQLite ignoring non-existent columns on DROP)
+            // Phase 2: Ensure all columns exist on all tables.
+            // Uses batch checks (one PRAGMA per table) for efficiency.
+            // All calls are no-ops when the column already exists.
+            EnsureColumnsExist(connection, "Settings",
+                ("PollingIntervalMs", "INTEGER NOT NULL DEFAULT 1000"),
+                ("SaveIntervalSeconds", "INTEGER NOT NULL DEFAULT 60"),
+                ("StartWithWindows", "INTEGER NOT NULL DEFAULT 0"),
+                ("MinimizeToTray", "INTEGER NOT NULL DEFAULT 1"),
+                ("UseIpHelperApi", "INTEGER NOT NULL DEFAULT 0"),
+                ("SelectedAdapterId", "TEXT NOT NULL DEFAULT ''"),
+                ("DataRetentionDays", "INTEGER NOT NULL DEFAULT 365"),
+                ("Theme", "TEXT NOT NULL DEFAULT 'Dark'"),
+                ("SpeedUnit", "INTEGER NOT NULL DEFAULT 0"),
+                ("StartMinimized", "INTEGER NOT NULL DEFAULT 0"),
+                ("IsPerAppTrackingEnabled", "INTEGER NOT NULL DEFAULT 0"),
+                ("AppDataRetentionDays", "INTEGER NOT NULL DEFAULT 0"),
+                ("AppDataAggregateAfterDays", "INTEGER NOT NULL DEFAULT 7"),
+                ("ShowSystemMetricsInHeader", "INTEGER NOT NULL DEFAULT 1"),
+                ("ShowCpuOverlayByDefault", "INTEGER NOT NULL DEFAULT 0"),
+                ("ShowMemoryOverlayByDefault", "INTEGER NOT NULL DEFAULT 0"),
+                ("ShowGpuMetrics", "INTEGER NOT NULL DEFAULT 1"),
+                ("DefaultTimeRange", "TEXT NOT NULL DEFAULT 'FiveMinutes'"),
+                ("PerformanceModeEnabled", "INTEGER NOT NULL DEFAULT 0"),
+                ("ChartUpdateIntervalMs", "INTEGER NOT NULL DEFAULT 1000"),
+                ("DefaultInsightsPeriod", "TEXT NOT NULL DEFAULT 'ThisWeek'"),
+                ("ShowCorrelationInsights", "INTEGER NOT NULL DEFAULT 1"),
+                ("CheckForUpdates", "INTEGER NOT NULL DEFAULT 1"),
+                ("AutoDownloadUpdates", "INTEGER NOT NULL DEFAULT 1"));
+
+            EnsureColumnsExist(connection, "HourlyUsages",
+                ("Hour", "TEXT NOT NULL DEFAULT '0001-01-01'"),
+                ("AdapterId", "TEXT NOT NULL DEFAULT ''"),
+                ("BytesReceived", "INTEGER NOT NULL DEFAULT 0"),
+                ("BytesSent", "INTEGER NOT NULL DEFAULT 0"),
+                ("PeakDownloadSpeed", "INTEGER NOT NULL DEFAULT 0"),
+                ("PeakUploadSpeed", "INTEGER NOT NULL DEFAULT 0"),
+                ("LastUpdated", "TEXT NOT NULL DEFAULT '0001-01-01'"));
+
+            EnsureColumnsExist(connection, "DailyUsages",
+                ("Date", "TEXT NOT NULL DEFAULT '0001-01-01'"),
+                ("AdapterId", "TEXT NOT NULL DEFAULT ''"),
+                ("BytesReceived", "INTEGER NOT NULL DEFAULT 0"),
+                ("BytesSent", "INTEGER NOT NULL DEFAULT 0"),
+                ("PeakDownloadSpeed", "INTEGER NOT NULL DEFAULT 0"),
+                ("PeakUploadSpeed", "INTEGER NOT NULL DEFAULT 0"),
+                ("LastUpdated", "TEXT NOT NULL DEFAULT '0001-01-01'"));
+
+            EnsureColumnsExist(connection, "SpeedSnapshots",
+                ("Timestamp", "TEXT NOT NULL DEFAULT '0001-01-01'"),
+                ("DownloadSpeedBps", "INTEGER NOT NULL DEFAULT 0"),
+                ("UploadSpeedBps", "INTEGER NOT NULL DEFAULT 0"));
+
+            EnsureColumnsExist(connection, "AppUsageRecords",
+                ("AppIdentifier", "TEXT NOT NULL DEFAULT ''"),
+                ("AppName", "TEXT NOT NULL DEFAULT ''"),
+                ("ExecutablePath", "TEXT NOT NULL DEFAULT ''"),
+                ("ProcessName", "TEXT NOT NULL DEFAULT ''"),
+                ("Timestamp", "TEXT NOT NULL DEFAULT '0001-01-01'"),
+                ("Granularity", "INTEGER NOT NULL DEFAULT 0"),
+                ("BytesReceived", "INTEGER NOT NULL DEFAULT 0"),
+                ("BytesSent", "INTEGER NOT NULL DEFAULT 0"),
+                ("PeakDownloadSpeed", "INTEGER NOT NULL DEFAULT 0"),
+                ("PeakUploadSpeed", "INTEGER NOT NULL DEFAULT 0"),
+                ("LastUpdated", "TEXT NOT NULL DEFAULT '0001-01-01'"));
+
+            EnsureColumnsExist(connection, "HourlySystemStats",
+                ("Hour", "TEXT NOT NULL DEFAULT '0001-01-01'"),
+                ("AvgCpuPercent", "REAL NOT NULL DEFAULT 0"),
+                ("MaxCpuPercent", "REAL NOT NULL DEFAULT 0"),
+                ("MinCpuPercent", "REAL NOT NULL DEFAULT 0"),
+                ("AvgMemoryPercent", "REAL NOT NULL DEFAULT 0"),
+                ("MaxMemoryPercent", "REAL NOT NULL DEFAULT 0"),
+                ("AvgMemoryUsedBytes", "INTEGER NOT NULL DEFAULT 0"),
+                ("AvgGpuPercent", "REAL"),
+                ("MaxGpuPercent", "REAL"),
+                ("AvgGpuMemoryPercent", "REAL"));
+
+            EnsureColumnsExist(connection, "DailySystemStats",
+                ("Date", "TEXT NOT NULL DEFAULT '0001-01-01'"),
+                ("AvgCpuPercent", "REAL NOT NULL DEFAULT 0"),
+                ("MaxCpuPercent", "REAL NOT NULL DEFAULT 0"),
+                ("AvgMemoryPercent", "REAL NOT NULL DEFAULT 0"),
+                ("MaxMemoryPercent", "REAL NOT NULL DEFAULT 0"),
+                ("PeakMemoryUsedBytes", "INTEGER NOT NULL DEFAULT 0"),
+                ("AvgGpuPercent", "REAL"),
+                ("MaxGpuPercent", "REAL"));
+
+            EnsureColumnsExist(connection, "AddressUsageRecords",
+                ("RemoteAddress", "TEXT NOT NULL DEFAULT ''"),
+                ("Hostname", "TEXT"),
+                ("PrimaryPort", "INTEGER NOT NULL DEFAULT 0"),
+                ("Protocol", "TEXT NOT NULL DEFAULT 'TCP'"),
+                ("Timestamp", "TEXT NOT NULL DEFAULT '0001-01-01'"),
+                ("Granularity", "INTEGER NOT NULL DEFAULT 0"),
+                ("BytesSent", "INTEGER NOT NULL DEFAULT 0"),
+                ("BytesReceived", "INTEGER NOT NULL DEFAULT 0"),
+                ("ConnectionCount", "INTEGER NOT NULL DEFAULT 0"),
+                ("PeakSendSpeed", "INTEGER NOT NULL DEFAULT 0"),
+                ("PeakReceiveSpeed", "INTEGER NOT NULL DEFAULT 0"),
+                ("AppIdentifier", "TEXT"),
+                ("LastUpdated", "TEXT NOT NULL DEFAULT '0001-01-01'"));
         }
         finally
         {
-            connection.Close();
+            if (!wasOpen)
+                connection.Close();
         }
     }
 
@@ -202,6 +338,44 @@ public sealed class WireBoundDbContext : DbContext
         // and must start with a letter or underscore (not a digit)
         if (!System.Text.RegularExpressions.Regex.IsMatch(identifier, @"^[a-zA-Z_][a-zA-Z0-9_]*$"))
             throw new ArgumentException($"{parameterName} contains invalid characters. Only alphanumeric and underscore allowed, must start with letter or underscore.", parameterName);
+    }
+
+    /// <summary>
+    /// Ensures all specified columns exist in a table, adding any that are missing.
+    /// Performs a single PRAGMA table_info query per table for efficiency.
+    /// </summary>
+    /// <remarks>
+    /// SECURITY NOTE: This method uses string interpolation for SQL identifiers because
+    /// SQLite does not support parameterized table/column names. All identifiers are
+    /// validated using <see cref="ValidateSqlIdentifier"/> before use to prevent SQL injection.
+    /// Only call this method with hardcoded, trusted identifier values.
+    /// </remarks>
+    private static void EnsureColumnsExist(
+        System.Data.Common.DbConnection connection,
+        string table,
+        params (string Column, string Definition)[] columns)
+    {
+        ValidateSqlIdentifier(table, nameof(table));
+
+        var existingColumns = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        using (var infoCmd = connection.CreateCommand())
+        {
+            infoCmd.CommandText = $"PRAGMA table_info({table})";
+            using var reader = infoCmd.ExecuteReader();
+            while (reader.Read())
+                existingColumns.Add(reader.GetString(1));
+        }
+
+        foreach (var (column, definition) in columns)
+        {
+            ValidateSqlIdentifier(column, nameof(column));
+            if (!existingColumns.Contains(column))
+            {
+                using var alterCmd = connection.CreateCommand();
+                alterCmd.CommandText = $"ALTER TABLE {table} ADD COLUMN {column} {definition}";
+                alterCmd.ExecuteNonQuery();
+            }
+        }
     }
 
     /// <summary>

@@ -113,12 +113,13 @@ if ($SelfContained) {
 
 if ($LASTEXITCODE -ne 0) { throw "Build failed" }
 
-# Publish Helper
-Write-Step "Publishing WireBound.Helper for $Runtime..."
-$HelperProjectPath = Resolve-Path "$PSScriptRoot/../src/WireBound.Helper/WireBound.Helper.csproj" -ErrorAction Stop
+# Publish Elevation Helper
+$elevationProject = if ($Runtime.StartsWith("win")) { "WireBound.Elevation.Windows" } else { "WireBound.Elevation.Linux" }
+Write-Step "Publishing $elevationProject for $Runtime..."
+$ElevationProjectPath = Resolve-Path "$PSScriptRoot/../src/$elevationProject/$elevationProject.csproj" -ErrorAction Stop
 
 $helperPublishArgs = @(
-    "publish", $HelperProjectPath,
+    "publish", $ElevationProjectPath,
     "--configuration", "Release",
     "--runtime", $Runtime,
     "--output", $portableOutput,
@@ -133,8 +134,8 @@ if ($SelfContained) {
 
 & dotnet @helperPublishArgs
 
-if ($LASTEXITCODE -ne 0) { throw "Helper build failed" }
-Write-Success "Helper published"
+if ($LASTEXITCODE -ne 0) { throw "Elevation helper build failed" }
+Write-Success "Elevation helper published"
 
 # Create archive
 $targetIsWindows = $Runtime.StartsWith("win")

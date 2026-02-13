@@ -64,7 +64,33 @@
     <ProjectReference Include="..\WireBound.Platform.Stub\WireBound.Platform.Stub.csproj" />
     <ProjectReference Include="..\WireBound.Platform.Windows\WireBound.Platform.Windows.csproj" />
     <ProjectReference Include="..\WireBound.Platform.Linux\WireBound.Platform.Linux.csproj" />
+
+    <!-- Elevation helpers: build alongside the main app but don't reference their assemblies -->
+    <ProjectReference Include="..\WireBound.Elevation.Windows\WireBound.Elevation.Windows.csproj"
+                      Condition="$([MSBuild]::IsOSPlatform('Windows'))"
+                      ReferenceOutputAssembly="false"
+                      Private="false" />
+    <ProjectReference Include="..\WireBound.Elevation.Linux\WireBound.Elevation.Linux.csproj"
+                      Condition="$([MSBuild]::IsOSPlatform('Linux'))"
+                      ReferenceOutputAssembly="false"
+                      Private="false" />
   </ItemGroup>
+
+  <!-- Copy elevation helper exe to output after build -->
+  <Target Name="CopyElevationHelper" AfterTargets="Build">
+    <PropertyGroup>
+      <ElevationProject Condition="$([MSBuild]::IsOSPlatform('Windows'))">WireBound.Elevation.Windows</ElevationProject>
+      <ElevationProject Condition="$([MSBuild]::IsOSPlatform('Linux'))">WireBound.Elevation.Linux</ElevationProject>
+      <ElevationOutputDir Condition="'$(ElevationProject)' != ''">$([MSBuild]::NormalizePath('$(MSBuildProjectDirectory)', '..', '$(ElevationProject)', 'bin', '$(Configuration)', '$(TargetFramework)'))</ElevationOutputDir>
+    </PropertyGroup>
+    <ItemGroup Condition="'$(ElevationOutputDir)' != ''">
+      <ElevationFiles Include="$(ElevationOutputDir)\WireBound.Elevation*" />
+    </ItemGroup>
+    <Copy SourceFiles="@(ElevationFiles)"
+          DestinationFolder="$(OutputPath)"
+          SkipUnchangedFiles="true"
+          Condition="'@(ElevationFiles)' != ''" />
+  </Target>
 
   <ItemGroup>
     <!-- App icon for tray -->

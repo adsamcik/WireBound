@@ -300,8 +300,9 @@ public sealed partial class SettingsViewModel : ObservableObject, IDisposable
             // Apply speed unit setting globally
             WireBound.Core.Helpers.ByteFormatter.UseSpeedInBits = settings.SpeedUnit == SpeedUnit.BitsPerSecond;
 
-            // Find matching adapter
-            SelectedAdapter = Adapters.FirstOrDefault(a => a.Id == settings.SelectedAdapterId);
+            // Find matching adapter, fall back to first if saved adapter no longer exists
+            SelectedAdapter = Adapters.FirstOrDefault(a => a.Id == settings.SelectedAdapterId)
+                              ?? Adapters.FirstOrDefault();
 
             // Check elevation status using the platform service
             // IsElevated reflects whether the helper is connected (NOT whether the main app is elevated)

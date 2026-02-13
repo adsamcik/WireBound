@@ -189,8 +189,9 @@ public sealed partial class OverviewViewModel : ObservableObject, IDisposable
         // Subscribe to system stats updates
         _systemMonitor.StatsUpdated += OnSystemStatsUpdated;
 
-        // Load adapters
+        // Load adapters and restore saved selection
         LoadAdapters();
+        _ = RestoreSelectedAdapterAsync();
 
         // Load today's stored usage from database
         _ = LoadTodayUsageAsync();
@@ -427,6 +428,26 @@ public sealed partial class OverviewViewModel : ObservableObject, IDisposable
         {
             var displayItem = new AdapterDisplayItem(adapter);
             Adapters.Add(displayItem);
+        }
+    }
+
+    private async Task RestoreSelectedAdapterAsync()
+    {
+        if (_dataPersistence == null)
+        {
+            SelectedAdapter = Adapters.FirstOrDefault();
+            return;
+        }
+
+        try
+        {
+            var settings = await _dataPersistence.GetSettingsAsync();
+            SelectedAdapter = Adapters.FirstOrDefault(a => a.Id == settings.SelectedAdapterId)
+                              ?? Adapters.FirstOrDefault();
+        }
+        catch
+        {
+            SelectedAdapter = Adapters.FirstOrDefault();
         }
     }
 

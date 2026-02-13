@@ -106,8 +106,8 @@ public partial class App : Application
 
     private void ConfigureServices(IServiceCollection services)
     {
-        // Register logging (using Microsoft.Extensions.Logging)
-        services.AddLogging();
+        // Register logging, forwarding Microsoft.Extensions.Logging to Serilog
+        services.AddLogging(builder => builder.AddSerilog());
 
         // Register Database
         services.AddDbContext<WireBoundDbContext>();

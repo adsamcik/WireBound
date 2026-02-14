@@ -10,12 +10,13 @@ namespace WireBound.Tests.ViewModels;
 /// <summary>
 /// Unit tests for OverviewViewModel
 /// </summary>
-public class OverviewViewModelTests
+public class OverviewViewModelTests : IAsyncDisposable
 {
     private readonly INetworkMonitorService _networkMonitorMock;
     private readonly ISystemMonitorService _systemMonitorMock;
     private readonly IDataPersistenceService _persistenceMock;
     private readonly ILogger<OverviewViewModel> _loggerMock;
+    private readonly List<OverviewViewModel> _createdViewModels = [];
 
     public OverviewViewModelTests()
     {
@@ -68,11 +69,13 @@ public class OverviewViewModelTests
 
     private OverviewViewModel CreateViewModel()
     {
-        return new OverviewViewModel(
+        var vm = new OverviewViewModel(
             _networkMonitorMock,
             _systemMonitorMock,
             _persistenceMock,
             _loggerMock);
+        _createdViewModels.Add(vm);
+        return vm;
     }
 
     #region Constructor Tests
@@ -692,4 +695,14 @@ public class OverviewViewModelTests
     }
 
     #endregion
+
+    public ValueTask DisposeAsync()
+    {
+        foreach (var vm in _createdViewModels)
+        {
+            vm.Dispose();
+        }
+        _createdViewModels.Clear();
+        return ValueTask.CompletedTask;
+    }
 }

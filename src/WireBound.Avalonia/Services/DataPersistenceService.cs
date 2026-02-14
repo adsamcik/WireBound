@@ -122,6 +122,7 @@ public sealed class DataPersistenceService : IDataPersistenceService
         var db = scope.ServiceProvider.GetRequiredService<WireBoundDbContext>();
 
         return await db.DailyUsages
+            .AsNoTracking()
             .Where(d => d.Date >= startDate && d.Date <= endDate)
             .OrderBy(d => d.Date)
             .ToListAsync()
@@ -137,6 +138,7 @@ public sealed class DataPersistenceService : IDataPersistenceService
         var endOfDay = date.ToDateTime(TimeOnly.MaxValue);
 
         return await db.HourlyUsages
+            .AsNoTracking()
             .Where(h => h.Hour >= startOfDay && h.Hour <= endOfDay)
             .OrderBy(h => h.Hour)
             .ToListAsync()
@@ -149,6 +151,7 @@ public sealed class DataPersistenceService : IDataPersistenceService
         var db = scope.ServiceProvider.GetRequiredService<WireBoundDbContext>();
 
         var totals = await db.DailyUsages
+            .AsNoTracking()
             .GroupBy(_ => 1)
             .Select(g => new
             {
@@ -168,6 +171,7 @@ public sealed class DataPersistenceService : IDataPersistenceService
 
         var today = DateOnly.FromDateTime(DateTime.Now);
         var totals = await db.DailyUsages
+            .AsNoTracking()
             .Where(d => d.Date == today)
             .GroupBy(_ => 1)
             .Select(g => new
@@ -188,6 +192,7 @@ public sealed class DataPersistenceService : IDataPersistenceService
 
         var today = DateOnly.FromDateTime(DateTime.Now);
         var usages = await db.DailyUsages
+            .AsNoTracking()
             .Where(d => d.Date == today)
             .ToListAsync()
             .ConfigureAwait(false);
@@ -215,7 +220,7 @@ public sealed class DataPersistenceService : IDataPersistenceService
         using var scope = _serviceProvider.CreateScope();
         var db = scope.ServiceProvider.GetRequiredService<WireBoundDbContext>();
 
-        var settings = await db.Settings.FirstOrDefaultAsync().ConfigureAwait(false);
+        var settings = await db.Settings.AsNoTracking().FirstOrDefaultAsync().ConfigureAwait(false);
         return settings ?? new AppSettings();
     }
 
@@ -311,6 +316,7 @@ public sealed class DataPersistenceService : IDataPersistenceService
         var endDateTime = endDate.ToDateTime(TimeOnly.MaxValue);
 
         var topApps = await db.AppUsageRecords
+            .AsNoTracking()
             .Where(a => a.Timestamp >= startDateTime && a.Timestamp <= endDateTime)
             .GroupBy(a => a.AppIdentifier)
             .Select(g => new
@@ -353,6 +359,7 @@ public sealed class DataPersistenceService : IDataPersistenceService
         var endDateTime = endDate.ToDateTime(TimeOnly.MaxValue);
 
         var query = db.AppUsageRecords
+            .AsNoTracking()
             .Where(a => a.AppIdentifier == appIdentifier &&
                         a.Timestamp >= startDateTime &&
                         a.Timestamp <= endDateTime);
@@ -377,6 +384,7 @@ public sealed class DataPersistenceService : IDataPersistenceService
         var endDateTime = endDate.ToDateTime(TimeOnly.MaxValue);
 
         var query = db.AppUsageRecords
+            .AsNoTracking()
             .Where(a => a.Timestamp >= startDateTime && a.Timestamp <= endDateTime);
 
         if (granularity.HasValue)
@@ -509,6 +517,7 @@ public sealed class DataPersistenceService : IDataPersistenceService
         var db = scope.ServiceProvider.GetRequiredService<WireBoundDbContext>();
 
         return await db.SpeedSnapshots
+            .AsNoTracking()
             .Where(s => s.Timestamp >= since)
             .OrderBy(s => s.Timestamp)
             .ToListAsync()

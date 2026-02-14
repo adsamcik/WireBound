@@ -15,7 +15,8 @@ namespace WireBound.Elevation.Windows;
 /// </summary>
 public sealed class EtwConnectionTracker : IDisposable
 {
-    private const string SessionName = "WireBound-TCPIP-Session";
+    private const string SessionName = $"WireBound-TCPIP-{nameof(EtwConnectionTracker)}";
+    private static string ProcessSessionName => $"{SessionName}-{Environment.ProcessId}";
 
     // ETW event IDs for TCP data transfer
     private const int TcpDataTransferReceive = 1201;
@@ -27,6 +28,7 @@ public sealed class EtwConnectionTracker : IDisposable
 
     // Connection key: "localIP:localPort-remoteIP:remotePort"
     private readonly ConcurrentDictionary<string, ConnectionBytes> _connectionBytes = new();
+    private const int MaxTrackedConnections = 10_000;
 
     // PID to connection mapping, refreshed periodically
     private readonly ConcurrentDictionary<string, int> _connectionToPid = new();
@@ -74,15 +76,15 @@ public sealed class EtwConnectionTracker : IDisposable
     {
         try
         {
-            // Clean up any stale session from a previous crash
+            // Clean up any stale session from a previous crash of THIS process
             try
             {
-                using var stale = TraceEventSession.GetActiveSession(SessionName);
+                using var stale = TraceEventSession.GetActiveSession(ProcessSessionName);
                 stale?.Stop();
             }
             catch { /* ignore */ }
 
-            using var session = new TraceEventSession(SessionName);
+            using var session = new TraceEventSession(ProcessSessionName);
             _etwSession = session;
 
             // Subscribe to Microsoft-Windows-TCPIP provider
@@ -126,7 +128,13 @@ public sealed class EtwConnectionTracker : IDisposable
 
             if (size <= 0) return;
 
-            var entry = _connectionBytes.GetOrAdd(connId, _ => new ConnectionBytes());
+            var entry = _connectionBytes.GetOrAdd(connId, static _ => new ConnectionBytes());
+
+            // Evict stale entries when dictionary grows too large
+            if (_connectionBytes.Count > MaxTrackedConnections)
+            {
+                EvictStaleConnections();
+            }
 
             if (eventId == TcpDataTransferReceive)
                 Interlocked.Add(ref entry.BytesReceived, size);
@@ -391,6 +399,21 @@ public sealed class EtwConnectionTracker : IDisposable
 
     internal static string MakeConnectionKey(string localAddr, int localPort, string remoteAddr, int remotePort) =>
         $"{localAddr}:{localPort}-{remoteAddr}:{remotePort}";
+
+    /// <summary>
+    /// Removes zero-byte entries to prevent unbounded dictionary growth from high-frequency ETW events.
+    /// </summary>
+    private void EvictStaleConnections()
+    {
+        foreach (var kvp in _connectionBytes)
+        {
+            if (Interlocked.Read(ref kvp.Value.BytesSent) == 0 &&
+                Interlocked.Read(ref kvp.Value.BytesReceived) == 0)
+            {
+                _connectionBytes.TryRemove(kvp.Key, out _);
+            }
+        }
+    }
 
     public void Dispose()
     {

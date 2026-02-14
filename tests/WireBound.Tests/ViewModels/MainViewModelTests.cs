@@ -9,10 +9,11 @@ namespace WireBound.Tests.ViewModels;
 /// <summary>
 /// Unit tests for MainViewModel
 /// </summary>
-public class MainViewModelTests
+public class MainViewModelTests : IAsyncDisposable
 {
     private readonly INavigationService _navigationService;
     private readonly IViewFactory _viewFactory;
+    private readonly List<MainViewModel> _createdViewModels = [];
 
     public MainViewModelTests()
     {
@@ -30,9 +31,11 @@ public class MainViewModelTests
 
     private MainViewModel CreateViewModel()
     {
-        return new MainViewModel(
+        var vm = new MainViewModel(
             _navigationService,
             _viewFactory);
+        _createdViewModels.Add(vm);
+        return vm;
     }
 
     #region Constructor Tests
@@ -313,4 +316,14 @@ public class MainViewModelTests
     }
 
     #endregion
+
+    public ValueTask DisposeAsync()
+    {
+        foreach (var vm in _createdViewModels)
+        {
+            vm.Dispose();
+        }
+        _createdViewModels.Clear();
+        return ValueTask.CompletedTask;
+    }
 }

@@ -8,7 +8,7 @@
              Background="{DynamicResource BackgroundBrush}"
              AutomationProperties.Name="Overview View">
 
-    <Grid RowDefinitions="Auto, *" Margin="28">
+    <Grid RowDefinitions="Auto, Auto, *" Margin="28">
         
         <!-- PAGE HEADER -->
         <Grid ColumnDefinitions="Auto, *, Auto" Margin="0,0,0,24">
@@ -51,9 +51,27 @@
                                         AutomationProperties.HelpText="Quick view of CPU and RAM usage" />
         </Grid>
 
+        <!-- AUTO SWITCH NOTIFICATION BANNER -->
+        <Border Grid.Row="1"
+                IsVisible="{Binding IsAutoSwitchNotificationVisible}"
+                Background="{DynamicResource AccentBgTintBrush}"
+                CornerRadius="8"
+                Padding="12,8"
+                Margin="0,0,0,12"
+                HorizontalAlignment="Center"
+                AutomationProperties.Name="Auto Switch Notification">
+            <StackPanel Orientation="Horizontal" Spacing="8">
+                <TextBlock Text="🔄" FontSize="14" VerticalAlignment="Center" />
+                <TextBlock Text="{Binding AutoSwitchNotification}"
+                           FontSize="13" FontWeight="SemiBold"
+                           Foreground="{DynamicResource PrimaryTextBrush}"
+                           VerticalAlignment="Center" />
+            </StackPanel>
+        </Border>
+
         <!-- SCROLLABLE CONTENT -->
-        <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto">
-            <Grid x:Name="SpeedCardsGrid" RowDefinitions="Auto, Auto, Auto" ColumnDefinitions="*, *">
+        <ScrollViewer Grid.Row="2" VerticalScrollBarVisibility="Auto">
+            <Grid x:Name="SpeedCardsGrid" RowDefinitions="Auto, Auto, Auto, Auto" ColumnDefinitions="*, *">
 
                 <!-- DOWNLOAD SPEED CARD - Hero Design -->
                 <Border Classes="ElevatedCard" Margin="0,0,10,0">
@@ -197,8 +215,54 @@
                     </Grid>
                 </Border>
 
+                <!-- SECONDARY ADAPTERS STRIP (VPN, other active adapters) -->
+                <Border Grid.Row="1" Grid.ColumnSpan="2"
+                        IsVisible="{Binding HasSecondaryAdapters}"
+                        Background="{DynamicResource BorderSubtleBrush}"
+                        CornerRadius="8"
+                        Padding="12,8"
+                        Margin="0,12,0,0"
+                        AutomationProperties.Name="Secondary Adapters">
+                    <ItemsControl ItemsSource="{Binding SecondaryAdapters}">
+                        <ItemsControl.ItemsPanel>
+                            <ItemsPanelTemplate>
+                                <WrapPanel Orientation="Horizontal" />
+                            </ItemsPanelTemplate>
+                        </ItemsControl.ItemsPanel>
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate>
+                                <Border Margin="0,0,16,0" Padding="4,2">
+                                    <StackPanel Orientation="Horizontal" Spacing="6">
+                                        <TextBlock Text="{Binding Icon}" FontSize="13" VerticalAlignment="Center" />
+                                        <TextBlock Text="{Binding Name}" 
+                                                   FontSize="12" FontWeight="SemiBold"
+                                                   Foreground="{DynamicResource SecondaryTextBrush}"
+                                                   VerticalAlignment="Center" />
+                                        <TextBlock FontSize="12" VerticalAlignment="Center"
+                                                   Foreground="{DynamicResource DownloadBrush}">
+                                            <TextBlock.Text>
+                                                <MultiBinding StringFormat="↓{0}">
+                                                    <Binding Path="DownloadSpeed" />
+                                                </MultiBinding>
+                                            </TextBlock.Text>
+                                        </TextBlock>
+                                        <TextBlock FontSize="12" VerticalAlignment="Center"
+                                                   Foreground="{DynamicResource UploadBrush}">
+                                            <TextBlock.Text>
+                                                <MultiBinding StringFormat="↑{0}">
+                                                    <Binding Path="UploadSpeed" />
+                                                </MultiBinding>
+                                            </TextBlock.Text>
+                                        </TextBlock>
+                                    </StackPanel>
+                                </Border>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                </Border>
+
                 <!-- LIVE NETWORK CHART SECTION -->
-                <Border Grid.Row="1" Grid.ColumnSpan="2" Classes="ElevatedCard" Margin="0,20,0,0">
+                <Border Grid.Row="2" Grid.ColumnSpan="2" Classes="ElevatedCard" Margin="0,20,0,0">
                     <Grid RowDefinitions="Auto, *, Auto">
                         <!-- Chart Header with Controls -->
                         <Grid ColumnDefinitions="Auto, *, Auto" Margin="0,0,0,12">
@@ -292,6 +356,26 @@
                                         Opacity="0.7" />
                                 <TextBlock Text="RAM %" Classes="Caption" VerticalAlignment="Center" />
                             </StackPanel>
+                            <!-- Dynamic secondary adapter legend entries -->
+                            <ItemsControl ItemsSource="{Binding SecondaryAdapters}" IsVisible="{Binding HasSecondaryAdapters}">
+                                <ItemsControl.ItemsPanel>
+                                    <ItemsPanelTemplate>
+                                        <StackPanel Orientation="Horizontal" Spacing="24" />
+                                    </ItemsPanelTemplate>
+                                </ItemsControl.ItemsPanel>
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate>
+                                        <StackPanel Orientation="Horizontal" Spacing="6">
+                                            <Border Width="16" Height="2" CornerRadius="1" VerticalAlignment="Center" Opacity="0.7">
+                                                <Border.Background>
+                                                    <SolidColorBrush Color="{Binding ColorHex}" />
+                                                </Border.Background>
+                                            </Border>
+                                            <TextBlock Text="{Binding Name}" Classes="Caption" VerticalAlignment="Center" />
+                                        </StackPanel>
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
                         </StackPanel>
                     </Grid>
                 </Border>
@@ -299,7 +383,7 @@
                 <!-- BOTTOM ROW: SESSION STATS + SYSTEM HEALTH -->
                 
                 <!-- SESSION STATS CARD -->
-                <Border Grid.Row="2" Classes="ElevatedCard" Margin="0,20,10,0">
+                <Border Grid.Row="3" Classes="ElevatedCard" Margin="0,20,10,0">
                     <Grid RowDefinitions="Auto, *">
                         <!-- Card Header -->
                         <StackPanel Orientation="Horizontal" Spacing="8" Margin="0,0,0,16">
@@ -374,7 +458,7 @@
                 </Border>
 
                 <!-- SYSTEM HEALTH CARD -->
-                <Border Grid.Row="2" Grid.Column="1" Classes="ElevatedCard" Margin="10,20,0,0">
+                <Border Grid.Row="3" Grid.Column="1" Classes="ElevatedCard" Margin="10,20,0,0">
                     <Grid RowDefinitions="Auto, *">
                         <!-- Card Header -->
                         <StackPanel Orientation="Horizontal" Spacing="8" Margin="0,0,0,16">

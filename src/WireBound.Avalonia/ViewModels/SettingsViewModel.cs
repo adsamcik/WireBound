@@ -258,6 +258,16 @@ public sealed partial class SettingsViewModel : ObservableObject, IDisposable
         {
             // Load adapters
             Adapters.Clear();
+            Adapters.Add(new NetworkAdapter
+            {
+                Id = NetworkMonitorConstants.AutoAdapterId,
+                Name = "Auto",
+                DisplayName = "🔄 Auto (detect primary)",
+                Description = "Automatically detects the primary internet adapter via default gateway",
+                AdapterType = NetworkAdapterType.Other,
+                IsActive = true,
+                Category = "Auto"
+            });
             foreach (var adapter in _networkMonitor.GetAdapters())
             {
                 Adapters.Add(adapter);

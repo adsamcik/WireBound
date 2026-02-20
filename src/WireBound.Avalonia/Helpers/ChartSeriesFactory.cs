@@ -168,6 +168,42 @@ public static class ChartSeriesFactory
     }
 
     /// <summary>
+    /// Creates an overlay line series for a secondary network adapter.
+    /// VPN adapters use dashed lines; physical adapters use thin solid lines.
+    /// Uses the primary speed Y-axis (index 0) since these are speed values.
+    /// </summary>
+    /// <param name="name">Adapter display name for legend.</param>
+    /// <param name="points">Observable collection for data points.</param>
+    /// <param name="color">The color for the series.</param>
+    /// <param name="isVpn">Whether this is a VPN adapter (uses dashed style).</param>
+    /// <returns>A LineSeries configured for adapter overlay display.</returns>
+    public static LineSeries<DateTimePoint> CreateAdapterOverlayLineSeries(
+        string name,
+        ObservableCollection<DateTimePoint> points,
+        SKColor color,
+        bool isVpn = false)
+    {
+        var stroke = new SolidColorPaint(color, 1.5f);
+        if (isVpn)
+        {
+            stroke.PathEffect = new DashEffect([6, 4]);
+        }
+
+        return new LineSeries<DateTimePoint>
+        {
+            Name = name,
+            Values = points,
+            Fill = null,
+            Stroke = stroke,
+            GeometryFill = null,
+            GeometryStroke = null,
+            LineSmoothness = 0.8,
+            AnimationsSpeed = TimeSpan.Zero,
+            ScalesYAt = 0 // Same Y-axis as primary speed series
+        };
+    }
+
+    /// <summary>
     /// Creates a Y-axis configured for data usage display (B, KB, MB, GB, etc.).
     /// </summary>
     /// <returns>Array containing a single Axis for usage values.</returns>

@@ -41,9 +41,12 @@ public class AppSettings
     public bool UseIpHelperApi { get; set; } = false;
 
     /// <summary>
-    /// Selected adapter ID to monitor (empty = all)
+    /// Selected adapter ID to monitor.
+    /// "auto" = auto-detect primary via default gateway,
+    /// empty = aggregate all adapters,
+    /// specific ID = monitor that adapter only.
     /// </summary>
-    public string SelectedAdapterId { get; set; } = string.Empty;
+    public string SelectedAdapterId { get; set; } = "auto";
 
     /// <summary>
     /// Number of days to keep historical data

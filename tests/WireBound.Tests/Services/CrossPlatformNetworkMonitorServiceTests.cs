@@ -3,6 +3,7 @@ using System.Reflection;
 using Microsoft.Extensions.Logging;
 using WireBound.Avalonia.Services;
 using WireBound.Core.Models;
+using WireBound.Core.Services;
 
 namespace WireBound.Tests.Services;
 
@@ -429,6 +430,7 @@ public class CrossPlatformNetworkMonitorServiceTests
     public async Task Poll_AggregatesAllAdapters_WhenNoSpecificAdapterSelected()
     {
         var service = CreateService();
+        service.SetAdapter(string.Empty); // Explicitly select aggregate mode
 
         service.Poll();
         await Task.Delay(150);
@@ -602,5 +604,125 @@ public class CrossPlatformNetworkMonitorServiceTests
         stats.Should().NotBeNull();
         stats.DownloadSpeedBps.Should().Be(0);
         stats.UploadSpeedBps.Should().Be(0);
+    }
+
+    // ═══════════════════════════════════════════════════════════════════════
+    // 7. Auto Adapter Mode
+    // ═══════════════════════════════════════════════════════════════════════
+
+    [Test]
+    public void DefaultMode_IsAutoAdapter()
+    {
+        // A freshly created service should default to auto mode
+        var service = CreateService();
+        service.Poll();
+
+        var stats = service.GetCurrentStats();
+        // In auto mode, AdapterId should be "auto"
+        stats.AdapterId.Should().Be(NetworkMonitorConstants.AutoAdapterId);
+    }
+
+    [Test]
+    public void SetAdapter_ToAuto_SetsAutoMode()
+    {
+        var service = CreateService();
+        service.SetAdapter("some-id");
+        service.SetAdapter(NetworkMonitorConstants.AutoAdapterId);
+        service.Poll();
+
+        var stats = service.GetCurrentStats();
+        stats.AdapterId.Should().Be(NetworkMonitorConstants.AutoAdapterId);
+    }
+
+    [Test]
+    public async Task AutoMode_ResolvesAdapterId()
+    {
+        var service = CreateService();
+        service.Poll();
+        await Task.Delay(150);
+        service.Poll();
+
+        var stats = service.GetCurrentStats();
+        // In auto mode, ResolvedPrimaryAdapterId should be set (or empty if no gateway)
+        stats.ResolvedPrimaryAdapterId.Should().NotBeNull();
+    }
+
+    [Test]
+    public void GetPrimaryAdapterId_ReturnsStringOrEmpty()
+    {
+        var service = CreateService();
+        service.Poll(); // Need at least one poll to populate adapter states
+
+        var primaryId = service.GetPrimaryAdapterId();
+
+        primaryId.Should().NotBeNull();
+        // Returns either a real adapter ID or empty string if no gateway found
+    }
+
+    [Test]
+    public async Task AutoMode_SpeedsAreNonNegative()
+    {
+        var service = CreateService();
+        service.Poll();
+        await Task.Delay(150);
+        service.Poll();
+
+        var stats = service.GetCurrentStats();
+        stats.DownloadSpeedBps.Should().BeGreaterThanOrEqualTo(0);
+        stats.UploadSpeedBps.Should().BeGreaterThanOrEqualTo(0);
+    }
+
+    [Test]
+    public void AutoMode_ThenSwitchToSpecific_ThenBackToAuto()
+    {
+        var service = CreateService();
+        var adapters = service.GetAdapters(includeVirtual: true);
+
+        // Start in auto mode
+        service.Poll();
+        var autoStats = service.GetCurrentStats();
+        autoStats.AdapterId.Should().Be(NetworkMonitorConstants.AutoAdapterId);
+
+        // Switch to specific adapter
+        if (adapters.Count > 0)
+        {
+            service.SetAdapter(adapters[0].Id);
+            service.Poll();
+            var specificStats = service.GetCurrentStats();
+            specificStats.AdapterId.Should().Be(adapters[0].Id);
+        }
+
+        // Switch back to auto
+        service.SetAdapter(NetworkMonitorConstants.AutoAdapterId);
+        service.Poll();
+        var backToAuto = service.GetCurrentStats();
+        backToAuto.AdapterId.Should().Be(NetworkMonitorConstants.AutoAdapterId);
+    }
+
+    [Test]
+    public void GetAllAdapterStats_InAutoMode_ReturnsAllAdapters()
+    {
+        var service = CreateService();
+        service.Poll();
+
+        var allStats = service.GetAllAdapterStats();
+        var adapters = service.GetAdapters(includeVirtual: false);
+
+        // All active adapters should have stats
+        foreach (var adapter in adapters.Where(a => a.IsActive))
+        {
+            allStats.Should().ContainKey(adapter.Id);
+        }
+    }
+
+    [Test]
+    public void SetAdapter_EmptyString_IsAggregateNotAutoMode()
+    {
+        var service = CreateService();
+        service.SetAdapter(string.Empty);
+        service.Poll();
+
+        var stats = service.GetCurrentStats();
+        stats.AdapterId.Should().BeEmpty();
     }
 }

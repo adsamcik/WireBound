@@ -44,6 +44,17 @@ public class NetworkStats
     /// </summary>
     public string AdapterId { get; set; } = string.Empty;
 
+    /// <summary>
+    /// When in auto mode, the adapter ID that was automatically resolved as primary.
+    /// Empty when not in auto mode or no primary detected.
+    /// </summary>
+    public string ResolvedPrimaryAdapterId { get; set; } = string.Empty;
+
+    /// <summary>
+    /// Display name of the resolved primary adapter (for UI display in auto mode).
+    /// </summary>
+    public string ResolvedPrimaryAdapterName { get; set; } = string.Empty;
+
     // === VPN Traffic Analysis ===
 
     /// <summary>

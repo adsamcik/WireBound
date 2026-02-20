@@ -33,14 +33,16 @@ public class OverviewViewModelTests : IAsyncDisposable
     {
         // Setup network monitor
         _networkMonitorMock.GetAdapters(Arg.Any<bool>()).Returns(new List<NetworkAdapter>());
-
         _networkMonitorMock.GetCurrentStats().Returns(CreateDefaultNetworkStats());
+        _networkMonitorMock.GetAllAdapterStats().Returns(new Dictionary<string, NetworkStats>());
+        _networkMonitorMock.GetPrimaryAdapterId().Returns(string.Empty);
 
         // Setup system monitor with default stats
         _systemMonitorMock.GetCurrentStats().Returns(CreateDefaultSystemStats());
 
         // Setup persistence
         _persistenceMock.GetTodayUsageAsync().Returns((0L, 0L));
+        _persistenceMock.GetSettingsAsync().Returns(new AppSettings());
     }
 
     private static NetworkStats CreateDefaultNetworkStats()
@@ -226,8 +228,9 @@ public class OverviewViewModelTests : IAsyncDisposable
         // Act
         var viewModel = CreateViewModel();
 
-        // Assert
-        viewModel.Adapters.Should().HaveCount(2);
+        // Assert - Auto adapter + 2 real adapters
+        viewModel.Adapters.Should().HaveCount(3);
+        viewModel.Adapters[0].IsAuto.Should().BeTrue();
     }
 
     [Test]
@@ -315,7 +318,7 @@ public class OverviewViewModelTests : IAsyncDisposable
         _networkMonitorMock.GetAdapters(false).Returns(new List<NetworkAdapter> { adapter });
         var viewModel = CreateViewModel();
 
-        var adapterItem = viewModel.Adapters.First();
+        var adapterItem = viewModel.Adapters.First(a => a.Id == "eth0");
 
         // Act
         viewModel.SelectedAdapter = adapterItem;
@@ -325,19 +328,20 @@ public class OverviewViewModelTests : IAsyncDisposable
     }
 
     [Test]
-    public void SelectedAdapter_WhenSetToNull_CallsSetAdapterWithEmptyString()
+    public void SelectedAdapter_WhenSetToNull_CallsSetAdapterWithAuto()
     {
         // Arrange
         var adapter = new NetworkAdapter { Id = "eth0", Name = "Ethernet", IsActive = true };
         _networkMonitorMock.GetAdapters(false).Returns(new List<NetworkAdapter> { adapter });
         var viewModel = CreateViewModel();
-        viewModel.SelectedAdapter = viewModel.Adapters.First();
+        viewModel.SelectedAdapter = viewModel.Adapters.First(a => a.Id == "eth0");
+        _networkMonitorMock.ClearReceivedCalls();
 
         // Act
         viewModel.SelectedAdapter = null;
 
         // Assert
-        _networkMonitorMock.Received(1).SetAdapter(string.Empty);
+        _networkMonitorMock.Received(1).SetAdapter(NetworkMonitorConstants.AutoAdapterId);
     }
 
     [Test]
@@ -368,8 +372,8 @@ public class OverviewViewModelTests : IAsyncDisposable
         // Act
         var viewModel = CreateViewModel();
 
-        // Assert - only active adapters should be loaded
-        viewModel.Adapters.Should().HaveCount(2);
+        // Assert - Auto + 2 active adapters (eth1 is inactive, excluded)
+        viewModel.Adapters.Should().HaveCount(3);
         viewModel.Adapters.Should().NotContain(a => a.Id == "eth1");
     }
 
@@ -678,7 +682,7 @@ public class OverviewViewModelTests : IAsyncDisposable
     }
 
     [Test]
-    public void Constructor_WithNoActiveAdapters_InitializesEmptyAdaptersList()
+    public void Constructor_WithNoActiveAdapters_InitializesWithAutoAdapterOnly()
     {
         // Arrange
         var adapters = new List<NetworkAdapter>
@@ -690,8 +694,177 @@ public class OverviewViewModelTests : IAsyncDisposable
         // Act
         var viewModel = CreateViewModel();
 
+        // Assert - only the Auto adapter
+        viewModel.Adapters.Should().HaveCount(1);
+        viewModel.Adapters[0].IsAuto.Should().BeTrue();
+    }
+
+    #endregion
+
+    #region Auto Adapter Tests
+
+    [Test]
+    public void LoadAdapters_IncludesAutoAdapterAsFirst()
+    {
+        // Arrange
+        var adapters = new List<NetworkAdapter>
+        {
+            new() { Id = "eth0", Name = "Ethernet", DisplayName = "Ethernet", IsActive = true }
+        };
+        _networkMonitorMock.GetAdapters(false).Returns(adapters);
+
+        // Act
+        var viewModel = CreateViewModel();
+
         // Assert
-        viewModel.Adapters.Should().BeEmpty();
+        viewModel.Adapters.Should().HaveCountGreaterThan(0);
+        viewModel.Adapters[0].IsAuto.Should().BeTrue();
+        viewModel.Adapters[0].Id.Should().Be(NetworkMonitorConstants.AutoAdapterId);
+    }
+
+    [Test]
+    public void SelectedAdapter_WhenAutoSelected_CallsSetAdapterWithAutoId()
+    {
+        // Arrange
+        var adapters = new List<NetworkAdapter>
+        {
+            new() { Id = "eth0", Name = "Ethernet", IsActive = true }
+        };
+        _networkMonitorMock.GetAdapters(false).Returns(adapters);
+        var viewModel = CreateViewModel();
+
+        // Act
+        viewModel.SelectedAdapter = viewModel.Adapters.First(a => a.IsAuto);
+
+        // Assert
+        _networkMonitorMock.Received().SetAdapter(NetworkMonitorConstants.AutoAdapterId);
+    }
+
+    [Test]
+    public void Constructor_InitializesSecondaryAdaptersEmpty()
+    {
+        // Act
+        var viewModel = CreateViewModel();
+
+        // Assert
+        viewModel.SecondaryAdapters.Should().NotBeNull();
+        viewModel.SecondaryAdapters.Should().BeEmpty();
+        viewModel.HasSecondaryAdapters.Should().BeFalse();
+    }
+
+    [Test]
+    public void Constructor_InitializesAutoSwitchNotificationEmpty()
+    {
+        // Act
+        var viewModel = CreateViewModel();
+
+        // Assert
+        viewModel.AutoSwitchNotification.Should().Be(string.Empty);
+        viewModel.IsAutoSwitchNotificationVisible.Should().BeFalse();
+    }
+
+    [Test]
+    public void AdapterDisplayItem_CreateAuto_HasCorrectProperties()
+    {
+        // Act
+        var autoItem = AdapterDisplayItem.CreateAuto("Ethernet");
+
+        // Assert
+        autoItem.Id.Should().Be(NetworkMonitorConstants.AutoAdapterId);
+        autoItem.IsAuto.Should().BeTrue();
+        autoItem.DisplayName.Should().Contain("Auto");
+        autoItem.DisplayName.Should().Contain("Ethernet");
+    }
+
+    [Test]
+    public void AdapterDisplayItem_CreateAuto_WithNoResolvedName_ShowsDetecting()
+    {
+        // Act
+        var autoItem = AdapterDisplayItem.CreateAuto();
+
+        // Assert
+        autoItem.DisplayName.Should().Contain("detecting");
+    }
+
+    [Test]
+    public void AdapterDisplayItem_UpdateAutoResolvedName_UpdatesDisplayName()
+    {
+        // Arrange
+        var autoItem = AdapterDisplayItem.CreateAuto();
+
+        // Act
+        autoItem.UpdateAutoResolvedName("WiFi");
+
+        // Assert
+        autoItem.DisplayName.Should().Contain("WiFi");
+        autoItem.DisplayName.Should().Contain("Auto");
+    }
+
+    [Test]
+    public void AdapterDisplayItem_UpdateAutoResolvedName_OnNonAutoItem_DoesNothing()
+    {
+        // Arrange
+        var adapter = new NetworkAdapter { Id = "eth0", Name = "Ethernet", DisplayName = "Ethernet" };
+        var item = new AdapterDisplayItem(adapter);
+        var originalName = item.DisplayName;
+
+        // Act
+        item.UpdateAutoResolvedName("WiFi");
+
+        // Assert
+        item.DisplayName.Should().Be(originalName);
+    }
+
+    [Test]
+    public void NetworkMonitorConstants_AutoAdapterId_IsAuto()
+    {
+        // Assert
+        NetworkMonitorConstants.AutoAdapterId.Should().Be("auto");
+    }
+
+    [Test]
+    public void AppSettings_DefaultSelectedAdapterId_IsAuto()
+    {
+        // Act
+        var settings = new AppSettings();
+
+        // Assert
+        settings.SelectedAdapterId.Should().Be("auto");
+    }
+
+    [Test]
+    public void NetworkStats_ResolvedPrimaryAdapterId_DefaultsToEmpty()
+    {
+        // Act
+        var stats = new NetworkStats();
+
+        // Assert
+        stats.ResolvedPrimaryAdapterId.Should().Be(string.Empty);
+        stats.ResolvedPrimaryAdapterName.Should().Be(string.Empty);
+    }
+
+    [Test]
+    public void SecondaryAdapterInfo_Properties_AreAccessible()
+    {
+        // Act
+        var info = new SecondaryAdapterInfo
+        {
+            AdapterId = "vpn0",
+            Name = "WireGuard",
+            Icon = "🔐",
+            DownloadSpeed = "10 MB/s",
+            UploadSpeed = "5 MB/s",
+            DownloadBps = 10_000_000,
+            UploadBps = 5_000_000,
+            IsVpn = true,
+            ColorHex = "#A855F7"
+        };
+
+        // Assert
+        info.AdapterId.Should().Be("vpn0");
+        info.Name.Should().Be("WireGuard");
+        info.IsVpn.Should().BeTrue();
+        info.DownloadBps.Should().Be(10_000_000);
     }
 
     #endregion

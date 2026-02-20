@@ -1,5 +1,6 @@
 using AwesomeAssertions;
 using WireBound.Core.Models;
+using WireBound.Core.Services;
 
 namespace WireBound.Tests.Models;
 
@@ -145,7 +146,7 @@ public class ModelTests
         settings.MinimizeToTray.Should().BeTrue();
         settings.StartMinimized.Should().BeFalse();
         settings.UseIpHelperApi.Should().BeFalse();
-        settings.SelectedAdapterId.Should().Be(string.Empty);
+        settings.SelectedAdapterId.Should().Be(NetworkMonitorConstants.AutoAdapterId);
         settings.DataRetentionDays.Should().Be(365);
         settings.Theme.Should().Be("Dark");
     }

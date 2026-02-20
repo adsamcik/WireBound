@@ -59,6 +59,11 @@ public sealed class StubNetworkMonitorService : INetworkMonitorService
         _selectedAdapterId = adapterId;
     }
 
+    public string GetPrimaryAdapterId()
+    {
+        return "stub-adapter";
+    }
+
     public void SetUseIpHelperApi(bool useIpHelper)
     {
         // No-op on non-Windows platforms

@@ -42,6 +42,9 @@ public sealed partial class OverviewViewModel : ObservableObject, IDisposable
     private readonly ObservableCollection<DateTimePoint> _cpuOverlayPoints = [];
     private readonly ObservableCollection<DateTimePoint> _memoryOverlayPoints = [];
 
+    // Secondary adapter chart data (keyed by adapter ID)
+    private readonly Dictionary<string, ObservableCollection<DateTimePoint>> _secondaryAdapterPoints = new();
+
     private readonly ChartDataManager _chartDataManager = new(maxBufferSize: 3600, maxDisplayPoints: 300);
 
     // Trend tracking using shared calculator (arrows style for overview)
@@ -51,6 +54,10 @@ public sealed partial class OverviewViewModel : ObservableObject, IDisposable
     // Today's stored bytes (from database at startup)
     private long _todayStoredReceived;
     private long _todayStoredSent;
+
+    // Auto adapter tracking
+    private string _lastResolvedPrimaryAdapterId = string.Empty;
+    private CancellationTokenSource? _notificationCts;
 
     // Chart history limits
     private const int MaxHistoryPoints = 300;
@@ -101,6 +108,30 @@ public sealed partial class OverviewViewModel : ObservableObject, IDisposable
 
     [ObservableProperty]
     private bool _showAdvancedAdapters;
+
+    /// <summary>
+    /// Secondary adapters with active traffic (VPN, other physical adapters not the primary)
+    /// </summary>
+    [ObservableProperty]
+    private ObservableCollection<SecondaryAdapterInfo> _secondaryAdapters = [];
+
+    /// <summary>
+    /// Whether there are any secondary adapters with active traffic
+    /// </summary>
+    [ObservableProperty]
+    private bool _hasSecondaryAdapters;
+
+    /// <summary>
+    /// Notification text when auto adapter switches (empty = hidden)
+    /// </summary>
+    [ObservableProperty]
+    private string _autoSwitchNotification = string.Empty;
+
+    /// <summary>
+    /// Whether the auto switch notification is visible
+    /// </summary>
+    [ObservableProperty]
+    private bool _isAutoSwitchNotificationVisible;
 
     #endregion
 
@@ -256,6 +287,32 @@ public sealed partial class OverviewViewModel : ObservableObject, IDisposable
 
         // Update statistics
         UpdatePeakSpeeds();
+
+        // Handle auto adapter features
+        if (SelectedAdapter?.IsAuto == true)
+        {
+            // Update Auto display name with resolved adapter
+            if (!string.IsNullOrEmpty(stats.ResolvedPrimaryAdapterName))
+            {
+                SelectedAdapter.UpdateAutoResolvedName(stats.ResolvedPrimaryAdapterName);
+            }
+
+            // Detect adapter switch and show notification
+            if (!string.IsNullOrEmpty(stats.ResolvedPrimaryAdapterId) &&
+                stats.ResolvedPrimaryAdapterId != _lastResolvedPrimaryAdapterId)
+            {
+                var previousId = _lastResolvedPrimaryAdapterId;
+                _lastResolvedPrimaryAdapterId = stats.ResolvedPrimaryAdapterId;
+
+                if (!string.IsNullOrEmpty(previousId))
+                {
+                    ShowAutoSwitchNotificationAsync(stats.ResolvedPrimaryAdapterName);
+                }
+            }
+        }
+
+        // Update secondary adapters with active traffic
+        UpdateSecondaryAdapters(now, stats);
     }
 
     private void UpdateSystemProperties(SystemStats stats)
@@ -360,6 +417,25 @@ public sealed partial class OverviewViewModel : ObservableObject, IDisposable
                 "Memory", _memoryOverlayPoints, ChartColors.MemoryColor, useDashedLine: true));
         }
 
+        // Add secondary adapter overlay series
+        var colorIndex = 0;
+        foreach (var kvp in _secondaryAdapterPoints)
+        {
+            var adapterId = kvp.Key;
+            var points = kvp.Value;
+            var adapterInfo = SecondaryAdapters.FirstOrDefault(a => a.AdapterId == adapterId);
+            var name = adapterInfo?.Name ?? adapterId;
+            var isVpn = adapterInfo?.IsVpn ?? false;
+
+            // Pick colors from palette, skip download/upload colors (indices 0,1)
+            var color = ChartColors.SeriesPalette[(colorIndex + 2) % ChartColors.SeriesPalette.Length];
+
+            series.Add(ChartSeriesFactory.CreateAdapterOverlayLineSeries(
+                name, points, color, isVpn: isVpn));
+
+            colorIndex++;
+        }
+
         ChartSeries = [.. series];
         OnPropertyChanged(nameof(ChartSeries));
     }
@@ -408,7 +484,7 @@ public sealed partial class OverviewViewModel : ObservableObject, IDisposable
         }
         else
         {
-            _networkMonitor.SetAdapter(string.Empty);
+            _networkMonitor.SetAdapter(NetworkMonitorConstants.AutoAdapterId);
         }
     }
 
@@ -423,6 +499,9 @@ public sealed partial class OverviewViewModel : ObservableObject, IDisposable
             .ToList();
 
         Adapters.Clear();
+
+        // Add the Auto adapter as the first option
+        Adapters.Add(AdapterDisplayItem.CreateAuto());
 
         foreach (var adapter in networkAdapters)
         {
@@ -448,6 +527,110 @@ public sealed partial class OverviewViewModel : ObservableObject, IDisposable
         catch
         {
             SelectedAdapter = Adapters.FirstOrDefault();
+        }
+    }
+
+    #endregion
+
+    #region Secondary Adapters & Auto Switch
+
+    private void UpdateSecondaryAdapters(DateTime now, NetworkStats stats)
+    {
+        var allStats = _networkMonitor.GetAllAdapterStats();
+        var adapters = _networkMonitor.GetAdapters(ShowAdvancedAdapters);
+        var resolvedPrimaryId = stats.ResolvedPrimaryAdapterId;
+
+        // Determine the "primary" adapter ID to exclude from secondary list
+        var primaryId = SelectedAdapter?.IsAuto == true
+            ? resolvedPrimaryId
+            : SelectedAdapter?.Id ?? string.Empty;
+
+        var activeSecondary = new List<SecondaryAdapterInfo>();
+        var activeSecondaryIds = new HashSet<string>();
+
+        foreach (var kvp in allStats)
+        {
+            var adapterId = kvp.Key;
+            var adapterStats = kvp.Value;
+
+            // Skip the primary adapter
+            if (adapterId == primaryId)
+                continue;
+
+            // Only include adapters with active traffic
+            if (adapterStats.DownloadSpeedBps <= 0 && adapterStats.UploadSpeedBps <= 0)
+                continue;
+
+            var adapter = adapters.FirstOrDefault(a => a.Id == adapterId);
+            if (adapter == null) continue;
+
+            activeSecondary.Add(new SecondaryAdapterInfo
+            {
+                AdapterId = adapterId,
+                Name = adapter.DisplayName,
+                Icon = adapter.IsKnownVpn ? "🔐" : adapter.AdapterType switch
+                {
+                    NetworkAdapterType.WiFi => "📶",
+                    NetworkAdapterType.Ethernet => "🔌",
+                    _ => "🌐"
+                },
+                DownloadSpeed = ByteFormatter.FormatSpeed(adapterStats.DownloadSpeedBps),
+                UploadSpeed = ByteFormatter.FormatSpeed(adapterStats.UploadSpeedBps),
+                DownloadBps = adapterStats.DownloadSpeedBps,
+                UploadBps = adapterStats.UploadSpeedBps,
+                IsVpn = adapter.IsKnownVpn,
+                ColorHex = adapter.IsKnownVpn ? "#A855F7" : "#3B82F6"
+            });
+
+            activeSecondaryIds.Add(adapterId);
+
+            // Add chart data point for this secondary adapter
+            if (!_secondaryAdapterPoints.ContainsKey(adapterId))
+            {
+                _secondaryAdapterPoints[adapterId] = [];
+            }
+            AddChartPoint(_secondaryAdapterPoints[adapterId], now, adapterStats.DownloadSpeedBps);
+        }
+
+        // Clean up chart points for adapters no longer active
+        var staleIds = _secondaryAdapterPoints.Keys.Where(id => !activeSecondaryIds.Contains(id)).ToList();
+        foreach (var staleId in staleIds)
+        {
+            _secondaryAdapterPoints.Remove(staleId);
+        }
+
+        // Update the collection
+        SecondaryAdapters = new ObservableCollection<SecondaryAdapterInfo>(activeSecondary);
+        HasSecondaryAdapters = activeSecondary.Count > 0;
+
+        // Rebuild chart if secondary adapter set changed
+        if (staleIds.Count > 0 || activeSecondary.Count != SecondaryAdapters.Count)
+        {
+            RebuildChartSeries();
+        }
+    }
+
+    private async void ShowAutoSwitchNotificationAsync(string adapterName)
+    {
+        _notificationCts?.Cancel();
+        _notificationCts = new CancellationTokenSource();
+        var token = _notificationCts.Token;
+
+        AutoSwitchNotification = $"Switched to {adapterName}";
+        IsAutoSwitchNotificationVisible = true;
+
+        try
+        {
+            await Task.Delay(3000, token);
+            if (!token.IsCancellationRequested)
+            {
+                IsAutoSwitchNotificationVisible = false;
+                AutoSwitchNotification = string.Empty;
+            }
+        }
+        catch (TaskCanceledException)
+        {
+            // New notification replaced this one
         }
     }
 
@@ -501,6 +684,8 @@ public sealed partial class OverviewViewModel : ObservableObject, IDisposable
         _disposed = true;
         _networkMonitor.StatsUpdated -= OnNetworkStatsUpdated;
         _systemMonitor.StatsUpdated -= OnSystemStatsUpdated;
+        _notificationCts?.Cancel();
+        _notificationCts?.Dispose();
     }
 }
 

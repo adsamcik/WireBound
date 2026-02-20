@@ -124,8 +124,8 @@ public class SettingsViewModelTests : IAsyncDisposable
         // Allow async LoadSettings to complete
         Thread.Sleep(100);
 
-        // Assert
-        viewModel.Adapters.Should().HaveCount(2);
+        // Assert - Auto adapter + 2 real adapters
+        viewModel.Adapters.Should().HaveCount(3);
     }
 
     [Test]
@@ -904,6 +904,80 @@ public class SettingsViewModelTests : IAsyncDisposable
 
         // Assert
         viewModel.IsUpdateSupported.Should().BeTrue();
+    }
+
+    #endregion
+
+    #region Auto Adapter Tests
+
+    [Test]
+    public void Constructor_LoadsAutoAdapterAsFirstItem()
+    {
+        // Arrange
+        var adapters = new List<NetworkAdapter>
+        {
+            new() { Id = "eth0", Name = "Ethernet" },
+            new() { Id = "wifi0", Name = "WiFi" }
+        };
+        _networkMonitor.GetAdapters(Arg.Any<bool>()).Returns(adapters);
+
+        // Act
+        var viewModel = CreateViewModel();
+        Thread.Sleep(100);
+
+        // Assert
+        viewModel.Adapters.Should().HaveCountGreaterThanOrEqualTo(1);
+        viewModel.Adapters[0].Id.Should().Be(NetworkMonitorConstants.AutoAdapterId);
+        viewModel.Adapters[0].Name.Should().Be("Auto");
+    }
+
+    [Test]
+    public void Constructor_AutoAdapterHasAutoCategory()
+    {
+        // Arrange
+        _networkMonitor.GetAdapters(Arg.Any<bool>()).Returns(new List<NetworkAdapter>());
+
+        // Act
+        var viewModel = CreateViewModel();
+        Thread.Sleep(100);
+
+        // Assert
+        viewModel.Adapters.Should().HaveCountGreaterThanOrEqualTo(1);
+        viewModel.Adapters[0].Category.Should().Be("Auto");
+    }
+
+    [Test]
+    public void Constructor_WithAutoSetting_SelectsAutoAdapter()
+    {
+        // Arrange
+        var adapters = new List<NetworkAdapter>
+        {
+            new() { Id = "eth0", Name = "Ethernet" }
+        };
+        _networkMonitor.GetAdapters(Arg.Any<bool>()).Returns(adapters);
+        _persistence.GetSettingsAsync().Returns(new AppSettings { SelectedAdapterId = "auto" });
+
+        // Act
+        var viewModel = CreateViewModel();
+        Thread.Sleep(200);
+
+        // Assert
+        viewModel.SelectedAdapter?.Id.Should().Be(NetworkMonitorConstants.AutoAdapterId);
+    }
+
+    [Test]
+    public void Constructor_WithEmptyAdapterList_StillHasAutoItem()
+    {
+        // Arrange
+        _networkMonitor.GetAdapters(Arg.Any<bool>()).Returns(new List<NetworkAdapter>());
+
+        // Act
+        var viewModel = CreateViewModel();
+        Thread.Sleep(100);
+
+        // Assert
+        viewModel.Adapters.Should().HaveCount(1);
+        viewModel.Adapters[0].Id.Should().Be(NetworkMonitorConstants.AutoAdapterId);
     }
 
     #endregion

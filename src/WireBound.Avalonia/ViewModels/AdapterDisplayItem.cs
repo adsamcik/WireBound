@@ -1,6 +1,7 @@
 using CommunityToolkit.Mvvm.ComponentModel;
 using WireBound.Core.Helpers;
 using WireBound.Core.Models;
+using WireBound.Core.Services;
 using WireBound.Platform.Abstract.Services;
 
 namespace WireBound.Avalonia.ViewModels;
@@ -15,7 +16,6 @@ public partial class AdapterDisplayItem : ObservableObject
 
     public string Id => Adapter.Id;
     public string Name => Adapter.Name;
-    public string DisplayName => Adapter.DisplayName;
     public string Description => Adapter.Description;
     public NetworkAdapterType AdapterType => Adapter.AdapterType;
     public bool IsActive => Adapter.IsActive;
@@ -24,6 +24,48 @@ public partial class AdapterDisplayItem : ObservableObject
     public bool IsUsbTethering => Adapter.IsUsbTethering;
     public bool IsBluetoothTethering => Adapter.IsBluetoothTethering;
     public string Category => Adapter.Category;
+
+    /// <summary>
+    /// Whether this is the special "Auto" adapter item
+    /// </summary>
+    public bool IsAuto => Id == NetworkMonitorConstants.AutoAdapterId;
+
+    /// <summary>
+    /// Display name, dynamically updated for Auto adapter to show resolved adapter
+    /// </summary>
+    [ObservableProperty]
+    private string _displayName;
+
+    /// <summary>
+    /// Creates the special "Auto" adapter display item
+    /// </summary>
+    public static AdapterDisplayItem CreateAuto(string? resolvedAdapterName = null)
+    {
+        var suffix = string.IsNullOrEmpty(resolvedAdapterName)
+            ? "detecting..."
+            : resolvedAdapterName;
+
+        return new AdapterDisplayItem(new NetworkAdapter
+        {
+            Id = NetworkMonitorConstants.AutoAdapterId,
+            Name = "Auto",
+            DisplayName = $"🔄 Auto ({suffix})",
+            Description = "Automatically detects the primary internet adapter",
+            AdapterType = NetworkAdapterType.Other,
+            IsActive = true,
+            Category = "Auto"
+        });
+    }
+
+    /// <summary>
+    /// Updates the display name for the Auto item when the resolved adapter changes
+    /// </summary>
+    public void UpdateAutoResolvedName(string resolvedAdapterName)
+    {
+        if (!IsAuto) return;
+        var suffix = string.IsNullOrEmpty(resolvedAdapterName) ? "detecting..." : resolvedAdapterName;
+        DisplayName = $"🔄 Auto ({suffix})";
+    }
 
     /// <summary>
     /// Icon/emoji for the adapter type
@@ -122,6 +164,7 @@ public partial class AdapterDisplayItem : ObservableObject
     public AdapterDisplayItem(NetworkAdapter adapter)
     {
         Adapter = adapter;
+        _displayName = adapter.DisplayName;
     }
 
     /// <summary>

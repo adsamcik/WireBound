@@ -3,6 +3,16 @@ using WireBound.Core.Models;
 namespace WireBound.Core.Services;
 
 /// <summary>
+/// Sentinel value for auto-detect adapter mode.
+/// When set as the selected adapter ID, the service automatically resolves
+/// the primary internet adapter via default gateway detection.
+/// </summary>
+public static class NetworkMonitorConstants
+{
+    public const string AutoAdapterId = "auto";
+}
+
+/// <summary>
 /// Interface for network monitoring service
 /// </summary>
 public interface INetworkMonitorService
@@ -34,9 +44,17 @@ public interface INetworkMonitorService
     IReadOnlyDictionary<string, NetworkStats> GetAllAdapterStats();
 
     /// <summary>
-    /// Set the adapter to monitor (empty = aggregate all)
+    /// Set the adapter to monitor.
+    /// Use "auto" for automatic primary detection via default gateway,
+    /// empty string for aggregate all, or a specific adapter ID.
     /// </summary>
     void SetAdapter(string adapterId);
+
+    /// <summary>
+    /// Gets the ID of the primary internet adapter detected via default gateway.
+    /// Returns empty string if no gateway adapter is found.
+    /// </summary>
+    string GetPrimaryAdapterId();
 
     /// <summary>
     /// Whether the service is using IP Helper API for monitoring (Windows-specific)

@@ -1,5 +1,7 @@
 using System.Diagnostics;
+using System.Net;
 using System.Net.NetworkInformation;
+using System.Net.Sockets;
 using Microsoft.Extensions.Logging;
 using WireBound.Core.Models;
 using WireBound.Core.Services;
@@ -15,7 +17,9 @@ public sealed class CrossPlatformNetworkMonitorService : INetworkMonitorService
     private readonly Dictionary<string, AdapterState> _adapterStates = new();
     private readonly ILogger<CrossPlatformNetworkMonitorService> _logger;
     private readonly Stopwatch _pollStopwatch = Stopwatch.StartNew();
-    private string _selectedAdapterId = string.Empty;
+    private string _selectedAdapterId = NetworkMonitorConstants.AutoAdapterId;
+    private string _resolvedPrimaryAdapterId = string.Empty;
+    private string _resolvedPrimaryAdapterName = string.Empty;
     private NetworkStats _currentStats = new();
 
     public event EventHandler<NetworkStats>? StatsUpdated;
@@ -462,6 +466,67 @@ public sealed class CrossPlatformNetworkMonitorService : INetworkMonitorService
         }
     }
 
+    public string GetPrimaryAdapterId()
+    {
+        lock (_lock)
+        {
+            return DetectGatewayAdapterId();
+        }
+    }
+
+    /// <summary>
+    /// Detects the primary internet adapter by finding the adapter with a default gateway.
+    /// Prefers adapters with IPv4 gateways, falls back to IPv6.
+    /// </summary>
+    private string DetectGatewayAdapterId()
+    {
+        string? bestAdapterId = null;
+        bool bestHasIpv4Gateway = false;
+
+        foreach (var nic in NetworkInterface.GetAllNetworkInterfaces())
+        {
+            if (nic.OperationalStatus != OperationalStatus.Up)
+                continue;
+
+            if (!_adapterStates.ContainsKey(nic.Id))
+                continue;
+
+            try
+            {
+                var ipProps = nic.GetIPProperties();
+                var gateways = ipProps.GatewayAddresses;
+
+                if (gateways.Count == 0)
+                    continue;
+
+                // Check for real gateways (not 0.0.0.0 or ::)
+                bool hasIpv4Gateway = gateways.Any(g =>
+                    g.Address.AddressFamily == AddressFamily.InterNetwork &&
+                    !g.Address.Equals(IPAddress.Any));
+
+                bool hasIpv6Gateway = gateways.Any(g =>
+                    g.Address.AddressFamily == AddressFamily.InterNetworkV6 &&
+                    !g.Address.Equals(IPAddress.IPv6Any));
+
+                if (!hasIpv4Gateway && !hasIpv6Gateway)
+                    continue;
+
+                // Prefer IPv4 gateway adapters over IPv6-only
+                if (bestAdapterId == null || (hasIpv4Gateway && !bestHasIpv4Gateway))
+                {
+                    bestAdapterId = nic.Id;
+                    bestHasIpv4Gateway = hasIpv4Gateway;
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogDebug(ex, "Failed to check gateway for adapter {AdapterId}", nic.Id);
+            }
+        }
+
+        return bestAdapterId ?? string.Empty;
+    }
+
     public void SetUseIpHelperApi(bool useIpHelper)
     {
         // IP Helper API is Windows-only, ignore in cross-platform version
@@ -532,7 +597,20 @@ public sealed class CrossPlatformNetworkMonitorService : INetworkMonitorService
             // Track active VPN adapters
             var activeVpnAdapters = new List<string>();
             var connectedVpnAdapters = new List<string>();
-            bool hasSelectedAdapter = !string.IsNullOrEmpty(_selectedAdapterId);
+            bool isAutoMode = _selectedAdapterId == NetworkMonitorConstants.AutoAdapterId;
+            string resolvedAutoAdapterId = isAutoMode ? DetectGatewayAdapterId() : string.Empty;
+            string resolvedAutoAdapterName = string.Empty;
+            bool hasSelectedAdapter = !string.IsNullOrEmpty(_selectedAdapterId) && !isAutoMode;
+
+            // In auto mode, the "selected" adapter is the gateway adapter
+            if (isAutoMode && !string.IsNullOrEmpty(resolvedAutoAdapterId))
+            {
+                hasSelectedAdapter = true;
+                if (_adapterStates.TryGetValue(resolvedAutoAdapterId, out var autoState))
+                {
+                    resolvedAutoAdapterName = autoState.Adapter.DisplayName;
+                }
+            }
 
             foreach (var nic in NetworkInterface.GetAllNetworkInterfaces())
             {
@@ -585,8 +663,9 @@ public sealed class CrossPlatformNetworkMonitorService : INetworkMonitorService
                         var sessionReceived = stats.BytesReceived - state.SessionStartReceived;
                         var sessionSent = stats.BytesSent - state.SessionStartSent;
 
-                        // If a specific adapter is selected, track it
-                        if (hasSelectedAdapter && _selectedAdapterId == nic.Id)
+                        // If a specific adapter is selected (or auto-resolved), track it
+                        var effectiveSelectedId = isAutoMode ? resolvedAutoAdapterId : _selectedAdapterId;
+                        if (hasSelectedAdapter && effectiveSelectedId == nic.Id)
                         {
                             selectedDownloadSpeed = state.DownloadSpeedBps;
                             selectedUploadSpeed = state.UploadSpeedBps;
@@ -677,6 +756,8 @@ public sealed class CrossPlatformNetworkMonitorService : INetworkMonitorService
                 SessionBytesReceived = displaySessionReceived,
                 SessionBytesSent = displaySessionSent,
                 AdapterId = _selectedAdapterId,
+                ResolvedPrimaryAdapterId = resolvedAutoAdapterId,
+                ResolvedPrimaryAdapterName = resolvedAutoAdapterName,
 
                 // VPN analysis data
                 IsVpnConnected = isVpnConnected,
@@ -690,6 +771,20 @@ public sealed class CrossPlatformNetworkMonitorService : INetworkMonitorService
                 ConnectedVpnAdapters = connectedVpnAdapters,
                 ActiveVpnAdapters = activeVpnAdapters
             };
+
+            // Track primary adapter changes for notification
+            if (isAutoMode && resolvedAutoAdapterId != _resolvedPrimaryAdapterId)
+            {
+                var previousId = _resolvedPrimaryAdapterId;
+                _resolvedPrimaryAdapterId = resolvedAutoAdapterId;
+                _resolvedPrimaryAdapterName = resolvedAutoAdapterName;
+
+                if (!string.IsNullOrEmpty(previousId))
+                {
+                    _logger.LogInformation("Auto adapter switched from {OldAdapter} to {NewAdapter}",
+                        previousId, resolvedAutoAdapterName);
+                }
+            }
         }
 
         // Fire event outside the lock to prevent deadlocks if handlers call back into this service

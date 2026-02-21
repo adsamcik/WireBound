@@ -4,6 +4,7 @@ using Microsoft.Extensions.DependencyInjection;
 using WireBound.Avalonia.Services;
 using WireBound.Core.Data;
 using WireBound.Core.Models;
+using WireBound.Platform.Abstract.Models;
 using WireBound.Tests.Fixtures;
 
 namespace WireBound.Tests.Services;
@@ -325,6 +326,36 @@ public class DataPersistenceServiceTests : DatabaseTestBase
     }
 
     // ═══════════════════════════════════════════════════════════════════════
+    // Counter Reset / Negative Delta Guard Tests
+    // ═══════════════════════════════════════════════════════════════════════
+
+    [Test, Timeout(30000)]
+    public async Task SaveStatsAsync_CounterReset_UseNewValueAsDeltaInsteadOfNegative(CancellationToken cancellationToken)
+    {
+        // Arrange — first save with high session counters
+        var stats1 = CreateNetworkStats(sessionReceived: 5000, sessionSent: 3000);
+
+        // Simulate a process restart: session counters drop back to a lower value
+        var stats2 = CreateNetworkStats(sessionReceived: 1000, sessionSent: 600);
+
+        // Act
+        await _service.SaveStatsAsync(stats1);
+        await _service.SaveStatsAsync(stats2);
+
+        // Assert — hourly record should have 5000 + 1000 = 6000 (not 5000 + (-4000))
+        using var scope = CreateScope();
+        var db = scope.ServiceProvider.GetRequiredService<WireBoundDbContext>();
+
+        var hourly = await db.HourlyUsages.FirstAsync();
+        hourly.BytesReceived.Should().Be(6000);
+        hourly.BytesSent.Should().Be(3600);
+
+        var daily = await db.DailyUsages.FirstAsync();
+        daily.BytesReceived.Should().Be(6000);
+        daily.BytesSent.Should().Be(3600);
+    }
+
+    // ═══════════════════════════════════════════════════════════════════════
     // Settings Tests
     // ═══════════════════════════════════════════════════════════════════════
 
@@ -380,6 +411,69 @@ public class DataPersistenceServiceTests : DatabaseTestBase
 
         var loaded = await _service.GetSettingsAsync();
         loaded.PollingIntervalMs.Should().Be(5000);
+    }
+
+    [Test, Timeout(30000)]
+    public async Task SaveSettingsAsync_AllFields_RoundTripCorrectly(CancellationToken cancellationToken)
+    {
+        // Arrange — set every field to a non-default value
+        var settings = new AppSettings
+        {
+            PollingIntervalMs = 3000,
+            SaveIntervalSeconds = 120,
+            StartWithWindows = true,
+            MinimizeToTray = false,
+            StartMinimized = true,
+            UseIpHelperApi = true,
+            SelectedAdapterId = "eth0-custom",
+            DataRetentionDays = 180,
+            Theme = "Light",
+            SpeedUnit = SpeedUnit.BitsPerSecond,
+            IsPerAppTrackingEnabled = true,
+            AppDataRetentionDays = 30,
+            AppDataAggregateAfterDays = 14,
+            ShowSystemMetricsInHeader = false,
+            ShowCpuOverlayByDefault = true,
+            ShowMemoryOverlayByDefault = true,
+            ShowGpuMetrics = false,
+            DefaultTimeRange = "OneHour",
+            PerformanceModeEnabled = true,
+            ChartUpdateIntervalMs = 2500,
+            DefaultInsightsPeriod = "ThisMonth",
+            ShowCorrelationInsights = false,
+            CheckForUpdates = false,
+            AutoDownloadUpdates = false
+        };
+
+        // Act
+        await _service.SaveSettingsAsync(settings);
+        var loaded = await _service.GetSettingsAsync();
+
+        // Assert — verify every field
+        loaded.PollingIntervalMs.Should().Be(3000);
+        loaded.SaveIntervalSeconds.Should().Be(120);
+        loaded.StartWithWindows.Should().BeTrue();
+        loaded.MinimizeToTray.Should().BeFalse();
+        loaded.StartMinimized.Should().BeTrue();
+        loaded.UseIpHelperApi.Should().BeTrue();
+        loaded.SelectedAdapterId.Should().Be("eth0-custom");
+        loaded.DataRetentionDays.Should().Be(180);
+        loaded.Theme.Should().Be("Light");
+        loaded.SpeedUnit.Should().Be(SpeedUnit.BitsPerSecond);
+        loaded.IsPerAppTrackingEnabled.Should().BeTrue();
+        loaded.AppDataRetentionDays.Should().Be(30);
+        loaded.AppDataAggregateAfterDays.Should().Be(14);
+        loaded.ShowSystemMetricsInHeader.Should().BeFalse();
+        loaded.ShowCpuOverlayByDefault.Should().BeTrue();
+        loaded.ShowMemoryOverlayByDefault.Should().BeTrue();
+        loaded.ShowGpuMetrics.Should().BeFalse();
+        loaded.DefaultTimeRange.Should().Be("OneHour");
+        loaded.PerformanceModeEnabled.Should().BeTrue();
+        loaded.ChartUpdateIntervalMs.Should().Be(2500);
+        loaded.DefaultInsightsPeriod.Should().Be("ThisMonth");
+        loaded.ShowCorrelationInsights.Should().BeFalse();
+        loaded.CheckForUpdates.Should().BeFalse();
+        loaded.AutoDownloadUpdates.Should().BeFalse();
     }
 
     // ═══════════════════════════════════════════════════════════════════════
@@ -541,5 +635,197 @@ public class DataPersistenceServiceTests : DatabaseTestBase
 
         dailyCount.Should().Be(2); // -50 and today
         hourlyCount.Should().Be(2); // -50 and today
+    }
+
+    // ═══════════════════════════════════════════════════════════════════════
+    // SaveAppStatsAsync Tests
+    // ═══════════════════════════════════════════════════════════════════════
+
+    [Test, Timeout(30000)]
+    public async Task SaveAppStatsAsync_WithValidStats_PersistsAppUsage(CancellationToken cancellationToken)
+    {
+        // Arrange
+        var stats = new List<ProcessNetworkStats>
+        {
+            new()
+            {
+                AppIdentifier = "app-hash-1",
+                DisplayName = "Chrome",
+                ProcessName = "chrome",
+                ExecutablePath = @"C:\chrome.exe",
+                SessionBytesReceived = 5000,
+                SessionBytesSent = 2000,
+                DownloadSpeedBps = 100_000,
+                UploadSpeedBps = 50_000
+            },
+            new()
+            {
+                AppIdentifier = "app-hash-2",
+                DisplayName = "Firefox",
+                ProcessName = "firefox",
+                ExecutablePath = @"C:\firefox.exe",
+                SessionBytesReceived = 3000,
+                SessionBytesSent = 1000,
+                DownloadSpeedBps = 80_000,
+                UploadSpeedBps = 40_000
+            }
+        };
+
+        // Act
+        await _service.SaveAppStatsAsync(stats);
+
+        // Assert — verify via GetTopAppsAsync
+        var today = DateOnly.FromDateTime(DateTime.Now);
+        var topApps = await _service.GetTopAppsAsync(10, today, today);
+
+        topApps.Should().HaveCount(2);
+        var chrome = topApps.First(a => a.AppIdentifier == "app-hash-1");
+        chrome.AppName.Should().Be("Chrome");
+        chrome.BytesReceived.Should().Be(5000);
+        chrome.BytesSent.Should().Be(2000);
+    }
+
+    [Test, Timeout(30000)]
+    public async Task SaveAppStatsAsync_WithNullAppIdentifier_FiltersOutInvalidEntries(CancellationToken cancellationToken)
+    {
+        // Arrange
+        var stats = new List<ProcessNetworkStats>
+        {
+            new()
+            {
+                AppIdentifier = "",
+                DisplayName = "Invalid",
+                SessionBytesReceived = 1000,
+                SessionBytesSent = 500
+            },
+            new()
+            {
+                AppIdentifier = "valid-hash",
+                DisplayName = "ValidApp",
+                ProcessName = "valid",
+                ExecutablePath = @"C:\valid.exe",
+                SessionBytesReceived = 2000,
+                SessionBytesSent = 1000,
+                DownloadSpeedBps = 50_000,
+                UploadSpeedBps = 25_000
+            }
+        };
+
+        // Act
+        await _service.SaveAppStatsAsync(stats);
+
+        // Assert — only the valid entry should be persisted
+        using var scope = CreateScope();
+        var db = scope.ServiceProvider.GetRequiredService<WireBoundDbContext>();
+
+        var records = await db.AppUsageRecords.ToListAsync();
+        records.Should().HaveCount(1);
+        records[0].AppIdentifier.Should().Be("valid-hash");
+    }
+
+    // ═══════════════════════════════════════════════════════════════════════
+    // GetTodayUsageByAdapterAsync Tests
+    // ═══════════════════════════════════════════════════════════════════════
+
+    [Test, Timeout(30000)]
+    public async Task GetTodayUsageByAdapterAsync_ReturnsPerAdapterTotals(CancellationToken cancellationToken)
+    {
+        // Arrange
+        var today = DateOnly.FromDateTime(DateTime.Now);
+        using (var scope = CreateScope())
+        {
+            var db = scope.ServiceProvider.GetRequiredService<WireBoundDbContext>();
+            db.DailyUsages.AddRange(
+                new DailyUsage { Date = today, AdapterId = "eth0", BytesReceived = 1000, BytesSent = 500 },
+                new DailyUsage { Date = today, AdapterId = "wlan0", BytesReceived = 2000, BytesSent = 1000 }
+            );
+            await db.SaveChangesAsync();
+        }
+
+        // Act
+        var result = await _service.GetTodayUsageByAdapterAsync();
+
+        // Assert
+        result.Should().HaveCount(2);
+        result["eth0"].received.Should().Be(1000);
+        result["eth0"].sent.Should().Be(500);
+        result["wlan0"].received.Should().Be(2000);
+        result["wlan0"].sent.Should().Be(1000);
+    }
+
+    [Test, Timeout(30000)]
+    public async Task GetTodayUsageByAdapterAsync_WithNoData_ReturnsEmptyDictionary(CancellationToken cancellationToken)
+    {
+        // Act
+        var result = await _service.GetTodayUsageByAdapterAsync();
+
+        // Assert
+        result.Should().BeEmpty();
+    }
+
+    // ═══════════════════════════════════════════════════════════════════════
+    // CleanupOldAppDataAsync Tests
+    // ═══════════════════════════════════════════════════════════════════════
+
+    // Note: This test is skipped because ExecuteDeleteAsync is not supported by EF Core InMemory provider.
+    [Test, Skip("ExecuteDeleteAsync not supported by InMemory provider"), Timeout(30000)]
+    public async Task CleanupOldAppDataAsync_RemovesOldRecords(CancellationToken cancellationToken)
+    {
+        // Arrange
+        var now = DateTime.Now;
+        using (var scope = CreateScope())
+        {
+            var db = scope.ServiceProvider.GetRequiredService<WireBoundDbContext>();
+            db.AppUsageRecords.AddRange(
+                new AppUsageRecord
+                {
+                    AppIdentifier = "old-app", AppName = "OldApp", Timestamp = now.AddDays(-60),
+                    Granularity = UsageGranularity.Daily, BytesReceived = 100, BytesSent = 50, LastUpdated = now.AddDays(-60)
+                },
+                new AppUsageRecord
+                {
+                    AppIdentifier = "recent-app", AppName = "RecentApp", Timestamp = now.AddDays(-10),
+                    Granularity = UsageGranularity.Daily, BytesReceived = 200, BytesSent = 100, LastUpdated = now.AddDays(-10)
+                }
+            );
+            await db.SaveChangesAsync();
+        }
+
+        // Act
+        await _service.CleanupOldAppDataAsync(30); // Keep last 30 days
+
+        // Assert
+        using var verifyScope = CreateScope();
+        var db2 = verifyScope.ServiceProvider.GetRequiredService<WireBoundDbContext>();
+
+        var remaining = await db2.AppUsageRecords.ToListAsync();
+        remaining.Should().HaveCount(1);
+        remaining[0].AppIdentifier.Should().Be("recent-app");
+    }
+
+    [Test, Timeout(30000)]
+    public async Task CleanupOldAppDataAsync_WithZeroRetentionDays_IsNoOp(CancellationToken cancellationToken)
+    {
+        // Arrange
+        using (var scope = CreateScope())
+        {
+            var db = scope.ServiceProvider.GetRequiredService<WireBoundDbContext>();
+            db.AppUsageRecords.Add(new AppUsageRecord
+            {
+                AppIdentifier = "some-app", AppName = "SomeApp", Timestamp = DateTime.Now.AddDays(-100),
+                Granularity = UsageGranularity.Daily, BytesReceived = 100, BytesSent = 50, LastUpdated = DateTime.Now
+            });
+            await db.SaveChangesAsync();
+        }
+
+        // Act
+        await _service.CleanupOldAppDataAsync(0);
+
+        // Assert — record should still exist
+        using var verifyScope = CreateScope();
+        var db2 = verifyScope.ServiceProvider.GetRequiredService<WireBoundDbContext>();
+
+        var count = await db2.AppUsageRecords.CountAsync();
+        count.Should().Be(1);
     }
 }

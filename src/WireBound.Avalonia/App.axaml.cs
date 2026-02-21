@@ -148,6 +148,10 @@ public partial class App : Application
         // Register system history service for historical stats tracking
         services.AddSingleton<ISystemHistoryService, SystemHistoryService>();
 
+        // Register resource insights services (per-app CPU + memory grouping & smoothing)
+        services.AddSingleton<IAppCategoryService, AppCategoryService>();
+        services.AddSingleton<IResourceInsightsService, ResourceInsightsService>();
+
         // Register DNS resolver service for reverse lookups
         services.AddSingleton<IDnsResolverService, DnsResolverService>();
 
@@ -156,6 +160,9 @@ public partial class App : Application
 
         // Register update check service (Velopack for installed mode, GitHub API fallback for portable)
         services.AddSingleton<IUpdateService, VelopackUpdateService>();
+
+        // Register UI thread dispatcher abstraction
+        services.AddSingleton<IUiDispatcher, AvaloniaDispatcher>();
 
         // Register app-specific services
         services.AddSingleton<INavigationService, NavigationService>();

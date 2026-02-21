@@ -1,3 +1,5 @@
+using System.Reflection;
+
 using WireBound.Core.Helpers;
 
 namespace WireBound.Tests.Helpers;
@@ -271,5 +273,108 @@ public class AdaptiveThresholdCalculatorTests
 
         // The threshold should still be elevated (slow decay)
         afterDrop.Should().BeGreaterThan(baseline);
+    }
+
+    // ═══════════════════════════════════════════════════════════════════════
+    // Asymmetric Rate Tests
+    // ═══════════════════════════════════════════════════════════════════════
+
+    [Test]
+    public void Update_AfterSpike_MovesExactly30PercentTowardNewValue()
+    {
+        // Arrange - windowSize=1 so rollingMax always equals the last value
+        var calculator = new AdaptiveThresholdCalculator(windowSize: 1, smoothingFactor: 0.1);
+        calculator.Update(10_000); // smoothedThreshold initialized to 10000
+        var baseline = GetSmoothedThreshold(calculator);
+
+        // Act - spike to 100_000
+        calculator.Update(100_000);
+        var afterSpike = GetSmoothedThreshold(calculator);
+
+        // Assert - increase formula: old * 0.7 + new * 0.3
+        // Expected: 10000 * 0.7 + 100000 * 0.3 = 7000 + 30000 = 37000
+        afterSpike.Should().BeApproximately(37_000, 0.01);
+
+        var moveRatio = (afterSpike - baseline) / (100_000 - baseline);
+        moveRatio.Should().BeApproximately(0.3, 0.001);
+    }
+
+    [Test]
+    public void Update_AfterDrop_MovesExactlySmoothingFactorTowardNewValue()
+    {
+        // Arrange - windowSize=1 so rollingMax always equals the last value
+        var calculator = new AdaptiveThresholdCalculator(windowSize: 1, smoothingFactor: 0.1);
+        calculator.Update(100_000); // smoothedThreshold initialized to 100000
+        var baseline = GetSmoothedThreshold(calculator);
+
+        // Act - drop to 10_000
+        calculator.Update(10_000);
+        var afterDrop = GetSmoothedThreshold(calculator);
+
+        // Assert - decrease formula: old * (1 - 0.1) + new * 0.1
+        // Expected: 100000 * 0.9 + 10000 * 0.1 = 90000 + 1000 = 91000
+        afterDrop.Should().BeApproximately(91_000, 0.01);
+
+        var moveRatio = (baseline - afterDrop) / (baseline - 10_000);
+        moveRatio.Should().BeApproximately(0.1, 0.001);
+    }
+
+    [Test]
+    public void Update_IncreaseRate_Is3xFasterThanDecreaseRate()
+    {
+        // Arrange - two identical calculators
+        var increaseCalc = new AdaptiveThresholdCalculator(windowSize: 1, smoothingFactor: 0.1);
+        var decreaseCalc = new AdaptiveThresholdCalculator(windowSize: 1, smoothingFactor: 0.1);
+
+        increaseCalc.Update(10_000);  // baseline at 10000
+        decreaseCalc.Update(100_000); // baseline at 100000
+
+        // Act - move both toward opposite extremes over same distance (90000)
+        increaseCalc.Update(100_000); // increase by 90000
+        decreaseCalc.Update(10_000);  // decrease by 90000
+
+        var increaseMove = GetSmoothedThreshold(increaseCalc) - 10_000;
+        var decreaseMove = 100_000 - GetSmoothedThreshold(decreaseCalc);
+
+        // Assert - increase rate (0.3) should be exactly 3x the decrease rate (0.1)
+        var ratio = increaseMove / decreaseMove;
+        ratio.Should().BeApproximately(3.0, 0.001);
+    }
+
+    [Test]
+    public void Update_ConsecutiveSpikes_AccumulateWithIncreaseFormula()
+    {
+        // Arrange - windowSize=1 so rollingMax always equals the last value
+        var calculator = new AdaptiveThresholdCalculator(windowSize: 1, smoothingFactor: 0.1);
+        calculator.Update(10_000); // smoothedThreshold = 10000
+
+        // Act - two consecutive spikes
+        calculator.Update(100_000); // 10000 * 0.7 + 100000 * 0.3 = 37000
+        calculator.Update(100_000); // 37000 * 0.7 + 100000 * 0.3 = 25900 + 30000 = 55900
+
+        // Assert
+        GetSmoothedThreshold(calculator).Should().BeApproximately(55_900, 0.01);
+    }
+
+    [Test]
+    public void Update_ConsecutiveDrops_DecayWithSmoothingFactor()
+    {
+        // Arrange - windowSize=1 so rollingMax always equals the last value
+        var calculator = new AdaptiveThresholdCalculator(windowSize: 1, smoothingFactor: 0.1);
+        calculator.Update(100_000); // smoothedThreshold = 100000
+
+        // Act - two consecutive drops
+        calculator.Update(10_000); // 100000 * 0.9 + 10000 * 0.1 = 91000
+        calculator.Update(10_000); // 91000 * 0.9 + 10000 * 0.1 = 81900 + 1000 = 82900
+
+        // Assert
+        GetSmoothedThreshold(calculator).Should().BeApproximately(82_900, 0.01);
+    }
+
+    private static double GetSmoothedThreshold(AdaptiveThresholdCalculator calculator)
+    {
+        var field = typeof(AdaptiveThresholdCalculator)
+            .GetField("_smoothedThreshold", BindingFlags.NonPublic | BindingFlags.Instance)!;
+        return (double)field.GetValue(calculator)!;
     }
 }

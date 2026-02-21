@@ -626,6 +626,162 @@ public class SystemHistoryServiceTests : IAsyncDisposable
         count.Should().Be(2);
     }
 
+    [Test, Timeout(30000)]
+    public async Task AggregateHourlyAsync_WithSamples_CalculatesAllStats(CancellationToken cancellationToken)
+    {
+        // Arrange
+        var pastHour = DateTime.Now.AddHours(-2);
+        var baseTime = new DateTime(pastHour.Year, pastHour.Month, pastHour.Day, pastHour.Hour, 0, 0);
+
+        await _service.RecordSampleAsync(CreateSystemStats(cpuUsage: 20, memoryUsage: 40, memoryUsedBytes: 6_000_000_000, timestamp: baseTime.AddMinutes(10)));
+        await _service.RecordSampleAsync(CreateSystemStats(cpuUsage: 60, memoryUsage: 70, memoryUsedBytes: 10_000_000_000, timestamp: baseTime.AddMinutes(30)));
+        await _service.RecordSampleAsync(CreateSystemStats(cpuUsage: 40, memoryUsage: 50, memoryUsedBytes: 8_000_000_000, timestamp: baseTime.AddMinutes(50)));
+
+        // Act
+        await _service.AggregateHourlyAsync();
+
+        // Assert
+        using var db = await GetFreshContextAsync();
+        var stats = await db.HourlySystemStats.FirstOrDefaultAsync(h => h.Hour == baseTime);
+
+        stats.Should().NotBeNull();
+        stats!.AvgCpuPercent.Should().Be(40); // (20 + 60 + 40) / 3
+        stats.MinCpuPercent.Should().Be(20);
+        stats.MaxCpuPercent.Should().Be(60);
+        stats.AvgMemoryPercent.Should().BeApproximately(53.333, 0.01); // (40 + 70 + 50) / 3
+        stats.MaxMemoryPercent.Should().Be(70);
+        stats.AvgMemoryUsedBytes.Should().Be(8_000_000_000); // (6B + 10B + 8B) / 3
+    }
+
+    [Test, Timeout(30000)]
+    public async Task AggregateHourlyAsync_MergesWithExistingRecord_UpdatesExtremes(CancellationToken cancellationToken)
+    {
+        // Arrange - Seed an existing hourly record
+        var pastHour = DateTime.Now.AddHours(-2);
+        var hourStart = new DateTime(pastHour.Year, pastHour.Month, pastHour.Day, pastHour.Hour, 0, 0);
+
+        await SeedHourlyStatsAsync(new HourlySystemStats
+        {
+            Hour = hourStart,
+            AvgCpuPercent = 50,
+            MaxCpuPercent = 60,
+            MinCpuPercent = 40,
+            AvgMemoryPercent = 55,
+            MaxMemoryPercent = 65,
+            AvgMemoryUsedBytes = 8_000_000_000
+        });
+
+        // Buffer samples for the same past hour with MORE extreme values
+        await _service.RecordSampleAsync(CreateSystemStats(cpuUsage: 90, memoryUsage: 85, timestamp: hourStart.AddMinutes(15)));
+        await _service.RecordSampleAsync(CreateSystemStats(cpuUsage: 10, memoryUsage: 30, timestamp: hourStart.AddMinutes(45)));
+
+        // Act
+        await _service.AggregateHourlyAsync();
+
+        // Assert
+        using var db = await GetFreshContextAsync();
+        var stats = await db.HourlySystemStats.FirstOrDefaultAsync(h => h.Hour == hourStart);
+
+        stats.Should().NotBeNull();
+        stats!.MaxCpuPercent.Should().Be(90); // Updated from 60 to 90
+        stats.MinCpuPercent.Should().Be(10); // Updated from 40 to 10
+        stats.MaxMemoryPercent.Should().Be(85); // Updated from 65 to 85
+        // Avg fields are NOT updated during merge
+        stats.AvgCpuPercent.Should().Be(50);
+        stats.AvgMemoryPercent.Should().Be(55);
+    }
+
+    [Test, Timeout(30000)]
+    public async Task AggregateHourlyAsync_MergesWithExistingRecord_PreservesExistingWhenBetter(CancellationToken cancellationToken)
+    {
+        // Arrange - Existing record already has more extreme values
+        var pastHour = DateTime.Now.AddHours(-2);
+        var hourStart = new DateTime(pastHour.Year, pastHour.Month, pastHour.Day, pastHour.Hour, 0, 0);
+
+        await SeedHourlyStatsAsync(new HourlySystemStats
+        {
+            Hour = hourStart,
+            AvgCpuPercent = 50,
+            MaxCpuPercent = 95,
+            MinCpuPercent = 5,
+            AvgMemoryPercent = 55,
+            MaxMemoryPercent = 98,
+            AvgMemoryUsedBytes = 8_000_000_000
+        });
+
+        // Buffer samples with LESS extreme values
+        await _service.RecordSampleAsync(CreateSystemStats(cpuUsage: 50, memoryUsage: 60, timestamp: hourStart.AddMinutes(15)));
+
+        // Act
+        await _service.AggregateHourlyAsync();
+
+        // Assert
+        using var db = await GetFreshContextAsync();
+        var stats = await db.HourlySystemStats.FirstOrDefaultAsync(h => h.Hour == hourStart);
+
+        stats.Should().NotBeNull();
+        stats!.MaxCpuPercent.Should().Be(95); // Preserved (95 > 50)
+        stats.MinCpuPercent.Should().Be(5); // Preserved (5 < 50)
+        stats.MaxMemoryPercent.Should().Be(98); // Preserved (98 > 60)
+    }
+
+    [Test, Timeout(30000)]
+    public async Task AggregateHourlyAsync_CurrentHourSamples_NotAggregated(CancellationToken cancellationToken)
+    {
+        // Arrange - Record samples for the CURRENT hour only
+        var now = DateTime.Now;
+        var currentHourTime = new DateTime(now.Year, now.Month, now.Day, now.Hour, 15, 0);
+
+        await _service.RecordSampleAsync(CreateSystemStats(cpuUsage: 75, timestamp: currentHourTime));
+
+        // Act
+        await _service.AggregateHourlyAsync();
+
+        // Assert - No records should be created for current hour
+        using var db = await GetFreshContextAsync();
+        var count = await db.HourlySystemStats.CountAsync();
+        count.Should().Be(0);
+    }
+
+    [Test, Timeout(30000)]
+    public async Task AggregateHourlyAsync_MultipleHours_EachHourHasCorrectValues(CancellationToken cancellationToken)
+    {
+        // Arrange
+        var threeHoursAgo = DateTime.Now.AddHours(-3);
+        var twoHoursAgo = DateTime.Now.AddHours(-2);
+
+        var hour1 = new DateTime(threeHoursAgo.Year, threeHoursAgo.Month, threeHoursAgo.Day, threeHoursAgo.Hour, 0, 0);
+        var hour2 = new DateTime(twoHoursAgo.Year, twoHoursAgo.Month, twoHoursAgo.Day, twoHoursAgo.Hour, 0, 0);
+
+        // Samples for hour 1
+        await _service.RecordSampleAsync(CreateSystemStats(cpuUsage: 20, memoryUsage: 30, timestamp: hour1.AddMinutes(10)));
+        await _service.RecordSampleAsync(CreateSystemStats(cpuUsage: 40, memoryUsage: 50, timestamp: hour1.AddMinutes(40)));
+
+        // Samples for hour 2
+        await _service.RecordSampleAsync(CreateSystemStats(cpuUsage: 60, memoryUsage: 70, timestamp: hour2.AddMinutes(10)));
+        await _service.RecordSampleAsync(CreateSystemStats(cpuUsage: 80, memoryUsage: 90, timestamp: hour2.AddMinutes(40)));
+
+        // Act
+        await _service.AggregateHourlyAsync();
+
+        // Assert
+        using var db = await GetFreshContextAsync();
+        var stats1 = await db.HourlySystemStats.FirstOrDefaultAsync(h => h.Hour == hour1);
+        var stats2 = await db.HourlySystemStats.FirstOrDefaultAsync(h => h.Hour == hour2);
+
+        stats1.Should().NotBeNull();
+        stats1!.AvgCpuPercent.Should().Be(30); // (20 + 40) / 2
+        stats1.MinCpuPercent.Should().Be(20);
+        stats1.MaxCpuPercent.Should().Be(40);
+        stats1.AvgMemoryPercent.Should().Be(40); // (30 + 50) / 2
+
+        stats2.Should().NotBeNull();
+        stats2!.AvgCpuPercent.Should().Be(70); // (60 + 80) / 2
+        stats2.MinCpuPercent.Should().Be(60);
+        stats2.MaxCpuPercent.Should().Be(80);
+        stats2.AvgMemoryPercent.Should().Be(80); // (70 + 90) / 2
+    }
+
     #endregion
 
     #region AggregateDailyAsync Tests
@@ -710,6 +866,52 @@ public class SystemHistoryServiceTests : IAsyncDisposable
         var records = await db.DailySystemStats.Where(d => d.Date == yesterday).ToListAsync();
         records.Should().HaveCount(1);
         records[0].AvgCpuPercent.Should().Be(50); // Original value, not updated
+    }
+
+    [Test, Timeout(30000)]
+    public async Task AggregateDailyAsync_WithGpuHourlyData_AggregatesGpuStats(CancellationToken cancellationToken)
+    {
+        // Arrange
+        var yesterday = DateOnly.FromDateTime(DateTime.Now.AddDays(-1));
+        var startOfYesterday = yesterday.ToDateTime(TimeOnly.MinValue);
+
+        await SeedHourlyStatsAsync(
+            new HourlySystemStats
+            {
+                Hour = startOfYesterday.AddHours(10),
+                AvgCpuPercent = 40,
+                MaxCpuPercent = 50,
+                MinCpuPercent = 30,
+                AvgMemoryPercent = 60,
+                MaxMemoryPercent = 70,
+                AvgMemoryUsedBytes = 8_000_000_000,
+                AvgGpuPercent = 50,
+                MaxGpuPercent = 70
+            },
+            new HourlySystemStats
+            {
+                Hour = startOfYesterday.AddHours(14),
+                AvgCpuPercent = 60,
+                MaxCpuPercent = 80,
+                MinCpuPercent = 50,
+                AvgMemoryPercent = 75,
+                MaxMemoryPercent = 85,
+                AvgMemoryUsedBytes = 10_000_000_000,
+                AvgGpuPercent = 80,
+                MaxGpuPercent = 95
+            }
+        );
+
+        // Act
+        await _service.AggregateDailyAsync();
+
+        // Assert
+        using var db = await GetFreshContextAsync();
+        var daily = await db.DailySystemStats.FirstOrDefaultAsync(d => d.Date == yesterday);
+
+        daily.Should().NotBeNull();
+        daily!.AvgGpuPercent.Should().Be(65); // (50 + 80) / 2
+        daily.MaxGpuPercent.Should().Be(95);
     }
 
     [Test, Timeout(30000)]

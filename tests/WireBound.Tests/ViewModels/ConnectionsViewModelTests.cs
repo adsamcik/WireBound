@@ -392,12 +392,11 @@ public class ConnectionsViewModelTests : IAsyncDisposable
     #region Refresh Command Tests
 
     [Test]
-    [Skip("Requires Avalonia Dispatcher - use integration tests")]
     public async Task RefreshCommand_CallsGetConnectionStats()
     {
         // Arrange
         var viewModel = CreateViewModel();
-        await Task.Delay(150); // Wait for initial refresh
+        await viewModel.InitializationTask;
 
         _processNetworkServiceMock.ClearReceivedCalls();
 
@@ -505,7 +504,6 @@ public class ConnectionsViewModelTests : IAsyncDisposable
     #region Statistics Update Tests
 
     [Test]
-    [Skip("Requires Avalonia Dispatcher - use integration tests")]
     public async Task RefreshConnections_UpdatesConnectionCount()
     {
         // Arrange
@@ -518,9 +516,7 @@ public class ConnectionsViewModelTests : IAsyncDisposable
         _processNetworkServiceMock.GetConnectionStatsAsync().Returns(connections);
 
         var viewModel = CreateViewModel();
-
-        // Allow async initialization
-        await Task.Delay(200);
+        await viewModel.InitializationTask;
 
         // Assert
         viewModel.ConnectionCount.Should().Be(3);
@@ -528,7 +524,6 @@ public class ConnectionsViewModelTests : IAsyncDisposable
     }
 
     [Test]
-    [Skip("Requires Avalonia Dispatcher - use integration tests")]
     public async Task RefreshConnections_UpdatesProtocolCounts()
     {
         // Arrange
@@ -541,7 +536,7 @@ public class ConnectionsViewModelTests : IAsyncDisposable
         _processNetworkServiceMock.GetConnectionStatsAsync().Returns(connections);
 
         var viewModel = CreateViewModel();
-        await Task.Delay(200);
+        await viewModel.InitializationTask;
 
         // Assert
         viewModel.TcpCount.Should().Be(2);
@@ -550,7 +545,6 @@ public class ConnectionsViewModelTests : IAsyncDisposable
     }
 
     [Test]
-    [Skip("Requires Avalonia Dispatcher - use integration tests")]
     public async Task RefreshConnections_UpdatesTotalBytes()
     {
         // Arrange
@@ -562,16 +556,15 @@ public class ConnectionsViewModelTests : IAsyncDisposable
         _processNetworkServiceMock.GetConnectionStatsAsync().Returns(connections);
 
         var viewModel = CreateViewModel();
-        await Task.Delay(200);
+        await viewModel.InitializationTask;
 
         // Assert
-        viewModel.TotalSent.Should().Be("2 KB");
-        viewModel.TotalReceived.Should().Be("4 KB");
+        viewModel.TotalSent.Should().Be("2.00 KB");
+        viewModel.TotalReceived.Should().Be("4.00 KB");
         viewModel.Dispose();
     }
 
     [Test]
-    [Skip("Requires Avalonia Dispatcher - use integration tests")]
     public async Task RefreshConnections_QueuesDnsResolution()
     {
         // Arrange
@@ -582,7 +575,7 @@ public class ConnectionsViewModelTests : IAsyncDisposable
         _processNetworkServiceMock.GetConnectionStatsAsync().Returns(connections);
 
         var viewModel = CreateViewModel();
-        await Task.Delay(200);
+        await viewModel.InitializationTask;
 
         // Assert
         _dnsResolverMock.Received().QueueForResolution("8.8.8.8");
@@ -590,7 +583,6 @@ public class ConnectionsViewModelTests : IAsyncDisposable
     }
 
     [Test]
-    [Skip("Requires Avalonia Dispatcher - use integration tests")]
     public async Task RefreshConnections_UsesCachedHostname()
     {
         // Arrange
@@ -603,7 +595,7 @@ public class ConnectionsViewModelTests : IAsyncDisposable
         _processNetworkServiceMock.GetConnectionStatsAsync().Returns(connections);
 
         var viewModel = CreateViewModel();
-        await Task.Delay(200);
+        await viewModel.InitializationTask;
 
         // Assert
         _dnsResolverMock.Received().GetCached("8.8.8.8");

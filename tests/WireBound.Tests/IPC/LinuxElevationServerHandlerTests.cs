@@ -76,7 +76,7 @@ public class LinuxElevationServerHandlerTests : IDisposable
     [Test]
     public void HandleAuthenticate_ValidHmac_ReturnsSuccess()
     {
-        if (!_available) return;
+        Skip.Unless(_available, "ElevationServer not available (wrong platform or secret file locked)");
 
         var request = CreateValidAuthRequest();
         var response = _server!.HandleAuthenticate(request, Environment.ProcessId, out var sessionId);
@@ -91,7 +91,7 @@ public class LinuxElevationServerHandlerTests : IDisposable
     [Test]
     public void HandleAuthenticate_InvalidHmac_ReturnsFailed()
     {
-        if (!_available) return;
+        Skip.Unless(_available, "ElevationServer not available (wrong platform or secret file locked)");
 
         var request = new IpcMessage
         {
@@ -116,7 +116,7 @@ public class LinuxElevationServerHandlerTests : IDisposable
     [Test]
     public void HandleAuthenticate_ExpiredTimestamp_ReturnsFailed()
     {
-        if (!_available) return;
+        Skip.Unless(_available, "ElevationServer not available (wrong platform or secret file locked)");
 
         var oldTimestamp = DateTimeOffset.UtcNow.AddMinutes(-5).ToUnixTimeSeconds();
         var request = new IpcMessage
@@ -141,7 +141,7 @@ public class LinuxElevationServerHandlerTests : IDisposable
     [Test]
     public void HandleAuthenticate_MalformedPayload_ReturnsInvalidAuth()
     {
-        if (!_available) return;
+        Skip.Unless(_available, "ElevationServer not available (wrong platform or secret file locked)");
 
         var request = new IpcMessage
         {
@@ -161,7 +161,7 @@ public class LinuxElevationServerHandlerTests : IDisposable
     [Test]
     public void HandleAuthenticate_WrongExecutablePath_ReturnsFailed()
     {
-        if (!_available) return;
+        Skip.Unless(_available, "ElevationServer not available (wrong platform or secret file locked)");
 
         var pid = Environment.ProcessId;
         var timestamp = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
@@ -191,7 +191,7 @@ public class LinuxElevationServerHandlerTests : IDisposable
     [Test]
     public void HandleAuthenticate_PidMismatch_ReturnsFailed()
     {
-        if (!_available) return;
+        Skip.Unless(_available, "ElevationServer not available (wrong platform or secret file locked)");
 
         var request = CreateValidAuthRequest();
         // Pass a peerPid that differs from Environment.ProcessId in the auth request
@@ -206,7 +206,7 @@ public class LinuxElevationServerHandlerTests : IDisposable
     [Test]
     public void HandleAuthenticate_PeerPidZero_SkipsCrossVerification()
     {
-        if (!_available) return;
+        Skip.Unless(_available, "ElevationServer not available (wrong platform or secret file locked)");
 
         var request = CreateValidAuthRequest();
         // peerPid=0 means SO_PEERCRED failed, should skip cross-verification
@@ -221,7 +221,7 @@ public class LinuxElevationServerHandlerTests : IDisposable
     [Test]
     public void HandleAuthenticate_MaxSessionsExceeded_ReturnsFailed()
     {
-        if (!_available) return;
+        Skip.Unless(_available, "ElevationServer not available (wrong platform or secret file locked)");
 
         // Fill up sessions to max
         for (var i = 0; i < IpcConstants.MaxConcurrentSessions; i++)
@@ -249,7 +249,7 @@ public class LinuxElevationServerHandlerTests : IDisposable
     [Test]
     public void HandleConnectionStats_WithValidSession_ReturnsSuccess()
     {
-        if (!_available) return;
+        Skip.Unless(_available, "ElevationServer not available (wrong platform or secret file locked)");
 
         var sessionId = AuthenticateAndGetSession();
 
@@ -268,7 +268,7 @@ public class LinuxElevationServerHandlerTests : IDisposable
     [Test]
     public void HandleConnectionStats_WithNullSession_ReturnsError()
     {
-        if (!_available) return;
+        Skip.Unless(_available, "ElevationServer not available (wrong platform or secret file locked)");
 
         var request = new IpcMessage
         {
@@ -286,7 +286,7 @@ public class LinuxElevationServerHandlerTests : IDisposable
     [Test]
     public void HandleConnectionStats_WithInvalidSession_ReturnsError()
     {
-        if (!_available) return;
+        Skip.Unless(_available, "ElevationServer not available (wrong platform or secret file locked)");
 
         var request = new IpcMessage { Type = MessageType.ConnectionStats, RequestId = "stats-3" };
         var response = _server!.HandleConnectionStats(request, "nonexistent-session");
@@ -301,7 +301,7 @@ public class LinuxElevationServerHandlerTests : IDisposable
     [Test]
     public void HandleProcessStats_WithValidSession_ReturnsSuccess()
     {
-        if (!_available) return;
+        Skip.Unless(_available, "ElevationServer not available (wrong platform or secret file locked)");
 
         var sessionId = AuthenticateAndGetSession();
 
@@ -321,7 +321,7 @@ public class LinuxElevationServerHandlerTests : IDisposable
     [Test]
     public void HandleProcessStats_WithNullSession_ReturnsError()
     {
-        if (!_available) return;
+        Skip.Unless(_available, "ElevationServer not available (wrong platform or secret file locked)");
 
         var request = new IpcMessage
         {
@@ -338,7 +338,7 @@ public class LinuxElevationServerHandlerTests : IDisposable
     [Test]
     public void HandleProcessStats_MalformedPayload_FallsBackToDefault()
     {
-        if (!_available) return;
+        Skip.Unless(_available, "ElevationServer not available (wrong platform or secret file locked)");
 
         var sessionId = AuthenticateAndGetSession();
 
@@ -362,7 +362,7 @@ public class LinuxElevationServerHandlerTests : IDisposable
     [Test]
     public void HandleHeartbeat_ReturnsAliveWithUptime()
     {
-        if (!_available) return;
+        Skip.Unless(_available, "ElevationServer not available (wrong platform or secret file locked)");
 
         var response = _server!.HandleHeartbeat();
 
@@ -380,7 +380,7 @@ public class LinuxElevationServerHandlerTests : IDisposable
     [Test]
     public void HandleShutdown_WithValidSession_ReturnsResponse()
     {
-        if (!_available) return;
+        Skip.Unless(_available, "ElevationServer not available (wrong platform or secret file locked)");
 
         var sessionId = AuthenticateAndGetSession();
 
@@ -395,7 +395,7 @@ public class LinuxElevationServerHandlerTests : IDisposable
     [Test]
     public void HandleShutdown_WithNullSession_ReturnsError()
     {
-        if (!_available) return;
+        Skip.Unless(_available, "ElevationServer not available (wrong platform or secret file locked)");
 
         var request = new IpcMessage { Type = MessageType.Shutdown, RequestId = "sd-2" };
         var response = _server!.HandleShutdown(request, null);
@@ -410,7 +410,7 @@ public class LinuxElevationServerHandlerTests : IDisposable
     [Test]
     public void ValidateSession_NullSessionId_ReturnsFalse()
     {
-        if (!_available) return;
+        Skip.Unless(_available, "ElevationServer not available (wrong platform or secret file locked)");
 
         _server!.ValidateSession(null, out var error).Should().BeFalse();
         error.Should().Contain("Invalid or expired session");
@@ -419,7 +419,7 @@ public class LinuxElevationServerHandlerTests : IDisposable
     [Test]
     public void ValidateSession_ValidSession_ReturnsTrue()
     {
-        if (!_available) return;
+        Skip.Unless(_available, "ElevationServer not available (wrong platform or secret file locked)");
 
         var sessionId = AuthenticateAndGetSession();
 
@@ -430,7 +430,7 @@ public class LinuxElevationServerHandlerTests : IDisposable
     [Test]
     public void ValidateSession_NonexistentSession_ReturnsFalse()
     {
-        if (!_available) return;
+        Skip.Unless(_available, "ElevationServer not available (wrong platform or secret file locked)");
 
         _server!.ValidateSession("nonexistent", out _).Should().BeFalse();
     }

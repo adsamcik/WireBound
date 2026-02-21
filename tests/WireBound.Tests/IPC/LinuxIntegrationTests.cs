@@ -6,13 +6,14 @@ using WireBound.IPC;
 using WireBound.IPC.Messages;
 using WireBound.IPC.Security;
 using WireBound.IPC.Transport;
+using WireBound.Tests.Fixtures;
 
 namespace WireBound.Tests.IPC;
 
 /// <summary>
 /// Integration tests designed to run ONLY on Linux (in Docker).
 /// Tests real /proc filesystem, Unix sockets, and SO_PEERCRED.
-/// On non-Linux systems, tests skip gracefully via early return.
+/// On non-Linux systems, tests are skipped via [LinuxOnly].
 /// </summary>
 [NotInParallel("SecretFile")]
 public class LinuxIntegrationTests : IDisposable
@@ -23,11 +24,9 @@ public class LinuxIntegrationTests : IDisposable
     // GetPeerCredentials — SO_PEERCRED on Unix domain sockets
     // ═══════════════════════════════════════════════════════════════════════
 
-    [Test]
+    [Test, LinuxOnly]
     public void GetPeerCredentials_RealUnixSocket_ReturnsPidAndUid()
     {
-        if (!OperatingSystem.IsLinux()) return;
-
         var socketPath = CreateTempSocketPath();
         var endpoint = new UnixDomainSocketEndPoint(socketPath);
 
@@ -46,11 +45,9 @@ public class LinuxIntegrationTests : IDisposable
         uid.Should().BeGreaterThanOrEqualTo(0);
     }
 
-    [Test]
+    [Test, LinuxOnly]
     public void GetPeerCredentials_DisconnectedSocket_ReturnsDefault()
     {
-        if (!OperatingSystem.IsLinux()) return;
-
         var socketPath = CreateTempSocketPath();
         var endpoint = new UnixDomainSocketEndPoint(socketPath);
 
@@ -74,11 +71,9 @@ public class LinuxIntegrationTests : IDisposable
     // ResolveExpectedPeerUid — environment variable resolution
     // ═══════════════════════════════════════════════════════════════════════
 
-    [Test]
+    [Test, LinuxOnly]
     public void ResolveExpectedPeerUid_WithPkexecUid_ReturnsUid()
     {
-        if (!OperatingSystem.IsLinux()) return;
-
         var oldPkexec = Environment.GetEnvironmentVariable("PKEXEC_UID");
         var oldSudo = Environment.GetEnvironmentVariable("SUDO_UID");
         try
@@ -97,11 +92,9 @@ public class LinuxIntegrationTests : IDisposable
         }
     }
 
-    [Test]
+    [Test, LinuxOnly]
     public void ResolveExpectedPeerUid_WithSudoUid_ReturnsUid()
     {
-        if (!OperatingSystem.IsLinux()) return;
-
         var oldPkexec = Environment.GetEnvironmentVariable("PKEXEC_UID");
         var oldSudo = Environment.GetEnvironmentVariable("SUDO_UID");
         try
@@ -120,11 +113,9 @@ public class LinuxIntegrationTests : IDisposable
         }
     }
 
-    [Test]
+    [Test, LinuxOnly]
     public void ResolveExpectedPeerUid_PkexecTakesPrecedence_OverSudo()
     {
-        if (!OperatingSystem.IsLinux()) return;
-
         var oldPkexec = Environment.GetEnvironmentVariable("PKEXEC_UID");
         var oldSudo = Environment.GetEnvironmentVariable("SUDO_UID");
         try
@@ -143,11 +134,9 @@ public class LinuxIntegrationTests : IDisposable
         }
     }
 
-    [Test]
+    [Test, LinuxOnly]
     public void ResolveExpectedPeerUid_NeitherSet_FallsBackOrReturnsNegative()
     {
-        if (!OperatingSystem.IsLinux()) return;
-
         var oldPkexec = Environment.GetEnvironmentVariable("PKEXEC_UID");
         var oldSudo = Environment.GetEnvironmentVariable("SUDO_UID");
         try
@@ -167,11 +156,9 @@ public class LinuxIntegrationTests : IDisposable
         }
     }
 
-    [Test]
+    [Test, LinuxOnly]
     public void ResolveExpectedPeerUid_InvalidValue_ReturnsNegative()
     {
-        if (!OperatingSystem.IsLinux()) return;
-
         var oldPkexec = Environment.GetEnvironmentVariable("PKEXEC_UID");
         var oldSudo = Environment.GetEnvironmentVariable("SUDO_UID");
         try
@@ -197,11 +184,9 @@ public class LinuxIntegrationTests : IDisposable
     // ValidateExecutablePath — /proc/[pid]/exe
     // ═══════════════════════════════════════════════════════════════════════
 
-    [Test]
+    [Test, LinuxOnly]
     public void ValidateExecutablePath_CurrentProcess_Matches()
     {
-        if (!OperatingSystem.IsLinux()) return;
-
         var pid = Environment.ProcessId;
         var procExe = $"/proc/{pid}/exe";
         var actualPath = Path.GetFullPath(
@@ -212,11 +197,9 @@ public class LinuxIntegrationTests : IDisposable
         result.Should().BeTrue();
     }
 
-    [Test]
+    [Test, LinuxOnly]
     public void ValidateExecutablePath_WrongPath_ReturnsFalse()
     {
-        if (!OperatingSystem.IsLinux()) return;
-
         var pid = Environment.ProcessId;
 
         var result = ElevationServer.ValidateExecutablePath("/usr/bin/definitely-not-this-process", pid);
@@ -224,11 +207,9 @@ public class LinuxIntegrationTests : IDisposable
         result.Should().BeFalse();
     }
 
-    [Test]
+    [Test, LinuxOnly]
     public void ValidateExecutablePath_NonexistentPid_ReturnsFalse()
     {
-        if (!OperatingSystem.IsLinux()) return;
-
         var result = ElevationServer.ValidateExecutablePath("/usr/bin/dotnet", 999999);
 
         result.Should().BeFalse();
@@ -238,11 +219,9 @@ public class LinuxIntegrationTests : IDisposable
     // BuildInodeToPidMap — real /proc/[pid]/fd scanning
     // ═══════════════════════════════════════════════════════════════════════
 
-    [Test]
+    [Test, LinuxOnly]
     public void BuildInodeToPidMap_ReturnsNonEmptyMap()
     {
-        if (!OperatingSystem.IsLinux()) return;
-
         using var tracker = new NetlinkConnectionTracker();
 
         var map = tracker.BuildInodeToPidMap();
@@ -253,11 +232,9 @@ public class LinuxIntegrationTests : IDisposable
         map.Should().NotBeEmpty();
     }
 
-    [Test]
+    [Test, LinuxOnly]
     public void BuildInodeToPidMap_CurrentProcessHasSockets()
     {
-        if (!OperatingSystem.IsLinux()) return;
-
         // Create a TCP socket so the current process has at least one socket fd
         using var tcpSocket = new Socket(AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp);
         tcpSocket.Bind(new System.Net.IPEndPoint(System.Net.IPAddress.Loopback, 0));
@@ -277,11 +254,9 @@ public class LinuxIntegrationTests : IDisposable
     // ParseProcNetTcp — real /proc/net/tcp parsing
     // ═══════════════════════════════════════════════════════════════════════
 
-    [Test]
+    [Test, LinuxOnly]
     public void ParseProcNetTcp_RealFile_ParsesEstablishedConnections()
     {
-        if (!OperatingSystem.IsLinux()) return;
-
         // Create a TCP connection to localhost so there's at least one established entry
         using var listener = new Socket(AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp);
         listener.Bind(new System.Net.IPEndPoint(System.Net.IPAddress.Loopback, 0));
@@ -302,11 +277,9 @@ public class LinuxIntegrationTests : IDisposable
         stats.Success.Should().BeTrue();
     }
 
-    [Test]
+    [Test, LinuxOnly]
     public void ParseProcNetTcp_Ipv6File_Works()
     {
-        if (!OperatingSystem.IsLinux()) return;
-
         using var tracker = new NetlinkConnectionTracker();
         var inodeToPid = tracker.BuildInodeToPidMap();
 
@@ -316,11 +289,9 @@ public class LinuxIntegrationTests : IDisposable
         act.Should().NotThrow();
     }
 
-    [Test]
+    [Test, LinuxOnly]
     public void ParseProcNetTcp_NonexistentFile_NoException()
     {
-        if (!OperatingSystem.IsLinux()) return;
-
         using var tracker = new NetlinkConnectionTracker();
         var inodeToPid = new Dictionary<long, int>();
 
@@ -333,11 +304,9 @@ public class LinuxIntegrationTests : IDisposable
     // Full server integration — auth, connect, query, shutdown
     // ═══════════════════════════════════════════════════════════════════════
 
-    [Test]
+    [Test, LinuxOnly]
     public async Task FullServerLifecycle_AuthConnectQuery()
     {
-        if (!OperatingSystem.IsLinux()) return;
-
         var socketPath = CreateTempSocketPath();
 
         using var server = new ElevationServer();

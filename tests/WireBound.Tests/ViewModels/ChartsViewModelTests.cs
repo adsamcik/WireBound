@@ -16,6 +16,7 @@ namespace WireBound.Tests.ViewModels;
 /// </summary>
 public class ChartsViewModelTests : IAsyncDisposable
 {
+    private readonly IUiDispatcher _dispatcherMock;
     private readonly INetworkMonitorService _networkMonitorMock;
     private readonly IDataPersistenceService _persistenceMock;
     private readonly ISystemMonitorService _systemMonitorMock;
@@ -24,6 +25,7 @@ public class ChartsViewModelTests : IAsyncDisposable
 
     public ChartsViewModelTests()
     {
+        _dispatcherMock = Substitute.For<IUiDispatcher>();
         _networkMonitorMock = Substitute.For<INetworkMonitorService>();
         _persistenceMock = Substitute.For<IDataPersistenceService>();
         _systemMonitorMock = Substitute.For<ISystemMonitorService>();
@@ -71,6 +73,7 @@ public class ChartsViewModelTests : IAsyncDisposable
     private ChartsViewModel CreateViewModel()
     {
         var viewModel = new ChartsViewModel(
+            _dispatcherMock,
             _networkMonitorMock,
             _persistenceMock,
             _systemMonitorMock,
@@ -82,6 +85,7 @@ public class ChartsViewModelTests : IAsyncDisposable
     private ChartsViewModel CreateViewModelWithoutSystemMonitor()
     {
         var viewModel = new ChartsViewModel(
+            _dispatcherMock,
             _networkMonitorMock,
             _persistenceMock,
             null,
@@ -233,26 +237,6 @@ public class ChartsViewModelTests : IAsyncDisposable
     }
 
     [Test]
-    public void Constructor_SubscribesToNetworkStatsUpdated()
-    {
-        // Act
-        var viewModel = CreateViewModel();
-
-        // Assert
-        // Event subscription verified (NSubstitute does not verify event subscriptions directly)
-    }
-
-    [Test]
-    public void Constructor_SubscribesToSystemStatsUpdated_WhenSystemMonitorProvided()
-    {
-        // Act
-        var viewModel = CreateViewModel();
-
-        // Assert
-        // Event subscription verified (NSubstitute does not verify event subscriptions directly)
-    }
-
-    [Test]
     public void Constructor_LoadsHistoryFromPersistence()
     {
         // Arrange - setup mock to return some history
@@ -288,6 +272,7 @@ public class ChartsViewModelTests : IAsyncDisposable
     {
         // Act
         var action = () => new ChartsViewModel(
+            _dispatcherMock,
             _networkMonitorMock,
             _persistenceMock,
             _systemMonitorMock,
@@ -808,32 +793,6 @@ public class ChartsViewModelTests : IAsyncDisposable
     #endregion
 
     #region Dispose Tests
-
-    [Test]
-    public void Dispose_UnsubscribesFromNetworkStatsUpdated()
-    {
-        // Arrange
-        var viewModel = CreateViewModel();
-
-        // Act
-        viewModel.Dispose();
-
-        // Assert
-        // Event unsubscription verified (NSubstitute does not verify event subscriptions directly)
-    }
-
-    [Test]
-    public void Dispose_UnsubscribesFromSystemStatsUpdated_WhenSystemMonitorProvided()
-    {
-        // Arrange
-        var viewModel = CreateViewModel();
-
-        // Act
-        viewModel.Dispose();
-
-        // Assert
-        // Event unsubscription verified (NSubstitute does not verify event subscriptions directly)
-    }
 
     [Test]
     public void Dispose_CanBeCalledMultipleTimes()

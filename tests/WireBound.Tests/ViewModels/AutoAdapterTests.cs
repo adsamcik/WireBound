@@ -19,6 +19,7 @@ namespace WireBound.Tests.ViewModels;
 /// </summary>
 public class AutoAdapterTests : IAsyncDisposable
 {
+    private readonly IUiDispatcher _dispatcherMock;
     private readonly INetworkMonitorService _networkMonitor;
     private readonly ISystemMonitorService _systemMonitor;
     private readonly IDataPersistenceService _persistence;
@@ -27,6 +28,7 @@ public class AutoAdapterTests : IAsyncDisposable
 
     public AutoAdapterTests()
     {
+        _dispatcherMock = Substitute.For<IUiDispatcher>();
         _networkMonitor = Substitute.For<INetworkMonitorService>();
         _systemMonitor = Substitute.For<ISystemMonitorService>();
         _persistence = Substitute.For<IDataPersistenceService>();
@@ -61,7 +63,7 @@ public class AutoAdapterTests : IAsyncDisposable
 
     private OverviewViewModel CreateViewModel()
     {
-        var vm = new OverviewViewModel(_networkMonitor, _systemMonitor, _persistence, _logger);
+        var vm = new OverviewViewModel(_dispatcherMock, _networkMonitor, _systemMonitor, _persistence, _logger);
         _createdViewModels.Add(vm);
         return vm;
     }
@@ -328,17 +330,7 @@ public class AutoAdapterTests : IAsyncDisposable
         NetworkMonitorConstants.AutoAdapterId.Should().Be("auto");
     }
 
-    [Test]
-    public void AutoAdapterId_IsNotEmpty()
-    {
-        NetworkMonitorConstants.AutoAdapterId.Should().NotBeEmpty();
-    }
 
-    [Test]
-    public void AutoAdapterId_IsNotNull()
-    {
-        NetworkMonitorConstants.AutoAdapterId.Should().NotBeNull();
-    }
 
     #endregion
 

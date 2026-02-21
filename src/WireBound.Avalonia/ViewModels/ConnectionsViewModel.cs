@@ -3,7 +3,6 @@ using Avalonia.Controls.ApplicationLifetimes;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using System.Collections.ObjectModel;
-using Avalonia.Threading;
 using WireBound.Core.Helpers;
 using WireBound.Core.Services;
 using WireBound.Platform.Abstract.Models;
@@ -112,6 +111,7 @@ public partial class ConnectionDisplayItem : ObservableObject
 /// </remarks>
 public sealed partial class ConnectionsViewModel : ObservableObject, IDisposable
 {
+    private readonly IUiDispatcher _dispatcher;
     private readonly IProcessNetworkService? _processNetworkService;
     private readonly IDnsResolverService? _dnsResolver;
     private readonly IElevationService _elevationService;
@@ -175,10 +175,12 @@ public sealed partial class ConnectionsViewModel : ObservableObject, IDisposable
     private bool _sortAscending;
 
     public ConnectionsViewModel(
+        IUiDispatcher dispatcher,
         IProcessNetworkService processNetworkService,
         IDnsResolverService dnsResolver,
         IElevationService elevationService)
     {
+        _dispatcher = dispatcher;
         _processNetworkService = processNetworkService;
         _dnsResolver = dnsResolver;
         _elevationService = elevationService;
@@ -215,7 +217,7 @@ public sealed partial class ConnectionsViewModel : ObservableObject, IDisposable
 
     private void OnHelperConnectionStateChanged(object? sender, HelperConnectionStateChangedEventArgs e)
     {
-        Dispatcher.UIThread.Post(() =>
+        _dispatcher.Post(() =>
         {
             IsByteTrackingLimited = !e.IsConnected;
         });
@@ -244,7 +246,7 @@ public sealed partial class ConnectionsViewModel : ObservableObject, IDisposable
 
     private void OnProcessErrorOccurred(object? sender, ProcessNetworkErrorEventArgs e)
     {
-        Dispatcher.UIThread.Post(() =>
+        _dispatcher.Post(() =>
         {
             HasError = true;
             ErrorMessage = e.Message;
@@ -256,7 +258,7 @@ public sealed partial class ConnectionsViewModel : ObservableObject, IDisposable
     {
         if (string.IsNullOrEmpty(e.Hostname)) return;
 
-        Dispatcher.UIThread.Post(() =>
+        _dispatcher.Post(() =>
         {
             // Update any connections with this IP
             foreach (var conn in Connections)
@@ -289,14 +291,14 @@ public sealed partial class ConnectionsViewModel : ObservableObject, IDisposable
             // Get connection stats from the service
             var stats = await _processNetworkService.GetConnectionStatsAsync();
 
-            await Dispatcher.UIThread.InvokeAsync(() =>
+            await _dispatcher.InvokeAsync(() =>
             {
                 UpdateConnectionsList(stats);
             });
         }
         catch (Exception ex)
         {
-            Dispatcher.UIThread.Post(() =>
+            _dispatcher.Post(() =>
             {
                 HasError = true;
                 ErrorMessage = $"Failed to refresh connections: {ex.Message}";

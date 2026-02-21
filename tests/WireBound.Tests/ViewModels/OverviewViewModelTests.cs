@@ -12,6 +12,7 @@ namespace WireBound.Tests.ViewModels;
 /// </summary>
 public class OverviewViewModelTests : IAsyncDisposable
 {
+    private readonly IUiDispatcher _dispatcherMock;
     private readonly INetworkMonitorService _networkMonitorMock;
     private readonly ISystemMonitorService _systemMonitorMock;
     private readonly IDataPersistenceService _persistenceMock;
@@ -20,6 +21,7 @@ public class OverviewViewModelTests : IAsyncDisposable
 
     public OverviewViewModelTests()
     {
+        _dispatcherMock = Substitute.For<IUiDispatcher>();
         _networkMonitorMock = Substitute.For<INetworkMonitorService>();
         _systemMonitorMock = Substitute.For<ISystemMonitorService>();
         _persistenceMock = Substitute.For<IDataPersistenceService>();
@@ -72,6 +74,7 @@ public class OverviewViewModelTests : IAsyncDisposable
     private OverviewViewModel CreateViewModel()
     {
         var vm = new OverviewViewModel(
+            _dispatcherMock,
             _networkMonitorMock,
             _systemMonitorMock,
             _persistenceMock,
@@ -192,26 +195,6 @@ public class OverviewViewModelTests : IAsyncDisposable
 
         // Assert
         viewModel.Adapters.Should().NotBeNull();
-    }
-
-    [Test]
-    public void Constructor_SubscribesToNetworkStatsUpdated()
-    {
-        // Act
-        var viewModel = CreateViewModel();
-
-        // Assert
-        // Event subscription verified (NSubstitute does not verify event subscriptions directly)
-    }
-
-    [Test]
-    public void Constructor_SubscribesToSystemStatsUpdated()
-    {
-        // Act
-        var viewModel = CreateViewModel();
-
-        // Assert
-        // Event subscription verified (NSubstitute does not verify event subscriptions directly)
     }
 
     [Test]
@@ -511,32 +494,6 @@ public class OverviewViewModelTests : IAsyncDisposable
     #region Dispose Tests
 
     [Test]
-    public void Dispose_UnsubscribesFromNetworkStatsUpdated()
-    {
-        // Arrange
-        var viewModel = CreateViewModel();
-
-        // Act
-        viewModel.Dispose();
-
-        // Assert
-        // Event unsubscription verified (NSubstitute does not verify event subscriptions directly)
-    }
-
-    [Test]
-    public void Dispose_UnsubscribesFromSystemStatsUpdated()
-    {
-        // Arrange
-        var viewModel = CreateViewModel();
-
-        // Act
-        viewModel.Dispose();
-
-        // Assert
-        // Event unsubscription verified (NSubstitute does not verify event subscriptions directly)
-    }
-
-    [Test]
     public void Dispose_CanBeCalledMultipleTimes()
     {
         // Arrange
@@ -658,6 +615,7 @@ public class OverviewViewModelTests : IAsyncDisposable
     {
         // Act
         var action = () => new OverviewViewModel(
+            _dispatcherMock,
             _networkMonitorMock,
             _systemMonitorMock,
             null,
@@ -672,6 +630,7 @@ public class OverviewViewModelTests : IAsyncDisposable
     {
         // Act
         var action = () => new OverviewViewModel(
+            _dispatcherMock,
             _networkMonitorMock,
             _systemMonitorMock,
             _persistenceMock,

@@ -7,7 +7,6 @@ using LiveChartsCore.SkiaSharpView.Painting.Effects;
 using Microsoft.Extensions.Logging;
 using SkiaSharp;
 using System.Collections.ObjectModel;
-using Avalonia.Threading;
 using WireBound.Avalonia.Helpers;
 using WireBound.Core.Helpers;
 using WireBound.Core.Models;
@@ -20,6 +19,7 @@ namespace WireBound.Avalonia.ViewModels;
 /// </summary>
 public sealed partial class ChartsViewModel : ObservableObject, IDisposable
 {
+    private readonly IUiDispatcher _dispatcher;
     private readonly INetworkMonitorService _networkMonitor;
     private readonly IDataPersistenceService _persistence;
     private readonly ISystemMonitorService? _systemMonitorService;
@@ -94,11 +94,13 @@ public sealed partial class ChartsViewModel : ObservableObject, IDisposable
     public Axis[] SecondaryYAxes { get; } = ChartSeriesFactory.CreatePercentageYAxes();
 
     public ChartsViewModel(
+        IUiDispatcher dispatcher,
         INetworkMonitorService networkMonitor,
         IDataPersistenceService persistence,
         ISystemMonitorService? systemMonitorService = null,
         ILogger<ChartsViewModel>? logger = null)
     {
+        _dispatcher = dispatcher;
         _networkMonitor = networkMonitor;
         _persistence = persistence;
         _systemMonitorService = systemMonitorService;
@@ -148,7 +150,7 @@ public sealed partial class ChartsViewModel : ObservableObject, IDisposable
             _chartDataManager.LoadHistory(history.Select(s => (s.Timestamp, s.DownloadSpeedBps, s.UploadSpeedBps)));
 
             // Update UI on dispatcher thread
-            await Dispatcher.UIThread.InvokeAsync(() =>
+            await _dispatcher.InvokeAsync(() =>
             {
                 if (token.IsCancellationRequested) return;
 
@@ -186,7 +188,7 @@ public sealed partial class ChartsViewModel : ObservableObject, IDisposable
     {
         if (_disposed) return;
 
-        Dispatcher.UIThread.Post(() =>
+        _dispatcher.Post(() =>
         {
             if (_disposed) return;
             UpdateUI(stats);
@@ -251,7 +253,7 @@ public sealed partial class ChartsViewModel : ObservableObject, IDisposable
     {
         if (_disposed || (!ShowCpuOverlay && !ShowMemoryOverlay)) return;
 
-        Dispatcher.UIThread.Post(() =>
+        _dispatcher.Post(() =>
         {
             if (_disposed) return;
             UpdateSystemOverlays(stats);

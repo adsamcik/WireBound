@@ -11,10 +11,12 @@ namespace WireBound.Tests.ViewModels;
 /// </summary>
 public class SystemViewModelTests : IAsyncDisposable
 {
+    private readonly IUiDispatcher _dispatcherMock;
     private readonly ISystemMonitorService _systemMonitorMock;
 
     public SystemViewModelTests()
     {
+        _dispatcherMock = Substitute.For<IUiDispatcher>();
         _systemMonitorMock = Substitute.For<ISystemMonitorService>();
         SetupDefaultMocks();
     }
@@ -52,7 +54,7 @@ public class SystemViewModelTests : IAsyncDisposable
 
     private SystemViewModel CreateViewModel()
     {
-        return new SystemViewModel(_systemMonitorMock);
+        return new SystemViewModel(_dispatcherMock, _systemMonitorMock);
     }
 
     #region Constructor Tests
@@ -114,17 +116,6 @@ public class SystemViewModelTests : IAsyncDisposable
         // Assert
         viewModel.CpuUsagePercent.Should().Be(25.5);
         viewModel.CpuUsageFormatted.Should().Be("25.5%");
-    }
-
-    [Test]
-    public void Constructor_SubscribesToStatsUpdatedEvent()
-    {
-        // Act
-        var viewModel = CreateViewModel();
-
-        // Assert
-        // Event subscription verified (NSubstitute does not verify event subscriptions directly)
-        _ = viewModel; // Use variable to avoid unused warning
     }
 
     [Test]
@@ -193,19 +184,6 @@ public class SystemViewModelTests : IAsyncDisposable
     #endregion
 
     #region Dispose Tests
-
-    [Test]
-    public void Dispose_UnsubscribesFromStatsUpdatedEvent()
-    {
-        // Arrange
-        var viewModel = CreateViewModel();
-
-        // Act
-        viewModel.Dispose();
-
-        // Assert
-        // Event unsubscription verified (NSubstitute does not verify event subscriptions directly)
-    }
 
     [Test]
     public void Dispose_CanBeCalledMultipleTimes()

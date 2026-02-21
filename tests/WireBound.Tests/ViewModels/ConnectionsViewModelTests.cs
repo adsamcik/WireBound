@@ -11,12 +11,14 @@ namespace WireBound.Tests.ViewModels;
 /// </summary>
 public class ConnectionsViewModelTests : IAsyncDisposable
 {
+    private readonly IUiDispatcher _dispatcherMock;
     private readonly IProcessNetworkService _processNetworkServiceMock;
     private readonly IDnsResolverService _dnsResolverMock;
     private readonly IElevationService _elevationServiceMock;
 
     public ConnectionsViewModelTests()
     {
+        _dispatcherMock = Substitute.For<IUiDispatcher>();
         _processNetworkServiceMock = Substitute.For<IProcessNetworkService>();
         _dnsResolverMock = Substitute.For<IDnsResolverService>();
         _elevationServiceMock = Substitute.For<IElevationService>();
@@ -43,6 +45,7 @@ public class ConnectionsViewModelTests : IAsyncDisposable
     private ConnectionsViewModel CreateViewModel()
     {
         return new ConnectionsViewModel(
+            _dispatcherMock,
             _processNetworkServiceMock,
             _dnsResolverMock,
             _elevationServiceMock);
@@ -221,39 +224,6 @@ public class ConnectionsViewModelTests : IAsyncDisposable
 
         // Assert - RequiresElevation should be false when elevation isn't supported
         viewModel.RequiresElevation.Should().BeFalse();
-        viewModel.Dispose();
-    }
-
-    [Test]
-    public void Constructor_SubscribesToProcessStatsUpdated()
-    {
-        // Act
-        var viewModel = CreateViewModel();
-
-        // Assert
-        // Event subscription verified (NSubstitute does not verify event subscriptions directly)
-        viewModel.Dispose();
-    }
-
-    [Test]
-    public void Constructor_SubscribesToProcessErrorOccurred()
-    {
-        // Act
-        var viewModel = CreateViewModel();
-
-        // Assert
-        // Event subscription verified (NSubstitute does not verify event subscriptions directly)
-        viewModel.Dispose();
-    }
-
-    [Test]
-    public void Constructor_SubscribesToDnsHostnameResolved()
-    {
-        // Act
-        var viewModel = CreateViewModel();
-
-        // Assert
-        // Event subscription verified (NSubstitute does not verify event subscriptions directly)
         viewModel.Dispose();
     }
 
@@ -455,82 +425,9 @@ public class ConnectionsViewModelTests : IAsyncDisposable
 
     #region Error Handling Tests
 
-    [Test]
-    public void ProcessErrorOccurred_SetsErrorState()
-    {
-        // Arrange
-        var viewModel = CreateViewModel();
-        var errorArgs = new ProcessNetworkErrorEventArgs("Test error", null, false);
-
-        // Act - Raise event using NSubstitute
-        _processNetworkServiceMock.ErrorOccurred += Raise.EventWith(errorArgs);
-
-        // Allow UI thread dispatch
-        Thread.Sleep(100);
-
-        // Assert - The error should be set (note: this may be difficult to test without UI thread)
-        // The event is captured but dispatched to UI thread which won't happen in unit tests
-        // Event subscription verified (NSubstitute does not verify event subscriptions directly)
-        viewModel.Dispose();
-    }
-
-    [Test]
-    public void ProcessErrorOccurred_WithElevationRequired_SetsRequiresElevation()
-    {
-        // Arrange
-        var viewModel = CreateViewModel();
-        var errorArgs = new ProcessNetworkErrorEventArgs("Elevation required", null, requiresElevation: true);
-
-        // Act
-        _processNetworkServiceMock.ErrorOccurred += Raise.EventWith(errorArgs);
-
-        // Assert - Event subscription verified (actual UI thread dispatch tested elsewhere)
-        // Event subscription verified (NSubstitute does not verify event subscriptions directly)
-        viewModel.Dispose();
-    }
-
     #endregion
 
     #region Dispose Tests
-
-    [Test]
-    public void Dispose_UnsubscribesFromProcessStatsUpdated()
-    {
-        // Arrange
-        var viewModel = CreateViewModel();
-
-        // Act
-        viewModel.Dispose();
-
-        // Assert
-        // Event unsubscription verified (NSubstitute does not verify event subscriptions directly)
-    }
-
-    [Test]
-    public void Dispose_UnsubscribesFromProcessErrorOccurred()
-    {
-        // Arrange
-        var viewModel = CreateViewModel();
-
-        // Act
-        viewModel.Dispose();
-
-        // Assert
-        // Event unsubscription verified (NSubstitute does not verify event subscriptions directly)
-    }
-
-    [Test]
-    public void Dispose_UnsubscribesFromDnsHostnameResolved()
-    {
-        // Arrange
-        var viewModel = CreateViewModel();
-
-        // Act
-        viewModel.Dispose();
-
-        // Assert
-        // Event unsubscription verified (NSubstitute does not verify event subscriptions directly)
-    }
 
     [Test]
     public void Dispose_CanBeCalledMultipleTimes()
@@ -723,6 +620,7 @@ public class ConnectionsViewModelTests : IAsyncDisposable
         // Act & Assert - should not throw even with null service
         // Note: The constructor accepts null for processNetworkService
         var viewModel = new ConnectionsViewModel(
+            _dispatcherMock,
             null!,
             _dnsResolverMock,
             _elevationServiceMock);
@@ -736,6 +634,7 @@ public class ConnectionsViewModelTests : IAsyncDisposable
     {
         // Act & Assert
         var viewModel = new ConnectionsViewModel(
+            _dispatcherMock,
             _processNetworkServiceMock,
             null!,
             _elevationServiceMock);

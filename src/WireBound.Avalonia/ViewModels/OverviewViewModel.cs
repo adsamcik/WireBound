@@ -5,7 +5,6 @@ using LiveChartsCore.Defaults;
 using LiveChartsCore.SkiaSharpView;
 using Microsoft.Extensions.Logging;
 using System.Collections.ObjectModel;
-using Avalonia.Threading;
 using WireBound.Avalonia.Helpers;
 using WireBound.Core.Helpers;
 using WireBound.Core.Models;
@@ -30,6 +29,7 @@ public enum TimeRange
 /// </summary>
 public sealed partial class OverviewViewModel : ObservableObject, IDisposable
 {
+    private readonly IUiDispatcher _dispatcher;
     private readonly INetworkMonitorService _networkMonitor;
     private readonly ISystemMonitorService _systemMonitor;
     private readonly IDataPersistenceService? _dataPersistence;
@@ -196,11 +196,13 @@ public sealed partial class OverviewViewModel : ObservableObject, IDisposable
     #endregion
 
     public OverviewViewModel(
+        IUiDispatcher dispatcher,
         INetworkMonitorService networkMonitor,
         ISystemMonitorService systemMonitor,
         IDataPersistenceService? dataPersistence = null,
         ILogger<OverviewViewModel>? logger = null)
     {
+        _dispatcher = dispatcher;
         _networkMonitor = networkMonitor;
         _systemMonitor = systemMonitor;
         _dataPersistence = dataPersistence;
@@ -238,7 +240,7 @@ public sealed partial class OverviewViewModel : ObservableObject, IDisposable
     {
         if (_disposed) return;
 
-        Dispatcher.UIThread.Post(() =>
+        _dispatcher.Post(() =>
         {
             if (_disposed) return;
             UpdateNetworkProperties(stats);
@@ -249,7 +251,7 @@ public sealed partial class OverviewViewModel : ObservableObject, IDisposable
     {
         if (_disposed) return;
 
-        Dispatcher.UIThread.InvokeAsync(() =>
+        _dispatcher.InvokeAsync(() =>
         {
             if (_disposed) return;
             UpdateSystemProperties(stats);

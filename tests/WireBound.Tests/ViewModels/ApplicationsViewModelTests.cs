@@ -12,12 +12,14 @@ namespace WireBound.Tests.ViewModels;
 /// </summary>
 public class ApplicationsViewModelTests : IAsyncDisposable
 {
+    private readonly IUiDispatcher _dispatcherMock;
     private readonly IDataPersistenceService _persistenceMock;
     private readonly IProcessNetworkService _processNetworkServiceMock;
     private readonly IElevationService _elevationServiceMock;
 
     public ApplicationsViewModelTests()
     {
+        _dispatcherMock = Substitute.For<IUiDispatcher>();
         _persistenceMock = Substitute.For<IDataPersistenceService>();
         _processNetworkServiceMock = Substitute.For<IProcessNetworkService>();
         _elevationServiceMock = Substitute.For<IElevationService>();
@@ -46,6 +48,7 @@ public class ApplicationsViewModelTests : IAsyncDisposable
     private ApplicationsViewModel CreateViewModel()
     {
         return new ApplicationsViewModel(
+            _dispatcherMock,
             _persistenceMock,
             _processNetworkServiceMock,
             _elevationServiceMock);
@@ -198,36 +201,6 @@ public class ApplicationsViewModelTests : IAsyncDisposable
         viewModel.IsByteTrackingLimited.Should().BeFalse();
     }
 
-    [Test]
-    public void Constructor_SubscribesToProcessStatsUpdatedEvent()
-    {
-        // Act
-        using var viewModel = CreateViewModel();
-
-        // Assert
-        // Event subscription verified (NSubstitute does not verify event subscriptions directly)
-    }
-
-    [Test]
-    public void Constructor_SubscribesToProcessErrorOccurredEvent()
-    {
-        // Act
-        using var viewModel = CreateViewModel();
-
-        // Assert
-        // Event subscription verified (NSubstitute does not verify event subscriptions directly)
-    }
-
-    [Test]
-    public void Constructor_SubscribesToHelperConnectionStateChangedEvent()
-    {
-        // Act
-        using var viewModel = CreateViewModel();
-
-        // Assert
-        // Event subscription verified (NSubstitute does not verify event subscriptions directly)
-    }
-
     #endregion
 
     #region IsPerAppTrackingEnabled Tests
@@ -261,45 +234,6 @@ public class ApplicationsViewModelTests : IAsyncDisposable
     #endregion
 
     #region Dispose Tests
-
-    [Test]
-    public void Dispose_UnsubscribesFromProcessStatsUpdatedEvent()
-    {
-        // Arrange
-        var viewModel = CreateViewModel();
-
-        // Act
-        viewModel.Dispose();
-
-        // Assert
-        // Event unsubscription verified (NSubstitute does not verify event subscriptions directly)
-    }
-
-    [Test]
-    public void Dispose_UnsubscribesFromProcessErrorOccurredEvent()
-    {
-        // Arrange
-        var viewModel = CreateViewModel();
-
-        // Act
-        viewModel.Dispose();
-
-        // Assert
-        // Event unsubscription verified (NSubstitute does not verify event subscriptions directly)
-    }
-
-    [Test]
-    public void Dispose_UnsubscribesFromHelperConnectionStateChangedEvent()
-    {
-        // Arrange
-        var viewModel = CreateViewModel();
-
-        // Act
-        viewModel.Dispose();
-
-        // Assert
-        // Event unsubscription verified (NSubstitute does not verify event subscriptions directly)
-    }
 
     [Test]
     public void Dispose_CanBeCalledMultipleTimes()

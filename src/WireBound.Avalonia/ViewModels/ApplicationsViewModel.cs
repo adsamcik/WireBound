@@ -2,7 +2,6 @@ using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using Microsoft.Extensions.Logging;
 using System.Collections.ObjectModel;
-using Avalonia.Threading;
 using WireBound.Core.Helpers;
 using WireBound.Core.Models;
 using WireBound.Core.Services;
@@ -32,6 +31,7 @@ namespace WireBound.Avalonia.ViewModels;
 /// </remarks>
 public sealed partial class ApplicationsViewModel : ObservableObject, IDisposable
 {
+    private readonly IUiDispatcher _dispatcher;
     private readonly IDataPersistenceService _persistence;
     private readonly IProcessNetworkService? _processNetworkService;
     private readonly IElevationService _elevationService;
@@ -86,11 +86,13 @@ public sealed partial class ApplicationsViewModel : ObservableObject, IDisposabl
     private ObservableCollection<AppUsageRecord> _allApps = [];
 
     public ApplicationsViewModel(
+        IUiDispatcher dispatcher,
         IDataPersistenceService persistence,
         IProcessNetworkService processNetworkService,
         IElevationService elevationService,
         ILogger<ApplicationsViewModel>? logger = null)
     {
+        _dispatcher = dispatcher;
         _persistence = persistence;
         _processNetworkService = processNetworkService;
         _elevationService = elevationService;
@@ -122,7 +124,7 @@ public sealed partial class ApplicationsViewModel : ObservableObject, IDisposabl
 
     private void OnHelperConnectionStateChanged(object? sender, HelperConnectionStateChangedEventArgs e)
     {
-        Dispatcher.UIThread.Post(() =>
+        _dispatcher.Post(() =>
         {
             RequiresElevation = !e.IsConnected
                                && _elevationService.IsElevationSupported
@@ -161,7 +163,7 @@ public sealed partial class ApplicationsViewModel : ObservableObject, IDisposabl
 
     private void OnProcessErrorOccurred(object? sender, ProcessNetworkErrorEventArgs e)
     {
-        Dispatcher.UIThread.Post(() =>
+        _dispatcher.Post(() =>
         {
             // Update elevation requirement based on error, but respect platform support
             if (e.RequiresElevation && _elevationService.IsElevationSupported)
@@ -173,7 +175,7 @@ public sealed partial class ApplicationsViewModel : ObservableObject, IDisposabl
 
     private void OnProcessStatsUpdated(object? sender, ProcessStatsUpdatedEventArgs e)
     {
-        Dispatcher.UIThread.Post(() =>
+        _dispatcher.Post(() =>
         {
             ActiveApps.Clear();
             foreach (var stats in e.Stats.OrderByDescending(s => s.TotalSpeedBps).Take(10))

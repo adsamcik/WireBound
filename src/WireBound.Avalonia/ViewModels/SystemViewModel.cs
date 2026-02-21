@@ -6,7 +6,6 @@ using LiveChartsCore.SkiaSharpView.Painting;
 using Microsoft.Extensions.Logging;
 using SkiaSharp;
 using System.Collections.ObjectModel;
-using Avalonia.Threading;
 using WireBound.Avalonia.Helpers;
 using WireBound.Core.Helpers;
 using WireBound.Core.Models;
@@ -19,6 +18,7 @@ namespace WireBound.Avalonia.ViewModels;
 /// </summary>
 public sealed partial class SystemViewModel : ObservableObject, IDisposable
 {
+    private readonly IUiDispatcher _dispatcher;
     private readonly ISystemMonitorService _systemMonitorService;
     private readonly ILogger<SystemViewModel>? _logger;
     private bool _disposed;
@@ -96,9 +96,11 @@ public sealed partial class SystemViewModel : ObservableObject, IDisposable
     public Axis[] MemoryYAxes { get; } = CreatePercentageYAxes("Memory %");
 
     public SystemViewModel(
+        IUiDispatcher dispatcher,
         ISystemMonitorService systemMonitorService,
         ILogger<SystemViewModel>? logger = null)
     {
+        _dispatcher = dispatcher;
         _systemMonitorService = systemMonitorService;
         _logger = logger;
 
@@ -121,7 +123,7 @@ public sealed partial class SystemViewModel : ObservableObject, IDisposable
 
     private void OnStatsUpdated(object? sender, SystemStats e)
     {
-        Dispatcher.UIThread.InvokeAsync(() => UpdateProperties(e));
+        _dispatcher.InvokeAsync(() => UpdateProperties(e));
     }
 
     private void UpdateProperties(SystemStats stats)

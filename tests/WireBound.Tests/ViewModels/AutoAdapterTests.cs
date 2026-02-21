@@ -19,7 +19,7 @@ namespace WireBound.Tests.ViewModels;
 /// </summary>
 public class AutoAdapterTests : IAsyncDisposable
 {
-    private readonly IUiDispatcher _dispatcherMock;
+    private readonly IUiDispatcher _dispatcher = new SynchronousDispatcher();
     private readonly INetworkMonitorService _networkMonitor;
     private readonly ISystemMonitorService _systemMonitor;
     private readonly IDataPersistenceService _persistence;
@@ -28,7 +28,6 @@ public class AutoAdapterTests : IAsyncDisposable
 
     public AutoAdapterTests()
     {
-        _dispatcherMock = Substitute.For<IUiDispatcher>();
         _networkMonitor = Substitute.For<INetworkMonitorService>();
         _systemMonitor = Substitute.For<ISystemMonitorService>();
         _persistence = Substitute.For<IDataPersistenceService>();
@@ -63,7 +62,7 @@ public class AutoAdapterTests : IAsyncDisposable
 
     private OverviewViewModel CreateViewModel()
     {
-        var vm = new OverviewViewModel(_dispatcherMock, _networkMonitor, _systemMonitor, _persistence, _logger);
+        var vm = new OverviewViewModel(_dispatcher, _networkMonitor, _systemMonitor, _persistence, _logger);
         _createdViewModels.Add(vm);
         return vm;
     }
@@ -538,7 +537,7 @@ public class AutoAdapterTests : IAsyncDisposable
     #region OverviewViewModel RestoreSelectedAdapter Tests
 
     [Test]
-    public void RestoreSelectedAdapter_WithAutoSetting_SelectsAutoItem()
+    public async Task RestoreSelectedAdapter_WithAutoSetting_SelectsAutoItem()
     {
         var adapters = new List<NetworkAdapter>
         {
@@ -548,13 +547,13 @@ public class AutoAdapterTests : IAsyncDisposable
         _persistence.GetSettingsAsync().Returns(new AppSettings { SelectedAdapterId = "auto" });
 
         var vm = CreateViewModel();
-        Thread.Sleep(200); // Allow async restore to complete
+        await vm.InitializationTask;
 
         vm.SelectedAdapter?.IsAuto.Should().BeTrue();
     }
 
     [Test]
-    public void RestoreSelectedAdapter_WithSpecificAdapter_SelectsThatAdapter()
+    public async Task RestoreSelectedAdapter_WithSpecificAdapter_SelectsThatAdapter()
     {
         var adapters = new List<NetworkAdapter>
         {
@@ -564,13 +563,13 @@ public class AutoAdapterTests : IAsyncDisposable
         _persistence.GetSettingsAsync().Returns(new AppSettings { SelectedAdapterId = "eth0" });
 
         var vm = CreateViewModel();
-        Thread.Sleep(200);
+        await vm.InitializationTask;
 
         vm.SelectedAdapter?.Id.Should().Be("eth0");
     }
 
     [Test]
-    public void RestoreSelectedAdapter_WithNonExistentAdapter_FallsBackToFirst()
+    public async Task RestoreSelectedAdapter_WithNonExistentAdapter_FallsBackToFirst()
     {
         var adapters = new List<NetworkAdapter>
         {
@@ -580,7 +579,7 @@ public class AutoAdapterTests : IAsyncDisposable
         _persistence.GetSettingsAsync().Returns(new AppSettings { SelectedAdapterId = "nonexistent" });
 
         var vm = CreateViewModel();
-        Thread.Sleep(200);
+        await vm.InitializationTask;
 
         // Falls back to first item (Auto)
         vm.SelectedAdapter?.IsAuto.Should().BeTrue();

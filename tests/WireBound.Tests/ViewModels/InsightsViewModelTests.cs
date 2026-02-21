@@ -40,6 +40,7 @@ public class InsightsViewModelTests : IAsyncDisposable
         return new InsightsViewModel(
             _persistenceMock,
             _systemHistoryMock,
+            null,
             _loggerMock);
     }
 
@@ -47,6 +48,7 @@ public class InsightsViewModelTests : IAsyncDisposable
     {
         return new InsightsViewModel(
             _persistenceMock,
+            null,
             null,
             _loggerMock);
     }
@@ -96,7 +98,7 @@ public class InsightsViewModelTests : IAsyncDisposable
     }
 
     [Test]
-    public void Constructor_InitializesLoadingStateToFalse()
+    public async Task Constructor_InitializesLoadingStateToFalse()
     {
         // Arrange - setup mock to return immediately
         _persistenceMock.GetDailyUsageAsync(Arg.Any<DateOnly>(), Arg.Any<DateOnly>()).Returns(new List<DailyUsage>());
@@ -105,7 +107,7 @@ public class InsightsViewModelTests : IAsyncDisposable
         var viewModel = CreateViewModel();
 
         // Assert - after initialization completes
-        Thread.Sleep(100); // Allow async loading to complete
+        await viewModel.InitializationTask;
         viewModel.IsLoading.Should().BeFalse();
     }
 
@@ -224,15 +226,15 @@ public class InsightsViewModelTests : IAsyncDisposable
     }
 
     [Test]
-    public void SelectedTab_WhenChanged_LoadsDataForNewTab()
+    public async Task SelectedTab_WhenChanged_LoadsDataForNewTab()
     {
         // Arrange
         var viewModel = CreateViewModel();
-        Thread.Sleep(100); // Wait for initial load
+        await viewModel.InitializationTask;
 
         // Act
         viewModel.SelectedTab = InsightsTab.SystemTrends;
-        Thread.Sleep(100); // Wait for async load
+        await Task.Delay(50); // Wait for tab-change-triggered async load
 
         // Assert
         _systemHistoryMock.Received().GetHourlyStatsAsync(Arg.Any<DateTime>(), Arg.Any<DateTime>());
@@ -337,17 +339,17 @@ public class InsightsViewModelTests : IAsyncDisposable
     }
 
     [Test]
-    public void SelectedPeriod_WhenChanged_TriggersDataReload()
+    public async Task SelectedPeriod_WhenChanged_TriggersDataReload()
     {
         // Arrange
         var viewModel = CreateViewModel();
-        Thread.Sleep(100); // Wait for initial load
+        await viewModel.InitializationTask;
 
         _persistenceMock.ClearReceivedCalls();
 
         // Act
         viewModel.SelectedPeriod = InsightsPeriod.ThisMonth;
-        Thread.Sleep(100); // Wait for async load
+        await Task.Delay(50); // Wait for period-change-triggered async load
 
         // Assert
         _persistenceMock.Received().GetDailyUsageAsync(Arg.Any<DateOnly>(), Arg.Any<DateOnly>());
@@ -389,38 +391,38 @@ public class InsightsViewModelTests : IAsyncDisposable
     #region Custom Date Tests
 
     [Test]
-    public void CustomStartDate_WhenChanged_TriggersReloadIfCustomPeriod()
+    public async Task CustomStartDate_WhenChanged_TriggersReloadIfCustomPeriod()
     {
         // Arrange
         var viewModel = CreateViewModel();
         viewModel.SelectedPeriod = InsightsPeriod.Custom;
         viewModel.CustomEndDate = DateTimeOffset.Now;
-        Thread.Sleep(100);
+        await Task.Delay(50);
 
         _persistenceMock.ClearReceivedCalls();
 
         // Act
         viewModel.CustomStartDate = DateTimeOffset.Now.AddDays(-14);
-        Thread.Sleep(100);
+        await Task.Delay(50);
 
         // Assert
         _persistenceMock.Received().GetDailyUsageAsync(Arg.Any<DateOnly>(), Arg.Any<DateOnly>());
     }
 
     [Test]
-    public void CustomEndDate_WhenChanged_TriggersReloadIfCustomPeriod()
+    public async Task CustomEndDate_WhenChanged_TriggersReloadIfCustomPeriod()
     {
         // Arrange
         var viewModel = CreateViewModel();
         viewModel.SelectedPeriod = InsightsPeriod.Custom;
         viewModel.CustomStartDate = DateTimeOffset.Now.AddDays(-7);
-        Thread.Sleep(100);
+        await Task.Delay(50);
 
         _persistenceMock.ClearReceivedCalls();
 
         // Act
         viewModel.CustomEndDate = DateTimeOffset.Now.AddDays(-1);
-        Thread.Sleep(100);
+        await Task.Delay(50);
 
         // Assert
         _persistenceMock.Received().GetDailyUsageAsync(Arg.Any<DateOnly>(), Arg.Any<DateOnly>());
@@ -441,28 +443,25 @@ public class InsightsViewModelTests : IAsyncDisposable
     [Arguments(41, 50, "Moderate")]
     [Arguments(30, 70, "Normal")]
     [Arguments(10, 20, "Normal")]
-    public void GetTrendStatus_ReturnsCorrectStatus(double avg, double max, string expectedStatus)
+    public async Task GetTrendStatus_ReturnsCorrectStatus(double avg, double max, string expectedStatus)
     {
-        // This tests the static GetTrendStatus method logic indirectly
-        // by checking the expected output based on the switch expression in the ViewModel
-
-        // The logic is:
-        // avg > 80 => "Critical"
-        // avg > 60 => "High"
-        // max > 90 => "Spiky"
-        // avg > 40 => "Moderate"
-        // _ => "Normal"
-
-        var actualStatus = (avg, max) switch
+        // Arrange - single data point so avg == the value and max == the value
+        var systemData = new List<HourlySystemStats>
         {
-            ( > 80, _) => "Critical",
-            ( > 60, _) => "High",
-            (_, > 90) => "Spiky",
-            ( > 40, _) => "Moderate",
-            _ => "Normal"
+            new() { Hour = DateTime.Now, AvgCpuPercent = avg, MaxCpuPercent = max, AvgMemoryPercent = 0, MaxMemoryPercent = 0 }
         };
 
-        actualStatus.Should().Be(expectedStatus);
+        _systemHistoryMock.GetHourlyStatsAsync(Arg.Any<DateTime>(), Arg.Any<DateTime>()).Returns(systemData);
+
+        var viewModel = CreateViewModel();
+        await viewModel.InitializationTask;
+
+        // Act - switch to SystemTrends tab to trigger loading
+        viewModel.SelectedTab = InsightsTab.SystemTrends;
+        await Task.Delay(50);
+
+        // Assert - verify the ViewModel's actual CpuTrendStatus property
+        viewModel.CpuTrendStatus.Should().Be(expectedStatus);
     }
 
     [Test]
@@ -478,11 +477,11 @@ public class InsightsViewModelTests : IAsyncDisposable
         _systemHistoryMock.GetHourlyStatsAsync(Arg.Any<DateTime>(), Arg.Any<DateTime>()).Returns(systemData);
 
         var viewModel = CreateViewModel();
-        Thread.Sleep(100);
+        await viewModel.InitializationTask;
 
         // Act
         viewModel.SelectedTab = InsightsTab.SystemTrends;
-        await Task.Delay(200); // Wait for async load
+        await Task.Delay(50); // Wait for async load
 
         // Assert
         viewModel.CpuTrendStatus.Should().Be("Critical"); // avg 87.5 > 80
@@ -504,11 +503,11 @@ public class InsightsViewModelTests : IAsyncDisposable
             });
 
         var viewModel = CreateViewModel();
-        Thread.Sleep(100);
+        await viewModel.InitializationTask;
 
         // Act
         viewModel.SelectedTab = InsightsTab.Correlations;
-        await Task.Delay(200);
+        await Task.Delay(50);
 
         // Assert
         viewModel.NetworkCpuCorrelation.Should().Be(0);
@@ -521,11 +520,11 @@ public class InsightsViewModelTests : IAsyncDisposable
     {
         // Arrange
         var viewModel = CreateViewModelWithoutSystemHistory();
-        Thread.Sleep(100);
+        await viewModel.InitializationTask;
 
         // Act
         viewModel.SelectedTab = InsightsTab.Correlations;
-        await Task.Delay(200);
+        await Task.Delay(50);
 
         // Assert
         viewModel.CorrelationInsights.Should().Contain(x => x.Contains("unavailable"));
@@ -542,7 +541,7 @@ public class InsightsViewModelTests : IAsyncDisposable
         _persistenceMock.GetDailyUsageAsync(Arg.Any<DateOnly>(), Arg.Any<DateOnly>()).Returns(new List<DailyUsage>());
 
         var viewModel = CreateViewModel();
-        await Task.Delay(200);
+        await viewModel.InitializationTask;
 
         // Assert - when no data, totals should be zero/empty
         viewModel.TotalDownload.Should().Be("0 B");
@@ -562,7 +561,7 @@ public class InsightsViewModelTests : IAsyncDisposable
         _persistenceMock.GetDailyUsageAsync(Arg.Any<DateOnly>(), Arg.Any<DateOnly>()).Returns(dailyData);
 
         var viewModel = CreateViewModel();
-        await Task.Delay(200);
+        await viewModel.InitializationTask;
 
         // Assert
         viewModel.TotalDownload.Should().NotBe("0 B");
@@ -583,7 +582,7 @@ public class InsightsViewModelTests : IAsyncDisposable
         _persistenceMock.GetDailyUsageAsync(Arg.Any<DateOnly>(), Arg.Any<DateOnly>()).Returns(dailyData);
 
         var viewModel = CreateViewModel();
-        await Task.Delay(200);
+        await viewModel.InitializationTask;
 
         // Assert
         viewModel.DailyUsageChart.Should().NotBeEmpty();
@@ -598,11 +597,11 @@ public class InsightsViewModelTests : IAsyncDisposable
     {
         // Arrange
         var viewModel = CreateViewModelWithoutSystemHistory();
-        Thread.Sleep(100);
+        await viewModel.InitializationTask;
 
         // Act
         viewModel.SelectedTab = InsightsTab.SystemTrends;
-        await Task.Delay(200);
+        await Task.Delay(50);
 
         // Assert
         viewModel.CpuTrendStatus.Should().Be("Unavailable");
@@ -616,11 +615,11 @@ public class InsightsViewModelTests : IAsyncDisposable
         _systemHistoryMock.GetHourlyStatsAsync(Arg.Any<DateTime>(), Arg.Any<DateTime>()).Returns(new List<HourlySystemStats>());
 
         var viewModel = CreateViewModel();
-        Thread.Sleep(100);
+        await viewModel.InitializationTask;
 
         // Act
         viewModel.SelectedTab = InsightsTab.SystemTrends;
-        await Task.Delay(200);
+        await Task.Delay(50);
 
         // Assert
         viewModel.CpuTrendStatus.Should().Be("No Data");
@@ -640,11 +639,11 @@ public class InsightsViewModelTests : IAsyncDisposable
         _systemHistoryMock.GetHourlyStatsAsync(Arg.Any<DateTime>(), Arg.Any<DateTime>()).Returns(systemData);
 
         var viewModel = CreateViewModel();
-        Thread.Sleep(100);
+        await viewModel.InitializationTask;
 
         // Act
         viewModel.SelectedTab = InsightsTab.SystemTrends;
-        await Task.Delay(200);
+        await Task.Delay(50);
 
         // Assert
         viewModel.AvgCpuPercent.Should().Be(50); // (40 + 60) / 2
@@ -668,7 +667,7 @@ public class InsightsViewModelTests : IAsyncDisposable
 
         // Act
         viewModel.RefreshCommand.Execute(null);
-        await Task.Delay(100);
+        await Task.Delay(50);
 
         // Assert
         viewModel.HasError.Should().BeFalse();
@@ -680,12 +679,12 @@ public class InsightsViewModelTests : IAsyncDisposable
     {
         // Arrange
         var viewModel = CreateViewModel();
-        await Task.Delay(100);
+        await viewModel.InitializationTask;
         _persistenceMock.ClearReceivedCalls();
 
         // Act
         await viewModel.RefreshCommand.ExecuteAsync(null);
-        await Task.Delay(200);
+        await Task.Delay(50);
 
         // Assert
         await _persistenceMock.Received().GetDailyUsageAsync(Arg.Any<DateOnly>(), Arg.Any<DateOnly>());
@@ -703,7 +702,7 @@ public class InsightsViewModelTests : IAsyncDisposable
             .Returns<Task<List<DailyUsage>>>(_ => throw new InvalidOperationException("Test error"));
 
         var viewModel = CreateViewModel();
-        await Task.Delay(200);
+        await viewModel.InitializationTask;
 
         // Assert
         viewModel.HasError.Should().BeTrue();
@@ -718,7 +717,7 @@ public class InsightsViewModelTests : IAsyncDisposable
             .Returns<Task<List<DailyUsage>>>(_ => throw new InvalidOperationException("Test error"));
 
         var viewModel = CreateViewModel();
-        await Task.Delay(200);
+        await viewModel.InitializationTask;
 
         // Assert - verify error state is set (logger verification removed as NSubstitute doesn't easily support ILogger verification)
         viewModel.HasError.Should().BeTrue();
@@ -788,14 +787,16 @@ public class InsightsViewModelTests : IAsyncDisposable
     }
 
     [Test]
-    public void HasData_PropertyExists()
+    public void HasData_WhenNoDataLoaded_IsFalse()
     {
         // Arrange
         var viewModel = CreateViewModel();
 
-        // Act & Assert - just verify the property is accessible and is a boolean
+        // Act
         var hasData = viewModel.HasData;
-        hasData.Should().Be(hasData); // Property exists and is accessible
+
+        // Assert
+        hasData.Should().BeFalse();
     }
 
     [Test]
@@ -836,6 +837,7 @@ public class InsightsViewModelTests : IAsyncDisposable
         // Act
         var action = () => new InsightsViewModel(
             _persistenceMock,
+            null,
             null,
             _loggerMock);
 

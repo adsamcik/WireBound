@@ -93,13 +93,13 @@ public class SettingsViewModelTests : IAsyncDisposable
     #region Constructor Tests
 
     [Test]
-    public void Constructor_InitializesWithDefaultSettings()
+    public async Task Constructor_InitializesWithDefaultSettings()
     {
         // Act
         var viewModel = CreateViewModel();
 
-        // Allow async LoadSettings to complete
-        Thread.Sleep(100);
+        // Wait for async initialization to complete
+        await viewModel.InitializationTask;
 
         // Assert
         viewModel.PollingIntervalMs.Should().Be(1000);
@@ -108,7 +108,7 @@ public class SettingsViewModelTests : IAsyncDisposable
     }
 
     [Test]
-    public void Constructor_LoadsAdaptersFromNetworkMonitor()
+    public async Task Constructor_LoadsAdaptersFromNetworkMonitor()
     {
         // Arrange
         var adapters = new List<NetworkAdapter>
@@ -121,15 +121,15 @@ public class SettingsViewModelTests : IAsyncDisposable
         // Act
         var viewModel = CreateViewModel();
 
-        // Allow async LoadSettings to complete
-        Thread.Sleep(100);
+        // Wait for async initialization to complete
+        await viewModel.InitializationTask;
 
         // Assert - Auto adapter + 2 real adapters
         viewModel.Adapters.Should().HaveCount(3);
     }
 
     [Test]
-    public void Constructor_LoadsSettingsFromPersistence()
+    public async Task Constructor_LoadsSettingsFromPersistence()
     {
         // Arrange
         var settings = new AppSettings
@@ -145,8 +145,8 @@ public class SettingsViewModelTests : IAsyncDisposable
         // Act
         var viewModel = CreateViewModel();
 
-        // Allow async LoadSettings to complete
-        Thread.Sleep(100);
+        // Wait for async initialization to complete
+        await viewModel.InitializationTask;
 
         // Assert
         viewModel.PollingIntervalMs.Should().Be(2000);
@@ -154,17 +154,6 @@ public class SettingsViewModelTests : IAsyncDisposable
         viewModel.MinimizeToTray.Should().BeFalse();
         viewModel.StartMinimized.Should().BeTrue();
         viewModel.SelectedSpeedUnit.Should().Be(SpeedUnit.BitsPerSecond);
-    }
-
-    [Test]
-    public void Constructor_SubscribesToHelperConnectionStateChanged()
-    {
-        // Act
-        var viewModel = CreateViewModel();
-
-        // Assert - NSubstitute verifies this through proper event subscription
-        // The subscription is verified by the fact that the view model works correctly
-        viewModel.Should().NotBeNull();
     }
 
     #endregion
@@ -236,8 +225,8 @@ public class SettingsViewModelTests : IAsyncDisposable
         // Arrange
         var viewModel = CreateViewModel();
 
-        // Allow initial load to complete
-        await Task.Delay(150);
+        // Wait for async initialization to complete
+        await viewModel.InitializationTask;
 
         // Act
         viewModel.PollingIntervalMs = 2000;
@@ -255,8 +244,8 @@ public class SettingsViewModelTests : IAsyncDisposable
         // Arrange
         var viewModel = CreateViewModel();
 
-        // Allow initial load to complete
-        await Task.Delay(150);
+        // Wait for async initialization to complete
+        await viewModel.InitializationTask;
 
         // Act
         viewModel.UseIpHelperApi = true;
@@ -274,8 +263,8 @@ public class SettingsViewModelTests : IAsyncDisposable
         // Arrange
         var viewModel = CreateViewModel();
 
-        // Allow initial load to complete
-        await Task.Delay(150);
+        // Wait for async initialization to complete
+        await viewModel.InitializationTask;
 
         // Act
         viewModel.MinimizeToTray = false;
@@ -293,8 +282,8 @@ public class SettingsViewModelTests : IAsyncDisposable
         // Arrange
         var viewModel = CreateViewModel();
 
-        // Allow initial load to complete
-        await Task.Delay(150);
+        // Wait for async initialization to complete
+        await viewModel.InitializationTask;
 
         // Act
         viewModel.SelectedSpeedUnit = SpeedUnit.BitsPerSecond;
@@ -312,8 +301,8 @@ public class SettingsViewModelTests : IAsyncDisposable
         // Arrange
         var viewModel = CreateViewModel();
 
-        // Allow initial load to complete
-        await Task.Delay(150);
+        // Wait for async initialization to complete
+        await viewModel.InitializationTask;
 
         // Act - make rapid changes
         viewModel.PollingIntervalMs = 2000;
@@ -335,8 +324,8 @@ public class SettingsViewModelTests : IAsyncDisposable
         // Arrange
         var viewModel = CreateViewModel();
 
-        // Allow initial load to complete
-        await Task.Delay(150);
+        // Wait for async initialization to complete
+        await viewModel.InitializationTask;
 
         // Act
         viewModel.ShowSystemMetricsInHeader = false;
@@ -353,7 +342,7 @@ public class SettingsViewModelTests : IAsyncDisposable
     #region Elevation State Handling Tests
 
     [Test]
-    public void IsElevated_ReflectsHelperConnectionState()
+    public async Task IsElevated_ReflectsHelperConnectionState()
     {
         // Arrange
         _elevationService.IsHelperConnected.Returns(true);
@@ -361,15 +350,15 @@ public class SettingsViewModelTests : IAsyncDisposable
         // Act
         var viewModel = CreateViewModel();
 
-        // Allow async LoadSettings to complete
-        Thread.Sleep(100);
+        // Wait for async initialization to complete
+        await viewModel.InitializationTask;
 
         // Assert
         viewModel.IsElevated.Should().BeTrue();
     }
 
     [Test]
-    public void RequiresElevation_WhenHelperNotConnectedAndSupported_IsTrue()
+    public async Task RequiresElevation_WhenHelperNotConnectedAndSupported_IsTrue()
     {
         // Arrange
         _elevationService.IsHelperConnected.Returns(false);
@@ -379,15 +368,15 @@ public class SettingsViewModelTests : IAsyncDisposable
         // Act
         var viewModel = CreateViewModel();
 
-        // Allow async LoadSettings to complete
-        Thread.Sleep(100);
+        // Wait for async initialization to complete
+        await viewModel.InitializationTask;
 
         // Assert
         viewModel.RequiresElevation.Should().BeTrue();
     }
 
     [Test]
-    public void RequiresElevation_WhenHelperConnected_IsFalse()
+    public async Task RequiresElevation_WhenHelperConnected_IsFalse()
     {
         // Arrange
         _elevationService.IsHelperConnected.Returns(true);
@@ -396,21 +385,21 @@ public class SettingsViewModelTests : IAsyncDisposable
         // Act
         var viewModel = CreateViewModel();
 
-        // Allow async LoadSettings to complete
-        Thread.Sleep(100);
+        // Wait for async initialization to complete
+        await viewModel.InitializationTask;
 
         // Assert
         viewModel.RequiresElevation.Should().BeFalse();
     }
 
     [Test]
-    public void HelperConnectionStateChanged_UpdatesElevationStatus()
+    public async Task HelperConnectionStateChanged_UpdatesElevationStatus()
     {
         // Arrange
         var viewModel = CreateViewModel();
 
-        // Allow async LoadSettings to complete
-        Thread.Sleep(100);
+        // Wait for async initialization to complete
+        await viewModel.InitializationTask;
 
         // Act - Raise the event
         _elevationService.HelperConnectionStateChanged += Raise.Event<EventHandler<HelperConnectionStateChangedEventArgs>>(
@@ -430,8 +419,8 @@ public class SettingsViewModelTests : IAsyncDisposable
         _elevationService.IsElevationSupported.Returns(false);
         var viewModel = CreateViewModel();
 
-        // Allow async LoadSettings to complete
-        await Task.Delay(100);
+        // Wait for async initialization to complete
+        await viewModel.InitializationTask;
 
         // Act
         await viewModel.RequestElevationCommand.ExecuteAsync(null);
@@ -448,8 +437,8 @@ public class SettingsViewModelTests : IAsyncDisposable
         _elevationService.IsElevationSupported.Returns(true);
         var viewModel = CreateViewModel();
 
-        // Allow async LoadSettings to complete
-        await Task.Delay(100);
+        // Wait for async initialization to complete
+        await viewModel.InitializationTask;
 
         // Act
         await viewModel.RequestElevationCommand.ExecuteAsync(null);
@@ -468,8 +457,8 @@ public class SettingsViewModelTests : IAsyncDisposable
 
         var viewModel = CreateViewModel();
 
-        // Allow async LoadSettings to complete
-        await Task.Delay(100);
+        // Wait for async initialization to complete
+        await viewModel.InitializationTask;
 
         // Act
         await viewModel.RequestElevationCommand.ExecuteAsync(null);
@@ -483,7 +472,7 @@ public class SettingsViewModelTests : IAsyncDisposable
     #region Startup Service Integration Tests
 
     [Test]
-    public void StartWithWindows_WhenStartupEnabled_IsTrue()
+    public async Task StartWithWindows_WhenStartupEnabled_IsTrue()
     {
         // Arrange
         _startupService.GetStartupStateAsync().Returns(StartupState.Enabled);
@@ -491,15 +480,15 @@ public class SettingsViewModelTests : IAsyncDisposable
         // Act
         var viewModel = CreateViewModel();
 
-        // Allow async LoadSettings to complete
-        Thread.Sleep(100);
+        // Wait for async initialization to complete
+        await viewModel.InitializationTask;
 
         // Assert
         viewModel.StartWithWindows.Should().BeTrue();
     }
 
     [Test]
-    public void StartWithWindows_WhenStartupDisabled_IsFalse()
+    public async Task StartWithWindows_WhenStartupDisabled_IsFalse()
     {
         // Arrange
         _startupService.GetStartupStateAsync().Returns(StartupState.Disabled);
@@ -507,15 +496,15 @@ public class SettingsViewModelTests : IAsyncDisposable
         // Act
         var viewModel = CreateViewModel();
 
-        // Allow async LoadSettings to complete
-        Thread.Sleep(100);
+        // Wait for async initialization to complete
+        await viewModel.InitializationTask;
 
         // Assert
         viewModel.StartWithWindows.Should().BeFalse();
     }
 
     [Test]
-    public void IsStartupDisabledByUser_WhenDisabledByUser_IsTrue()
+    public async Task IsStartupDisabledByUser_WhenDisabledByUser_IsTrue()
     {
         // Arrange
         _startupService.GetStartupStateAsync().Returns(StartupState.DisabledByUser);
@@ -523,15 +512,15 @@ public class SettingsViewModelTests : IAsyncDisposable
         // Act
         var viewModel = CreateViewModel();
 
-        // Allow async LoadSettings to complete
-        Thread.Sleep(100);
+        // Wait for async initialization to complete
+        await viewModel.InitializationTask;
 
         // Assert
         viewModel.IsStartupDisabledByUser.Should().BeTrue();
     }
 
     [Test]
-    public void IsStartupDisabledByPolicy_WhenDisabledByPolicy_IsTrue()
+    public async Task IsStartupDisabledByPolicy_WhenDisabledByPolicy_IsTrue()
     {
         // Arrange
         _startupService.GetStartupStateAsync().Returns(StartupState.DisabledByPolicy);
@@ -539,15 +528,15 @@ public class SettingsViewModelTests : IAsyncDisposable
         // Act
         var viewModel = CreateViewModel();
 
-        // Allow async LoadSettings to complete
-        Thread.Sleep(100);
+        // Wait for async initialization to complete
+        await viewModel.InitializationTask;
 
         // Assert
         viewModel.IsStartupDisabledByPolicy.Should().BeTrue();
     }
 
     [Test]
-    public void WhenStartupNotSupported_StartWithWindowsIsFalse()
+    public async Task WhenStartupNotSupported_StartWithWindowsIsFalse()
     {
         // Arrange
         _startupService.IsStartupSupported.Returns(false);
@@ -555,8 +544,8 @@ public class SettingsViewModelTests : IAsyncDisposable
         // Act
         var viewModel = CreateViewModel();
 
-        // Allow async LoadSettings to complete
-        Thread.Sleep(100);
+        // Wait for async initialization to complete
+        await viewModel.InitializationTask;
 
         // Assert
         viewModel.StartWithWindows.Should().BeFalse();
@@ -573,8 +562,8 @@ public class SettingsViewModelTests : IAsyncDisposable
 
         var viewModel = CreateViewModel();
 
-        // Allow async LoadSettings to complete
-        await Task.Delay(100);
+        // Wait for async initialization to complete
+        await viewModel.InitializationTask;
 
         // Change startup setting
         viewModel.StartWithWindows = true;
@@ -597,8 +586,8 @@ public class SettingsViewModelTests : IAsyncDisposable
         _processNetworkService.StartAsync().Returns(true);
         var viewModel = CreateViewModel();
 
-        // Allow async LoadSettings to complete
-        await Task.Delay(150);
+        // Wait for async initialization to complete
+        await viewModel.InitializationTask;
 
         // Act
         viewModel.IsPerAppTrackingEnabled = true;
@@ -620,8 +609,8 @@ public class SettingsViewModelTests : IAsyncDisposable
 
         var viewModel = CreateViewModel();
 
-        // Allow async LoadSettings to complete
-        await Task.Delay(150);
+        // Wait for async initialization to complete
+        await viewModel.InitializationTask;
 
         // Act
         viewModel.IsPerAppTrackingEnabled = false;
@@ -644,8 +633,8 @@ public class SettingsViewModelTests : IAsyncDisposable
         // Act - Create ViewModel (which loads settings including IsPerAppTrackingEnabled = true)
         var viewModel = CreateViewModel();
 
-        // Allow async LoadSettings to complete
-        await Task.Delay(150);
+        // Wait for async initialization to complete
+        await viewModel.InitializationTask;
 
         // Assert - Service should NOT be started during loading phase
         await _processNetworkService.DidNotReceive().StartAsync();
@@ -656,13 +645,13 @@ public class SettingsViewModelTests : IAsyncDisposable
     #region Dispose Tests
 
     [Test]
-    public void Dispose_CancelsAutoSaveCts()
+    public async Task Dispose_CancelsAutoSaveCts()
     {
         // Arrange
         var viewModel = CreateViewModel();
 
-        // Allow async LoadSettings to complete
-        Thread.Sleep(100);
+        // Wait for async initialization to complete
+        await viewModel.InitializationTask;
 
         // Trigger an auto-save to create a CancellationTokenSource
         viewModel.PollingIntervalMs = 2000;
@@ -673,29 +662,13 @@ public class SettingsViewModelTests : IAsyncDisposable
     }
 
     [Test]
-    public void Dispose_UnsubscribesFromHelperConnectionStateChanged()
+    public async Task Dispose_CanBeCalledMultipleTimes()
     {
         // Arrange
         var viewModel = CreateViewModel();
 
-        // Allow async LoadSettings to complete
-        Thread.Sleep(100);
-
-        // Act
-        viewModel.Dispose();
-
-        // Assert - After disposal, events should not trigger updates (verified by not throwing)
-        viewModel.Should().NotBeNull();
-    }
-
-    [Test]
-    public void Dispose_CanBeCalledMultipleTimes()
-    {
-        // Arrange
-        var viewModel = CreateViewModel();
-
-        // Allow async LoadSettings to complete
-        Thread.Sleep(100);
+        // Wait for async initialization to complete
+        await viewModel.InitializationTask;
 
         // Act & Assert - should not throw
         var action = () =>
@@ -716,8 +689,8 @@ public class SettingsViewModelTests : IAsyncDisposable
         // Arrange
         var viewModel = CreateViewModel();
 
-        // Allow async LoadSettings to complete
-        await Task.Delay(100);
+        // Wait for async initialization to complete
+        await viewModel.InitializationTask;
 
         // Modify settings
         viewModel.PollingIntervalMs = 2000;
@@ -739,8 +712,8 @@ public class SettingsViewModelTests : IAsyncDisposable
         // Arrange
         var viewModel = CreateViewModel();
 
-        // Allow async LoadSettings to complete
-        await Task.Delay(100);
+        // Wait for async initialization to complete
+        await viewModel.InitializationTask;
 
         viewModel.UseIpHelperApi = true;
 
@@ -760,7 +733,8 @@ public class SettingsViewModelTests : IAsyncDisposable
     {
         // Arrange
         var viewModel = CreateViewModel();
-        await Task.Delay(150);
+        // Wait for async initialization to complete
+        await viewModel.InitializationTask;
 
         // Act
         await viewModel.DownloadUpdateCommand.ExecuteAsync(null);
@@ -775,7 +749,8 @@ public class SettingsViewModelTests : IAsyncDisposable
     {
         // Arrange
         var viewModel = CreateViewModel();
-        await Task.Delay(150);
+        // Wait for async initialization to complete
+        await viewModel.InitializationTask;
 
         var update = new UpdateCheckResult("1.0.0", "https://example.com", null, null);
         viewModel.PendingUpdate = update;
@@ -795,7 +770,8 @@ public class SettingsViewModelTests : IAsyncDisposable
     {
         // Arrange
         var viewModel = CreateViewModel();
-        await Task.Delay(150);
+        // Wait for async initialization to complete
+        await viewModel.InitializationTask;
 
         var update = new UpdateCheckResult("1.0.0", "https://example.com", null, null);
         viewModel.PendingUpdate = update;
@@ -816,7 +792,8 @@ public class SettingsViewModelTests : IAsyncDisposable
     {
         // Arrange
         var viewModel = CreateViewModel();
-        await Task.Delay(150);
+        // Wait for async initialization to complete
+        await viewModel.InitializationTask;
 
         var update = new UpdateCheckResult("2.0.0", "https://example.com/release", DateTimeOffset.UtcNow, null);
         _updateService.CheckForUpdateAsync(Arg.Any<CancellationToken>()).Returns(update);
@@ -837,7 +814,8 @@ public class SettingsViewModelTests : IAsyncDisposable
     {
         // Arrange
         var viewModel = CreateViewModel();
-        await Task.Delay(150);
+        // Wait for async initialization to complete
+        await viewModel.InitializationTask;
 
         _updateService.CheckForUpdateAsync(Arg.Any<CancellationToken>()).Returns((UpdateCheckResult?)null);
 
@@ -849,11 +827,12 @@ public class SettingsViewModelTests : IAsyncDisposable
     }
 
     [Test]
-    public void ApplyUpdateAndRestartCommand_WhenNoPendingUpdate_DoesNothing()
+    public async Task ApplyUpdateAndRestartCommand_WhenNoPendingUpdate_DoesNothing()
     {
         // Arrange
         var viewModel = CreateViewModel();
-        Thread.Sleep(100);
+        // Wait for async initialization to complete
+        await viewModel.InitializationTask;
 
         // Act
         viewModel.ApplyUpdateAndRestartCommand.Execute(null);
@@ -863,11 +842,12 @@ public class SettingsViewModelTests : IAsyncDisposable
     }
 
     [Test]
-    public void CancelDownloadCommand_CancelsDownloadToken()
+    public async Task CancelDownloadCommand_CancelsDownloadToken()
     {
         // Arrange
         var viewModel = CreateViewModel();
-        Thread.Sleep(100);
+        // Wait for async initialization to complete
+        await viewModel.InitializationTask;
 
         // Act & Assert - should not throw even without active download
         var action = () => viewModel.CancelDownloadCommand.Execute(null);
@@ -879,7 +859,8 @@ public class SettingsViewModelTests : IAsyncDisposable
     {
         // Arrange
         var viewModel = CreateViewModel();
-        await Task.Delay(150);
+        // Wait for async initialization to complete
+        await viewModel.InitializationTask;
 
         // Act
         viewModel.AutoDownloadUpdates = false;
@@ -893,14 +874,15 @@ public class SettingsViewModelTests : IAsyncDisposable
     }
 
     [Test]
-    public void LoadSettings_SetsIsUpdateSupported()
+    public async Task LoadSettings_SetsIsUpdateSupported()
     {
         // Arrange
         _updateService.IsUpdateSupported.Returns(true);
 
         // Act
         var viewModel = CreateViewModel();
-        Thread.Sleep(150);
+        // Wait for async initialization to complete
+        await viewModel.InitializationTask;
 
         // Assert
         viewModel.IsUpdateSupported.Should().BeTrue();
@@ -911,7 +893,7 @@ public class SettingsViewModelTests : IAsyncDisposable
     #region Auto Adapter Tests
 
     [Test]
-    public void Constructor_LoadsAutoAdapterAsFirstItem()
+    public async Task Constructor_LoadsAutoAdapterAsFirstItem()
     {
         // Arrange
         var adapters = new List<NetworkAdapter>
@@ -923,7 +905,8 @@ public class SettingsViewModelTests : IAsyncDisposable
 
         // Act
         var viewModel = CreateViewModel();
-        Thread.Sleep(100);
+        // Wait for async initialization to complete
+        await viewModel.InitializationTask;
 
         // Assert
         viewModel.Adapters.Should().HaveCountGreaterThanOrEqualTo(1);
@@ -932,14 +915,15 @@ public class SettingsViewModelTests : IAsyncDisposable
     }
 
     [Test]
-    public void Constructor_AutoAdapterHasAutoCategory()
+    public async Task Constructor_AutoAdapterHasAutoCategory()
     {
         // Arrange
         _networkMonitor.GetAdapters(Arg.Any<bool>()).Returns(new List<NetworkAdapter>());
 
         // Act
         var viewModel = CreateViewModel();
-        Thread.Sleep(100);
+        // Wait for async initialization to complete
+        await viewModel.InitializationTask;
 
         // Assert
         viewModel.Adapters.Should().HaveCountGreaterThanOrEqualTo(1);
@@ -947,7 +931,7 @@ public class SettingsViewModelTests : IAsyncDisposable
     }
 
     [Test]
-    public void Constructor_WithAutoSetting_SelectsAutoAdapter()
+    public async Task Constructor_WithAutoSetting_SelectsAutoAdapter()
     {
         // Arrange
         var adapters = new List<NetworkAdapter>
@@ -959,21 +943,23 @@ public class SettingsViewModelTests : IAsyncDisposable
 
         // Act
         var viewModel = CreateViewModel();
-        Thread.Sleep(200);
+        // Wait for async initialization to complete
+        await viewModel.InitializationTask;
 
         // Assert
         viewModel.SelectedAdapter?.Id.Should().Be(NetworkMonitorConstants.AutoAdapterId);
     }
 
     [Test]
-    public void Constructor_WithEmptyAdapterList_StillHasAutoItem()
+    public async Task Constructor_WithEmptyAdapterList_StillHasAutoItem()
     {
         // Arrange
         _networkMonitor.GetAdapters(Arg.Any<bool>()).Returns(new List<NetworkAdapter>());
 
         // Act
         var viewModel = CreateViewModel();
-        Thread.Sleep(100);
+        // Wait for async initialization to complete
+        await viewModel.InitializationTask;
 
         // Assert
         viewModel.Adapters.Should().HaveCount(1);

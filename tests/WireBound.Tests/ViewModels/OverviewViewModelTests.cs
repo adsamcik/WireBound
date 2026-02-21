@@ -12,7 +12,7 @@ namespace WireBound.Tests.ViewModels;
 /// </summary>
 public class OverviewViewModelTests : IAsyncDisposable
 {
-    private readonly IUiDispatcher _dispatcherMock;
+    private readonly IUiDispatcher _dispatcher = new SynchronousDispatcher();
     private readonly INetworkMonitorService _networkMonitorMock;
     private readonly ISystemMonitorService _systemMonitorMock;
     private readonly IDataPersistenceService _persistenceMock;
@@ -21,7 +21,6 @@ public class OverviewViewModelTests : IAsyncDisposable
 
     public OverviewViewModelTests()
     {
-        _dispatcherMock = Substitute.For<IUiDispatcher>();
         _networkMonitorMock = Substitute.For<INetworkMonitorService>();
         _systemMonitorMock = Substitute.For<ISystemMonitorService>();
         _persistenceMock = Substitute.For<IDataPersistenceService>();
@@ -74,7 +73,7 @@ public class OverviewViewModelTests : IAsyncDisposable
     private OverviewViewModel CreateViewModel()
     {
         var vm = new OverviewViewModel(
-            _dispatcherMock,
+            _dispatcher,
             _networkMonitorMock,
             _systemMonitorMock,
             _persistenceMock,
@@ -217,7 +216,7 @@ public class OverviewViewModelTests : IAsyncDisposable
     }
 
     [Test]
-    public void Constructor_LoadsTodayUsageFromPersistence()
+    public async Task Constructor_LoadsTodayUsageFromPersistence()
     {
         // Arrange
         _persistenceMock.GetTodayUsageAsync().Returns((1024L * 1024 * 100, 1024L * 1024 * 50));
@@ -226,7 +225,7 @@ public class OverviewViewModelTests : IAsyncDisposable
         var viewModel = CreateViewModel();
 
         // Allow async operation to complete
-        Thread.Sleep(100);
+        await viewModel.InitializationTask;
 
         // Assert - verify the method was called
         _persistenceMock.Received(1).GetTodayUsageAsync();
@@ -615,7 +614,7 @@ public class OverviewViewModelTests : IAsyncDisposable
     {
         // Act
         var action = () => new OverviewViewModel(
-            _dispatcherMock,
+            _dispatcher,
             _networkMonitorMock,
             _systemMonitorMock,
             null,
@@ -630,7 +629,7 @@ public class OverviewViewModelTests : IAsyncDisposable
     {
         // Act
         var action = () => new OverviewViewModel(
-            _dispatcherMock,
+            _dispatcher,
             _networkMonitorMock,
             _systemMonitorMock,
             _persistenceMock,

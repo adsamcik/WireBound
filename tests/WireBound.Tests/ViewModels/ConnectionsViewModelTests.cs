@@ -3,6 +3,7 @@ using WireBound.Avalonia.ViewModels;
 using WireBound.Core.Services;
 using WireBound.Platform.Abstract.Models;
 using WireBound.Platform.Abstract.Services;
+using WireBound.Tests.Fixtures;
 
 namespace WireBound.Tests.ViewModels;
 
@@ -11,14 +12,13 @@ namespace WireBound.Tests.ViewModels;
 /// </summary>
 public class ConnectionsViewModelTests : IAsyncDisposable
 {
-    private readonly IUiDispatcher _dispatcherMock;
+    private readonly IUiDispatcher _dispatcher = new SynchronousDispatcher();
     private readonly IProcessNetworkService _processNetworkServiceMock;
     private readonly IDnsResolverService _dnsResolverMock;
     private readonly IElevationService _elevationServiceMock;
 
     public ConnectionsViewModelTests()
     {
-        _dispatcherMock = Substitute.For<IUiDispatcher>();
         _processNetworkServiceMock = Substitute.For<IProcessNetworkService>();
         _dnsResolverMock = Substitute.For<IDnsResolverService>();
         _elevationServiceMock = Substitute.For<IElevationService>();
@@ -45,7 +45,7 @@ public class ConnectionsViewModelTests : IAsyncDisposable
     private ConnectionsViewModel CreateViewModel()
     {
         return new ConnectionsViewModel(
-            _dispatcherMock,
+            _dispatcher,
             _processNetworkServiceMock,
             _dnsResolverMock,
             _elevationServiceMock);
@@ -166,7 +166,7 @@ public class ConnectionsViewModelTests : IAsyncDisposable
     }
 
     [Test]
-    public void Constructor_WhenStartAsyncFails_SetsIsMonitoringFalse()
+    public async Task Constructor_WhenStartAsyncFails_SetsIsMonitoringFalse()
     {
         // Arrange
         _processNetworkServiceMock.IsRunning.Returns(false);
@@ -175,8 +175,8 @@ public class ConnectionsViewModelTests : IAsyncDisposable
         // Act
         var viewModel = CreateViewModel();
 
-        // Wait a bit for the fire-and-forget InitializeAsync to complete
-        Thread.Sleep(100);
+        // Wait for the fire-and-forget InitializeAsync to complete
+        await viewModel.InitializationTask;
 
         // Assert - IsMonitoring should remain false because StartAsync failed
         viewModel.IsMonitoring.Should().BeFalse();
@@ -228,13 +228,13 @@ public class ConnectionsViewModelTests : IAsyncDisposable
     }
 
     [Test]
-    public void Constructor_StartsProcessNetworkService()
+    public async Task Constructor_StartsProcessNetworkService()
     {
         // Act
         var viewModel = CreateViewModel();
 
         // Allow async initialization to complete
-        Thread.Sleep(100);
+        await viewModel.InitializationTask;
 
         // Assert
         _processNetworkServiceMock.Received(1).StartAsync();
@@ -467,11 +467,11 @@ public class ConnectionsViewModelTests : IAsyncDisposable
     #region Search Text Tests
 
     [Test]
-    public void SearchText_WhenChanged_TriggersRefresh()
+    public async Task SearchText_WhenChanged_TriggersRefresh()
     {
         // Arrange
         var viewModel = CreateViewModel();
-        Thread.Sleep(150); // Wait for initial load
+        await viewModel.InitializationTask;
 
         _processNetworkServiceMock.ClearReceivedCalls();
 
@@ -479,7 +479,7 @@ public class ConnectionsViewModelTests : IAsyncDisposable
         viewModel.SearchText = "chrome";
 
         // Allow async operation
-        Thread.Sleep(200);
+        await Task.Delay(50);
 
         // Assert
         _processNetworkServiceMock.Received().GetConnectionStatsAsync();
@@ -620,7 +620,7 @@ public class ConnectionsViewModelTests : IAsyncDisposable
         // Act & Assert - should not throw even with null service
         // Note: The constructor accepts null for processNetworkService
         var viewModel = new ConnectionsViewModel(
-            _dispatcherMock,
+            _dispatcher,
             null!,
             _dnsResolverMock,
             _elevationServiceMock);
@@ -634,7 +634,7 @@ public class ConnectionsViewModelTests : IAsyncDisposable
     {
         // Act & Assert
         var viewModel = new ConnectionsViewModel(
-            _dispatcherMock,
+            _dispatcher,
             _processNetworkServiceMock,
             null!,
             _elevationServiceMock);

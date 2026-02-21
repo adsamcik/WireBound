@@ -16,7 +16,7 @@ namespace WireBound.Tests.ViewModels;
 /// </summary>
 public class ChartsViewModelTests : IAsyncDisposable
 {
-    private readonly IUiDispatcher _dispatcherMock;
+    private readonly IUiDispatcher _dispatcher = new SynchronousDispatcher();
     private readonly INetworkMonitorService _networkMonitorMock;
     private readonly IDataPersistenceService _persistenceMock;
     private readonly ISystemMonitorService _systemMonitorMock;
@@ -25,7 +25,6 @@ public class ChartsViewModelTests : IAsyncDisposable
 
     public ChartsViewModelTests()
     {
-        _dispatcherMock = Substitute.For<IUiDispatcher>();
         _networkMonitorMock = Substitute.For<INetworkMonitorService>();
         _persistenceMock = Substitute.For<IDataPersistenceService>();
         _systemMonitorMock = Substitute.For<ISystemMonitorService>();
@@ -73,7 +72,7 @@ public class ChartsViewModelTests : IAsyncDisposable
     private ChartsViewModel CreateViewModel()
     {
         var viewModel = new ChartsViewModel(
-            _dispatcherMock,
+            _dispatcher,
             _networkMonitorMock,
             _persistenceMock,
             _systemMonitorMock,
@@ -85,7 +84,7 @@ public class ChartsViewModelTests : IAsyncDisposable
     private ChartsViewModel CreateViewModelWithoutSystemMonitor()
     {
         var viewModel = new ChartsViewModel(
-            _dispatcherMock,
+            _dispatcher,
             _networkMonitorMock,
             _persistenceMock,
             null,
@@ -237,7 +236,7 @@ public class ChartsViewModelTests : IAsyncDisposable
     }
 
     [Test]
-    public void Constructor_LoadsHistoryFromPersistence()
+    public async Task Constructor_LoadsHistoryFromPersistence()
     {
         // Arrange - setup mock to return some history
         var history = new List<SpeedSnapshot>
@@ -251,7 +250,7 @@ public class ChartsViewModelTests : IAsyncDisposable
         var viewModel = CreateViewModel();
 
         // Allow async loading to complete
-        Thread.Sleep(100);
+        await viewModel.InitializationTask;
 
         // Assert - verify the method was called
         _persistenceMock.Received().GetSpeedHistoryAsync(Arg.Any<DateTime>());
@@ -272,7 +271,7 @@ public class ChartsViewModelTests : IAsyncDisposable
     {
         // Act
         var action = () => new ChartsViewModel(
-            _dispatcherMock,
+            _dispatcher,
             _networkMonitorMock,
             _persistenceMock,
             _systemMonitorMock,
@@ -734,7 +733,7 @@ public class ChartsViewModelTests : IAsyncDisposable
     }
 
     [Test]
-    public void LoadHistory_WithHistoryData_LoadsSuccessfully()
+    public async Task LoadHistory_WithHistoryData_LoadsSuccessfully()
     {
         // Arrange
         var now = DateTime.Now;
@@ -750,14 +749,14 @@ public class ChartsViewModelTests : IAsyncDisposable
         var viewModel = CreateViewModel();
 
         // Allow async loading to complete
-        Thread.Sleep(200);
+        await viewModel.InitializationTask;
 
         // Assert
         _persistenceMock.Received().GetSpeedHistoryAsync(Arg.Any<DateTime>());
     }
 
     [Test]
-    public void LoadHistory_RequestsOneHourOfHistory()
+    public async Task LoadHistory_RequestsOneHourOfHistory()
     {
         // Arrange
         DateTime? requestedSince = null;
@@ -768,7 +767,7 @@ public class ChartsViewModelTests : IAsyncDisposable
         var viewModel = CreateViewModel();
 
         // Allow async loading to complete
-        Thread.Sleep(100);
+        await viewModel.InitializationTask;
 
         // Assert
         requestedSince.Should().NotBeNull();

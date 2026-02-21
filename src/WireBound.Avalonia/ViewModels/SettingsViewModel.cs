@@ -147,6 +147,9 @@ public sealed partial class SettingsViewModel : ObservableObject, IDisposable
     [ObservableProperty]
     private bool _isStartupDisabledByPolicy;
 
+    /// <summary>Completes when async initialization finishes. Exposed for testability.</summary>
+    public Task InitializationTask { get; }
+
     public List<int> PollingIntervals { get; } = [250, 500, 1000, 2000, 5000];
 
     partial void OnSelectedAdapterChanged(NetworkAdapter? value) => ScheduleAutoSave();
@@ -249,10 +252,10 @@ public sealed partial class SettingsViewModel : ObservableObject, IDisposable
         _updateService = updateService;
         _logger = logger;
 
-        LoadSettings();
+        InitializationTask = LoadSettingsAsync();
     }
 
-    private async void LoadSettings()
+    private async Task LoadSettingsAsync()
     {
         try
         {

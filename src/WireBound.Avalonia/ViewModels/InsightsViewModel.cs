@@ -24,7 +24,8 @@ public enum InsightsTab
 {
     NetworkUsage = 0,
     SystemTrends = 1,
-    Correlations = 2
+    Correlations = 2,
+    ResourceInsights = 3
 }
 
 /// <summary>
@@ -58,6 +59,7 @@ public sealed partial class InsightsViewModel : ObservableObject, IDisposable
 {
     private readonly IDataPersistenceService _persistence;
     private readonly ISystemHistoryService? _systemHistory;
+    private readonly IResourceInsightsService? _resourceInsights;
     private readonly ILogger<InsightsViewModel>? _logger;
     private CancellationTokenSource? _loadCts;
     private bool _disposed;
@@ -65,6 +67,9 @@ public sealed partial class InsightsViewModel : ObservableObject, IDisposable
     // ═══════════════════════════════════════════════════════════════════════════
     // TAB NAVIGATION
     // ═══════════════════════════════════════════════════════════════════════════
+
+    /// <summary>Completes when async initialization finishes. Exposed for testability.</summary>
+    public Task InitializationTask { get; }
 
     [ObservableProperty]
     private InsightsTab _selectedTab = InsightsTab.NetworkUsage;
@@ -82,6 +87,9 @@ public sealed partial class InsightsViewModel : ObservableObject, IDisposable
 
     [RelayCommand]
     private void SelectCorrelationsTab() => SelectedTab = InsightsTab.Correlations;
+
+    [RelayCommand]
+    private void SelectResourceInsightsTab() => SelectedTab = InsightsTab.ResourceInsights;
 
     // ═══════════════════════════════════════════════════════════════════════════
     // PERIOD SELECTION
@@ -215,6 +223,66 @@ public sealed partial class InsightsViewModel : ObservableObject, IDisposable
     private ISeries[] _correlationChart = [];
 
     // ═══════════════════════════════════════════════════════════════════════════
+    // RESOURCE INSIGHTS TAB PROPERTIES
+    // ═══════════════════════════════════════════════════════════════════════════
+
+    /// <summary>
+    /// Whether to show memory (true) or CPU (false) in charts
+    /// </summary>
+    [ObservableProperty]
+    private bool _showMemoryMetric = true;
+
+    partial void OnShowMemoryMetricChanged(bool value)
+    {
+        if (SelectedTab == InsightsTab.ResourceInsights)
+        {
+            _ = LoadDataForTabAsync(InsightsTab.ResourceInsights);
+        }
+    }
+
+    [RelayCommand]
+    private void ToggleResourceMetric() => ShowMemoryMetric = !ShowMemoryMetric;
+
+    [ObservableProperty]
+    private string _resourceTotalMemoryUsed = "0 B";
+
+    [ObservableProperty]
+    private string _resourceTotalCpuPercent = "0%";
+
+    [ObservableProperty]
+    private int _resourceAppCount;
+
+    [ObservableProperty]
+    private string _resourceLargestConsumer = "—";
+
+    [ObservableProperty]
+    private ObservableCollection<AppResourceUsage> _resourceAppList = [];
+
+    [ObservableProperty]
+    private ObservableCollection<CategoryResourceUsage> _resourceCategoryList = [];
+
+    [ObservableProperty]
+    private ISeries[] _resourceCategoryChart = [];
+
+    [ObservableProperty]
+    private ISeries[] _resourceTopAppsChart = [];
+
+    [ObservableProperty]
+    private Axis[] _resourceTopAppsXAxes = [];
+
+    [ObservableProperty]
+    private Axis[] _resourceTopAppsYAxes = [];
+
+    [ObservableProperty]
+    private ISeries[] _resourceHistoryChart = [];
+
+    [ObservableProperty]
+    private Axis[] _resourceHistoryXAxes = [];
+
+    [ObservableProperty]
+    private Axis[] _resourceHistoryYAxes = [];
+
+    // ═══════════════════════════════════════════════════════════════════════════
     // STATE PROPERTIES
     // ═══════════════════════════════════════════════════════════════════════════
 
@@ -237,10 +305,12 @@ public sealed partial class InsightsViewModel : ObservableObject, IDisposable
     public InsightsViewModel(
         IDataPersistenceService persistence,
         ISystemHistoryService? systemHistory = null,
+        IResourceInsightsService? resourceInsights = null,
         ILogger<InsightsViewModel>? logger = null)
     {
         _persistence = persistence;
         _systemHistory = systemHistory;
+        _resourceInsights = resourceInsights;
         _logger = logger;
 
         // Initialize default dates
@@ -251,7 +321,7 @@ public sealed partial class InsightsViewModel : ObservableObject, IDisposable
         InitializeAxes();
 
         // Load initial data
-        _ = LoadDataForTabAsync(SelectedTab);
+        InitializationTask = LoadDataForTabAsync(SelectedTab);
     }
 
     // ═══════════════════════════════════════════════════════════════════════════
@@ -357,6 +427,9 @@ public sealed partial class InsightsViewModel : ObservableObject, IDisposable
                     break;
                 case InsightsTab.Correlations:
                     await LoadCorrelationsDataAsync(startDate, endDate, token);
+                    break;
+                case InsightsTab.ResourceInsights:
+                    await LoadResourceInsightsDataAsync(startDate, endDate, token);
                     break;
             }
 
@@ -845,6 +918,320 @@ public sealed partial class InsightsViewModel : ObservableObject, IDisposable
                 GeometryFill = null,
                 GeometryStroke = null,
                 LineSmoothness = 0.5
+            }
+        ];
+    }
+
+    // ═══════════════════════════════════════════════════════════════════════════
+    // RESOURCE INSIGHTS TAB DATA
+    // ═══════════════════════════════════════════════════════════════════════════
+
+    private async Task LoadResourceInsightsDataAsync(DateOnly startDate, DateOnly endDate, CancellationToken token)
+    {
+        if (_resourceInsights == null)
+        {
+            ResourceTotalMemoryUsed = "Unavailable";
+            ResourceTotalCpuPercent = "Unavailable";
+            ResourceAppCount = 0;
+            ResourceLargestConsumer = "—";
+            ResourceCategoryChart = [];
+            ResourceTopAppsChart = [];
+            ResourceHistoryChart = [];
+            HasData = false;
+            return;
+        }
+
+        // Get current live data (smoothed)
+        // First call establishes CPU baseline; second call (after brief delay) gets real CPU%
+        IReadOnlyList<AppResourceUsage> apps;
+        IReadOnlyList<CategoryResourceUsage> categories;
+        try
+        {
+            apps = await _resourceInsights.GetCurrentByAppAsync(token);
+            token.ThrowIfCancellationRequested();
+
+            // If all CPU values are 0, this is the first poll — do a quick second poll
+            if (apps.Count > 0 && apps.All(a => a.CpuPercent == 0))
+            {
+                await Task.Delay(1500, token);
+                apps = await _resourceInsights.GetCurrentByAppAsync(token);
+                token.ThrowIfCancellationRequested();
+            }
+
+            categories = _resourceInsights.GetCategoryBreakdown(apps);
+        }
+        catch (OperationCanceledException)
+        {
+            throw;
+        }
+        catch (Exception ex)
+        {
+            _logger?.LogError(ex, "Failed to get current resource data");
+            ResourceTotalMemoryUsed = "Error";
+            ResourceTotalCpuPercent = "Error";
+            ResourceAppCount = 0;
+            ResourceLargestConsumer = "—";
+            ResourceCategoryChart = [];
+            ResourceTopAppsChart = [];
+            ResourceHistoryChart = [];
+            HasData = false;
+            return;
+        }
+
+        if (apps.Count == 0)
+        {
+            ResourceTotalMemoryUsed = "No data";
+            ResourceTotalCpuPercent = "0%";
+            ResourceAppCount = 0;
+            ResourceLargestConsumer = "—";
+            ResourceCategoryChart = [];
+            ResourceTopAppsChart = [];
+            HasData = false;
+        }
+        else
+        {
+            // Summary cards
+            var totalMemory = apps.Sum(a => a.PrivateBytes);
+            var totalCpu = apps.Sum(a => a.CpuPercent);
+            ResourceTotalMemoryUsed = ByteFormatter.FormatBytes(totalMemory);
+            ResourceTotalCpuPercent = $"{totalCpu:F1}%";
+            ResourceAppCount = apps.Count;
+
+            var largest = ShowMemoryMetric
+                ? apps.OrderByDescending(a => a.PrivateBytes).First()
+                : apps.OrderByDescending(a => a.CpuPercent).First();
+            ResourceLargestConsumer = ShowMemoryMetric
+                ? $"{largest.AppName} ({largest.PrivateBytesFormatted})"
+                : $"{largest.AppName} ({largest.CpuPercentFormatted})";
+
+            // Update app and category lists
+            ResourceAppList.Clear();
+            foreach (var app in apps.Take(20))
+                ResourceAppList.Add(app);
+
+            ResourceCategoryList.Clear();
+            foreach (var cat in categories)
+                ResourceCategoryList.Add(cat);
+
+            // Category donut chart
+            BuildResourceCategoryChart(categories);
+
+            // Top apps bar chart — merge entries with same display name before charting
+            var mergedApps = apps
+                .GroupBy(a => a.AppName, StringComparer.OrdinalIgnoreCase)
+                .Select(g => new AppResourceUsage
+                {
+                    AppName = g.Key,
+                    PrivateBytes = g.Sum(a => a.PrivateBytes),
+                    CpuPercent = g.Sum(a => a.CpuPercent),
+                    ProcessCount = g.Sum(a => a.ProcessCount)
+                })
+                .OrderByDescending(a => ShowMemoryMetric ? a.PrivateBytes : (long)(a.CpuPercent * 1_000_000))
+                .Take(10)
+                .ToList();
+            BuildResourceTopAppsChart(mergedApps);
+        }
+
+        // Historical trend chart — wrapped separately so live data always shows
+        try
+        {
+            var history = await _resourceInsights.GetHistoricalByCategoryAsync(startDate, endDate, token);
+            token.ThrowIfCancellationRequested();
+
+            if (history.Count > 0)
+            {
+                BuildResourceHistoryChart(history);
+            }
+            else
+            {
+                ResourceHistoryChart = [];
+            }
+        }
+        catch (OperationCanceledException)
+        {
+            throw;
+        }
+        catch (Exception ex)
+        {
+            _logger?.LogError(ex, "Failed to load resource history (table may not exist yet)");
+            ResourceHistoryChart = [];
+        }
+    }
+
+    private void BuildResourceCategoryChart(IReadOnlyList<CategoryResourceUsage> categories)
+    {
+        var pieSeries = new List<ISeries>();
+        var colors = new SKColor[]
+        {
+            new(0, 229, 255),   // Cyan
+            new(255, 107, 53),  // Orange
+            new(0, 255, 136),   // Green
+            new(156, 39, 176),  // Purple
+            new(255, 182, 39),  // Amber
+            new(30, 136, 229),  // Blue
+            new(244, 91, 105),  // Red
+            new(160, 168, 184), // Gray
+        };
+
+        for (int i = 0; i < categories.Count; i++)
+        {
+            var cat = categories[i];
+            var value = ShowMemoryMetric ? (double)cat.TotalPrivateBytes : cat.TotalCpuPercent;
+            if (value <= 0) continue;
+
+            var isMemory = ShowMemoryMetric;
+            var color = colors[i % colors.Length];
+            pieSeries.Add(new PieSeries<double>
+            {
+                Name = cat.CategoryName,
+                Values = [value],
+                Fill = new SolidColorPaint(color),
+                Stroke = null,
+                Pushout = 0,
+                InnerRadius = 60,
+                ToolTipLabelFormatter = point =>
+                    isMemory
+                        ? $"{point.Context.Series.Name}: {ByteFormatter.FormatBytes((long)point.Model)}"
+                        : $"{point.Context.Series.Name}: {point.Model:F1}%"
+            });
+        }
+
+        ResourceCategoryChart = pieSeries.ToArray();
+    }
+
+    private void BuildResourceTopAppsChart(IReadOnlyList<AppResourceUsage> apps)
+    {
+        // Reverse so largest app appears at top of horizontal bar chart
+        var sorted = apps.Reverse().ToList();
+        var values = ShowMemoryMetric
+            ? sorted.Select(a => (double)a.PrivateBytes).ToList()
+            : sorted.Select(a => a.CpuPercent).ToList();
+
+        var labels = sorted.Select(a => a.AppName).ToArray();
+        var isMemory = ShowMemoryMetric;
+
+        ResourceTopAppsChart =
+        [
+            new RowSeries<double>
+            {
+                Name = ShowMemoryMetric ? "Memory" : "CPU",
+                Values = values,
+                Fill = new SolidColorPaint(ShowMemoryMetric
+                    ? new SKColor(156, 39, 176)   // Purple for memory
+                    : new SKColor(30, 136, 229)),  // Blue for CPU
+                Stroke = null,
+                MaxBarWidth = 24,
+                Padding = 4,
+                YToolTipLabelFormatter = point =>
+                {
+                    var idx = point.Index;
+                    return idx < labels.Length ? labels[idx] : "?";
+                },
+                XToolTipLabelFormatter = point =>
+                    isMemory
+                        ? ByteFormatter.FormatBytes((long)point.Model)
+                        : $"{point.Model:F1}%"
+            }
+        ];
+
+        ResourceTopAppsYAxes =
+        [
+            new Axis
+            {
+                Labels = labels,
+                LabelsPaint = new SolidColorPaint(ChartColors.AxisLabelColor),
+                TextSize = 11,
+                MinStep = 1
+            }
+        ];
+
+        ResourceTopAppsXAxes =
+        [
+            new Axis
+            {
+                Name = ShowMemoryMetric ? "Memory" : "CPU %",
+                NamePaint = new SolidColorPaint(ChartColors.AxisNameColor),
+                LabelsPaint = new SolidColorPaint(ChartColors.AxisLabelColor),
+                TextSize = 10,
+                MinLimit = 0,
+                Labeler = ShowMemoryMetric
+                    ? (value => ByteFormatter.FormatBytes((long)value))
+                    : (value => $"{value:F1}%"),
+                SeparatorsPaint = new SolidColorPaint(ChartColors.GridLineColor)
+            }
+        ];
+    }
+
+    private void BuildResourceHistoryChart(IReadOnlyList<ResourceInsightSnapshot> history)
+    {
+        // Group by category, build one line per top category
+        var categoryGroups = history
+            .GroupBy(h => h.CategoryName)
+            .OrderByDescending(g => ShowMemoryMetric
+                ? g.Average(s => s.PrivateBytes)
+                : g.Average(s => s.CpuPercent))
+            .Take(5)
+            .ToList();
+
+        var colors = new SKColor[]
+        {
+            new(0, 229, 255),
+            new(255, 107, 53),
+            new(0, 255, 136),
+            new(156, 39, 176),
+            new(255, 182, 39)
+        };
+
+        var series = new List<ISeries>();
+        for (int i = 0; i < categoryGroups.Count; i++)
+        {
+            var group = categoryGroups[i];
+            var color = colors[i % colors.Length];
+            var points = new ObservableCollection<DateTimePoint>(
+                group.Select(s => new DateTimePoint(
+                    s.Timestamp,
+                    ShowMemoryMetric ? s.PrivateBytes : s.CpuPercent)));
+
+            series.Add(new LineSeries<DateTimePoint>
+            {
+                Name = group.Key,
+                Values = points,
+                Fill = null,
+                Stroke = new SolidColorPaint(color, 2),
+                GeometryFill = null,
+                GeometryStroke = null,
+                LineSmoothness = 0.5
+            });
+        }
+
+        ResourceHistoryChart = series.ToArray();
+
+        ResourceHistoryXAxes =
+        [
+            new DateTimeAxis(TimeSpan.FromHours(1), date => date.ToString("MM/dd HH:mm"))
+            {
+                Name = "Time",
+                NamePaint = new SolidColorPaint(ChartColors.AxisNameColor),
+                LabelsPaint = new SolidColorPaint(ChartColors.AxisLabelColor),
+                TextSize = 10,
+                LabelsRotation = -30,
+                SeparatorsPaint = new SolidColorPaint(ChartColors.GridLineColor)
+            }
+        ];
+
+        ResourceHistoryYAxes =
+        [
+            new Axis
+            {
+                Name = ShowMemoryMetric ? "Memory" : "CPU %",
+                NamePaint = new SolidColorPaint(ChartColors.AxisNameColor),
+                LabelsPaint = new SolidColorPaint(ChartColors.AxisLabelColor),
+                TextSize = 11,
+                MinLimit = 0,
+                SeparatorsPaint = new SolidColorPaint(ChartColors.GridLineColor),
+                Labeler = ShowMemoryMetric
+                    ? (value => ByteFormatter.FormatBytes((long)value))
+                    : (value => $"{value:F0}%")
             }
         ];
     }

@@ -39,6 +39,9 @@ public sealed partial class ApplicationsViewModel : ObservableObject, IDisposabl
     private readonly CancellationTokenSource _cts = new();
     private bool _disposed;
 
+    /// <summary>Completes when async initialization finishes. Exposed for testability.</summary>
+    public Task InitializationTask { get; }
+
     [ObservableProperty]
     private bool _isLoading;
 
@@ -119,7 +122,7 @@ public sealed partial class ApplicationsViewModel : ObservableObject, IDisposabl
         // Subscribe to helper state changes
         _elevationService.HelperConnectionStateChanged += OnHelperConnectionStateChanged;
 
-        _ = InitializeAsync();
+        InitializationTask = InitializeAsync();
     }
 
     private void OnHelperConnectionStateChanged(object? sender, HelperConnectionStateChangedEventArgs e)

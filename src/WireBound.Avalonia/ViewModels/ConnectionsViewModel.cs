@@ -119,6 +119,9 @@ public sealed partial class ConnectionsViewModel : ObservableObject, IDisposable
     private readonly System.Timers.Timer _refreshTimer;
     private bool _disposed;
 
+    /// <summary>Completes when async initialization finishes. Exposed for testability.</summary>
+    public Task InitializationTask { get; }
+
     [ObservableProperty]
     private bool _isLoading;
 
@@ -212,7 +215,7 @@ public sealed partial class ConnectionsViewModel : ObservableObject, IDisposable
         // Subscribe to helper state changes
         _elevationService.HelperConnectionStateChanged += OnHelperConnectionStateChanged;
 
-        _ = InitializeAsync();
+        InitializationTask = InitializeAsync();
     }
 
     private void OnHelperConnectionStateChanged(object? sender, HelperConnectionStateChangedEventArgs e)

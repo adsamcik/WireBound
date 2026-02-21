@@ -182,6 +182,9 @@ public sealed partial class OverviewViewModel : ObservableObject, IDisposable
     /// </summary>
     public Axis[] ChartSecondaryYAxes { get; }
 
+    /// <summary>Completes when async initialization finishes. Exposed for testability.</summary>
+    public Task InitializationTask { get; }
+
     /// <summary>
     /// Time range options for display in UI
     /// </summary>
@@ -224,10 +227,9 @@ public sealed partial class OverviewViewModel : ObservableObject, IDisposable
 
         // Load adapters and restore saved selection
         LoadAdapters();
-        _ = RestoreSelectedAdapterAsync();
 
-        // Load today's stored usage from database
-        _ = LoadTodayUsageAsync();
+        // Load async initialization tasks
+        InitializationTask = Task.WhenAll(RestoreSelectedAdapterAsync(), LoadTodayUsageAsync());
 
         // Get initial system stats
         var initialSystemStats = _systemMonitor.GetCurrentStats();

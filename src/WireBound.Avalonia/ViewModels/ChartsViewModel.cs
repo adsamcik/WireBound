@@ -81,6 +81,9 @@ public sealed partial class ChartsViewModel : ObservableObject, IDisposable
         new() { Label = "1h", Seconds = 3600, Description = "Last 1 hour" }
     ];
 
+    /// <summary>Completes when async initialization finishes. Exposed for testability.</summary>
+    public Task InitializationTask { get; }
+
     public ObservableCollection<ISeries> SpeedSeries { get; } = [];
 
     public Axis[] XAxes { get; }
@@ -130,7 +133,7 @@ public sealed partial class ChartsViewModel : ObservableObject, IDisposable
         }
 
         // Load historical data asynchronously
-        _ = LoadHistoryAsync();
+        InitializationTask = LoadHistoryAsync();
     }
 
     private async Task LoadHistoryAsync()

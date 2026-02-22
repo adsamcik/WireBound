@@ -22,11 +22,18 @@
 .PARAMETER Clean
     Clean the output directory before publishing.
 
+.PARAMETER Aot
+    Publish as Native AOT. Produces a single native binary with faster startup.
+    AOT builds are always self-contained and require building on the target OS.
+
 .EXAMPLE
     .\publish.ps1 -Version "1.0.0"
 
 .EXAMPLE
     .\publish.ps1 -Version "1.0.0" -Runtime "linux-x64"
+
+.EXAMPLE
+    .\publish.ps1 -Version "1.0.0" -Aot
 
 #>
 
@@ -37,7 +44,8 @@ param(
     [string]$Runtime = "win-x64",
     [switch]$SelfContained = $true,
     [switch]$Clean,
-    [switch]$Velopack
+    [switch]$Velopack,
+    [switch]$Aot
 )
 
 $ErrorActionPreference = "Stop"
@@ -61,6 +69,7 @@ $OutputDir = $ExecutionContext.SessionState.Path.GetUnresolvedProviderPathFromPS
 Write-Host "`nProject: $ProjectPath"
 Write-Host "Output:  $OutputDir"
 Write-Host "Runtime: $Runtime"
+if ($Aot) { Write-Host "Mode:    Native AOT" -ForegroundColor Yellow } else { Write-Host "Mode:    JIT (self-contained)" }
 
 # Get version from project if not specified
 if (-not $Version) {
@@ -91,7 +100,8 @@ if ($LASTEXITCODE -ne 0) { throw "Restore failed" }
 Write-Success "Dependencies restored"
 
 # Build
-Write-Step "Building portable version for $Runtime..."
+$buildMode = if ($Aot) { "Native AOT" } else { "portable" }
+Write-Step "Building $buildMode version for $Runtime..."
 
 $portableOutput = Join-Path $OutputDir $Runtime
 
@@ -103,7 +113,10 @@ $publishArgs = @(
     "-p:Version=$Version"
 )
 
-if ($SelfContained) {
+if ($Aot) {
+    $publishArgs += "-p:PublishAot=true"
+    # AOT is always self-contained
+} elseif ($SelfContained) {
     $publishArgs += "--self-contained", "true"
 } else {
     $publishArgs += "--self-contained", "false"
@@ -126,7 +139,8 @@ $helperPublishArgs = @(
     "-p:Version=$Version"
 )
 
-if ($SelfContained) {
+# Elevation helpers always use AOT (PublishAot is in their csproj)
+if ($SelfContained -or $Aot) {
     $helperPublishArgs += "--self-contained", "true"
 } else {
     $helperPublishArgs += "--self-contained", "false"
@@ -140,7 +154,8 @@ Write-Success "Elevation helper published"
 # Create archive
 $targetIsWindows = $Runtime.StartsWith("win")
 $archiveExt = if ($targetIsWindows) { "zip" } else { "tar.gz" }
-$archivePath = Join-Path $OutputDir "WireBound-$Version-$Runtime.$archiveExt"
+$aotSuffix = if ($Aot) { "-aot" } else { "" }
+$archivePath = Join-Path $OutputDir "WireBound-$Version-$Runtime$aotSuffix.$archiveExt"
 
 Write-Step "Creating archive..."
 

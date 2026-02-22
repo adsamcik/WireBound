@@ -164,6 +164,9 @@ public partial class App : Application
         // Register UI thread dispatcher abstraction
         services.AddSingleton<IUiDispatcher, AvaloniaDispatcher>();
 
+        // Register system time provider (injectable for testability)
+        services.AddSingleton(TimeProvider.System);
+
         // Register app-specific services
         services.AddSingleton<INavigationService, NavigationService>();
         services.AddSingleton<ILocalizationService, LocalizationService>();

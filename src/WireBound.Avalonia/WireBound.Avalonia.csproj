@@ -30,6 +30,10 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <InternalsVisibleTo Include="WireBound.Tests" />
+  </ItemGroup>
+
+  <ItemGroup>
     <!-- Avalonia packages -->
     <PackageReference Include="Avalonia" />
     <PackageReference Include="Avalonia.Desktop" />

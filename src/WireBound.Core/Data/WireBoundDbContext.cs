@@ -20,6 +20,8 @@ public sealed class WireBoundDbContext : DbContext
     public DbSet<HourlySystemStats> HourlySystemStats { get; set; } = null!;
     public DbSet<DailySystemStats> DailySystemStats { get; set; } = null!;
     public DbSet<AddressUsageRecord> AddressUsageRecords { get; set; } = null!;
+    public DbSet<ResourceInsightSnapshot> ResourceInsightSnapshots { get; set; } = null!;
+    public DbSet<AppCategoryMapping> AppCategoryMappings { get; set; } = null!;
 
     /// <summary>
     /// Creates a new instance of WireBoundDbContext with default options.
@@ -117,6 +119,22 @@ public sealed class WireBoundDbContext : DbContext
         modelBuilder.Entity<AddressUsageRecord>()
             .HasIndex(a => a.AppIdentifier);
 
+        // ResourceInsightSnapshot indexes for efficient time-based and per-app queries
+        modelBuilder.Entity<ResourceInsightSnapshot>()
+            .HasIndex(r => new { r.Timestamp, r.AppIdentifier, r.Granularity })
+            .IsUnique();
+
+        modelBuilder.Entity<ResourceInsightSnapshot>()
+            .HasIndex(r => new { r.Granularity, r.Timestamp });
+
+        modelBuilder.Entity<ResourceInsightSnapshot>()
+            .HasIndex(r => r.CategoryName);
+
+        // AppCategoryMapping index for unique executable name lookups
+        modelBuilder.Entity<AppCategoryMapping>()
+            .HasIndex(m => m.ExecutableName)
+            .IsUnique();
+
         // Seed default settings
         modelBuilder.Entity<AppSettings>().HasData(new AppSettings { Id = 1 });
     }
@@ -200,6 +218,32 @@ public sealed class WireBoundDbContext : DbContext
                     PeakReceiveSpeed INTEGER NOT NULL DEFAULT 0,
                     AppIdentifier TEXT,
                     LastUpdated TEXT NOT NULL DEFAULT '0001-01-01'
+                )
+                """);
+
+            CreateTableIfNotExists(connection, "ResourceInsightSnapshots", """
+                CREATE TABLE IF NOT EXISTS ResourceInsightSnapshots (
+                    Id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    Timestamp TEXT NOT NULL DEFAULT '0001-01-01',
+                    AppIdentifier TEXT NOT NULL DEFAULT '',
+                    AppName TEXT NOT NULL DEFAULT '',
+                    CategoryName TEXT NOT NULL DEFAULT '',
+                    PrivateBytes INTEGER NOT NULL DEFAULT 0,
+                    WorkingSetBytes INTEGER NOT NULL DEFAULT 0,
+                    CpuPercent REAL NOT NULL DEFAULT 0,
+                    PeakPrivateBytes INTEGER NOT NULL DEFAULT 0,
+                    PeakCpuPercent REAL NOT NULL DEFAULT 0,
+                    Granularity INTEGER NOT NULL DEFAULT 0,
+                    LastUpdated TEXT NOT NULL DEFAULT '0001-01-01'
+                )
+                """);
+
+            CreateTableIfNotExists(connection, "AppCategoryMappings", """
+                CREATE TABLE IF NOT EXISTS AppCategoryMappings (
+                    Id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    ExecutableName TEXT NOT NULL DEFAULT '',
+                    CategoryName TEXT NOT NULL DEFAULT '',
+                    IsUserDefined INTEGER NOT NULL DEFAULT 1
                 )
                 """);
 
@@ -304,6 +348,40 @@ public sealed class WireBoundDbContext : DbContext
                 ("PeakReceiveSpeed", "INTEGER NOT NULL DEFAULT 0"),
                 ("AppIdentifier", "TEXT"),
                 ("LastUpdated", "TEXT NOT NULL DEFAULT '0001-01-01'"));
+
+            EnsureColumnsExist(connection, "ResourceInsightSnapshots",
+                ("Timestamp", "TEXT NOT NULL DEFAULT '0001-01-01'"),
+                ("AppIdentifier", "TEXT NOT NULL DEFAULT ''"),
+                ("AppName", "TEXT NOT NULL DEFAULT ''"),
+                ("CategoryName", "TEXT NOT NULL DEFAULT ''"),
+                ("PrivateBytes", "INTEGER NOT NULL DEFAULT 0"),
+                ("WorkingSetBytes", "INTEGER NOT NULL DEFAULT 0"),
+                ("CpuPercent", "REAL NOT NULL DEFAULT 0"),
+                ("PeakPrivateBytes", "INTEGER NOT NULL DEFAULT 0"),
+                ("PeakCpuPercent", "REAL NOT NULL DEFAULT 0"),
+                ("Granularity", "INTEGER NOT NULL DEFAULT 0"),
+                ("LastUpdated", "TEXT NOT NULL DEFAULT '0001-01-01'"));
+
+            EnsureColumnsExist(connection, "AppCategoryMappings",
+                ("ExecutableName", "TEXT NOT NULL DEFAULT ''"),
+                ("CategoryName", "TEXT NOT NULL DEFAULT ''"),
+                ("IsUserDefined", "INTEGER NOT NULL DEFAULT 1"));
+
+            // Phase 3: Create indexes for new tables (idempotent)
+            using (var idxCmd = connection.CreateCommand())
+            {
+                idxCmd.CommandText = """
+                    CREATE UNIQUE INDEX IF NOT EXISTS IX_ResourceInsightSnapshots_Timestamp_AppIdentifier_Granularity
+                        ON ResourceInsightSnapshots (Timestamp, AppIdentifier, Granularity);
+                    CREATE INDEX IF NOT EXISTS IX_ResourceInsightSnapshots_Granularity_Timestamp
+                        ON ResourceInsightSnapshots (Granularity, Timestamp);
+                    CREATE INDEX IF NOT EXISTS IX_ResourceInsightSnapshots_CategoryName
+                        ON ResourceInsightSnapshots (CategoryName);
+                    CREATE UNIQUE INDEX IF NOT EXISTS IX_AppCategoryMappings_ExecutableName
+                        ON AppCategoryMappings (ExecutableName);
+                    """;
+                idxCmd.ExecuteNonQuery();
+            }
         }
         finally
         {

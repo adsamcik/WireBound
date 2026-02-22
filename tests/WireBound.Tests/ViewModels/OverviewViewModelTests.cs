@@ -1,6 +1,7 @@
 using AwesomeAssertions;
 using Microsoft.Extensions.Logging;
 using WireBound.Avalonia.ViewModels;
+using WireBound.Core;
 using WireBound.Core.Models;
 using WireBound.Core.Services;
 using WireBound.Tests.Fixtures;
@@ -15,6 +16,7 @@ public class OverviewViewModelTests : IAsyncDisposable
     private readonly IUiDispatcher _dispatcher = new SynchronousDispatcher();
     private readonly INetworkMonitorService _networkMonitorMock;
     private readonly ISystemMonitorService _systemMonitorMock;
+    private readonly INavigationService _navigationServiceMock;
     private readonly IDataPersistenceService _persistenceMock;
     private readonly ILogger<OverviewViewModel> _loggerMock;
     private readonly List<OverviewViewModel> _createdViewModels = [];
@@ -23,6 +25,7 @@ public class OverviewViewModelTests : IAsyncDisposable
     {
         _networkMonitorMock = Substitute.For<INetworkMonitorService>();
         _systemMonitorMock = Substitute.For<ISystemMonitorService>();
+        _navigationServiceMock = Substitute.For<INavigationService>();
         _persistenceMock = Substitute.For<IDataPersistenceService>();
         _loggerMock = Substitute.For<ILogger<OverviewViewModel>>();
 
@@ -40,6 +43,9 @@ public class OverviewViewModelTests : IAsyncDisposable
 
         // Setup system monitor with default stats
         _systemMonitorMock.GetCurrentStats().Returns(CreateDefaultSystemStats());
+
+        // Setup navigation — mark Overview as active so visibility-aware updates are processed
+        _navigationServiceMock.CurrentView.Returns(Routes.Overview);
 
         // Setup persistence
         _persistenceMock.GetTodayUsageAsync().Returns((0L, 0L));
@@ -76,6 +82,7 @@ public class OverviewViewModelTests : IAsyncDisposable
             _dispatcher,
             _networkMonitorMock,
             _systemMonitorMock,
+            _navigationServiceMock,
             _persistenceMock,
             _loggerMock);
         _createdViewModels.Add(vm);
@@ -227,8 +234,10 @@ public class OverviewViewModelTests : IAsyncDisposable
         // Allow async operation to complete
         await viewModel.InitializationTask;
 
-        // Assert - verify the method was called
+        // Assert
         _persistenceMock.Received(1).GetTodayUsageAsync();
+        viewModel.TodayDownload.Should().Be("100.00 MB");
+        viewModel.TodayUpload.Should().Be("50.00 MB");
     }
 
     #endregion
@@ -396,13 +405,13 @@ public class OverviewViewModelTests : IAsyncDisposable
     {
         // Arrange
         var viewModel = CreateViewModel();
-        var initialSeriesCount = viewModel.ChartSeries.Length;
+        var initialSeriesCount = viewModel.ChartSeries.Count;
 
         // Act
         viewModel.ShowCpuOverlay = true;
 
         // Assert
-        viewModel.ChartSeries.Length.Should().Be(initialSeriesCount + 1);
+        viewModel.ChartSeries.Count.Should().Be(initialSeriesCount + 1);
         viewModel.ChartSeries.Should().Contain(s => s.Name == "CPU");
     }
 
@@ -411,13 +420,13 @@ public class OverviewViewModelTests : IAsyncDisposable
     {
         // Arrange
         var viewModel = CreateViewModel();
-        var initialSeriesCount = viewModel.ChartSeries.Length;
+        var initialSeriesCount = viewModel.ChartSeries.Count;
 
         // Act
         viewModel.ShowMemoryOverlay = true;
 
         // Assert
-        viewModel.ChartSeries.Length.Should().Be(initialSeriesCount + 1);
+        viewModel.ChartSeries.Count.Should().Be(initialSeriesCount + 1);
         viewModel.ChartSeries.Should().Contain(s => s.Name == "Memory");
     }
 
@@ -427,13 +436,13 @@ public class OverviewViewModelTests : IAsyncDisposable
         // Arrange
         var viewModel = CreateViewModel();
         viewModel.ShowCpuOverlay = true;
-        var countWithCpu = viewModel.ChartSeries.Length;
+        var countWithCpu = viewModel.ChartSeries.Count;
 
         // Act
         viewModel.ShowCpuOverlay = false;
 
         // Assert
-        viewModel.ChartSeries.Length.Should().Be(countWithCpu - 1);
+        viewModel.ChartSeries.Count.Should().Be(countWithCpu - 1);
         viewModel.ChartSeries.Should().NotContain(s => s.Name == "CPU");
     }
 
@@ -442,14 +451,14 @@ public class OverviewViewModelTests : IAsyncDisposable
     {
         // Arrange
         var viewModel = CreateViewModel();
-        var initialCount = viewModel.ChartSeries.Length;
+        var initialCount = viewModel.ChartSeries.Count;
 
         // Act
         viewModel.ShowCpuOverlay = true;
         viewModel.ShowMemoryOverlay = true;
 
         // Assert
-        viewModel.ChartSeries.Length.Should().Be(initialCount + 2);
+        viewModel.ChartSeries.Count.Should().Be(initialCount + 2);
         viewModel.ChartSeries.Should().Contain(s => s.Name == "CPU");
         viewModel.ChartSeries.Should().Contain(s => s.Name == "Memory");
     }
@@ -617,6 +626,7 @@ public class OverviewViewModelTests : IAsyncDisposable
             _dispatcher,
             _networkMonitorMock,
             _systemMonitorMock,
+            _navigationServiceMock,
             null,
             _loggerMock);
 
@@ -632,6 +642,7 @@ public class OverviewViewModelTests : IAsyncDisposable
             _dispatcher,
             _networkMonitorMock,
             _systemMonitorMock,
+            _navigationServiceMock,
             _persistenceMock,
             null);
 
@@ -837,3 +848,4 @@ public class OverviewViewModelTests : IAsyncDisposable
         return ValueTask.CompletedTask;
     }
 }
+

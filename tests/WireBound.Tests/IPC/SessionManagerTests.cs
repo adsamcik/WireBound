@@ -1,3 +1,4 @@
+using System.Reflection;
 using WireBound.IPC.Security;
 
 namespace WireBound.Tests.IPC;
@@ -75,5 +76,44 @@ public class SessionManagerTests
 
         manager.RemoveSession(s1!.SessionId);
         manager.ActiveCount.Should().Be(1);
+    }
+
+    [Test]
+    public void ValidateSession_ExpiredSession_ReturnsNull()
+    {
+        // Arrange
+        var manager = new SessionManager();
+        var session = manager.CreateSession(1234, "/app");
+        session.Should().NotBeNull();
+
+        // Use reflection to set ExpiresAtUtc to the past
+        var expiresProperty = typeof(SessionInfo).GetProperty(nameof(SessionInfo.ExpiresAtUtc));
+        expiresProperty.Should().NotBeNull();
+        expiresProperty!.SetValue(session, DateTimeOffset.UtcNow.AddSeconds(-1));
+
+        // Act
+        var result = manager.ValidateSession(session!.SessionId);
+
+        // Assert - expired session should be rejected
+        result.Should().BeNull();
+    }
+
+    [Test]
+    public void ValidateSession_ExpiredSession_IsRemovedFromActiveSessions()
+    {
+        // Arrange
+        var manager = new SessionManager();
+        var session = manager.CreateSession(1234, "/app");
+        session.Should().NotBeNull();
+
+        // Expire the session via reflection
+        var expiresProperty = typeof(SessionInfo).GetProperty(nameof(SessionInfo.ExpiresAtUtc));
+        expiresProperty!.SetValue(session, DateTimeOffset.UtcNow.AddSeconds(-1));
+
+        // Act - validate to trigger removal
+        manager.ValidateSession(session!.SessionId);
+
+        // Assert - second validation should also return null (session was removed)
+        manager.ValidateSession(session.SessionId).Should().BeNull();
     }
 }

@@ -45,10 +45,9 @@ public class SecretManagerTests
             secret.Should().NotBeNull();
             secret.Should().HaveCount(32);
         }
-        catch (IOException)
+        catch (IOException ex)
         {
-            // File may be locked by running WireBound instance — skip gracefully
-            return;
+            Skip.Test($"Secret file locked by running WireBound instance: {ex.Message}");
         }
         finally
         {
@@ -66,9 +65,9 @@ public class SecretManagerTests
             secret2 = SecretManager.GenerateAndStore();
             secret1.Should().NotBeEquivalentTo(secret2, "cryptographically random");
         }
-        catch (IOException)
+        catch (IOException ex)
         {
-            return; // Skip if locked
+            Skip.Test($"Secret file locked by running WireBound instance: {ex.Message}");
         }
         finally
         {
@@ -86,9 +85,9 @@ public class SecretManagerTests
             File.Exists(path).Should().BeTrue("secret file should be created");
             File.ReadAllBytes(path).Should().HaveCount(32);
         }
-        catch (IOException)
+        catch (IOException ex)
         {
-            return;
+            Skip.Test($"Secret file locked by running WireBound instance: {ex.Message}");
         }
         finally
         {
@@ -106,9 +105,9 @@ public class SecretManagerTests
             loaded.Should().NotBeNull();
             loaded.Should().BeEquivalentTo(generated);
         }
-        catch (IOException)
+        catch (IOException ex)
         {
-            return;
+            Skip.Test($"Secret file locked by running WireBound instance: {ex.Message}");
         }
         finally
         {
@@ -160,9 +159,9 @@ public class SecretManagerTests
             File.WriteAllBytes(path, new byte[64]);
             SecretManager.Load().Should().BeNull("64 bytes != 32 bytes");
         }
-        catch (IOException)
+        catch (IOException ex)
         {
-            return; // Skip if locked
+            Skip.Test($"Secret file locked by running WireBound instance: {ex.Message}");
         }
         finally
         {
@@ -190,9 +189,50 @@ public class SecretManagerTests
             SecretManager.Delete();
             File.Exists(path).Should().BeFalse();
         }
-        catch (IOException)
+        catch (IOException ex)
         {
-            return; // Skip if locked
+            Skip.Test($"Secret file locked by running WireBound instance: {ex.Message}");
+        }
+    }
+
+    [Test]
+    public void Delete_OverwritesFileWithZerosBeforeDeleting()
+    {
+        FileStream? readHandle = null;
+        try
+        {
+            SecretManager.GenerateAndStore();
+            var path = SecretManager.GetSecretFilePath();
+
+            // Confirm the stored secret contains non-zero data
+            File.ReadAllBytes(path).Should().NotBeEquivalentTo(new byte[32]);
+
+            // Keep a shared read handle open so we can inspect content after Delete
+            // overwrites the file but before the OS fully removes it
+            readHandle = new FileStream(
+                path, FileMode.Open, FileAccess.Read,
+                FileShare.ReadWrite | FileShare.Delete);
+
+            SecretManager.Delete();
+
+            // The file has been overwritten with zeros and marked for deletion;
+            // our handle still points at the data
+            readHandle.Seek(0, SeekOrigin.Begin);
+            var buffer = new byte[32];
+            Array.Fill(buffer, (byte)0xFF);
+            readHandle.ReadExactly(buffer);
+
+            buffer.Should().BeEquivalentTo(new byte[32],
+                "secret should be zero-wiped before deletion");
+        }
+        catch (IOException ex)
+        {
+            Skip.Test($"Secret file locked by running WireBound instance: {ex.Message}");
+        }
+        finally
+        {
+            readHandle?.Dispose();
+            try { SecretManager.Delete(); } catch { /* best effort */ }
         }
     }
 
@@ -200,11 +240,7 @@ public class SecretManagerTests
     public void Delete_WhenFileDoesNotExist_DoesNotThrow()
     {
         var path = SecretManager.GetSecretFilePath();
-        if (File.Exists(path))
-        {
-            // Can't safely delete if running app has it locked
-            return;
-        }
+        Skip.When(File.Exists(path), "Can't safely delete if running app has it locked");
 
         var act = () => SecretManager.Delete();
         act.Should().NotThrow();

@@ -1,5 +1,6 @@
 using AwesomeAssertions;
 using WireBound.Avalonia.ViewModels;
+using WireBound.Core;
 using WireBound.Core.Models;
 using WireBound.Core.Services;
 using WireBound.Tests.Fixtures;
@@ -11,13 +12,16 @@ namespace WireBound.Tests.ViewModels;
 /// </summary>
 public class SystemViewModelTests : IAsyncDisposable
 {
+    private readonly List<SystemViewModel> _createdViewModels = [];
     private readonly IUiDispatcher _dispatcherMock;
     private readonly ISystemMonitorService _systemMonitorMock;
+    private readonly INavigationService _navigationServiceMock;
 
     public SystemViewModelTests()
     {
         _dispatcherMock = Substitute.For<IUiDispatcher>();
         _systemMonitorMock = Substitute.For<ISystemMonitorService>();
+        _navigationServiceMock = Substitute.For<INavigationService>();
         SetupDefaultMocks();
     }
 
@@ -27,6 +31,7 @@ public class SystemViewModelTests : IAsyncDisposable
         _systemMonitorMock.GetProcessorName().Returns("Test Processor");
         _systemMonitorMock.GetProcessorCount().Returns(8);
         _systemMonitorMock.IsCpuTemperatureAvailable.Returns(false);
+        _navigationServiceMock.CurrentView.Returns(Routes.System);
     }
 
     private static SystemStats CreateDefaultSystemStats()
@@ -54,7 +59,9 @@ public class SystemViewModelTests : IAsyncDisposable
 
     private SystemViewModel CreateViewModel()
     {
-        return new SystemViewModel(_dispatcherMock, _systemMonitorMock);
+        var viewModel = new SystemViewModel(_dispatcherMock, _systemMonitorMock, _navigationServiceMock);
+        _createdViewModels.Add(viewModel);
+        return viewModel;
     }
 
     #region Constructor Tests
@@ -200,7 +207,11 @@ public class SystemViewModelTests : IAsyncDisposable
 
     public ValueTask DisposeAsync()
     {
-        // No instance-level resources to dispose - each test manages its own ViewModel
+        foreach (var vm in _createdViewModels)
+        {
+            vm.Dispose();
+        }
+        _createdViewModels.Clear();
         return ValueTask.CompletedTask;
     }
 }

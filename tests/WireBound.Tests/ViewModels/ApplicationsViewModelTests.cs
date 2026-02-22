@@ -1,5 +1,6 @@
 using AwesomeAssertions;
 using WireBound.Avalonia.ViewModels;
+using WireBound.Core;
 using WireBound.Core.Models;
 using WireBound.Core.Services;
 using WireBound.Platform.Abstract.Models;
@@ -12,6 +13,7 @@ namespace WireBound.Tests.ViewModels;
 /// </summary>
 public class ApplicationsViewModelTests : IAsyncDisposable
 {
+    private readonly List<ApplicationsViewModel> _createdViewModels = [];
     private readonly IUiDispatcher _dispatcherMock;
     private readonly IDataPersistenceService _persistenceMock;
     private readonly IProcessNetworkService _processNetworkServiceMock;
@@ -47,11 +49,13 @@ public class ApplicationsViewModelTests : IAsyncDisposable
 
     private ApplicationsViewModel CreateViewModel()
     {
-        return new ApplicationsViewModel(
+        var viewModel = new ApplicationsViewModel(
             _dispatcherMock,
             _persistenceMock,
             _processNetworkServiceMock,
             _elevationServiceMock);
+        _createdViewModels.Add(viewModel);
+        return viewModel;
     }
 
     private static AppUsageRecord CreateAppUsageRecord(
@@ -250,6 +254,11 @@ public class ApplicationsViewModelTests : IAsyncDisposable
 
     public ValueTask DisposeAsync()
     {
+        foreach (var vm in _createdViewModels)
+        {
+            vm.Dispose();
+        }
+        _createdViewModels.Clear();
         return ValueTask.CompletedTask;
     }
 }

@@ -107,12 +107,16 @@ public class MainViewModelTests : IAsyncDisposable
     [Test]
     public void Constructor_SubscribesToNavigationChangedEvent()
     {
-        // Act
+        // Arrange
         using var viewModel = CreateViewModel();
+        var newView = Substitute.For<Control>();
+        _viewFactory.CreateView(Routes.Charts).Returns(newView);
 
-        // Assert - NSubstitute automatically verifies event subscription through its received calls count
-        // The subscription is verified by the fact that the view model works correctly
-        viewModel.Should().NotBeNull();
+        // Act - Raise event
+        _navigationService.NavigationChanged += Raise.Event<Action<string>>(Routes.Charts);
+
+        // Assert - View should update, proving subscription
+        viewModel.CurrentView.Should().Be(newView);
     }
 
     [Test]
@@ -234,13 +238,18 @@ public class MainViewModelTests : IAsyncDisposable
     {
         // Arrange
         var viewModel = CreateViewModel();
+        var viewBeforeDispose = viewModel.CurrentView;
 
         // Act
         viewModel.Dispose();
 
-        // Assert - After disposal, navigation events should not trigger view updates
-        // Verify the event was unsubscribed by checking the view model is disposed
-        viewModel.Should().NotBeNull(); // ViewModel exists but is disposed
+        // Raise event after dispose - should have no effect
+        var newView = Substitute.For<Control>();
+        _viewFactory.CreateView(Routes.Charts).Returns(newView);
+        _navigationService.NavigationChanged += Raise.Event<Action<string>>(Routes.Charts);
+
+        // Assert - CurrentView should remain unchanged
+        viewModel.CurrentView.Should().Be(viewBeforeDispose);
     }
 
     [Test]

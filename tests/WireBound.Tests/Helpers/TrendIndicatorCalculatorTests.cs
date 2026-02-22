@@ -434,4 +434,88 @@ public sealed class TrendIndicatorCalculatorTests
     }
 
     #endregion
+
+    #region Boundary Tests - Mutation Killers
+
+    [Test]
+    public void Update_DiffExactlyEqualsThreshold_ReturnsStable()
+    {
+        // Use fixed parameters to get a predictable threshold:
+        // minimumThreshold = 100, so threshold = Max(movingAvg * 0.1, 100)
+        // After 20 updates at 1000, movingAvg ≈ 1000, so threshold = Max(100, 100) = 100
+        var calculator = new TrendIndicatorCalculator(
+            alpha: 0.3,
+            thresholdPercent: 0.1,
+            minimumThreshold: 100);
+
+        // Build stable baseline — after many updates at same value, movingAvg ≈ 1000
+        for (int i = 0; i < 20; i++)
+            calculator.Update(1000);
+
+        // diff = 1100 - 1000 = 100. threshold = Max(1000 * 0.1, 100) = 100.
+        // diff == threshold, NOT diff > threshold, so should be Stable
+        var result = calculator.Update(1100);
+
+        result.Direction.Should().Be(TrendDirection.Stable);
+    }
+
+    [Test]
+    public void Update_DiffExactlyEqualsNegativeThreshold_ReturnsStable()
+    {
+        var calculator = new TrendIndicatorCalculator(
+            alpha: 0.3,
+            thresholdPercent: 0.1,
+            minimumThreshold: 100);
+
+        // Build stable baseline at 1000
+        for (int i = 0; i < 20; i++)
+            calculator.Update(1000);
+
+        // diff = 900 - 1000 = -100. threshold = 100. diff == -threshold, should be Stable
+        var result = calculator.Update(900);
+
+        result.Direction.Should().Be(TrendDirection.Stable);
+    }
+
+    [Test]
+    public void Reset_ThenUpdate_TreatsAsFirstCall()
+    {
+        var calculator = new TrendIndicatorCalculator(
+            alpha: 0.3,
+            thresholdPercent: 0.1,
+            minimumThreshold: 100);
+
+        // Build up some history
+        for (int i = 0; i < 10; i++)
+            calculator.Update(5000);
+
+        // Reset
+        calculator.Reset();
+
+        // After reset, the next Update should be treated as the first call → Stable
+        var result = calculator.Update(1000);
+
+        result.Direction.Should().Be(TrendDirection.Stable);
+    }
+
+    [Test]
+    public void Update_NegativeValue_IsNotIdle()
+    {
+        var calculator = new TrendIndicatorCalculator(
+            alpha: 0.3,
+            thresholdPercent: 0.1,
+            minimumThreshold: 100);
+
+        // Build baseline at 1000
+        for (int i = 0; i < 10; i++)
+            calculator.Update(1000);
+
+        // Negative value: diff = -1 - 1000 = -1001. threshold = 100.
+        // -1001 < -100, so should be Falling, NOT Idle
+        var result = calculator.Update(-1);
+
+        result.Direction.Should().Be(TrendDirection.Falling);
+    }
+
+    #endregion
 }

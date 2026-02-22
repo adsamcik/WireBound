@@ -8,6 +8,8 @@
     <AssemblyName>WireBound.Elevation</AssemblyName>
     <RootNamespace>WireBound.Elevation.Windows</RootNamespace>
     <SupportedOSPlatform>windows</SupportedOSPlatform>
+    <PublishAot>true</PublishAot>
+    <EnableTrimAnalyzer>true</EnableTrimAnalyzer>
   </PropertyGroup>
 
   <ItemGroup>

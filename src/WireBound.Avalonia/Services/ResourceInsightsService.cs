@@ -21,6 +21,7 @@ public sealed class ResourceInsightsService : IResourceInsightsService
     private readonly IProcessResourceProvider _provider;
     private readonly IAppCategoryService _categoryService;
     private readonly IServiceProvider _serviceProvider;
+    private readonly TimeProvider _timeProvider;
     private readonly ILogger<ResourceInsightsService>? _logger;
 
     private readonly int _processorCount;
@@ -42,11 +43,13 @@ public sealed class ResourceInsightsService : IResourceInsightsService
         IProcessResourceProvider provider,
         IAppCategoryService categoryService,
         IServiceProvider serviceProvider,
+        TimeProvider? timeProvider = null,
         ILogger<ResourceInsightsService>? logger = null)
     {
         _provider = provider;
         _categoryService = categoryService;
         _serviceProvider = serviceProvider;
+        _timeProvider = timeProvider ?? TimeProvider.System;
         _logger = logger;
         _processorCount = Environment.ProcessorCount;
     }
@@ -55,7 +58,7 @@ public sealed class ResourceInsightsService : IResourceInsightsService
         CancellationToken cancellationToken = default)
     {
         var rawData = await _provider.GetProcessResourceDataAsync(cancellationToken);
-        var now = DateTime.Now;
+        var now = _timeProvider.GetLocalNow().DateTime;
         var grouped = GroupByApp(rawData);
         var withCpu = ComputeCpuPercent(grouped, now);
         var smoothed = ApplySmoothing(withCpu);
@@ -132,7 +135,7 @@ public sealed class ResourceInsightsService : IResourceInsightsService
             var apps = await GetCurrentByAppAsync(cancellationToken);
             if (apps.Count == 0) return;
 
-            var now = DateTime.Now;
+            var now = _timeProvider.GetLocalNow().DateTime;
             var hourTimestamp = new DateTime(now.Year, now.Month, now.Day, now.Hour, 0, 0);
 
             using var scope = _serviceProvider.CreateScope();

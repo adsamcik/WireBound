@@ -9,11 +9,13 @@ namespace WireBound.IPC.Security;
 public sealed class RateLimiter
 {
     private readonly int _maxRequestsPerSecond;
+    private readonly TimeProvider _timeProvider;
     private readonly ConcurrentDictionary<string, ClientWindow> _windows = new();
 
-    public RateLimiter(int maxRequestsPerSecond = IpcConstants.MaxRequestsPerSecond)
+    public RateLimiter(int maxRequestsPerSecond = IpcConstants.MaxRequestsPerSecond, TimeProvider? timeProvider = null)
     {
         _maxRequestsPerSecond = maxRequestsPerSecond;
+        _timeProvider = timeProvider ?? TimeProvider.System;
     }
 
     /// <summary>
@@ -23,7 +25,7 @@ public sealed class RateLimiter
     public bool TryAcquire(string sessionId)
     {
         var window = _windows.GetOrAdd(sessionId, _ => new ClientWindow());
-        return window.TryAcquire(_maxRequestsPerSecond);
+        return window.TryAcquire(_maxRequestsPerSecond, _timeProvider);
     }
 
     /// <summary>
@@ -38,9 +40,9 @@ public sealed class RateLimiter
         private int _count;
         private readonly object _lock = new();
 
-        public bool TryAcquire(int maxPerSecond)
+        public bool TryAcquire(int maxPerSecond, TimeProvider timeProvider)
         {
-            var now = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
+            var now = timeProvider.GetUtcNow().ToUnixTimeMilliseconds();
 
             lock (_lock)
             {

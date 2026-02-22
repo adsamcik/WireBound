@@ -3,6 +3,8 @@ using Avalonia.Controls.ApplicationLifetimes;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using System.Collections.ObjectModel;
+using WireBound.Avalonia.Helpers;
+using WireBound.Core;
 using WireBound.Core.Helpers;
 using WireBound.Core.Services;
 using WireBound.Platform.Abstract.Models;
@@ -115,12 +117,18 @@ public sealed partial class ConnectionsViewModel : ObservableObject, IDisposable
     private readonly IProcessNetworkService? _processNetworkService;
     private readonly IDnsResolverService? _dnsResolver;
     private readonly IElevationService _elevationService;
+    private readonly INavigationService _navigationService;
+    private readonly TimeProvider _timeProvider;
     private readonly Dictionary<string, ConnectionDisplayItem> _connectionMap = new();
-    private readonly System.Timers.Timer _refreshTimer;
+    private ITimer? _refreshTimer;
     private bool _disposed;
+    private bool _isViewActive;
 
     /// <summary>Completes when async initialization finishes. Exposed for testability.</summary>
     public Task InitializationTask { get; }
+
+    /// <summary>Exposes the last search-triggered refresh task for testability.</summary>
+    internal Task? PendingSearchTask { get; private set; }
 
     [ObservableProperty]
     private bool _isLoading;
@@ -166,7 +174,7 @@ public sealed partial class ConnectionsViewModel : ObservableObject, IDisposable
     private string _totalReceived = "0 B";
 
     [ObservableProperty]
-    private ObservableCollection<ConnectionDisplayItem> _connections = [];
+    private BatchObservableCollection<ConnectionDisplayItem> _connections = new();
 
     [ObservableProperty]
     private ConnectionDisplayItem? _selectedConnection;
@@ -181,12 +189,17 @@ public sealed partial class ConnectionsViewModel : ObservableObject, IDisposable
         IUiDispatcher dispatcher,
         IProcessNetworkService processNetworkService,
         IDnsResolverService dnsResolver,
-        IElevationService elevationService)
+        IElevationService elevationService,
+        INavigationService navigationService,
+        TimeProvider? timeProvider = null)
     {
         _dispatcher = dispatcher;
         _processNetworkService = processNetworkService;
         _dnsResolver = dnsResolver;
         _elevationService = elevationService;
+        _navigationService = navigationService;
+        _timeProvider = timeProvider ?? TimeProvider.System;
+        _isViewActive = navigationService.CurrentView == Routes.Connections;
 
         IsPlatformSupported = _processNetworkService?.IsPlatformSupported ?? false;
         IsMonitoring = _processNetworkService?.IsRunning == true;
@@ -196,10 +209,12 @@ public sealed partial class ConnectionsViewModel : ObservableObject, IDisposable
         // Byte tracking is limited when elevated helper is not connected
         IsByteTrackingLimited = !_elevationService.IsHelperConnected;
 
-        // Set up refresh timer (2 seconds)
-        _refreshTimer = new System.Timers.Timer(2000);
-        _refreshTimer.Elapsed += async (_, _) => await RefreshConnectionsAsync();
-        _refreshTimer.AutoReset = true;
+        // Set up refresh timer (2 seconds, initially stopped)
+        _refreshTimer = _timeProvider.CreateTimer(
+            async _ => await RefreshConnectionsAsync(),
+            null,
+            Timeout.InfiniteTimeSpan,
+            TimeSpan.FromMilliseconds(2000));
 
         if (_processNetworkService != null)
         {
@@ -215,6 +230,9 @@ public sealed partial class ConnectionsViewModel : ObservableObject, IDisposable
         // Subscribe to helper state changes
         _elevationService.HelperConnectionStateChanged += OnHelperConnectionStateChanged;
 
+        // Subscribe to navigation changes for timer management
+        _navigationService.NavigationChanged += OnNavigationChanged;
+
         InitializationTask = InitializeAsync();
     }
 
@@ -223,7 +241,23 @@ public sealed partial class ConnectionsViewModel : ObservableObject, IDisposable
         _dispatcher.Post(() =>
         {
             IsByteTrackingLimited = !e.IsConnected;
-        });
+        }, UiDispatcherPriority.Background);
+    }
+
+    private void OnNavigationChanged(string route)
+    {
+        var wasActive = _isViewActive;
+        _isViewActive = route == Routes.Connections;
+
+        if (_isViewActive && !wasActive)
+        {
+            _refreshTimer?.Change(TimeSpan.Zero, TimeSpan.FromMilliseconds(2000));
+            _ = RefreshConnectionsAsync();
+        }
+        else if (!_isViewActive && wasActive)
+        {
+            _refreshTimer?.Change(Timeout.InfiniteTimeSpan, Timeout.InfiniteTimeSpan);
+        }
     }
 
     private async Task InitializeAsync()
@@ -238,8 +272,12 @@ public sealed partial class ConnectionsViewModel : ObservableObject, IDisposable
         }
 
         if (_disposed) return;
-        _refreshTimer.Start();
-        await RefreshConnectionsAsync();
+        // Only start timer if view is currently active
+        if (_isViewActive)
+        {
+            _refreshTimer?.Change(TimeSpan.Zero, TimeSpan.FromMilliseconds(2000));
+            await RefreshConnectionsAsync();
+        }
     }
 
     private void OnProcessStatsUpdated(object? sender, ProcessStatsUpdatedEventArgs e)
@@ -254,7 +292,7 @@ public sealed partial class ConnectionsViewModel : ObservableObject, IDisposable
             HasError = true;
             ErrorMessage = e.Message;
             RequiresElevation = e.RequiresElevation;
-        });
+        }, UiDispatcherPriority.Background);
     }
 
     private void OnHostnameResolved(object? sender, DnsResolvedEventArgs e)
@@ -272,7 +310,7 @@ public sealed partial class ConnectionsViewModel : ObservableObject, IDisposable
                     conn.DisplayName = e.Hostname;
                 }
             }
-        });
+        }, UiDispatcherPriority.Background);
     }
 
     [RelayCommand]
@@ -305,7 +343,7 @@ public sealed partial class ConnectionsViewModel : ObservableObject, IDisposable
             {
                 HasError = true;
                 ErrorMessage = $"Failed to refresh connections: {ex.Message}";
-            });
+            }, UiDispatcherPriority.Background);
         }
         finally
         {
@@ -354,13 +392,13 @@ public sealed partial class ConnectionsViewModel : ObservableObject, IDisposable
         }
 
         // Remove stale connections
-        var keysToRemove = _connectionMap.Keys.Except(currentKeys).ToList();
-        foreach (var key in keysToRemove)
+        var staleCount = 0;
+        foreach (var key in _connectionMap.Keys.Where(k => !currentKeys.Contains(k)).ToList())
         {
-            if (_connectionMap.TryGetValue(key, out var item))
+            if (_connectionMap.Remove(key, out var item))
             {
                 Connections.Remove(item);
-                _connectionMap.Remove(key);
+                staleCount++;
             }
         }
 
@@ -380,22 +418,26 @@ public sealed partial class ConnectionsViewModel : ObservableObject, IDisposable
         if (string.IsNullOrWhiteSpace(SearchText))
             return;
 
-        var search = SearchText.ToLowerInvariant();
-        var toRemove = Connections
-            .Where(c => !c.RemoteEndpoint.Contains(search, StringComparison.OrdinalIgnoreCase) &&
-                       !c.RemoteHostname.Contains(search, StringComparison.OrdinalIgnoreCase) &&
-                       !c.ProcessName.Contains(search, StringComparison.OrdinalIgnoreCase))
-            .ToList();
-
-        foreach (var item in toRemove)
+        var search = SearchText;
+        // Build filtered list and replace in one notification
+        var filtered = new List<ConnectionDisplayItem>(Connections.Count);
+        foreach (var c in Connections)
         {
-            Connections.Remove(item);
+            if (c.RemoteEndpoint.Contains(search, StringComparison.OrdinalIgnoreCase) ||
+                c.RemoteHostname.Contains(search, StringComparison.OrdinalIgnoreCase) ||
+                c.ProcessName.Contains(search, StringComparison.OrdinalIgnoreCase))
+            {
+                filtered.Add(c);
+            }
         }
+
+        if (filtered.Count < Connections.Count)
+            Connections.ReplaceAll(filtered);
     }
 
     partial void OnSearchTextChanged(string value)
     {
-        _ = RefreshConnectionsAsync();
+        PendingSearchTask = RefreshConnectionsAsync();
     }
 
     [RelayCommand]
@@ -435,12 +477,7 @@ public sealed partial class ConnectionsViewModel : ObservableObject, IDisposable
                 : Connections.OrderByDescending(c => c.ReceiveSpeed)
         };
 
-        var sortedList = sorted.ToList();
-        Connections.Clear();
-        foreach (var item in sortedList)
-        {
-            Connections.Add(item);
-        }
+        Connections.ReplaceAll(sorted);
     }
 
     [RelayCommand]
@@ -459,8 +496,7 @@ public sealed partial class ConnectionsViewModel : ObservableObject, IDisposable
         if (_disposed) return;
         _disposed = true;
 
-        _refreshTimer.Stop();
-        _refreshTimer.Dispose();
+        _refreshTimer?.Dispose();
 
         if (_processNetworkService != null)
         {
@@ -474,5 +510,6 @@ public sealed partial class ConnectionsViewModel : ObservableObject, IDisposable
         }
 
         _elevationService.HelperConnectionStateChanged -= OnHelperConnectionStateChanged;
+        _navigationService.NavigationChanged -= OnNavigationChanged;
     }
 }

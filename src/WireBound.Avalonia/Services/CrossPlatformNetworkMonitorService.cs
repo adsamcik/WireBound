@@ -1,4 +1,3 @@
-using System.Diagnostics;
 using System.Net;
 using System.Net.NetworkInformation;
 using System.Net.Sockets;
@@ -16,7 +15,8 @@ public sealed class CrossPlatformNetworkMonitorService : INetworkMonitorService
     private readonly object _lock = new();
     private readonly Dictionary<string, AdapterState> _adapterStates = new();
     private readonly ILogger<CrossPlatformNetworkMonitorService> _logger;
-    private readonly Stopwatch _pollStopwatch = Stopwatch.StartNew();
+    private readonly TimeProvider _timeProvider;
+    private readonly long _startTimestamp;
     private string _selectedAdapterId = NetworkMonitorConstants.AutoAdapterId;
     private string _resolvedPrimaryAdapterId = string.Empty;
     private string _resolvedPrimaryAdapterName = string.Empty;
@@ -27,9 +27,13 @@ public sealed class CrossPlatformNetworkMonitorService : INetworkMonitorService
     // IP Helper API is Windows-only, not available in cross-platform version
     public bool IsUsingIpHelperApi => false;
 
-    public CrossPlatformNetworkMonitorService(ILogger<CrossPlatformNetworkMonitorService> logger)
+    public CrossPlatformNetworkMonitorService(
+        ILogger<CrossPlatformNetworkMonitorService> logger,
+        TimeProvider? timeProvider = null)
     {
         _logger = logger;
+        _timeProvider = timeProvider ?? TimeProvider.System;
+        _startTimestamp = _timeProvider.GetTimestamp();
         InitializeAdapters();
     }
 
@@ -58,7 +62,7 @@ public sealed class CrossPlatformNetworkMonitorService : INetworkMonitorService
                             LastBytesSent = stats.BytesSent,
                             SessionStartReceived = stats.BytesReceived,
                             SessionStartSent = stats.BytesSent,
-                            LastPollTimestampMs = _pollStopwatch.ElapsedMilliseconds,
+                            LastPollTimestampMs = (long)_timeProvider.GetElapsedTime(_startTimestamp).TotalMilliseconds,
                             IsVirtual = isVirtual
                         };
 
@@ -537,7 +541,7 @@ public sealed class CrossPlatformNetworkMonitorService : INetworkMonitorService
     {
         lock (_lock)
         {
-            var nowMs = _pollStopwatch.ElapsedMilliseconds;
+            var nowMs = (long)_timeProvider.GetElapsedTime(_startTimestamp).TotalMilliseconds;
             foreach (var nic in NetworkInterface.GetAllNetworkInterfaces())
             {
                 if (!_adapterStates.TryGetValue(nic.Id, out var state))
@@ -574,7 +578,7 @@ public sealed class CrossPlatformNetworkMonitorService : INetworkMonitorService
     {
         lock (_lock)
         {
-            var nowMs = _pollStopwatch.ElapsedMilliseconds;
+            var nowMs = (long)_timeProvider.GetElapsedTime(_startTimestamp).TotalMilliseconds;
 
             // Physical adapter totals
             long physicalDownloadSpeed = 0;

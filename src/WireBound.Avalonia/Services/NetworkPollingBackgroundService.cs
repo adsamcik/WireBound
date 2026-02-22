@@ -27,6 +27,12 @@ public sealed class NetworkPollingBackgroundService : BackgroundService, INetwor
     private readonly object _snapshotBufferLock = new();
     private PeriodicTimer? _timer;
     private readonly object _timerLock = new();
+    private TaskCompletionSource? _pollingStarted;
+
+    /// <summary>
+    /// Completes when the polling loop has started. Exposed for testability.
+    /// </summary>
+    internal Task? PollingStartedTask => _pollingStarted?.Task;
 
     // Adaptive polling state
     private volatile bool _adaptivePollingEnabled;
@@ -163,6 +169,9 @@ public sealed class NetworkPollingBackgroundService : BackgroundService, INetwor
 
         // Use PeriodicTimer for more consistent timing than Task.Delay
         _timer = new PeriodicTimer(TimeSpan.FromMilliseconds(_pollIntervalMs));
+
+        _pollingStarted = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        _pollingStarted.TrySetResult();
 
         try
         {

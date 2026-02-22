@@ -11,14 +11,17 @@ public sealed class AuthRateLimiter
 {
     private readonly int _maxAttemptsPerSecond;
     private readonly int _maxConsecutiveFailures;
+    private readonly TimeProvider _timeProvider;
     private readonly ConcurrentDictionary<string, ClientAuthState> _clients = new();
 
     public AuthRateLimiter(
         int maxAttemptsPerSecond = IpcConstants.MaxAuthAttemptsPerSecond,
-        int maxConsecutiveFailures = IpcConstants.MaxConsecutiveAuthFailures)
+        int maxConsecutiveFailures = IpcConstants.MaxConsecutiveAuthFailures,
+        TimeProvider? timeProvider = null)
     {
         _maxAttemptsPerSecond = maxAttemptsPerSecond;
         _maxConsecutiveFailures = maxConsecutiveFailures;
+        _timeProvider = timeProvider ?? TimeProvider.System;
     }
 
     /// <summary>
@@ -28,7 +31,7 @@ public sealed class AuthRateLimiter
     public bool TryAcquire(string clientId)
     {
         var state = _clients.GetOrAdd(clientId, _ => new ClientAuthState());
-        return state.TryAcquire(_maxAttemptsPerSecond);
+        return state.TryAcquire(_maxAttemptsPerSecond, _timeProvider);
     }
 
     /// <summary>
@@ -63,11 +66,11 @@ public sealed class AuthRateLimiter
         private int _consecutiveFailures;
         private readonly object _lock = new();
 
-        public bool TryAcquire(int maxPerSecond)
+        public bool TryAcquire(int maxPerSecond, TimeProvider timeProvider)
         {
             lock (_lock)
             {
-                var now = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
+                var now = timeProvider.GetUtcNow().ToUnixTimeMilliseconds();
 
                 if (now - _windowStart >= 1000)
                 {

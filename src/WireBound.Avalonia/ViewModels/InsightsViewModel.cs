@@ -71,12 +71,17 @@ public sealed partial class InsightsViewModel : ObservableObject, IDisposable
     /// <summary>Completes when async initialization finishes. Exposed for testability.</summary>
     public Task InitializationTask { get; }
 
+    /// <summary>
+    /// Exposes the last triggered async load for testability.
+    /// </summary>
+    internal Task? PendingLoadTask { get; private set; }
+
     [ObservableProperty]
     private InsightsTab _selectedTab = InsightsTab.NetworkUsage;
 
     partial void OnSelectedTabChanged(InsightsTab value)
     {
-        _ = LoadDataForTabAsync(value);
+        PendingLoadTask = LoadDataForTabAsync(value);
     }
 
     [RelayCommand]
@@ -112,7 +117,7 @@ public sealed partial class InsightsViewModel : ObservableObject, IDisposable
         IsCustomPeriod = value == InsightsPeriod.Custom;
         if (!IsCustomPeriod)
         {
-            _ = LoadDataForTabAsync(SelectedTab);
+            PendingLoadTask = LoadDataForTabAsync(SelectedTab);
         }
     }
 
@@ -120,7 +125,7 @@ public sealed partial class InsightsViewModel : ObservableObject, IDisposable
     {
         if (IsCustomPeriod && value.HasValue && CustomEndDate.HasValue)
         {
-            _ = LoadDataForTabAsync(SelectedTab);
+            PendingLoadTask = LoadDataForTabAsync(SelectedTab);
         }
     }
 
@@ -128,7 +133,7 @@ public sealed partial class InsightsViewModel : ObservableObject, IDisposable
     {
         if (IsCustomPeriod && value.HasValue && CustomStartDate.HasValue)
         {
-            _ = LoadDataForTabAsync(SelectedTab);
+            PendingLoadTask = LoadDataForTabAsync(SelectedTab);
         }
     }
 
@@ -236,7 +241,7 @@ public sealed partial class InsightsViewModel : ObservableObject, IDisposable
     {
         if (SelectedTab == InsightsTab.ResourceInsights)
         {
-            _ = LoadDataForTabAsync(InsightsTab.ResourceInsights);
+            PendingLoadTask = LoadDataForTabAsync(InsightsTab.ResourceInsights);
         }
     }
 
@@ -400,7 +405,9 @@ public sealed partial class InsightsViewModel : ObservableObject, IDisposable
     {
         HasError = false;
         ErrorMessage = string.Empty;
-        await LoadDataForTabAsync(SelectedTab);
+        var task = LoadDataForTabAsync(SelectedTab);
+        PendingLoadTask = task;
+        await task;
     }
 
     private async Task LoadDataForTabAsync(InsightsTab tab)
@@ -433,7 +440,6 @@ public sealed partial class InsightsViewModel : ObservableObject, IDisposable
                     break;
             }
 
-            HasData = true;
         }
         catch (OperationCanceledException)
         {
@@ -526,6 +532,8 @@ public sealed partial class InsightsViewModel : ObservableObject, IDisposable
 
         // Build hourly pattern data
         await LoadHourlyPatternDataAsync(startDate, endDate, token);
+
+        HasData = true;
     }
 
     private async Task CalculatePeriodChangeAsync(
@@ -648,6 +656,8 @@ public sealed partial class InsightsViewModel : ObservableObject, IDisposable
             systemData.Select(s => new DateTimePoint(s.Hour, s.AvgMemoryPercent)));
 
         SystemTrendChart = CreateSystemTrendSeries(cpuPoints, memoryPoints);
+
+        HasData = true;
     }
 
     private static string GetTrendStatus(double avg, double max)
@@ -775,6 +785,8 @@ public sealed partial class InsightsViewModel : ObservableObject, IDisposable
 
         // Build overlay chart
         BuildCorrelationChart(alignedData);
+
+        HasData = true;
     }
 
     private static List<(DateTime Time, double Network, double Cpu, double Memory)> AlignDataByHour(
@@ -1030,6 +1042,8 @@ public sealed partial class InsightsViewModel : ObservableObject, IDisposable
                 .Take(10)
                 .ToList();
             BuildResourceTopAppsChart(mergedApps);
+
+            HasData = true;
         }
 
         // Historical trend chart — wrapped separately so live data always shows

@@ -25,6 +25,9 @@ public sealed class ProcessNetworkService : IProcessNetworkService
     public bool HasRequiredPrivileges => _providerFactory.HasElevatedProvider;
     public bool IsPlatformSupported { get; } = true;
 
+    /// <summary>Exposes the last provider-change task for testability.</summary>
+    internal Task? PendingProviderChangeTask { get; private set; }
+
     public event EventHandler<ProcessStatsUpdatedEventArgs>? StatsUpdated;
     public event EventHandler<ProcessNetworkErrorEventArgs>? ErrorOccurred;
 
@@ -147,8 +150,8 @@ public sealed class ProcessNetworkService : IProcessNetworkService
     private void OnProviderChanged(object? sender, ProviderChangedEventArgs e)
     {
         if (_disposed) return;
-        // Use fire-and-forget with error handling instead of async void
-        _ = HandleProviderChangedAsync(e);
+        var task = HandleProviderChangedAsync(e);
+        PendingProviderChangeTask = task;
     }
 
     private async Task HandleProviderChangedAsync(ProviderChangedEventArgs e)

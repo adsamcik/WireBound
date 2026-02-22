@@ -24,6 +24,7 @@ public sealed partial class SettingsViewModel : ObservableObject, IDisposable
     private readonly IProcessNetworkService _processNetworkService;
     private readonly IDataExportService _dataExport;
     private readonly IUpdateService _updateService;
+    private readonly TimeProvider _timeProvider;
     private readonly ILogger<SettingsViewModel>? _logger;
     private CancellationTokenSource? _autoSaveCts;
     private CancellationTokenSource? _downloadCts;
@@ -170,10 +171,12 @@ public sealed partial class SettingsViewModel : ObservableObject, IDisposable
         ScheduleAutoSave();
     }
     partial void OnUseIpHelperApiChanged(bool value) => ScheduleAutoSave();
+    internal Task? PendingPerAppTrackingTask { get; private set; }
+
     partial void OnIsPerAppTrackingEnabledChanged(bool value)
     {
         ScheduleAutoSave();
-        _ = ApplyPerAppTrackingSettingAsync(value);
+        PendingPerAppTrackingTask = ApplyPerAppTrackingSettingAsync(value);
     }
 
     private async Task ApplyPerAppTrackingSettingAsync(bool enabled)
@@ -231,26 +234,30 @@ public sealed partial class SettingsViewModel : ObservableObject, IDisposable
         oldCts?.Cancel();
         oldCts?.Dispose();
 
-        _ = Task.Run(async () =>
-        {
-            try
-            {
-                await Task.Delay(AutoSaveDelayMs, token);
-                if (!token.IsCancellationRequested)
-                {
-                    await SaveAsync();
-                }
-            }
-            catch (OperationCanceledException)
-            {
-                // Ignore cancellation
-            }
-            catch (Exception ex)
-            {
-                _logger?.LogError(ex, "Auto-save failed");
-            }
-        }, token);
+        PendingAutoSaveTask = DelayedAutoSaveAsync(token);
     }
+
+    private async Task DelayedAutoSaveAsync(CancellationToken token)
+    {
+        try
+        {
+            await Task.Delay(TimeSpan.FromMilliseconds(AutoSaveDelayMs), _timeProvider, token);
+            if (!token.IsCancellationRequested)
+            {
+                await SaveAsync();
+            }
+        }
+        catch (OperationCanceledException)
+        {
+            // Ignore cancellation
+        }
+        catch (Exception ex)
+        {
+            _logger?.LogError(ex, "Auto-save failed");
+        }
+    }
+
+    internal Task? PendingAutoSaveTask { get; private set; }
 
     public SettingsViewModel(
         IDataPersistenceService persistence,
@@ -261,6 +268,7 @@ public sealed partial class SettingsViewModel : ObservableObject, IDisposable
         IProcessNetworkService processNetworkService,
         IDataExportService dataExport,
         IUpdateService updateService,
+        TimeProvider timeProvider,
         ILogger<SettingsViewModel>? logger = null)
     {
         _persistence = persistence;
@@ -271,6 +279,7 @@ public sealed partial class SettingsViewModel : ObservableObject, IDisposable
         _processNetworkService = processNetworkService;
         _dataExport = dataExport;
         _updateService = updateService;
+        _timeProvider = timeProvider;
         _logger = logger;
 
         InitializationTask = LoadSettingsAsync();

@@ -2,6 +2,7 @@ using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using Microsoft.Extensions.Logging;
 using System.Collections.ObjectModel;
+using WireBound.Avalonia.Helpers;
 using WireBound.Core.Helpers;
 using WireBound.Core.Models;
 using WireBound.Core.Services;
@@ -83,10 +84,10 @@ public sealed partial class ApplicationsViewModel : ObservableObject, IDisposabl
     private string _totalUpload = "0 B";
 
     [ObservableProperty]
-    private ObservableCollection<ProcessNetworkStats> _activeApps = [];
+    private BatchObservableCollection<ProcessNetworkStats> _activeApps = new();
 
     [ObservableProperty]
-    private ObservableCollection<AppUsageRecord> _allApps = [];
+    private BatchObservableCollection<AppUsageRecord> _allApps = new();
 
     public ApplicationsViewModel(
         IUiDispatcher dispatcher,
@@ -133,7 +134,7 @@ public sealed partial class ApplicationsViewModel : ObservableObject, IDisposabl
                                && _elevationService.IsElevationSupported
                                && _elevationService.RequiresElevationFor(ElevatedFeature.PerProcessNetworkMonitoring);
             IsByteTrackingLimited = !e.IsConnected;
-        });
+        }, UiDispatcherPriority.Background);
     }
 
     private async Task InitializeAsync()
@@ -173,19 +174,15 @@ public sealed partial class ApplicationsViewModel : ObservableObject, IDisposabl
             {
                 RequiresElevation = true;
             }
-        });
+        }, UiDispatcherPriority.Background);
     }
 
     private void OnProcessStatsUpdated(object? sender, ProcessStatsUpdatedEventArgs e)
     {
         _dispatcher.Post(() =>
         {
-            ActiveApps.Clear();
-            foreach (var stats in e.Stats.OrderByDescending(s => s.TotalSpeedBps).Take(10))
-            {
-                ActiveApps.Add(stats);
-            }
-        });
+            ActiveApps.ReplaceAll(e.Stats.OrderByDescending(s => s.TotalSpeedBps).Take(10));
+        }, UiDispatcherPriority.Background);
     }
 
     [RelayCommand]
@@ -220,11 +217,7 @@ public sealed partial class ApplicationsViewModel : ObservableObject, IDisposabl
                     .ToList();
             }
 
-            AllApps.Clear();
-            foreach (var usage in usageList)
-            {
-                AllApps.Add(usage);
-            }
+            AllApps.ReplaceAll(usageList);
 
             // Calculate totals
             AppCount = usageList.Count;

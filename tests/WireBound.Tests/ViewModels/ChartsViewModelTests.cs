@@ -1,6 +1,7 @@
 using AwesomeAssertions;
 using Microsoft.Extensions.Logging;
 using WireBound.Avalonia.ViewModels;
+using WireBound.Core;
 using WireBound.Core.Models;
 using WireBound.Core.Services;
 using WireBound.Tests.Fixtures;
@@ -19,6 +20,7 @@ public class ChartsViewModelTests : IAsyncDisposable
     private readonly IUiDispatcher _dispatcher = new SynchronousDispatcher();
     private readonly INetworkMonitorService _networkMonitorMock;
     private readonly IDataPersistenceService _persistenceMock;
+    private readonly INavigationService _navigationServiceMock;
     private readonly ISystemMonitorService _systemMonitorMock;
     private readonly ILogger<ChartsViewModel> _loggerMock;
     private readonly List<ChartsViewModel> _createdViewModels = [];
@@ -27,6 +29,7 @@ public class ChartsViewModelTests : IAsyncDisposable
     {
         _networkMonitorMock = Substitute.For<INetworkMonitorService>();
         _persistenceMock = Substitute.For<IDataPersistenceService>();
+        _navigationServiceMock = Substitute.For<INavigationService>();
         _systemMonitorMock = Substitute.For<ISystemMonitorService>();
         _loggerMock = Substitute.For<ILogger<ChartsViewModel>>();
 
@@ -40,6 +43,9 @@ public class ChartsViewModelTests : IAsyncDisposable
 
         // Setup persistence to return empty history
         _persistenceMock.GetSpeedHistoryAsync(Arg.Any<DateTime>()).Returns(new List<SpeedSnapshot>());
+
+        // Setup navigation — mark Charts as active so visibility-aware updates are processed
+        _navigationServiceMock.CurrentView.Returns(Routes.Charts);
 
         // Setup system monitor with default stats
         _systemMonitorMock.GetCurrentStats().Returns(CreateDefaultSystemStats());
@@ -75,6 +81,7 @@ public class ChartsViewModelTests : IAsyncDisposable
             _dispatcher,
             _networkMonitorMock,
             _persistenceMock,
+            _navigationServiceMock,
             _systemMonitorMock,
             _loggerMock);
         _createdViewModels.Add(viewModel);
@@ -87,6 +94,7 @@ public class ChartsViewModelTests : IAsyncDisposable
             _dispatcher,
             _networkMonitorMock,
             _persistenceMock,
+            _navigationServiceMock,
             null,
             _loggerMock);
         _createdViewModels.Add(viewModel);
@@ -274,6 +282,7 @@ public class ChartsViewModelTests : IAsyncDisposable
             _dispatcher,
             _networkMonitorMock,
             _persistenceMock,
+            _navigationServiceMock,
             _systemMonitorMock,
             null);
 

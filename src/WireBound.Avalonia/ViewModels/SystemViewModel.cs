@@ -7,6 +7,7 @@ using Microsoft.Extensions.Logging;
 using SkiaSharp;
 using System.Collections.ObjectModel;
 using WireBound.Avalonia.Helpers;
+using WireBound.Core;
 using WireBound.Core.Helpers;
 using WireBound.Core.Models;
 using WireBound.Core.Services;
@@ -20,9 +21,22 @@ public sealed partial class SystemViewModel : ObservableObject, IDisposable
 {
     private readonly IUiDispatcher _dispatcher;
     private readonly ISystemMonitorService _systemMonitorService;
+    private readonly INavigationService _navigationService;
     private readonly ILogger<SystemViewModel>? _logger;
     private bool _disposed;
+    private bool _isViewActive;
     private const int MaxHistoryPoints = 60; // 1 minute of data at 1 point/second
+
+    // Latest-wins coalescing: only one UI post in-flight at a time
+    private SystemStats? _pendingSystemStats;
+    private int _systemUpdateQueued;
+
+    // Cached formatted values
+    private double _lastCpuPercent = -1;
+    private double _lastMemPercent = -1;
+    private long _lastMemUsed = -1;
+    private long _lastMemTotal = -1;
+    private long _lastMemAvailable = -1;
 
     // CPU Properties
     [ObservableProperty]
@@ -67,10 +81,10 @@ public sealed partial class SystemViewModel : ObservableObject, IDisposable
 
     // Chart data
     [ObservableProperty]
-    private ObservableCollection<DateTimePoint> _cpuHistoryPoints = [];
+    private BatchObservableCollection<DateTimePoint> _cpuHistoryPoints = new();
 
     [ObservableProperty]
-    private ObservableCollection<DateTimePoint> _memoryHistoryPoints = [];
+    private BatchObservableCollection<DateTimePoint> _memoryHistoryPoints = new();
 
     public ISeries[] CpuSeries { get; }
     public ISeries[] MemorySeries { get; }
@@ -98,11 +112,14 @@ public sealed partial class SystemViewModel : ObservableObject, IDisposable
     public SystemViewModel(
         IUiDispatcher dispatcher,
         ISystemMonitorService systemMonitorService,
+        INavigationService navigationService,
         ILogger<SystemViewModel>? logger = null)
     {
         _dispatcher = dispatcher;
         _systemMonitorService = systemMonitorService;
+        _navigationService = navigationService;
         _logger = logger;
+        _isViewActive = navigationService.CurrentView == Routes.System;
 
         // Initialize static processor info
         ProcessorName = _systemMonitorService.GetProcessorName();
@@ -116,37 +133,83 @@ public sealed partial class SystemViewModel : ObservableObject, IDisposable
         // Subscribe to stats updates
         _systemMonitorService.StatsUpdated += OnStatsUpdated;
 
+        // Subscribe to navigation changes for view-aware updates
+        _navigationService.NavigationChanged += OnNavigationChanged;
+
         // Get initial stats
         var initialStats = _systemMonitorService.GetCurrentStats();
         UpdateProperties(initialStats);
     }
 
+    private void OnNavigationChanged(string route)
+    {
+        _isViewActive = route == Routes.System;
+    }
+
     private void OnStatsUpdated(object? sender, SystemStats e)
     {
-        _dispatcher.InvokeAsync(() => UpdateProperties(e));
+        // Skip entirely when not visible — no buffering needed for system view
+        if (!_isViewActive) return;
+
+        Volatile.Write(ref _pendingSystemStats, e);
+        if (Interlocked.Exchange(ref _systemUpdateQueued, 1) == 1) return;
+
+        _dispatcher.Post(() =>
+        {
+            var pending = _pendingSystemStats;
+            Interlocked.Exchange(ref _systemUpdateQueued, 0);
+            if (pending != null) UpdateProperties(pending);
+        }, UiDispatcherPriority.Background);
     }
 
     private void UpdateProperties(SystemStats stats)
     {
-        // Update CPU properties
+        // Update CPU properties (cache string formatting)
         CpuUsagePercent = stats.Cpu.UsagePercent;
-        CpuUsageFormatted = $"{stats.Cpu.UsagePercent:F1}%";
+        if (Math.Abs(_lastCpuPercent - stats.Cpu.UsagePercent) >= 0.05)
+        {
+            _lastCpuPercent = stats.Cpu.UsagePercent;
+            CpuUsageFormatted = $"{stats.Cpu.UsagePercent:F1}%";
+        }
         CpuFrequencyMhz = stats.Cpu.FrequencyMhz;
         CpuTemperature = stats.Cpu.TemperatureCelsius;
 
-        // Update per-core usage
-        PerCoreUsage.Clear();
-        foreach (var coreUsage in stats.Cpu.PerCoreUsagePercent)
+        // Update per-core usage in-place to avoid N+1 change notifications
+        var cores = stats.Cpu.PerCoreUsagePercent;
+        if (PerCoreUsage.Count == cores.Length)
         {
-            PerCoreUsage.Add(coreUsage);
+            for (var i = 0; i < cores.Length; i++)
+                PerCoreUsage[i] = cores[i];
+        }
+        else
+        {
+            PerCoreUsage.Clear();
+            foreach (var coreUsage in cores)
+                PerCoreUsage.Add(coreUsage);
         }
 
-        // Update Memory properties
+        // Update Memory properties (cache string formatting)
         MemoryUsagePercent = stats.Memory.UsagePercent;
-        MemoryUsageFormatted = $"{stats.Memory.UsagePercent:F1}%";
-        MemoryUsed = ByteFormatter.FormatBytes(stats.Memory.UsedBytes);
-        MemoryTotal = ByteFormatter.FormatBytes(stats.Memory.TotalBytes);
-        MemoryAvailable = ByteFormatter.FormatBytes(stats.Memory.AvailableBytes);
+        if (Math.Abs(_lastMemPercent - stats.Memory.UsagePercent) >= 0.05)
+        {
+            _lastMemPercent = stats.Memory.UsagePercent;
+            MemoryUsageFormatted = $"{stats.Memory.UsagePercent:F1}%";
+        }
+        if (_lastMemUsed != stats.Memory.UsedBytes)
+        {
+            _lastMemUsed = stats.Memory.UsedBytes;
+            MemoryUsed = ByteFormatter.FormatBytes(stats.Memory.UsedBytes);
+        }
+        if (_lastMemTotal != stats.Memory.TotalBytes)
+        {
+            _lastMemTotal = stats.Memory.TotalBytes;
+            MemoryTotal = ByteFormatter.FormatBytes(stats.Memory.TotalBytes);
+        }
+        if (_lastMemAvailable != stats.Memory.AvailableBytes)
+        {
+            _lastMemAvailable = stats.Memory.AvailableBytes;
+            MemoryAvailable = ByteFormatter.FormatBytes(stats.Memory.AvailableBytes);
+        }
 
         // Update chart history
         var timestamp = stats.Timestamp;
@@ -154,7 +217,7 @@ public sealed partial class SystemViewModel : ObservableObject, IDisposable
         AddHistoryPoint(MemoryHistoryPoints, timestamp, stats.Memory.UsagePercent);
     }
 
-    private void AddHistoryPoint(ObservableCollection<DateTimePoint> points, DateTime timestamp, double value)
+    private void AddHistoryPoint(BatchObservableCollection<DateTimePoint> points, DateTime timestamp, double value)
     {
         points.Add(new DateTimePoint(timestamp, value));
 
@@ -178,7 +241,9 @@ public sealed partial class SystemViewModel : ObservableObject, IDisposable
                 GeometryFill = null,
                 GeometryStroke = null,
                 GeometrySize = 0,
-                LineSmoothness = 0.5
+                LineSmoothness = 0.5,
+                AnimationsSpeed = TimeSpan.Zero,
+                EnableNullSplitting = false
             }
         ];
     }
@@ -219,5 +284,6 @@ public sealed partial class SystemViewModel : ObservableObject, IDisposable
         if (_disposed) return;
         _disposed = true;
         _systemMonitorService.StatsUpdated -= OnStatsUpdated;
+        _navigationService.NavigationChanged -= OnNavigationChanged;
     }
 }

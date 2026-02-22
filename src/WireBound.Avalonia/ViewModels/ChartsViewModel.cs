@@ -8,6 +8,7 @@ using Microsoft.Extensions.Logging;
 using SkiaSharp;
 using System.Collections.ObjectModel;
 using WireBound.Avalonia.Helpers;
+using WireBound.Core;
 using WireBound.Core.Helpers;
 using WireBound.Core.Models;
 using WireBound.Core.Services;
@@ -22,17 +23,34 @@ public sealed partial class ChartsViewModel : ObservableObject, IDisposable
     private readonly IUiDispatcher _dispatcher;
     private readonly INetworkMonitorService _networkMonitor;
     private readonly IDataPersistenceService _persistence;
+    private readonly INavigationService _navigationService;
     private readonly ISystemMonitorService? _systemMonitorService;
     private readonly ILogger<ChartsViewModel>? _logger;
     private readonly CancellationTokenSource _cts = new();
+    private CancellationTokenSource? _timeRangeCts;
     private bool _disposed;
+    private bool _isViewActive;
     private readonly ChartDataManager _chartDataManager = new(maxBufferSize: 3600, maxDisplayPoints: 300);
-    private readonly ObservableCollection<DateTimePoint> _downloadSpeedPoints = [];
-    private readonly ObservableCollection<DateTimePoint> _uploadSpeedPoints = [];
+    private readonly BatchObservableCollection<DateTimePoint> _downloadSpeedPoints = new();
+    private readonly BatchObservableCollection<DateTimePoint> _uploadSpeedPoints = new();
 
     // CPU/Memory history for overlay
-    private readonly ObservableCollection<DateTimePoint> _cpuHistoryPoints = [];
-    private readonly ObservableCollection<DateTimePoint> _memoryHistoryPoints = [];
+    private readonly BatchObservableCollection<DateTimePoint> _cpuHistoryPoints = new();
+    private readonly BatchObservableCollection<DateTimePoint> _memoryHistoryPoints = new();
+
+    // Latest-wins coalescing: only one UI post in-flight at a time per event type
+    private NetworkStats? _pendingNetworkStats;
+    private int _networkUpdateQueued;
+    private SystemStats? _pendingSystemStats;
+    private int _systemUpdateQueued;
+
+    // Cached formatted values to avoid string allocation when value unchanged
+    private long _lastDownloadBps = -1;
+    private long _lastUploadBps = -1;
+    private long _lastPeakDownloadBps = -1;
+    private long _lastPeakUploadBps = -1;
+    private long _lastAvgDownloadBps = -1;
+    private long _lastAvgUploadBps = -1;
 
     // Overlay series (created once, added/removed from chart as needed)
     private readonly LineSeries<DateTimePoint> _cpuOverlaySeries;
@@ -100,15 +118,19 @@ public sealed partial class ChartsViewModel : ObservableObject, IDisposable
         IUiDispatcher dispatcher,
         INetworkMonitorService networkMonitor,
         IDataPersistenceService persistence,
+        INavigationService navigationService,
         ISystemMonitorService? systemMonitorService = null,
         ILogger<ChartsViewModel>? logger = null)
     {
         _dispatcher = dispatcher;
         _networkMonitor = networkMonitor;
         _persistence = persistence;
+        _navigationService = navigationService;
         _systemMonitorService = systemMonitorService;
         _logger = logger;
+        _isViewActive = navigationService.CurrentView == Routes.Charts;
         networkMonitor.StatsUpdated += OnStatsUpdated;
+        navigationService.NavigationChanged += OnNavigationChanged;
 
         _selectedTimeRange = TimeRangeOptions[1];
 
@@ -152,7 +174,11 @@ public sealed partial class ChartsViewModel : ObservableObject, IDisposable
             // Load history into ChartDataManager (populates buffer and updates statistics)
             _chartDataManager.LoadHistory(history.Select(s => (s.Timestamp, s.DownloadSpeedBps, s.UploadSpeedBps)));
 
-            // Update UI on dispatcher thread
+            // Run LTTB downsampling on background thread
+            var rangeSeconds = SelectedTimeRange?.Seconds ?? 60;
+            var (downloadPoints, uploadPoints) = await _chartDataManager.GetDisplayDataAsync(rangeSeconds);
+
+            // Update UI on dispatcher thread — only lightweight collection swap
             await _dispatcher.InvokeAsync(() =>
             {
                 if (token.IsCancellationRequested) return;
@@ -163,14 +189,8 @@ public sealed partial class ChartsViewModel : ObservableObject, IDisposable
                 AverageDownloadSpeed = ByteFormatter.FormatSpeed(_chartDataManager.AverageDownloadBps);
                 AverageUploadSpeed = ByteFormatter.FormatSpeed(_chartDataManager.AverageUploadBps);
 
-                // Apply current time range to show data
-                var rangeSeconds = SelectedTimeRange?.Seconds ?? 60;
-                var (downloadPoints, uploadPoints) = _chartDataManager.GetDisplayData(rangeSeconds);
-
-                foreach (var point in downloadPoints)
-                    _downloadSpeedPoints.Add(point);
-                foreach (var point in uploadPoints)
-                    _uploadSpeedPoints.Add(point);
+                _downloadSpeedPoints.AddRange(downloadPoints);
+                _uploadSpeedPoints.AddRange(uploadPoints);
 
                 // Update axis limits
                 if (XAxes.Length > 0 && downloadPoints.Count > 0)
@@ -187,32 +207,111 @@ public sealed partial class ChartsViewModel : ObservableObject, IDisposable
         }
     }
 
+    private void OnNavigationChanged(string route)
+    {
+        var wasActive = _isViewActive;
+        _isViewActive = route == Routes.Charts;
+
+        if (_isViewActive && !wasActive)
+        {
+            // Refresh chart display from buffer when becoming visible
+            _dispatcher.Post(RefreshChartFromBuffer);
+        }
+    }
+
+    private async void RefreshChartFromBuffer()
+    {
+        try
+        {
+            var rangeSeconds = SelectedTimeRange?.Seconds ?? 60;
+            var (downloadPoints, uploadPoints) = await _chartDataManager.GetDisplayDataAsync(rangeSeconds);
+
+            _downloadSpeedPoints.ReplaceAll(downloadPoints);
+            _uploadSpeedPoints.ReplaceAll(uploadPoints);
+
+            // Update statistics
+            PeakDownloadSpeed = ByteFormatter.FormatSpeed(_chartDataManager.PeakDownloadBps);
+            PeakUploadSpeed = ByteFormatter.FormatSpeed(_chartDataManager.PeakUploadBps);
+            AverageDownloadSpeed = ByteFormatter.FormatSpeed(_chartDataManager.AverageDownloadBps);
+            AverageUploadSpeed = ByteFormatter.FormatSpeed(_chartDataManager.AverageUploadBps);
+
+            // Update axis limits
+            if (XAxes.Length > 0 && downloadPoints.Count > 0)
+            {
+                var cutoff = DateTime.Now.AddSeconds(-rangeSeconds);
+                XAxes[0].MinLimit = cutoff.Ticks;
+                XAxes[0].MaxLimit = DateTime.Now.Ticks;
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger?.LogDebug(ex, "Failed to refresh chart from buffer");
+        }
+    }
+
     private void OnStatsUpdated(object? sender, Core.Models.NetworkStats stats)
     {
         if (_disposed) return;
 
+        Volatile.Write(ref _pendingNetworkStats, stats);
+        if (Interlocked.Exchange(ref _networkUpdateQueued, 1) == 1) return;
+
         _dispatcher.Post(() =>
         {
             if (_disposed) return;
-            UpdateUI(stats);
-        });
+            var pending = _pendingNetworkStats;
+            Interlocked.Exchange(ref _networkUpdateQueued, 0);
+            if (pending != null) UpdateUI(pending);
+        }, UiDispatcherPriority.Background);
     }
 
     private void UpdateUI(Core.Models.NetworkStats stats)
     {
         var now = DateTime.Now;
 
-        DownloadSpeed = ByteFormatter.FormatSpeed(stats.DownloadSpeedBps);
-        UploadSpeed = ByteFormatter.FormatSpeed(stats.UploadSpeedBps);
-
-        // Add to buffer and update statistics via ChartDataManager
+        // Always buffer data (needed for chart history even when not visible)
         _chartDataManager.AddDataPoint(now, stats.DownloadSpeedBps, stats.UploadSpeedBps);
 
-        // Update statistics display
-        PeakDownloadSpeed = ByteFormatter.FormatSpeed(_chartDataManager.PeakDownloadBps);
-        PeakUploadSpeed = ByteFormatter.FormatSpeed(_chartDataManager.PeakUploadBps);
-        AverageDownloadSpeed = ByteFormatter.FormatSpeed(_chartDataManager.AverageDownloadBps);
-        AverageUploadSpeed = ByteFormatter.FormatSpeed(_chartDataManager.AverageUploadBps);
+        // Skip all UI updates when view is not active
+        if (!_isViewActive) return;
+
+        if (_lastDownloadBps != stats.DownloadSpeedBps)
+        {
+            _lastDownloadBps = stats.DownloadSpeedBps;
+            DownloadSpeed = ByteFormatter.FormatSpeed(stats.DownloadSpeedBps);
+        }
+        if (_lastUploadBps != stats.UploadSpeedBps)
+        {
+            _lastUploadBps = stats.UploadSpeedBps;
+            UploadSpeed = ByteFormatter.FormatSpeed(stats.UploadSpeedBps);
+        }
+
+        // Update statistics display (only when values change)
+        var peakDown = _chartDataManager.PeakDownloadBps;
+        var peakUp = _chartDataManager.PeakUploadBps;
+        var avgDown = _chartDataManager.AverageDownloadBps;
+        var avgUp = _chartDataManager.AverageUploadBps;
+
+        if (_lastPeakDownloadBps != peakDown)
+        {
+            _lastPeakDownloadBps = peakDown;
+            PeakDownloadSpeed = ByteFormatter.FormatSpeed(peakDown);
+        }
+        if (_lastPeakUploadBps != peakUp)
+        {
+            _lastPeakUploadBps = peakUp;
+            PeakUploadSpeed = ByteFormatter.FormatSpeed(peakUp);
+        }
+        if (_lastAvgDownloadBps != avgDown)
+        {
+            _lastAvgDownloadBps = avgDown;
+            AverageDownloadSpeed = ByteFormatter.FormatSpeed(avgDown);
+        }
+        if (_lastAvgUploadBps != avgUp)
+        {
+            _lastAvgUploadBps = avgUp;
+            AverageUploadSpeed = ByteFormatter.FormatSpeed(avgUp);
+        }
 
         if (!IsUpdatesPaused)
         {
@@ -238,15 +337,20 @@ public sealed partial class ChartsViewModel : ObservableObject, IDisposable
     {
         if (value == null) return;
 
-        var (downloadPoints, uploadPoints) = _chartDataManager.GetDisplayData(value.Seconds);
+        // Cancel any in-flight time range update to prevent stale data from overwriting
+        _timeRangeCts?.Cancel();
+        _timeRangeCts = new CancellationTokenSource();
+        _ = UpdateTimeRangeAsync(value.Seconds, _timeRangeCts.Token);
+    }
 
-        _downloadSpeedPoints.Clear();
-        _uploadSpeedPoints.Clear();
+    private async Task UpdateTimeRangeAsync(int rangeSeconds, CancellationToken token)
+    {
+        var (downloadPoints, uploadPoints) = await _chartDataManager.GetDisplayDataAsync(rangeSeconds);
 
-        foreach (var point in downloadPoints)
-            _downloadSpeedPoints.Add(point);
-        foreach (var point in uploadPoints)
-            _uploadSpeedPoints.Add(point);
+        if (token.IsCancellationRequested) return;
+
+        _downloadSpeedPoints.ReplaceAll(downloadPoints);
+        _uploadSpeedPoints.ReplaceAll(uploadPoints);
     }
 
     /// <summary>
@@ -254,13 +358,18 @@ public sealed partial class ChartsViewModel : ObservableObject, IDisposable
     /// </summary>
     private void OnSystemStatsUpdated(object? sender, Core.Models.SystemStats stats)
     {
-        if (_disposed || (!ShowCpuOverlay && !ShowMemoryOverlay)) return;
+        if (_disposed || !_isViewActive || (!ShowCpuOverlay && !ShowMemoryOverlay)) return;
+
+        Volatile.Write(ref _pendingSystemStats, stats);
+        if (Interlocked.Exchange(ref _systemUpdateQueued, 1) == 1) return;
 
         _dispatcher.Post(() =>
         {
             if (_disposed) return;
-            UpdateSystemOverlays(stats);
-        });
+            var pending = _pendingSystemStats;
+            Interlocked.Exchange(ref _systemUpdateQueued, 0);
+            if (pending != null) UpdateSystemOverlays(pending);
+        }, UiDispatcherPriority.Background);
     }
 
     private void UpdateSystemOverlays(Core.Models.SystemStats stats)
@@ -323,8 +432,11 @@ public sealed partial class ChartsViewModel : ObservableObject, IDisposable
 
         _cts.Cancel();
         _cts.Dispose();
+        _timeRangeCts?.Cancel();
+        _timeRangeCts?.Dispose();
 
         _networkMonitor.StatsUpdated -= OnStatsUpdated;
+        _navigationService.NavigationChanged -= OnNavigationChanged;
         if (_systemMonitorService != null)
         {
             _systemMonitorService.StatsUpdated -= OnSystemStatsUpdated;

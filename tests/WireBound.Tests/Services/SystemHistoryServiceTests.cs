@@ -52,10 +52,12 @@ public class SystemHistoryServiceTests : IAsyncDisposable
     private static SystemStats CreateSystemStats(
         double cpuUsage = 50.0,
         double memoryUsage = 60.0,
-        long memoryUsedBytes = 8_000_000_000,
+        long? memoryUsedBytes = null,
         DateTime? timestamp = null)
     {
         var ts = timestamp ?? DateTime.Now;
+        var totalBytes = 16_000_000_000L;
+        var usedBytes = memoryUsedBytes ?? (long)(memoryUsage / 100.0 * totalBytes);
         return new SystemStats
         {
             Timestamp = ts,
@@ -68,9 +70,9 @@ public class SystemHistoryServiceTests : IAsyncDisposable
             Memory = new MemoryStats
             {
                 Timestamp = ts,
-                TotalBytes = 16_000_000_000,
-                UsedBytes = memoryUsedBytes,
-                AvailableBytes = 16_000_000_000 - memoryUsedBytes
+                TotalBytes = totalBytes,
+                UsedBytes = usedBytes,
+                AvailableBytes = totalBytes - usedBytes
             }
         };
     }
@@ -648,8 +650,8 @@ public class SystemHistoryServiceTests : IAsyncDisposable
         stats!.AvgCpuPercent.Should().Be(40); // (20 + 60 + 40) / 3
         stats.MinCpuPercent.Should().Be(20);
         stats.MaxCpuPercent.Should().Be(60);
-        stats.AvgMemoryPercent.Should().BeApproximately(53.333, 0.01); // (40 + 70 + 50) / 3
-        stats.MaxMemoryPercent.Should().Be(70);
+        stats.AvgMemoryPercent.Should().Be(50); // (37.5 + 62.5 + 50) / 3 — MemoryPercent derived from UsedBytes/TotalBytes
+        stats.MaxMemoryPercent.Should().Be(62.5); // max of 37.5, 62.5, 50
         stats.AvgMemoryUsedBytes.Should().Be(8_000_000_000); // (6B + 10B + 8B) / 3
     }
 

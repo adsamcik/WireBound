@@ -1,5 +1,6 @@
 using Microsoft.Extensions.Logging;
 using WireBound.Avalonia.ViewModels;
+using WireBound.Core;
 using WireBound.Core.Helpers;
 using WireBound.Core.Models;
 using WireBound.Core.Services;
@@ -22,6 +23,7 @@ public class AutoAdapterTests : IAsyncDisposable
     private readonly IUiDispatcher _dispatcher = new SynchronousDispatcher();
     private readonly INetworkMonitorService _networkMonitor;
     private readonly ISystemMonitorService _systemMonitor;
+    private readonly INavigationService _navigationService;
     private readonly IDataPersistenceService _persistence;
     private readonly ILogger<OverviewViewModel> _logger;
     private readonly List<OverviewViewModel> _createdViewModels = [];
@@ -30,6 +32,7 @@ public class AutoAdapterTests : IAsyncDisposable
     {
         _networkMonitor = Substitute.For<INetworkMonitorService>();
         _systemMonitor = Substitute.For<ISystemMonitorService>();
+        _navigationService = Substitute.For<INavigationService>();
         _persistence = Substitute.For<IDataPersistenceService>();
         _logger = Substitute.For<ILogger<OverviewViewModel>>();
         SetupDefaultMocks();
@@ -58,11 +61,12 @@ public class AutoAdapterTests : IAsyncDisposable
         });
         _persistence.GetTodayUsageAsync().Returns((0L, 0L));
         _persistence.GetSettingsAsync().Returns(new AppSettings());
+        _navigationService.CurrentView.Returns(Routes.Overview);
     }
 
     private OverviewViewModel CreateViewModel()
     {
-        var vm = new OverviewViewModel(_dispatcher, _networkMonitor, _systemMonitor, _persistence, _logger);
+        var vm = new OverviewViewModel(_dispatcher, _networkMonitor, _systemMonitor, _navigationService, _persistence, _logger);
         _createdViewModels.Add(vm);
         return vm;
     }

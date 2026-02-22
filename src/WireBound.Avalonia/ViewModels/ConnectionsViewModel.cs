@@ -2,6 +2,7 @@ using Avalonia;
 using Avalonia.Controls.ApplicationLifetimes;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
+using Microsoft.Extensions.Logging;
 using System.Collections.ObjectModel;
 using WireBound.Avalonia.Helpers;
 using WireBound.Core;
@@ -118,6 +119,7 @@ public sealed partial class ConnectionsViewModel : ObservableObject, IDisposable
     private readonly IDnsResolverService? _dnsResolver;
     private readonly IElevationService _elevationService;
     private readonly INavigationService _navigationService;
+    private readonly ILogger<ConnectionsViewModel>? _logger;
     private readonly TimeProvider _timeProvider;
     private readonly Dictionary<string, ConnectionDisplayItem> _connectionMap = new();
     private ITimer? _refreshTimer;
@@ -191,6 +193,7 @@ public sealed partial class ConnectionsViewModel : ObservableObject, IDisposable
         IDnsResolverService dnsResolver,
         IElevationService elevationService,
         INavigationService navigationService,
+        ILogger<ConnectionsViewModel>? logger = null,
         TimeProvider? timeProvider = null)
     {
         _dispatcher = dispatcher;
@@ -198,6 +201,7 @@ public sealed partial class ConnectionsViewModel : ObservableObject, IDisposable
         _dnsResolver = dnsResolver;
         _elevationService = elevationService;
         _navigationService = navigationService;
+        _logger = logger;
         _timeProvider = timeProvider ?? TimeProvider.System;
         _isViewActive = navigationService.CurrentView == Routes.Connections;
 
@@ -339,6 +343,7 @@ public sealed partial class ConnectionsViewModel : ObservableObject, IDisposable
         }
         catch (Exception ex)
         {
+            _logger?.LogError(ex, "Failed to refresh connections");
             _dispatcher.Post(() =>
             {
                 HasError = true;

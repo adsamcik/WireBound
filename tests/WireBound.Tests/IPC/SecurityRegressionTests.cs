@@ -1,3 +1,4 @@
+using System.Runtime.Versioning;
 using System.Security.Principal;
 using System.Text;
 using WireBound.Elevation.Windows;
@@ -14,6 +15,7 @@ namespace WireBound.Tests.IPC;
 /// to ensure it never regresses. Tests document the vulnerability being prevented.
 /// </summary>
 [NotInParallel("SecretFile")]
+[SupportedOSPlatform("windows")]
 public class SecurityRegressionTests
 {
     // ═══════════════════════════════════════════════════════════════════════

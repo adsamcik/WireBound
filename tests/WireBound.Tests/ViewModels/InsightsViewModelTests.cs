@@ -243,7 +243,7 @@ public class InsightsViewModelTests : IAsyncDisposable
         await viewModel.PendingLoadTask!;
 
         // Assert
-        _systemHistoryMock.Received().GetHourlyStatsAsync(Arg.Any<DateTime>(), Arg.Any<DateTime>());
+        await _systemHistoryMock.Received().GetHourlyStatsAsync(Arg.Any<DateTime>(), Arg.Any<DateTime>());
     }
 
     [Test]
@@ -358,7 +358,7 @@ public class InsightsViewModelTests : IAsyncDisposable
         await viewModel.PendingLoadTask!;
 
         // Assert
-        _persistenceMock.Received().GetDailyUsageAsync(Arg.Any<DateOnly>(), Arg.Any<DateOnly>());
+        await _persistenceMock.Received().GetDailyUsageAsync(Arg.Any<DateOnly>(), Arg.Any<DateOnly>());
     }
 
     [Test]
@@ -412,7 +412,7 @@ public class InsightsViewModelTests : IAsyncDisposable
         await viewModel.PendingLoadTask!;
 
         // Assert
-        _persistenceMock.Received().GetDailyUsageAsync(Arg.Any<DateOnly>(), Arg.Any<DateOnly>());
+        await _persistenceMock.Received().GetDailyUsageAsync(Arg.Any<DateOnly>(), Arg.Any<DateOnly>());
     }
 
     [Test]
@@ -431,7 +431,7 @@ public class InsightsViewModelTests : IAsyncDisposable
         await viewModel.PendingLoadTask!;
 
         // Assert
-        _persistenceMock.Received().GetDailyUsageAsync(Arg.Any<DateOnly>(), Arg.Any<DateOnly>());
+        await _persistenceMock.Received().GetDailyUsageAsync(Arg.Any<DateOnly>(), Arg.Any<DateOnly>());
     }
 
     #endregion

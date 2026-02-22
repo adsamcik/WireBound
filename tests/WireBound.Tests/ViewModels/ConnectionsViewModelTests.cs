@@ -59,7 +59,7 @@ public class ConnectionsViewModelTests : IAsyncDisposable
             _dnsResolverMock,
             _elevationServiceMock,
             _navigationServiceMock,
-            _fakeTimeProvider);
+            timeProvider: _fakeTimeProvider);
         _createdViewModels.Add(viewModel);
         return viewModel;
     }
@@ -251,7 +251,7 @@ public class ConnectionsViewModelTests : IAsyncDisposable
         await viewModel.InitializationTask;
 
         // Assert
-        _processNetworkServiceMock.Received(1).StartAsync();
+        await _processNetworkServiceMock.Received(1).StartAsync();
         viewModel.Dispose();
     }
 
@@ -492,7 +492,7 @@ public class ConnectionsViewModelTests : IAsyncDisposable
             await viewModel.PendingSearchTask;
 
         // Assert
-        _processNetworkServiceMock.Received().GetConnectionStatsAsync();
+        await _processNetworkServiceMock.Received().GetConnectionStatsAsync();
         viewModel.Dispose();
     }
 

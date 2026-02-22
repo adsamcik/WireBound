@@ -261,7 +261,7 @@ public class ChartsViewModelTests : IAsyncDisposable
         await viewModel.InitializationTask;
 
         // Assert - verify the method was called
-        _persistenceMock.Received().GetSpeedHistoryAsync(Arg.Any<DateTime>());
+        await _persistenceMock.Received().GetSpeedHistoryAsync(Arg.Any<DateTime>());
     }
 
     [Test]
@@ -761,7 +761,7 @@ public class ChartsViewModelTests : IAsyncDisposable
         await viewModel.InitializationTask;
 
         // Assert
-        _persistenceMock.Received().GetSpeedHistoryAsync(Arg.Any<DateTime>());
+        await _persistenceMock.Received().GetSpeedHistoryAsync(Arg.Any<DateTime>());
     }
 
     [Test]

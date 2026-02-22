@@ -1,3 +1,4 @@
+using System.Runtime.Versioning;
 using WireBound.Elevation.Windows;
 
 namespace WireBound.Tests.IPC;
@@ -7,6 +8,7 @@ namespace WireBound.Tests.IPC;
 /// stats aggregation, and boundary conditions.
 /// These tests exercise the internal methods extracted for testability.
 /// </summary>
+[SupportedOSPlatform("windows")]
 public class EtwConnectionTrackerLogicTests
 {
     // ═══════════════════════════════════════════════════════════════════════

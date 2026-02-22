@@ -1,3 +1,4 @@
+using System.Runtime.Versioning;
 using System.Security.Principal;
 using WireBound.Elevation.Windows;
 using WireBound.IPC;
@@ -10,6 +11,7 @@ namespace WireBound.Tests.IPC;
 /// <summary>
 /// Additional coverage tests for Windows elevation server components.
 /// </summary>
+[SupportedOSPlatform("windows")]
 public class WindowsAdditionalCoverageTests
 {
     // ═══════════════════════════════════════════════════════════════════════

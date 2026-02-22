@@ -1,3 +1,4 @@
+using System.Runtime.Versioning;
 using AwesomeAssertions;
 using NSubstitute;
 using TUnit.Core;
@@ -6,6 +7,7 @@ using WireBound.Platform.Windows.Services;
 
 namespace WireBound.Tests.Platform;
 
+[SupportedOSPlatform("windows")]
 public class WindowsProcessNetworkProviderFactoryTests
 {
     [Test]

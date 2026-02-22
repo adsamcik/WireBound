@@ -1,3 +1,4 @@
+using System.Runtime.Versioning;
 using WireBound.Elevation.Windows;
 
 namespace WireBound.Tests.IPC;
@@ -5,6 +6,7 @@ namespace WireBound.Tests.IPC;
 /// <summary>
 /// Tests for the Windows elevation CLI argument parser.
 /// </summary>
+[SupportedOSPlatform("windows")]
 public class CliParserTests
 {
     [Test]

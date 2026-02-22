@@ -235,7 +235,7 @@ public class OverviewViewModelTests : IAsyncDisposable
         await viewModel.InitializationTask;
 
         // Assert
-        _persistenceMock.Received(1).GetTodayUsageAsync();
+        await _persistenceMock.Received(1).GetTodayUsageAsync();
         viewModel.TodayDownload.Should().Be("100.00 MB");
         viewModel.TodayUpload.Should().Be("50.00 MB");
     }

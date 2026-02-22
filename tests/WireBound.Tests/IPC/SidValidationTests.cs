@@ -1,9 +1,11 @@
+using System.Runtime.Versioning;
 using System.Security.Principal;
 using WireBound.Elevation.Windows;
 using WireBound.Tests.Fixtures;
 
 namespace WireBound.Tests.IPC;
 
+[SupportedOSPlatform("windows")]
 public class SidValidationTests
 {
     [Test, WindowsOnly]

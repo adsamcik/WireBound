@@ -1,3 +1,4 @@
+using System.Runtime.Versioning;
 using System.Security.Principal;
 using WireBound.Elevation.Windows;
 using WireBound.IPC;
@@ -13,6 +14,7 @@ namespace WireBound.Tests.IPC;
 /// without requiring elevated privileges or real named pipes.
 /// </summary>
 [NotInParallel("SecretFile")]
+[SupportedOSPlatform("windows")]
 public class WindowsElevationServerHandlerTests : IDisposable
 {
     private readonly ElevationServer? _server;
@@ -114,7 +116,7 @@ public class WindowsElevationServerHandlerTests : IDisposable
             {
                 ClientPid = Environment.ProcessId,
                 Timestamp = oldTimestamp,
-                Signature = HmacAuthenticator.Sign(Environment.ProcessId, oldTimestamp, _secret)
+                Signature = HmacAuthenticator.Sign(Environment.ProcessId, oldTimestamp, _secret!)
             })
         };
 
@@ -152,7 +154,7 @@ public class WindowsElevationServerHandlerTests : IDisposable
 
         var pid = Environment.ProcessId;
         var timestamp = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
-        var signature = HmacAuthenticator.Sign(pid, timestamp, _secret);
+        var signature = HmacAuthenticator.Sign(pid, timestamp, _secret!);
 
         var request = new IpcMessage
         {

@@ -1,3 +1,4 @@
+using System.Runtime.Versioning;
 using System.Security.Principal;
 using WireBound.Elevation.Windows;
 using WireBound.IPC;
@@ -13,6 +14,7 @@ namespace WireBound.Tests.IPC;
 /// without requiring named pipes or admin privileges.
 /// </summary>
 [NotInParallel("SecretFile")]
+[SupportedOSPlatform("windows")]
 public class HandleClientAsyncTests : IDisposable
 {
     private readonly ElevationServer? _server;

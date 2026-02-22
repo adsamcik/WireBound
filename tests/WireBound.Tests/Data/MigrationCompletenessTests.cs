@@ -269,7 +269,7 @@ public class MigrationCompletenessTests
     /// <summary>
     /// Provides test data: each entity table with its expected columns from a fresh EnsureCreated schema.
     /// </summary>
-    public static async Task<List<(string TableName, List<string> ExpectedColumns)>> GetEntityTables()
+    public static async Task<List<Func<(string TableName, List<string> ExpectedColumns)>>> GetEntityTables()
     {
         using var connection = new SqliteConnection("Data Source=:memory:");
         await connection.OpenAsync();
@@ -282,72 +282,77 @@ public class MigrationCompletenessTests
         await context.Database.EnsureCreatedAsync();
 
         var schema = await GetSchemaAsync(connection);
-        return schema.Select(kvp => (kvp.Key, kvp.Value)).ToList();
+        return schema.Select(kvp =>
+        {
+            var tableName = kvp.Key;
+            var columns = kvp.Value;
+            return new Func<(string, List<string>)>(() => (tableName, new List<string>(columns)));
+        }).ToList();
     }
 
     /// <summary>
     /// Provides a query action for each DbSet — verifying EF Core can generate valid SQL.
     /// </summary>
-    public static IEnumerable<(string EntityName, Func<WireBoundDbContext, Task> QueryAction)> GetDbSetQueryActions()
+    public static IEnumerable<Func<(string EntityName, Func<WireBoundDbContext, Task> QueryAction)>> GetDbSetQueryActions()
     {
-        yield return ("Settings", async ctx => await ctx.Settings.FirstOrDefaultAsync());
-        yield return ("HourlyUsages", async ctx => await ctx.HourlyUsages.FirstOrDefaultAsync());
-        yield return ("DailyUsages", async ctx => await ctx.DailyUsages.FirstOrDefaultAsync());
-        yield return ("SpeedSnapshots", async ctx => await ctx.SpeedSnapshots.FirstOrDefaultAsync());
-        yield return ("AppUsageRecords", async ctx => await ctx.AppUsageRecords.FirstOrDefaultAsync());
-        yield return ("HourlySystemStats", async ctx => await ctx.HourlySystemStats.FirstOrDefaultAsync());
-        yield return ("DailySystemStats", async ctx => await ctx.DailySystemStats.FirstOrDefaultAsync());
-        yield return ("AddressUsageRecords", async ctx => await ctx.AddressUsageRecords.FirstOrDefaultAsync());
-        yield return ("ResourceInsightSnapshots", async ctx => await ctx.ResourceInsightSnapshots.FirstOrDefaultAsync());
-        yield return ("AppCategoryMappings", async ctx => await ctx.AppCategoryMappings.FirstOrDefaultAsync());
+        yield return () => ("Settings", async ctx => await ctx.Settings.FirstOrDefaultAsync());
+        yield return () => ("HourlyUsages", async ctx => await ctx.HourlyUsages.FirstOrDefaultAsync());
+        yield return () => ("DailyUsages", async ctx => await ctx.DailyUsages.FirstOrDefaultAsync());
+        yield return () => ("SpeedSnapshots", async ctx => await ctx.SpeedSnapshots.FirstOrDefaultAsync());
+        yield return () => ("AppUsageRecords", async ctx => await ctx.AppUsageRecords.FirstOrDefaultAsync());
+        yield return () => ("HourlySystemStats", async ctx => await ctx.HourlySystemStats.FirstOrDefaultAsync());
+        yield return () => ("DailySystemStats", async ctx => await ctx.DailySystemStats.FirstOrDefaultAsync());
+        yield return () => ("AddressUsageRecords", async ctx => await ctx.AddressUsageRecords.FirstOrDefaultAsync());
+        yield return () => ("ResourceInsightSnapshots", async ctx => await ctx.ResourceInsightSnapshots.FirstOrDefaultAsync());
+        yield return () => ("AppCategoryMappings", async ctx => await ctx.AppCategoryMappings.FirstOrDefaultAsync());
     }
 
     /// <summary>
     /// Provides an insert action for each DbSet (except Settings which is seeded).
     /// </summary>
-    public static IEnumerable<(string EntityName, Func<WireBoundDbContext, Task> InsertAction)> GetDbSetInsertActions()
+    public static IEnumerable<Func<(string EntityName, Func<WireBoundDbContext, Task> InsertAction)>> GetDbSetInsertActions()
     {
-        yield return ("HourlyUsages", async ctx =>
+        yield return () => ("HourlyUsages", async ctx =>
         {
             ctx.HourlyUsages.Add(new() { Hour = DateTime.Now, AdapterId = "test" });
             await ctx.SaveChangesAsync();
         });
-        yield return ("DailyUsages", async ctx =>
+        yield return () => ("DailyUsages", async ctx =>
         {
             ctx.DailyUsages.Add(new() { Date = DateOnly.FromDateTime(DateTime.Now), AdapterId = "test" });
             await ctx.SaveChangesAsync();
         });
-        yield return ("SpeedSnapshots", async ctx =>
+        yield return () => ("SpeedSnapshots", async ctx =>
         {
             ctx.SpeedSnapshots.Add(new() { Timestamp = DateTime.Now });
             await ctx.SaveChangesAsync();
         });
-        yield return ("AppUsageRecords", async ctx =>
+        yield return () => ("AppUsageRecords", async ctx =>
         {
             ctx.AppUsageRecords.Add(new() { Timestamp = DateTime.Now, AppIdentifier = "test" });
             await ctx.SaveChangesAsync();
         });
-        yield return ("HourlySystemStats", async ctx =>
+        yield return () => ("HourlySystemStats", async ctx =>
         {
             ctx.HourlySystemStats.Add(new() { Hour = DateTime.Now });
             await ctx.SaveChangesAsync();
         });
-        yield return ("DailySystemStats", async ctx =>
+        yield return () => ("DailySystemStats", async ctx =>
         {
             ctx.DailySystemStats.Add(new() { Date = DateOnly.FromDateTime(DateTime.Now) });
             await ctx.SaveChangesAsync();
         });
-        yield return ("AddressUsageRecords", async ctx =>
+        yield return () => ("AddressUsageRecords", async ctx =>
         {
             ctx.AddressUsageRecords.Add(new() { Timestamp = DateTime.Now, RemoteAddress = "127.0.0.1" });
             await ctx.SaveChangesAsync();
         });
-        yield return ("ResourceInsightSnapshots", async ctx =>
+        yield return () => ("ResourceInsightSnapshots", async ctx =>
         {
             ctx.ResourceInsightSnapshots.Add(new() { Timestamp = DateTime.Now, AppIdentifier = "test" });
             await ctx.SaveChangesAsync();
         });
-        yield return ("AppCategoryMappings", async ctx =>
+        yield return () => ("AppCategoryMappings", async ctx =>
         {
             ctx.AppCategoryMappings.Add(new() { ExecutableName = "test.exe", CategoryName = "Test" });
             await ctx.SaveChangesAsync();

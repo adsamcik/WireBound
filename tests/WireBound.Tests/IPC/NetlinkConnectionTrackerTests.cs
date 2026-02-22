@@ -1,5 +1,6 @@
 using System.Globalization;
 using System.Net;
+using System.Runtime.Versioning;
 using WireBound.Elevation.Linux;
 
 namespace WireBound.Tests.IPC;
@@ -9,6 +10,7 @@ namespace WireBound.Tests.IPC;
 /// not a copy), connection state management, and stale entry cleanup.
 /// These tests call the internal methods directly via InternalsVisibleTo.
 /// </summary>
+[SupportedOSPlatform("linux")]
 public class NetlinkConnectionTrackerTests
 {
     // ═══════════════════════════════════════════════════════════════════════

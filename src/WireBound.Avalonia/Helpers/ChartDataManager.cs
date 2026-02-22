@@ -12,7 +12,7 @@ public class ChartDataManager
     private readonly CircularBuffer<(DateTime Time, long Download, long Upload)> _dataBuffer;
     private readonly int _maxDisplayPoints;
 
-    // Statistics tracking
+    // Statistics tracking (thread-safe via Interlocked)
     private long _peakDownloadBps;
     private long _peakUploadBps;
     private long _totalDownloadBps;
@@ -31,28 +31,46 @@ public class ChartDataManager
 
     /// <summary>
     /// Peak download speed in bytes per second since last reset.
+    /// Thread-safe: uses volatile read.
     /// </summary>
-    public long PeakDownloadBps => _peakDownloadBps;
+    public long PeakDownloadBps => Volatile.Read(ref _peakDownloadBps);
 
     /// <summary>
     /// Peak upload speed in bytes per second since last reset.
+    /// Thread-safe: uses volatile read.
     /// </summary>
-    public long PeakUploadBps => _peakUploadBps;
+    public long PeakUploadBps => Volatile.Read(ref _peakUploadBps);
 
     /// <summary>
     /// Average download speed in bytes per second since last reset.
+    /// Thread-safe: uses volatile reads.
     /// </summary>
-    public long AverageDownloadBps => _sampleCount > 0 ? _totalDownloadBps / _sampleCount : 0;
+    public long AverageDownloadBps
+    {
+        get
+        {
+            var count = Volatile.Read(ref _sampleCount);
+            return count > 0 ? Volatile.Read(ref _totalDownloadBps) / count : 0;
+        }
+    }
 
     /// <summary>
     /// Average upload speed in bytes per second since last reset.
+    /// Thread-safe: uses volatile reads.
     /// </summary>
-    public long AverageUploadBps => _sampleCount > 0 ? _totalUploadBps / _sampleCount : 0;
+    public long AverageUploadBps
+    {
+        get
+        {
+            var count = Volatile.Read(ref _sampleCount);
+            return count > 0 ? Volatile.Read(ref _totalUploadBps) / count : 0;
+        }
+    }
 
     /// <summary>
     /// Number of samples collected since last reset.
     /// </summary>
-    public int SampleCount => _sampleCount;
+    public int SampleCount => Volatile.Read(ref _sampleCount);
 
     /// <summary>
     /// Number of data points currently in the buffer.
@@ -85,18 +103,26 @@ public class ChartDataManager
 
     /// <summary>
     /// Updates peak and average statistics with a new sample.
+    /// Thread-safe: uses Interlocked operations.
     /// </summary>
     private void UpdateStatistics(long downloadBps, long uploadBps)
     {
-        if (downloadBps > _peakDownloadBps)
-            _peakDownloadBps = downloadBps;
+        InterlockedMax(ref _peakDownloadBps, downloadBps);
+        InterlockedMax(ref _peakUploadBps, uploadBps);
 
-        if (uploadBps > _peakUploadBps)
-            _peakUploadBps = uploadBps;
+        Interlocked.Add(ref _totalDownloadBps, downloadBps);
+        Interlocked.Add(ref _totalUploadBps, uploadBps);
+        Interlocked.Increment(ref _sampleCount);
+    }
 
-        _totalDownloadBps += downloadBps;
-        _totalUploadBps += uploadBps;
-        _sampleCount++;
+    private static void InterlockedMax(ref long location, long value)
+    {
+        long current;
+        do
+        {
+            current = Volatile.Read(ref location);
+            if (value <= current) return;
+        } while (Interlocked.CompareExchange(ref location, value, current) != current);
     }
 
     /// <summary>
@@ -131,6 +157,19 @@ public class ChartDataManager
     }
 
     /// <summary>
+    /// Gets buffered data filtered by time range on a background thread, applying LTTB downsampling if needed.
+    /// Use this for expensive operations to keep the UI thread responsive.
+    /// </summary>
+    /// <param name="rangeSeconds">Number of seconds to include from now</param>
+    /// <returns>
+    /// Tuple containing download points and upload points, downsampled if exceeding MaxDisplayPoints.
+    /// </returns>
+    public Task<(List<DateTimePoint> Download, List<DateTimePoint> Upload)> GetDisplayDataAsync(int rangeSeconds)
+    {
+        return Task.Run(() => GetDisplayData(rangeSeconds));
+    }
+
+    /// <summary>
     /// Gets all buffered data as enumerable (no filtering or downsampling).
     /// </summary>
     public IEnumerable<(DateTime Time, long Download, long Upload)> GetRawData()
@@ -159,14 +198,15 @@ public class ChartDataManager
 
     /// <summary>
     /// Resets statistics without clearing the buffer.
+    /// Thread-safe: uses Interlocked operations.
     /// </summary>
     public void ResetStatistics()
     {
-        _peakDownloadBps = 0;
-        _peakUploadBps = 0;
-        _totalDownloadBps = 0;
-        _totalUploadBps = 0;
-        _sampleCount = 0;
+        Interlocked.Exchange(ref _peakDownloadBps, 0);
+        Interlocked.Exchange(ref _peakUploadBps, 0);
+        Interlocked.Exchange(ref _totalDownloadBps, 0);
+        Interlocked.Exchange(ref _totalUploadBps, 0);
+        Interlocked.Exchange(ref _sampleCount, 0);
     }
 
     /// <summary>

@@ -49,7 +49,7 @@ public class ChartSeriesFactoryTests
 
         // Act
         var result = ChartSeriesFactory.CreateSpeedLineSeries(downloadPoints, uploadPoints);
-        var download = result[0].Should().BeOfType<LineSeries<DateTimePoint>>().Value;
+        var download = result[0].Should().BeOfType<LineSeries<DateTimePoint>>().Which;
 
         // Assert
         download.Values.Should().BeSameAs(downloadPoints);
@@ -72,7 +72,7 @@ public class ChartSeriesFactoryTests
 
         // Act
         var result = ChartSeriesFactory.CreateSpeedLineSeries(downloadPoints, uploadPoints);
-        var upload = result[1].Should().BeOfType<LineSeries<DateTimePoint>>().Value;
+        var upload = result[1].Should().BeOfType<LineSeries<DateTimePoint>>().Which;
 
         // Assert
         upload.Values.Should().BeSameAs(uploadPoints);
@@ -106,7 +106,7 @@ public class ChartSeriesFactoryTests
         result.AnimationsSpeed.Should().Be(TimeSpan.Zero);
         result.ScalesYAt.Should().Be(1);
 
-        var stroke = result.Stroke.Should().BeOfType<SolidColorPaint>().Value;
+        var stroke = result.Stroke.Should().BeOfType<SolidColorPaint>().Which;
         stroke.Color.Should().Be(SKColors.Blue);
         stroke.StrokeThickness.Should().Be(2);
         stroke.PathEffect.Should().BeOfType<DashEffect>();
@@ -124,7 +124,7 @@ public class ChartSeriesFactoryTests
 
         // Assert
         result.Name.Should().Be("Memory");
-        var stroke = result.Stroke.Should().BeOfType<SolidColorPaint>().Value;
+        var stroke = result.Stroke.Should().BeOfType<SolidColorPaint>().Which;
         stroke.Color.Should().Be(SKColors.Red);
         stroke.PathEffect.Should().BeNull();
     }
@@ -145,11 +145,11 @@ public class ChartSeriesFactoryTests
         result.Fill.Should().BeNull();
         result.GeometryFill.Should().BeNull();
         result.GeometryStroke.Should().BeNull();
-        result.LineSmoothness.Should().Be(0.8);
+        result.LineSmoothness.Should().BeApproximately(0.8, 0.001);
         result.AnimationsSpeed.Should().Be(TimeSpan.Zero);
         result.ScalesYAt.Should().Be(0);
 
-        var stroke = result.Stroke.Should().BeOfType<SolidColorPaint>().Value;
+        var stroke = result.Stroke.Should().BeOfType<SolidColorPaint>().Which;
         stroke.Color.Should().Be(SKColors.Green);
         stroke.StrokeThickness.Should().Be(1.5f);
         stroke.PathEffect.Should().BeNull();
@@ -169,7 +169,7 @@ public class ChartSeriesFactoryTests
         result.Name.Should().Be("VPN");
         result.ScalesYAt.Should().Be(0);
 
-        var stroke = result.Stroke.Should().BeOfType<SolidColorPaint>().Value;
+        var stroke = result.Stroke.Should().BeOfType<SolidColorPaint>().Which;
         stroke.StrokeThickness.Should().Be(1.5f);
         stroke.PathEffect.Should().BeOfType<DashEffect>();
     }
@@ -182,7 +182,7 @@ public class ChartSeriesFactoryTests
 
         // Assert
         result.Should().HaveCount(1);
-        var axis = result[0].Should().BeOfType<DateTimeAxis>().Value;
+        var axis = result[0].Should().BeOfType<DateTimeAxis>().Which;
         axis.Name.Should().Be("Time");
         axis.TextSize.Should().Be(11);
         axis.NameTextSize.Should().Be(12);
@@ -352,7 +352,7 @@ public class ChartSeriesFactoryTests
 
         // Act
         var result = ChartSeriesFactory.CreateUsageColumnSeries(downloadValues, uploadValues);
-        var download = result[0].Should().BeOfType<StackedColumnSeries<long>>().Value;
+        var download = result[0].Should().BeOfType<StackedColumnSeries<long>>().Which;
 
         // Assert
         download.Values.Should().BeSameAs(downloadValues);
@@ -372,7 +372,7 @@ public class ChartSeriesFactoryTests
 
         // Act
         var result = ChartSeriesFactory.CreateUsageColumnSeries(downloadValues, uploadValues);
-        var upload = result[1].Should().BeOfType<StackedColumnSeries<long>>().Value;
+        var upload = result[1].Should().BeOfType<StackedColumnSeries<long>>().Which;
 
         // Assert
         upload.Values.Should().BeSameAs(uploadValues);
@@ -408,8 +408,8 @@ public class ChartSeriesFactoryTests
 
         // Act
         var result = ChartSeriesFactory.CreateHourlyColumnSeries(downloadValues, uploadValues);
-        var download = result[0].Should().BeOfType<StackedColumnSeries<long>>().Value;
-        var upload = result[1].Should().BeOfType<StackedColumnSeries<long>>().Value;
+        var download = result[0].Should().BeOfType<StackedColumnSeries<long>>().Which;
+        var upload = result[1].Should().BeOfType<StackedColumnSeries<long>>().Which;
 
         // Assert
         download.MaxBarWidth.Should().Be(20);
@@ -431,7 +431,7 @@ public class ChartSeriesFactoryTests
 
         // Assert
         result.Should().HaveCount(1);
-        var series = result[0].Should().BeOfType<LineSeries<DateTimePoint>>().Value;
+        var series = result[0].Should().BeOfType<LineSeries<DateTimePoint>>().Which;
         series.Values.Should().BeSameAs(points);
         series.Stroke.Should().BeOfType<SolidColorPaint>()
             .Which.Color.Should().Be(ChartColors.DownloadAccentColor);
@@ -439,7 +439,7 @@ public class ChartSeriesFactoryTests
         series.Fill.Should().BeOfType<LinearGradientPaint>();
         series.GeometryFill.Should().BeNull();
         series.GeometryStroke.Should().BeNull();
-        series.LineSmoothness.Should().Be(0.65);
+        series.LineSmoothness.Should().BeApproximately(0.65, 0.001);
         series.AnimationsSpeed.Should().Be(TimeSpan.Zero);
     }
 
@@ -454,7 +454,7 @@ public class ChartSeriesFactoryTests
 
         // Assert
         result.Should().HaveCount(1);
-        var series = result[0].Should().BeOfType<LineSeries<DateTimePoint>>().Value;
+        var series = result[0].Should().BeOfType<LineSeries<DateTimePoint>>().Which;
         series.Stroke.Should().BeOfType<SolidColorPaint>()
             .Which.Color.Should().Be(ChartColors.UploadAccentColor);
     }
@@ -467,7 +467,7 @@ public class ChartSeriesFactoryTests
 
         // Assert
         result.Should().HaveCount(1);
-        var axis = result[0].Should().BeOfType<DateTimeAxis>().Value;
+        var axis = result[0].Should().BeOfType<DateTimeAxis>().Which;
         axis.ShowSeparatorLines.Should().BeFalse();
         axis.LabelsPaint.Should().BeNull();
         axis.NamePaint.Should().BeNull();

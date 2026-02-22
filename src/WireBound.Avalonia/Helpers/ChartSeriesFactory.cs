@@ -43,7 +43,8 @@ public static class ChartSeriesFactory
                 GeometryFill = null,
                 GeometryStroke = null,
                 LineSmoothness = 1,
-                AnimationsSpeed = TimeSpan.Zero
+                AnimationsSpeed = TimeSpan.Zero,
+                EnableNullSplitting = false
             },
             new LineSeries<DateTimePoint>
             {
@@ -58,7 +59,8 @@ public static class ChartSeriesFactory
                 GeometryFill = null,
                 GeometryStroke = null,
                 LineSmoothness = 1,
-                AnimationsSpeed = TimeSpan.Zero
+                AnimationsSpeed = TimeSpan.Zero,
+                EnableNullSplitting = false
             }
         ];
     }
@@ -163,6 +165,7 @@ public static class ChartSeriesFactory
             GeometryStroke = null,
             LineSmoothness = 0.5,
             AnimationsSpeed = TimeSpan.Zero,
+            EnableNullSplitting = false,
             ScalesYAt = 1 // Use secondary Y-axis (index 1)
         };
     }
@@ -199,6 +202,7 @@ public static class ChartSeriesFactory
             GeometryStroke = null,
             LineSmoothness = 0.8,
             AnimationsSpeed = TimeSpan.Zero,
+            EnableNullSplitting = false,
             ScalesYAt = 0 // Same Y-axis as primary speed series
         };
     }
@@ -359,7 +363,8 @@ public static class ChartSeriesFactory
                 GeometryFill = null,
                 GeometryStroke = null,
                 LineSmoothness = 0.65,
-                AnimationsSpeed = TimeSpan.Zero
+                AnimationsSpeed = TimeSpan.Zero,
+                EnableNullSplitting = false
             }
         ];
     }

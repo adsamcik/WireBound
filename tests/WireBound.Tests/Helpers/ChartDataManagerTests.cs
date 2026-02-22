@@ -353,4 +353,199 @@ public class ChartDataManagerTests
         raw[0].Item2.Should().Be(400);
         raw[4].Item2.Should().Be(800);
     }
+
+    // ═══════════════════════════════════════════════════════════════════════════════
+    // GetDisplayDataAsync Tests
+    // ═══════════════════════════════════════════════════════════════════════════════
+
+    [Test]
+    public async Task GetDisplayDataAsync_ReturnsSameResultAsSync()
+    {
+        // Arrange
+        var manager = new ChartDataManager(maxDisplayPoints: 300);
+        var now = DateTime.Now;
+        manager.AddDataPoint(now.AddSeconds(-30), 200, 20);
+        manager.AddDataPoint(now, 300, 30);
+
+        // Act
+        var syncResult = manager.GetDisplayData(60);
+        var asyncResult = await manager.GetDisplayDataAsync(60);
+
+        // Assert
+        asyncResult.Download.Should().HaveCount(syncResult.Download.Count);
+        asyncResult.Upload.Should().HaveCount(syncResult.Upload.Count);
+    }
+
+    [Test]
+    public async Task GetDisplayDataAsync_WithNoData_ReturnsEmptyLists()
+    {
+        // Arrange
+        var manager = new ChartDataManager();
+
+        // Act
+        var (download, upload) = await manager.GetDisplayDataAsync(60);
+
+        // Assert
+        download.Should().HaveCount(0);
+        upload.Should().HaveCount(0);
+    }
+
+    [Test]
+    public async Task GetDisplayDataAsync_WithDownsampling_ReturnsCorrectCount()
+    {
+        // Arrange
+        var maxDisplay = 50;
+        var manager = new ChartDataManager(maxBufferSize: 1000, maxDisplayPoints: maxDisplay);
+        var now = DateTime.Now;
+
+        for (var i = 0; i < 200; i++)
+        {
+            manager.AddDataPoint(now.AddSeconds(-200 + i), i * 10, i * 5);
+        }
+
+        // Act
+        var (download, upload) = await manager.GetDisplayDataAsync(300);
+
+        // Assert
+        download.Should().HaveCount(maxDisplay);
+        upload.Should().HaveCount(maxDisplay);
+    }
+
+    // ═══════════════════════════════════════════════════════════════════════════════
+    // Thread Safety Tests
+    // ═══════════════════════════════════════════════════════════════════════════════
+
+    [Test]
+    public async Task ConcurrentAddAndRead_DoesNotThrow()
+    {
+        // Arrange
+        var manager = new ChartDataManager(maxBufferSize: 500, maxDisplayPoints: 50);
+        const int iterations = 500;
+        using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(10));
+
+        // Act — spawn 4 tasks: 2 writers, 2 readers
+        var writers = Enumerable.Range(0, 2).Select(w => Task.Run(() =>
+        {
+            for (var i = 0; i < iterations; i++)
+            {
+                manager.AddDataPoint(DateTime.Now, (w + 1) * 100 + i, (w + 1) * 50 + i);
+            }
+        }, cts.Token));
+
+        var readers = Enumerable.Range(0, 2).Select(idx => Task.Run(() =>
+        {
+            for (var i = 0; i < iterations; i++)
+            {
+                _ = manager.GetDisplayData(60);
+            }
+        }, cts.Token));
+
+        // Assert — should not throw
+        var allTasks = writers.Concat(readers).ToArray();
+        await Task.WhenAll(allTasks);
+    }
+
+    [Test]
+    public async Task ConcurrentAddAndStatisticsRead_CorrectPeak()
+    {
+        // Arrange
+        var manager = new ChartDataManager(maxBufferSize: 2000, maxDisplayPoints: 50);
+        const long knownMax = 999_999;
+        const int iterations = 500;
+
+        // Act — 2 writers with known max, 2 readers checking statistics
+        var writer1 = Task.Run(() =>
+        {
+            for (var i = 0; i < iterations; i++)
+            {
+                manager.AddDataPoint(DateTime.Now, i * 100, i * 50);
+            }
+        });
+
+        var writer2 = Task.Run(() =>
+        {
+            for (var i = 0; i < iterations; i++)
+            {
+                var value = i == iterations - 1 ? knownMax : i * 10;
+                manager.AddDataPoint(DateTime.Now, value, i * 5);
+            }
+        });
+
+        var readers = Enumerable.Range(0, 2).Select(idx => Task.Run(() =>
+        {
+            for (var i = 0; i < iterations; i++)
+            {
+                _ = manager.PeakDownloadBps;
+                _ = manager.AverageDownloadBps;
+                _ = manager.SampleCount;
+            }
+        }));
+
+        await Task.WhenAll(new[] { writer1, writer2 }.Concat(readers));
+
+        // Assert — peak must be at least knownMax
+        manager.PeakDownloadBps.Should().BeGreaterThanOrEqualTo(knownMax);
+    }
+
+    [Test]
+    public async Task ResetStatistics_DuringConcurrentAdds_DoesNotThrow()
+    {
+        // Arrange
+        var manager = new ChartDataManager(maxBufferSize: 2000, maxDisplayPoints: 50);
+        const int iterations = 500;
+
+        // Act — writer adds points while resetter resets statistics
+        var writer = Task.Run(() =>
+        {
+            for (var i = 0; i < iterations; i++)
+            {
+                manager.AddDataPoint(DateTime.Now, i * 100, i * 50);
+            }
+        });
+
+        var resetter = Task.Run(() =>
+        {
+            for (var i = 0; i < iterations; i++)
+            {
+                manager.ResetStatistics();
+            }
+        });
+
+        // Assert — should complete without throwing
+        await Task.WhenAll(writer, resetter);
+    }
+
+    // ═══════════════════════════════════════════════════════════════════════════════
+    // InterlockedMax Tests
+    // ═══════════════════════════════════════════════════════════════════════════════
+
+    [Test]
+    public void InterlockedMax_HigherValue_UpdatesPeak()
+    {
+        // Arrange
+        var manager = new ChartDataManager();
+        var now = DateTime.Now;
+
+        // Act — add 100 then 500
+        manager.AddDataPoint(now, 100, 0);
+        manager.AddDataPoint(now.AddSeconds(1), 500, 0);
+
+        // Assert
+        manager.PeakDownloadBps.Should().Be(500);
+    }
+
+    [Test]
+    public void InterlockedMax_LowerValue_KeepsPeak()
+    {
+        // Arrange
+        var manager = new ChartDataManager();
+        var now = DateTime.Now;
+
+        // Act — add 500 then 100
+        manager.AddDataPoint(now, 500, 0);
+        manager.AddDataPoint(now.AddSeconds(1), 100, 0);
+
+        // Assert — peak should stay at 500
+        manager.PeakDownloadBps.Should().Be(500);
+    }
 }

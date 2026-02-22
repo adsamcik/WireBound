@@ -18,6 +18,7 @@ public sealed partial class SettingsViewModel : ObservableObject, IDisposable
 {
     private readonly IDataPersistenceService _persistence;
     private readonly INetworkMonitorService _networkMonitor;
+    private readonly INetworkPollingBackgroundService _pollingService;
     private readonly IStartupService _startupService;
     private readonly IElevationService _elevationService;
     private readonly IProcessNetworkService _processNetworkService;
@@ -153,7 +154,21 @@ public sealed partial class SettingsViewModel : ObservableObject, IDisposable
     public List<int> PollingIntervals { get; } = [250, 500, 1000, 2000, 5000];
 
     partial void OnSelectedAdapterChanged(NetworkAdapter? value) => ScheduleAutoSave();
-    partial void OnPollingIntervalMsChanged(int value) => ScheduleAutoSave();
+
+    partial void OnPollingIntervalMsChanged(int value)
+    {
+        if (value is < 100 or > 60_000)
+        {
+            PollingIntervalMs = Math.Clamp(value, 100, 60_000);
+            return;
+        }
+
+        if (PerformanceModeEnabled)
+        {
+            _pollingService.SetAdaptivePolling(true, value);
+        }
+        ScheduleAutoSave();
+    }
     partial void OnUseIpHelperApiChanged(bool value) => ScheduleAutoSave();
     partial void OnIsPerAppTrackingEnabledChanged(bool value)
     {
@@ -188,7 +203,11 @@ public sealed partial class SettingsViewModel : ObservableObject, IDisposable
     partial void OnShowCpuOverlayByDefaultChanged(bool value) => ScheduleAutoSave();
     partial void OnShowMemoryOverlayByDefaultChanged(bool value) => ScheduleAutoSave();
     partial void OnDefaultTimeRangeChanged(string value) => ScheduleAutoSave();
-    partial void OnPerformanceModeEnabledChanged(bool value) => ScheduleAutoSave();
+    partial void OnPerformanceModeEnabledChanged(bool value)
+    {
+        _pollingService.SetAdaptivePolling(value, PollingIntervalMs);
+        ScheduleAutoSave();
+    }
     partial void OnChartUpdateIntervalMsChanged(int value) => ScheduleAutoSave();
     partial void OnDefaultInsightsPeriodChanged(string value) => ScheduleAutoSave();
     partial void OnShowCorrelationInsightsChanged(bool value) => ScheduleAutoSave();
@@ -236,6 +255,7 @@ public sealed partial class SettingsViewModel : ObservableObject, IDisposable
     public SettingsViewModel(
         IDataPersistenceService persistence,
         INetworkMonitorService networkMonitor,
+        INetworkPollingBackgroundService pollingService,
         IStartupService startupService,
         IElevationService elevationService,
         IProcessNetworkService processNetworkService,
@@ -245,6 +265,7 @@ public sealed partial class SettingsViewModel : ObservableObject, IDisposable
     {
         _persistence = persistence;
         _networkMonitor = networkMonitor;
+        _pollingService = pollingService;
         _startupService = startupService;
         _elevationService = elevationService;
         _processNetworkService = processNetworkService;

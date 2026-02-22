@@ -16,6 +16,7 @@ public sealed class ProcessNetworkService : IProcessNetworkService
     private readonly ILogger<ProcessNetworkService>? _logger;
     private IProcessNetworkProvider? _currentProvider;
     private readonly List<ProcessNetworkStats> _currentStats = [];
+    private IReadOnlyList<ProcessNetworkStats> _statsSnapshot = [];
     private readonly SemaphoreSlim _providerLock = new(1, 1);
     private readonly object _statsLock = new();
     private bool _disposed;
@@ -88,10 +89,7 @@ public sealed class ProcessNetworkService : IProcessNetworkService
 
     public IReadOnlyList<ProcessNetworkStats> GetCurrentStats()
     {
-        lock (_statsLock)
-        {
-            return _currentStats.ToList();
-        }
+        return _statsSnapshot;
     }
 
     public IReadOnlyList<ProcessNetworkStats> GetTopProcesses(int count)
@@ -125,12 +123,16 @@ public sealed class ProcessNetworkService : IProcessNetworkService
 
     private void OnProviderStatsUpdated(object? sender, ProcessNetworkProviderEventArgs e)
     {
+        IReadOnlyList<ProcessNetworkStats> snapshot;
         lock (_statsLock)
         {
             _currentStats.Clear();
             _currentStats.AddRange(e.Stats);
+            snapshot = _currentStats.ToList();
         }
 
+        // Publish immutable snapshot for lock-free reads
+        _statsSnapshot = snapshot;
         StatsUpdated?.Invoke(this, new ProcessStatsUpdatedEventArgs(e.Stats.ToList()));
     }
 

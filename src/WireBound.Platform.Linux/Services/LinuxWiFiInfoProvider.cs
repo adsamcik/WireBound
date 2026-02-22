@@ -14,6 +14,10 @@ public sealed partial class LinuxWiFiInfoProvider : IWiFiInfoProvider
 {
     private readonly ILogger<LinuxWiFiInfoProvider> _logger;
 
+    // Linux interface names: alphanumeric, hyphens, underscores, dots (max 15 chars per IFNAMSIZ)
+    [GeneratedRegex(@"^[a-zA-Z0-9_\-\.]+$")]
+    private static partial Regex ValidInterfaceNameRegex();
+
     public LinuxWiFiInfoProvider(ILogger<LinuxWiFiInfoProvider> logger)
     {
         _logger = logger;
@@ -64,6 +68,12 @@ public sealed partial class LinuxWiFiInfoProvider : IWiFiInfoProvider
                     var interfaces = ParseIwDevInterfaces(iwDevResult);
                     foreach (var iface in interfaces)
                     {
+                        if (iface.Length > 15 || !ValidInterfaceNameRegex().IsMatch(iface))
+                        {
+                            _logger.LogWarning("Skipping invalid interface name: {Interface}", iface);
+                            continue;
+                        }
+
                         var linkResult = RunCommand("iw", $"dev {iface} link");
                         if (!string.IsNullOrEmpty(linkResult))
                         {

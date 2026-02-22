@@ -410,9 +410,13 @@ public sealed class DataPersistenceService : IDataPersistenceService
         var db = scope.ServiceProvider.GetRequiredService<WireBoundDbContext>();
 
         var cutoffDate = DateTime.Now.AddDays(-aggregateAfterDays);
+        // Limit how far back we load to prevent unbounded memory usage
+        var oldestDate = cutoffDate.AddDays(-30);
 
         var hourlyRecords = await db.AppUsageRecords
-            .Where(a => a.Granularity == UsageGranularity.Hourly && a.Timestamp < cutoffDate)
+            .Where(a => a.Granularity == UsageGranularity.Hourly &&
+                        a.Timestamp >= oldestDate &&
+                        a.Timestamp < cutoffDate)
             .ToListAsync()
             .ConfigureAwait(false);
 

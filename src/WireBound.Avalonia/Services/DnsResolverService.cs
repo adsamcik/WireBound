@@ -60,7 +60,7 @@ public sealed class DnsResolverService : IDnsResolverService, IDisposable
 
         try
         {
-            await _resolutionSemaphore.WaitAsync(cancellationToken);
+            await _resolutionSemaphore.WaitAsync(cancellationToken).ConfigureAwait(false);
             try
             {
                 // Double-check cache after acquiring semaphore
@@ -69,7 +69,7 @@ public sealed class DnsResolverService : IDnsResolverService, IDisposable
                     return hostname;
                 }
 
-                var entry = await Dns.GetHostEntryAsync(ipAddress, cancellationToken);
+                var entry = await Dns.GetHostEntryAsync(ipAddress, cancellationToken).ConfigureAwait(false);
                 hostname = entry.HostName;
 
                 // Don't cache if hostname is same as IP (failed resolution)
@@ -257,12 +257,12 @@ public sealed class DnsResolverService : IDnsResolverService, IDisposable
                 {
                     if (!_cache.ContainsKey(ipAddress))
                     {
-                        await ResolveAsync(ipAddress, _cts.Token);
+                        await ResolveAsync(ipAddress, _cts.Token).ConfigureAwait(false);
                     }
                 }
                 else
                 {
-                    await Task.Delay(100, _cts.Token);
+                    await Task.Delay(100, _cts.Token).ConfigureAwait(false);
                 }
             }
             catch (OperationCanceledException)

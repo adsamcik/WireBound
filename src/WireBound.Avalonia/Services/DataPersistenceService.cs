@@ -11,6 +11,7 @@ namespace WireBound.Avalonia.Services;
 /// Service for persisting network statistics to the database.
 /// Thread-safe: uses async locking to prevent concurrent save operations from corrupting data.
 /// </summary>
+[System.Diagnostics.CodeAnalysis.SuppressMessage("Trimming", "IL2026", Justification = "EF Core LINQ queries use expression trees that may require unreferenced code; works at runtime")]
 public sealed class DataPersistenceService : IDataPersistenceService
 {
     private readonly IServiceProvider _serviceProvider;

@@ -10,11 +10,17 @@ namespace WireBound.IPC.Transport;
 public static class IpcTransport
 {
     /// <summary>
-    /// Secure MessagePack options that enable UntrustedData protection against
-    /// hash-flooding and other deserialization attacks.
+    /// Secure MessagePack options using source-generated resolver for AOT compatibility,
+    /// with UntrustedData protection against hash-flooding and deserialization attacks.
+    /// The composite resolver combines our generated formatters with standard built-in formatters.
     /// </summary>
     private static readonly MessagePackSerializerOptions SecureOptions =
-        MessagePackSerializerOptions.Standard.WithSecurity(MessagePackSecurity.UntrustedData);
+        MessagePackSerializerOptions.Standard
+            .WithResolver(
+                MessagePack.Resolvers.CompositeResolver.Create(
+                    WireBoundIpcResolver.Instance,
+                    MessagePack.Resolvers.StandardResolver.Instance))
+            .WithSecurity(MessagePackSecurity.UntrustedData);
 
     public static async Task SendAsync(Stream stream, IpcMessage message, CancellationToken ct = default)
     {

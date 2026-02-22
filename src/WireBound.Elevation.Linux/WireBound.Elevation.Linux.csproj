@@ -8,6 +8,8 @@
     <AssemblyName>wirebound-elevation</AssemblyName>
     <RootNamespace>WireBound.Elevation.Linux</RootNamespace>
     <SupportedOSPlatform>linux</SupportedOSPlatform>
+    <PublishAot>true</PublishAot>
+    <EnableTrimAnalyzer>true</EnableTrimAnalyzer>
   </PropertyGroup>
 
   <ItemGroup>

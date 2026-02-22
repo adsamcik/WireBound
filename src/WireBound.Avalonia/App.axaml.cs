@@ -198,6 +198,7 @@ public partial class App : Application
         services.AddTransient<SystemView>();
     }
 
+    [System.Diagnostics.CodeAnalysis.SuppressMessage("AOT", "IL3050", Justification = "EF Core AOT: EnsureCreated uses runtime model building; ApplyMigrations uses raw SQL which is AOT-safe")]
     private void InitializeDatabase()
     {
         try

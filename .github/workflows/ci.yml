@@ -76,7 +76,7 @@ jobs:
         run: dotnet restore WireBound.slnx --locked-mode
 
       - name: Check formatting
-        run: dotnet format WireBound.slnx --verify-no-changes --verbosity diagnostic --exclude-diagnostics TUnit0018 CA1416 IL2046 IL2026
+        run: dotnet format WireBound.slnx --verify-no-changes --verbosity diagnostic --exclude-diagnostics TUnit0018 CA1416 IL2046 IL2026 IL3050
 
   publish-validation:
     runs-on: ubuntu-latest
@@ -144,5 +144,77 @@ jobs:
           TOTAL_SIZE=$(du -sh "$OUTPUT_DIR" | cut -f1)
           echo ""
           echo "📊 Build Summary (${{ matrix.name }}):"
+          echo "   Files: $FILE_COUNT"
+          echo "   Total Size: $TOTAL_SIZE"
+
+  aot-validation:
+    needs: build-and-test
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-latest
+            runtime: linux-x64
+            name: Linux
+            exe: WireBound
+            elevation_project: src/WireBound.Elevation.Linux/WireBound.Elevation.Linux.csproj
+          - os: windows-latest
+            runtime: win-x64
+            name: Windows
+            exe: WireBound.exe
+            elevation_project: src/WireBound.Elevation.Windows/WireBound.Elevation.Windows.csproj
+    runs-on: ${{ matrix.os }}
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v5
+        with:
+          global-json-file: global.json
+
+      - name: Cache NuGet packages
+        uses: actions/cache@v5
+        with:
+          path: ~/.nuget/packages
+          key: ${{ runner.os }}-nuget-${{ hashFiles('**/*.csproj', '**/packages.lock.json') }}
+          restore-keys: |
+            ${{ runner.os }}-nuget-
+
+      - name: AOT Publish main app (${{ matrix.name }})
+        run: >
+          dotnet publish src/WireBound.Avalonia/WireBound.Avalonia.csproj
+          --configuration Release
+          --runtime ${{ matrix.runtime }}
+          --self-contained true
+          -p:PublishAot=true
+          --output ./publish/aot/${{ matrix.runtime }}
+
+      - name: AOT Publish elevation helper (${{ matrix.name }})
+        run: >
+          dotnet publish ${{ matrix.elevation_project }}
+          --configuration Release
+          --runtime ${{ matrix.runtime }}
+          --self-contained true
+          --output ./publish/aot/${{ matrix.runtime }}
+
+      - name: Validate AOT artifacts
+        shell: bash
+        run: |
+          OUTPUT_DIR="./publish/aot/${{ matrix.runtime }}"
+
+          if [ ! -f "$OUTPUT_DIR/${{ matrix.exe }}" ]; then
+            echo "❌ AOT executable not found: $OUTPUT_DIR/${{ matrix.exe }}"
+            exit 1
+          fi
+
+          SIZE=$(du -h "$OUTPUT_DIR/${{ matrix.exe }}" | cut -f1)
+          echo "✅ AOT executable found: $SIZE"
+
+          FILE_COUNT=$(find "$OUTPUT_DIR" -type f | wc -l)
+          TOTAL_SIZE=$(du -sh "$OUTPUT_DIR" | cut -f1)
+          echo ""
+          echo "📊 AOT Build Summary (${{ matrix.name }}):"
           echo "   Files: $FILE_COUNT"
           echo "   Total Size: $TOTAL_SIZE"

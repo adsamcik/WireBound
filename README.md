@@ -111,6 +111,41 @@ See [docs/LIMITATIONS.md](docs/LIMITATIONS.md) for detailed information on:
 - Per-process byte tracking (requires elevated helper, currently uses estimates)
 - Platform-specific feature availability
 
+## Native AOT Builds
+
+WireBound supports Native AOT compilation for faster startup, smaller binaries, and no JIT overhead.
+
+### Building with AOT
+
+```bash
+# Publish with AOT (must build on the target OS — cannot cross-compile)
+.\scripts\publish.ps1 -Version "1.0.0" -Runtime win-x64 -Aot
+.\scripts\publish.ps1 -Version "1.0.0" -Runtime linux-x64 -Aot
+
+# Or directly with dotnet CLI
+dotnet publish src/WireBound.Avalonia/WireBound.Avalonia.csproj -c Release -r win-x64 --self-contained -p:PublishAot=true
+```
+
+### AOT vs JIT Comparison
+
+| Aspect | AOT | JIT (default) |
+|--------|-----|---------------|
+| Startup time | ~instant | ~1-2s |
+| Binary size | ~47 MB + native DLLs | ~150+ MB (self-contained) |
+| Cross-compile | ❌ Must build on target OS | ✅ Can cross-compile |
+| XAML previewer | ❌ Not in Release builds | ✅ Works normally |
+
+### Known Limitations
+
+- **Cross-compilation**: AOT builds must be compiled on the target OS (build Windows on Windows, Linux on Linux)
+- **XAML previewer**: Does not work in AOT Release builds; use Debug/JIT builds for design work
+- **Native DLLs**: SkiaSharp, HarfBuzz, SQLite, and OpenGL DLLs are distributed alongside the AOT binary
+- **EF Core**: Uses runtime model building with warning suppressions; EF Core compiled models can be adopted when AOT support stabilizes
+
+### Elevation Helpers
+
+The elevation helper processes (`WireBound.Elevation.Windows`, `WireBound.Elevation.Linux`) are always compiled with AOT, producing compact ~7 MB native binaries.
+
 ## Roadmap
 
 - [ ] Elevated helper process for accurate per-app byte tracking

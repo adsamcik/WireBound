@@ -253,17 +253,23 @@ public sealed class DataPersistenceService : IDataPersistenceService
         var now = DateTime.Now;
         var currentHour = new DateTime(now.Year, now.Month, now.Day, now.Hour, 0, 0);
 
-        foreach (var stat in stats)
-        {
-            if (string.IsNullOrEmpty(stat.AppIdentifier))
-                continue;
+        var statsList = stats.Where(s => !string.IsNullOrEmpty(s.AppIdentifier)).ToList();
+        if (statsList.Count == 0)
+            return;
 
-            var record = await db.AppUsageRecords
-                .FirstOrDefaultAsync(a =>
-                    a.Timestamp == currentHour &&
-                    a.AppIdentifier == stat.AppIdentifier &&
-                    a.Granularity == UsageGranularity.Hourly)
-                .ConfigureAwait(false);
+        // Batch-load all existing hourly records for these apps to avoid N+1 queries
+        var appIds = statsList.Select(s => s.AppIdentifier).Distinct().ToList();
+        var existingRecords = await db.AppUsageRecords
+            .Where(a =>
+                a.Timestamp == currentHour &&
+                appIds.Contains(a.AppIdentifier) &&
+                a.Granularity == UsageGranularity.Hourly)
+            .ToDictionaryAsync(a => a.AppIdentifier)
+            .ConfigureAwait(false);
+
+        foreach (var stat in statsList)
+        {
+            existingRecords.TryGetValue(stat.AppIdentifier, out var record);
 
             if (record == null)
             {
@@ -413,55 +419,77 @@ public sealed class DataPersistenceService : IDataPersistenceService
         if (hourlyRecords.Count == 0)
             return;
 
-        var groupedByDay = hourlyRecords
-            .GroupBy(a => new { a.AppIdentifier, Date = DateOnly.FromDateTime(a.Timestamp) });
-
-        foreach (var group in groupedByDay)
+        // Wrap upsert + delete in a transaction to prevent data corruption on partial failure
+        await using var transaction = await db.Database.BeginTransactionAsync().ConfigureAwait(false);
+        try
         {
-            var dailyTimestamp = group.Key.Date.ToDateTime(TimeOnly.MinValue);
+            var groupedByDay = hourlyRecords
+                .GroupBy(a => new { a.AppIdentifier, Date = DateOnly.FromDateTime(a.Timestamp) });
 
-            var existingDaily = await db.AppUsageRecords
-                .FirstOrDefaultAsync(a =>
-                    a.AppIdentifier == group.Key.AppIdentifier &&
-                    a.Timestamp == dailyTimestamp &&
-                    a.Granularity == UsageGranularity.Daily)
+            // Batch-load all existing daily records to avoid N+1 queries
+            var allDailyTimestamps = groupedByDay
+                .Select(g => g.Key.Date.ToDateTime(TimeOnly.MinValue))
+                .Distinct()
+                .ToList();
+            var allAppIds = groupedByDay.Select(g => g.Key.AppIdentifier).Distinct().ToList();
+            var existingDailyRecords = await db.AppUsageRecords
+                .Where(a =>
+                    a.Granularity == UsageGranularity.Daily &&
+                    allAppIds.Contains(a.AppIdentifier) &&
+                    allDailyTimestamps.Contains(a.Timestamp))
+                .ToListAsync()
                 .ConfigureAwait(false);
+            var dailyLookup = existingDailyRecords
+                .ToDictionary(r => (r.AppIdentifier, r.Timestamp));
 
-            var first = group.First();
-            var totalReceived = group.Sum(a => a.BytesReceived);
-            var totalSent = group.Sum(a => a.BytesSent);
-            var peakDown = group.Max(a => a.PeakDownloadSpeed);
-            var peakUp = group.Max(a => a.PeakUploadSpeed);
-
-            if (existingDaily == null)
+            foreach (var group in groupedByDay)
             {
-                db.AppUsageRecords.Add(new AppUsageRecord
+                var dailyTimestamp = group.Key.Date.ToDateTime(TimeOnly.MinValue);
+
+                dailyLookup.TryGetValue((group.Key.AppIdentifier, dailyTimestamp), out var existingDaily);
+
+                var first = group.First();
+                var totalReceived = group.Sum(a => a.BytesReceived);
+                var totalSent = group.Sum(a => a.BytesSent);
+                var peakDown = group.Max(a => a.PeakDownloadSpeed);
+                var peakUp = group.Max(a => a.PeakUploadSpeed);
+
+                if (existingDaily == null)
                 {
-                    AppIdentifier = group.Key.AppIdentifier,
-                    AppName = first.AppName,
-                    ExecutablePath = first.ExecutablePath,
-                    ProcessName = first.ProcessName,
-                    Timestamp = dailyTimestamp,
-                    Granularity = UsageGranularity.Daily,
-                    BytesReceived = totalReceived,
-                    BytesSent = totalSent,
-                    PeakDownloadSpeed = peakDown,
-                    PeakUploadSpeed = peakUp,
-                    LastUpdated = DateTime.Now
-                });
+                    db.AppUsageRecords.Add(new AppUsageRecord
+                    {
+                        AppIdentifier = group.Key.AppIdentifier,
+                        AppName = first.AppName,
+                        ExecutablePath = first.ExecutablePath,
+                        ProcessName = first.ProcessName,
+                        Timestamp = dailyTimestamp,
+                        Granularity = UsageGranularity.Daily,
+                        BytesReceived = totalReceived,
+                        BytesSent = totalSent,
+                        PeakDownloadSpeed = peakDown,
+                        PeakUploadSpeed = peakUp,
+                        LastUpdated = DateTime.Now
+                    });
+                }
+                else
+                {
+                    existingDaily.BytesReceived += totalReceived;
+                    existingDaily.BytesSent += totalSent;
+                    existingDaily.PeakDownloadSpeed = Math.Max(existingDaily.PeakDownloadSpeed, peakDown);
+                    existingDaily.PeakUploadSpeed = Math.Max(existingDaily.PeakUploadSpeed, peakUp);
+                    existingDaily.LastUpdated = DateTime.Now;
+                }
             }
-            else
-            {
-                existingDaily.BytesReceived += totalReceived;
-                existingDaily.BytesSent += totalSent;
-                existingDaily.PeakDownloadSpeed = Math.Max(existingDaily.PeakDownloadSpeed, peakDown);
-                existingDaily.PeakUploadSpeed = Math.Max(existingDaily.PeakUploadSpeed, peakUp);
-                existingDaily.LastUpdated = DateTime.Now;
-            }
-        }
 
-        db.AppUsageRecords.RemoveRange(hourlyRecords);
-        await db.SaveChangesAsync().ConfigureAwait(false);
+            db.AppUsageRecords.RemoveRange(hourlyRecords);
+            await db.SaveChangesAsync().ConfigureAwait(false);
+            await transaction.CommitAsync().ConfigureAwait(false);
+        }
+        catch
+        {
+            await transaction.RollbackAsync().ConfigureAwait(false);
+            throw;
+        }
     }
 
     public async Task CleanupOldAppDataAsync(int retentionDays)

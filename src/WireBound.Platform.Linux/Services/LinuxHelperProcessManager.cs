@@ -275,6 +275,8 @@ public sealed class LinuxHelperProcessManager : IHelperProcessManager
 
             // Validate that the helper path resolves within the application directory
             var appDir = Path.GetFullPath(AppContext.BaseDirectory);
+            if (!appDir.EndsWith(Path.DirectorySeparatorChar))
+                appDir += Path.DirectorySeparatorChar;
             var helperFullPath = Path.GetFullPath(HelperPath);
             if (!helperFullPath.StartsWith(appDir, StringComparison.Ordinal))
             {

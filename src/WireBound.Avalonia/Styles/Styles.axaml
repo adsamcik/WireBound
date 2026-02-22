@@ -12,36 +12,36 @@
     <!-- ═══════════════════════════════════════════════════════════════════ -->
 
     <Style Selector="Border.Card">
-        <Setter Property="Background" Value="{DynamicResource CardBrush}" />
+        <Setter Property="Background" Value="{StaticResource CardBrush}" />
         <Setter Property="CornerRadius" Value="16" />
-        <Setter Property="BorderBrush" Value="{DynamicResource GlassBorderBrush}" />
+        <Setter Property="BorderBrush" Value="{StaticResource GlassBorderBrush}" />
         <Setter Property="BorderThickness" Value="1" />
         <Setter Property="Padding" Value="24" />
         <Setter Property="BoxShadow" Value="0 4 20 0 #4D000000" />
     </Style>
     
     <Style Selector="Border.ElevatedCard">
-        <Setter Property="Background" Value="{DynamicResource SurfaceBrush}" />
+        <Setter Property="Background" Value="{StaticResource SurfaceBrush}" />
         <Setter Property="CornerRadius" Value="20" />
-        <Setter Property="BorderBrush" Value="{DynamicResource GlassBorderBrush}" />
+        <Setter Property="BorderBrush" Value="{StaticResource GlassBorderBrush}" />
         <Setter Property="BorderThickness" Value="1" />
         <Setter Property="Padding" Value="28" />
         <Setter Property="BoxShadow" Value="0 8 30 0 #66000000" />
     </Style>
     
     <Style Selector="Border.CompactCard">
-        <Setter Property="Background" Value="{DynamicResource CardBrush}" />
+        <Setter Property="Background" Value="{StaticResource CardBrush}" />
         <Setter Property="CornerRadius" Value="12" />
-        <Setter Property="BorderBrush" Value="{DynamicResource GlassBorderBrush}" />
+        <Setter Property="BorderBrush" Value="{StaticResource GlassBorderBrush}" />
         <Setter Property="BorderThickness" Value="1" />
         <Setter Property="Padding" Value="16" />
         <Setter Property="BoxShadow" Value="0 2 12 0 #40000000" />
     </Style>
     
     <Style Selector="Border.AccentCard">
-        <Setter Property="Background" Value="{DynamicResource CardBrush}" />
+        <Setter Property="Background" Value="{StaticResource CardBrush}" />
         <Setter Property="CornerRadius" Value="16" />
-        <Setter Property="BorderBrush" Value="{DynamicResource PrimaryBrush}" />
+        <Setter Property="BorderBrush" Value="{StaticResource PrimaryBrush}" />
         <Setter Property="BorderThickness" Value="1" />
         <Setter Property="Padding" Value="24" />
         <Setter Property="BoxShadow" Value="0 0 24 0 #8000E5FF" />
@@ -54,35 +54,35 @@
     <Style Selector="TextBlock.PageTitle">
         <Setter Property="FontSize" Value="32" />
         <Setter Property="FontWeight" Value="Bold" />
-        <Setter Property="Foreground" Value="{DynamicResource PrimaryTextBrush}" />
+        <Setter Property="Foreground" Value="{StaticResource PrimaryTextBrush}" />
     </Style>
     
     <Style Selector="TextBlock.SectionHeader">
         <Setter Property="FontSize" Value="18" />
         <Setter Property="FontWeight" Value="Bold" />
-        <Setter Property="Foreground" Value="{DynamicResource PrimaryTextBrush}" />
+        <Setter Property="Foreground" Value="{StaticResource PrimaryTextBrush}" />
         <Setter Property="LetterSpacing" Value="0.3" />
     </Style>
     
     <Style Selector="TextBlock.CardTitle">
         <Setter Property="FontSize" Value="14" />
         <Setter Property="FontWeight" Value="Bold" />
-        <Setter Property="Foreground" Value="{DynamicResource PrimaryTextBrush}" />
+        <Setter Property="Foreground" Value="{StaticResource PrimaryTextBrush}" />
     </Style>
     
     <Style Selector="TextBlock.Subtitle">
         <Setter Property="FontSize" Value="14" />
-        <Setter Property="Foreground" Value="{DynamicResource SecondaryTextBrush}" />
+        <Setter Property="Foreground" Value="{StaticResource SecondaryTextBrush}" />
     </Style>
     
     <Style Selector="TextBlock.Caption">
         <Setter Property="FontSize" Value="12" />
-        <Setter Property="Foreground" Value="{DynamicResource MutedTextBrush}" />
+        <Setter Property="Foreground" Value="{StaticResource MutedTextBrush}" />
     </Style>
     
     <Style Selector="TextBlock.MetricLabel">
         <Setter Property="FontSize" Value="12" />
-        <Setter Property="Foreground" Value="{DynamicResource SecondaryTextBrush}" />
+        <Setter Property="Foreground" Value="{StaticResource SecondaryTextBrush}" />
         <Setter Property="LetterSpacing" Value="0.5" />
     </Style>
     
@@ -94,18 +94,18 @@
     <Style Selector="TextBlock.LargeMetric">
         <Setter Property="FontSize" Value="36" />
         <Setter Property="FontWeight" Value="Bold" />
-        <Setter Property="Foreground" Value="{DynamicResource PrimaryTextBrush}" />
+        <Setter Property="Foreground" Value="{StaticResource PrimaryTextBrush}" />
     </Style>
     
     <Style Selector="TextBlock.MediumMetric">
         <Setter Property="FontSize" Value="24" />
         <Setter Property="FontWeight" Value="Bold" />
-        <Setter Property="Foreground" Value="{DynamicResource PrimaryTextBrush}" />
+        <Setter Property="Foreground" Value="{StaticResource PrimaryTextBrush}" />
     </Style>
 
     <!-- Default TextBlock style -->
     <Style Selector="TextBlock">
-        <Setter Property="Foreground" Value="{DynamicResource PrimaryTextBrush}" />
+        <Setter Property="Foreground" Value="{StaticResource PrimaryTextBrush}" />
         <Setter Property="FontSize" Value="14" />
     </Style>
 
@@ -114,7 +114,7 @@
     <!-- ═══════════════════════════════════════════════════════════════════ -->
 
     <Style Selector="Button.Primary">
-        <Setter Property="Background" Value="{DynamicResource ButtonBackgroundBrush}" />
+        <Setter Property="Background" Value="{StaticResource ButtonBackgroundBrush}" />
         <Setter Property="Foreground" Value="White" />
         <Setter Property="FontSize" Value="14" />
         <Setter Property="FontWeight" Value="Bold" />
@@ -124,12 +124,12 @@
     </Style>
     
     <Style Selector="Button.Primary:pointerover /template/ ContentPresenter">
-        <Setter Property="Background" Value="{DynamicResource ButtonHoverColor}" />
+        <Setter Property="Background" Value="{StaticResource ButtonHoverColor}" />
     </Style>
     
     <Style Selector="Button.Secondary">
-        <Setter Property="Background" Value="{DynamicResource SecondaryButtonBackgroundBrush}" />
-        <Setter Property="Foreground" Value="{DynamicResource PrimaryTextBrush}" />
+        <Setter Property="Background" Value="{StaticResource SecondaryButtonBackgroundBrush}" />
+        <Setter Property="Foreground" Value="{StaticResource PrimaryTextBrush}" />
         <Setter Property="FontSize" Value="13" />
         <Setter Property="FontWeight" Value="Bold" />
         <Setter Property="Padding" Value="20,12" />
@@ -138,8 +138,8 @@
     </Style>
     
     <Style Selector="Button.Warning">
-        <Setter Property="Background" Value="{DynamicResource WarningBrush}" />
-        <Setter Property="Foreground" Value="{DynamicResource BackgroundBrush}" />
+        <Setter Property="Background" Value="{StaticResource WarningBrush}" />
+        <Setter Property="Foreground" Value="{StaticResource BackgroundBrush}" />
         <Setter Property="FontSize" Value="14" />
         <Setter Property="FontWeight" Value="Bold" />
         <Setter Property="Padding" Value="20,12" />
@@ -148,8 +148,8 @@
     </Style>
     
     <Style Selector="Button.Accent">
-        <Setter Property="Background" Value="{DynamicResource AccentBgTintBrush}" />
-        <Setter Property="Foreground" Value="{DynamicResource PrimaryBrush}" />
+        <Setter Property="Background" Value="{StaticResource AccentBgTintBrush}" />
+        <Setter Property="Foreground" Value="{StaticResource PrimaryBrush}" />
         <Setter Property="FontSize" Value="14" />
         <Setter Property="FontWeight" Value="Bold" />
         <Setter Property="Padding" Value="20,12" />
@@ -159,7 +159,7 @@
     
     <Style Selector="Button.Ghost">
         <Setter Property="Background" Value="Transparent" />
-        <Setter Property="Foreground" Value="{DynamicResource PrimaryBrush}" />
+        <Setter Property="Foreground" Value="{StaticResource PrimaryBrush}" />
         <Setter Property="FontSize" Value="14" />
         <Setter Property="FontWeight" Value="Bold" />
         <Setter Property="Padding" Value="16,10" />
@@ -172,9 +172,9 @@
     <!-- ═══════════════════════════════════════════════════════════════════ -->
 
     <Style Selector="TextBox">
-        <Setter Property="Background" Value="{DynamicResource SurfaceBrush}" />
-        <Setter Property="Foreground" Value="{DynamicResource PrimaryTextBrush}" />
-        <Setter Property="BorderBrush" Value="{DynamicResource BorderBrush}" />
+        <Setter Property="Background" Value="{StaticResource SurfaceBrush}" />
+        <Setter Property="Foreground" Value="{StaticResource PrimaryTextBrush}" />
+        <Setter Property="BorderBrush" Value="{StaticResource BorderBrush}" />
         <Setter Property="BorderThickness" Value="1" />
         <Setter Property="CornerRadius" Value="8" />
         <Setter Property="Padding" Value="12,8" />
@@ -182,13 +182,13 @@
     </Style>
     
     <Style Selector="TextBox:focus">
-        <Setter Property="BorderBrush" Value="{DynamicResource PrimaryBrush}" />
+        <Setter Property="BorderBrush" Value="{StaticResource PrimaryBrush}" />
     </Style>
 
     <Style Selector="ComboBox">
-        <Setter Property="Background" Value="{DynamicResource SurfaceBrush}" />
-        <Setter Property="Foreground" Value="{DynamicResource PrimaryTextBrush}" />
-        <Setter Property="BorderBrush" Value="{DynamicResource BorderBrush}" />
+        <Setter Property="Background" Value="{StaticResource SurfaceBrush}" />
+        <Setter Property="Foreground" Value="{StaticResource PrimaryTextBrush}" />
+        <Setter Property="BorderBrush" Value="{StaticResource BorderBrush}" />
         <Setter Property="BorderThickness" Value="1" />
         <Setter Property="CornerRadius" Value="8" />
         <Setter Property="Padding" Value="12,8" />
@@ -206,18 +206,18 @@
 
     <Style Selector="ListBoxItem.NavItem">
         <Setter Property="Background" Value="Transparent" />
-        <Setter Property="Foreground" Value="{DynamicResource PrimaryTextBrush}" />
+        <Setter Property="Foreground" Value="{StaticResource PrimaryTextBrush}" />
         <Setter Property="Padding" Value="16,14" />
         <Setter Property="CornerRadius" Value="10" />
         <Setter Property="Cursor" Value="Hand" />
     </Style>
     
     <Style Selector="ListBoxItem.NavItem:pointerover">
-        <Setter Property="Background" Value="{DynamicResource FlyoutItemHoverBrush}" />
+        <Setter Property="Background" Value="{StaticResource FlyoutItemHoverBrush}" />
     </Style>
     
     <Style Selector="ListBoxItem.NavItem:selected">
-        <Setter Property="Background" Value="{DynamicResource FlyoutItemActiveColor}" />
+        <Setter Property="Background" Value="{StaticResource FlyoutItemActiveColor}" />
     </Style>
 
     <!-- ═══════════════════════════════════════════════════════════════════ -->
@@ -226,13 +226,13 @@
     
     <Style Selector="Rectangle.Divider">
         <Setter Property="Height" Value="1" />
-        <Setter Property="Fill" Value="{DynamicResource DividerBrush}" />
+        <Setter Property="Fill" Value="{StaticResource DividerBrush}" />
         <Setter Property="HorizontalAlignment" Value="Stretch" />
     </Style>
     
     <Style Selector="Rectangle.VerticalDivider">
         <Setter Property="Width" Value="1" />
-        <Setter Property="Fill" Value="{DynamicResource DividerBrush}" />
+        <Setter Property="Fill" Value="{StaticResource DividerBrush}" />
         <Setter Property="VerticalAlignment" Value="Stretch" />
     </Style>
 
@@ -243,7 +243,7 @@
     <Style Selector="Ellipse.StatusDot">
         <Setter Property="Width" Value="10" />
         <Setter Property="Height" Value="10" />
-        <Setter Property="Fill" Value="{DynamicResource SuccessBrush}" />
+        <Setter Property="Fill" Value="{StaticResource SuccessBrush}" />
     </Style>
 
     <!-- ═══════════════════════════════════════════════════════════════════ -->

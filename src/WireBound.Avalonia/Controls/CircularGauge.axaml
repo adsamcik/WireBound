@@ -51,7 +51,7 @@
             
             <!-- Percentage text in center -->
             <TextBlock Text="{Binding PercentageText, RelativeSource={RelativeSource AncestorType=controls:CircularGauge}}"
-                       Foreground="{DynamicResource PrimaryTextBrush}"
+                       Foreground="{StaticResource PrimaryTextBrush}"
                        FontWeight="SemiBold"
                        FontSize="{Binding PercentageFontSize, RelativeSource={RelativeSource AncestorType=controls:CircularGauge}}"
                        HorizontalAlignment="Center"
@@ -64,7 +64,7 @@
         <TextBlock Grid.Row="1"
                    Text="{Binding Label, RelativeSource={RelativeSource AncestorType=controls:CircularGauge}}"
                    IsVisible="{Binding ShowLabel, RelativeSource={RelativeSource AncestorType=controls:CircularGauge}}"
-                   Foreground="{DynamicResource SecondaryTextBrush}"
+                   Foreground="{StaticResource SecondaryTextBrush}"
                    FontSize="{Binding LabelFontSize, RelativeSource={RelativeSource AncestorType=controls:CircularGauge}}"
                    HorizontalAlignment="Center"
                    Margin="0,4,0,0" />

@@ -4,11 +4,6 @@
              x:Class="WireBound.Avalonia.App"
              RequestedThemeVariant="Dark">
     
-    <Application.Styles>
-        <FluentTheme />
-        <StyleInclude Source="avares://WireBound/Styles/Styles.axaml" />
-    </Application.Styles>
-    
     <Application.Resources>
         <ResourceDictionary>
             <ResourceDictionary.MergedDictionaries>
@@ -18,5 +13,10 @@
             <converters:InsightsPeriodConverter x:Key="InsightsPeriodConverter" />
         </ResourceDictionary>
     </Application.Resources>
+    
+    <Application.Styles>
+        <FluentTheme />
+        <StyleInclude Source="avares://WireBound/Styles/Styles.axaml" />
+    </Application.Styles>
     
 </Application>

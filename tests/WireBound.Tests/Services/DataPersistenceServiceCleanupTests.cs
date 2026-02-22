@@ -99,13 +99,23 @@ public class DataPersistenceServiceCleanupTests : SqliteDatabaseTestBase
             db.AppUsageRecords.AddRange(
                 new AppUsageRecord
                 {
-                    AppIdentifier = "old-app", AppName = "OldApp", Timestamp = now.AddDays(-60),
-                    Granularity = UsageGranularity.Daily, BytesReceived = 100, BytesSent = 50, LastUpdated = now.AddDays(-60)
+                    AppIdentifier = "old-app",
+                    AppName = "OldApp",
+                    Timestamp = now.AddDays(-60),
+                    Granularity = UsageGranularity.Daily,
+                    BytesReceived = 100,
+                    BytesSent = 50,
+                    LastUpdated = now.AddDays(-60)
                 },
                 new AppUsageRecord
                 {
-                    AppIdentifier = "recent-app", AppName = "RecentApp", Timestamp = now.AddDays(-10),
-                    Granularity = UsageGranularity.Daily, BytesReceived = 200, BytesSent = 100, LastUpdated = now.AddDays(-10)
+                    AppIdentifier = "recent-app",
+                    AppName = "RecentApp",
+                    Timestamp = now.AddDays(-10),
+                    Granularity = UsageGranularity.Daily,
+                    BytesReceived = 200,
+                    BytesSent = 100,
+                    LastUpdated = now.AddDays(-10)
                 }
             );
             await db.SaveChangesAsync();

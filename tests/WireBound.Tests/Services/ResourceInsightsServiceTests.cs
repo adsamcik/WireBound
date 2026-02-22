@@ -47,9 +47,9 @@ public class ResourceInsightsServiceTests
         provider.GetProcessResourceDataAsync(Arg.Any<CancellationToken>())
             .Returns(new List<ProcessResourceData>
             {
-                new() { ProcessId = 1, ProcessName = "chrome", ExecutablePath = @"C:\chrome.exe", PrivateBytes = 500_000_000, CpuTimeTicks = 1000 },
-                new() { ProcessId = 2, ProcessName = "chrome", ExecutablePath = @"C:\chrome.exe", PrivateBytes = 300_000_000, CpuTimeTicks = 500 },
-                new() { ProcessId = 3, ProcessName = "code", ExecutablePath = @"C:\code.exe", PrivateBytes = 200_000_000, CpuTimeTicks = 200 },
+                new() { ProcessId = 1, ProcessName = "chrome", ExecutablePath = "chrome.exe", PrivateBytes = 500_000_000, CpuTimeTicks = 1000 },
+                new() { ProcessId = 2, ProcessName = "chrome", ExecutablePath = "chrome.exe", PrivateBytes = 300_000_000, CpuTimeTicks = 500 },
+                new() { ProcessId = 3, ProcessName = "code", ExecutablePath = "code.exe", PrivateBytes = 200_000_000, CpuTimeTicks = 200 },
             });
 
         var apps = await service.GetCurrentByAppAsync();
@@ -83,8 +83,8 @@ public class ResourceInsightsServiceTests
         provider.GetProcessResourceDataAsync(Arg.Any<CancellationToken>())
             .Returns(new List<ProcessResourceData>
             {
-                new() { ProcessId = 1, ProcessName = "chrome", ExecutablePath = @"C:\chrome.exe", PrivateBytes = 500_000_000, CpuTimeTicks = 1000 },
-                new() { ProcessId = 2, ProcessName = "code", ExecutablePath = @"C:\code.exe", PrivateBytes = 200_000_000, CpuTimeTicks = 200 },
+                new() { ProcessId = 1, ProcessName = "chrome", ExecutablePath = "chrome.exe", PrivateBytes = 500_000_000, CpuTimeTicks = 1000 },
+                new() { ProcessId = 2, ProcessName = "code", ExecutablePath = "code.exe", PrivateBytes = 200_000_000, CpuTimeTicks = 200 },
             });
 
         var apps = await service.GetCurrentByAppAsync();
@@ -102,7 +102,7 @@ public class ResourceInsightsServiceTests
         provider.GetProcessResourceDataAsync(Arg.Any<CancellationToken>())
             .Returns(new List<ProcessResourceData>
             {
-                new() { ProcessId = 1, ProcessName = "busy", ExecutablePath = @"C:\busy.exe", PrivateBytes = 100_000_000, CpuTimeTicks = 0 },
+                new() { ProcessId = 1, ProcessName = "busy", ExecutablePath = "busy.exe", PrivateBytes = 100_000_000, CpuTimeTicks = 0 },
             });
 
         var first = await service.GetCurrentByAppAsync();
@@ -112,7 +112,7 @@ public class ResourceInsightsServiceTests
         provider.GetProcessResourceDataAsync(Arg.Any<CancellationToken>())
             .Returns(new List<ProcessResourceData>
             {
-                new() { ProcessId = 1, ProcessName = "busy", ExecutablePath = @"C:\busy.exe", PrivateBytes = 100_000_000, CpuTimeTicks = TimeSpan.TicksPerSecond },
+                new() { ProcessId = 1, ProcessName = "busy", ExecutablePath = "busy.exe", PrivateBytes = 100_000_000, CpuTimeTicks = TimeSpan.TicksPerSecond },
             });
 
         fakeTime.Advance(TimeSpan.FromMilliseconds(100));
@@ -131,7 +131,7 @@ public class ResourceInsightsServiceTests
         provider.GetProcessResourceDataAsync(Arg.Any<CancellationToken>())
             .Returns(new List<ProcessResourceData>
             {
-                new() { ProcessId = 1, ProcessName = "app", ExecutablePath = @"C:\app.exe", PrivateBytes = 1_000_000_000, CpuTimeTicks = 0 },
+                new() { ProcessId = 1, ProcessName = "app", ExecutablePath = "app.exe", PrivateBytes = 1_000_000_000, CpuTimeTicks = 0 },
             });
 
         var first = await service.GetCurrentByAppAsync();
@@ -142,7 +142,7 @@ public class ResourceInsightsServiceTests
         provider.GetProcessResourceDataAsync(Arg.Any<CancellationToken>())
             .Returns(new List<ProcessResourceData>
             {
-                new() { ProcessId = 1, ProcessName = "app", ExecutablePath = @"C:\app.exe", PrivateBytes = 2_000_000_000, CpuTimeTicks = 0 },
+                new() { ProcessId = 1, ProcessName = "app", ExecutablePath = "app.exe", PrivateBytes = 2_000_000_000, CpuTimeTicks = 0 },
             });
 
         var second = await service.GetCurrentByAppAsync();

@@ -316,47 +316,56 @@ public class MigrationCompletenessTests
         {
             ctx.HourlyUsages.Add(new() { Hour = DateTime.Now, AdapterId = "test" });
             await ctx.SaveChangesAsync();
-        });
+        }
+        );
         yield return () => ("DailyUsages", async ctx =>
         {
             ctx.DailyUsages.Add(new() { Date = DateOnly.FromDateTime(DateTime.Now), AdapterId = "test" });
             await ctx.SaveChangesAsync();
-        });
+        }
+        );
         yield return () => ("SpeedSnapshots", async ctx =>
         {
             ctx.SpeedSnapshots.Add(new() { Timestamp = DateTime.Now });
             await ctx.SaveChangesAsync();
-        });
+        }
+        );
         yield return () => ("AppUsageRecords", async ctx =>
         {
             ctx.AppUsageRecords.Add(new() { Timestamp = DateTime.Now, AppIdentifier = "test" });
             await ctx.SaveChangesAsync();
-        });
+        }
+        );
         yield return () => ("HourlySystemStats", async ctx =>
         {
             ctx.HourlySystemStats.Add(new() { Hour = DateTime.Now });
             await ctx.SaveChangesAsync();
-        });
+        }
+        );
         yield return () => ("DailySystemStats", async ctx =>
         {
             ctx.DailySystemStats.Add(new() { Date = DateOnly.FromDateTime(DateTime.Now) });
             await ctx.SaveChangesAsync();
-        });
+        }
+        );
         yield return () => ("AddressUsageRecords", async ctx =>
         {
             ctx.AddressUsageRecords.Add(new() { Timestamp = DateTime.Now, RemoteAddress = "127.0.0.1" });
             await ctx.SaveChangesAsync();
-        });
+        }
+        );
         yield return () => ("ResourceInsightSnapshots", async ctx =>
         {
             ctx.ResourceInsightSnapshots.Add(new() { Timestamp = DateTime.Now, AppIdentifier = "test" });
             await ctx.SaveChangesAsync();
-        });
+        }
+        );
         yield return () => ("AppCategoryMappings", async ctx =>
         {
             ctx.AppCategoryMappings.Add(new() { ExecutableName = "test.exe", CategoryName = "Test" });
             await ctx.SaveChangesAsync();
-        });
+        }
+        );
     }
 
     #endregion

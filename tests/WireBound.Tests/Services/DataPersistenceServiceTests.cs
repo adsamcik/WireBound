@@ -720,8 +720,13 @@ public class DataPersistenceServiceTests : DatabaseTestBase
             var db = scope.ServiceProvider.GetRequiredService<WireBoundDbContext>();
             db.AppUsageRecords.Add(new AppUsageRecord
             {
-                AppIdentifier = "some-app", AppName = "SomeApp", Timestamp = DateTime.Now.AddDays(-100),
-                Granularity = UsageGranularity.Daily, BytesReceived = 100, BytesSent = 50, LastUpdated = DateTime.Now
+                AppIdentifier = "some-app",
+                AppName = "SomeApp",
+                Timestamp = DateTime.Now.AddDays(-100),
+                Granularity = UsageGranularity.Daily,
+                BytesReceived = 100,
+                BytesSent = 50,
+                LastUpdated = DateTime.Now
             });
             await db.SaveChangesAsync();
         }

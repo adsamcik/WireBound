@@ -6,10 +6,12 @@ namespace WireBound.Core.Data;
 
 /// <summary>
 /// Database context for WireBound data storage.
-/// Note: EF Core has limited trimming/AOT support. The RequiresUnreferencedCode warning is suppressed
-/// because we don't use PublishTrimmed=true in production and EF Core works fine at runtime.
+/// Note: EF Core has limited trimming/AOT support. Warnings are suppressed because EF Core 10
+/// works at runtime with AOT when using basic CRUD operations. Compiled models may be needed
+/// if runtime model building fails under AOT in future versions.
 /// </summary>
-[SuppressMessage("Trimming", "IL2026:Members annotated with 'RequiresUnreferencedCodeAttribute' require dynamic access otherwise can break functionality when trimming application code", Justification = "EF Core is not fully compatible with trimming, but works fine at runtime without trimming enabled")]
+[SuppressMessage("Trimming", "IL2026:Members annotated with 'RequiresUnreferencedCodeAttribute' require dynamic access otherwise can break functionality when trimming application code", Justification = "EF Core AOT support is experimental; works at runtime for current usage patterns")]
+[SuppressMessage("AOT", "IL3050:Calling members annotated with 'RequiresDynamicCodeAttribute' may break functionality when AOT compiling", Justification = "EF Core AOT support is experimental; works at runtime for current usage patterns")]
 public sealed class WireBoundDbContext : DbContext
 {
     public DbSet<HourlyUsage> HourlyUsages { get; set; } = null!;

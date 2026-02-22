@@ -138,11 +138,92 @@ public class NetworkPollingBackgroundServiceTests : IAsyncDisposable
         // Start and let it run briefly
         var startTask = _service.StartAsync(cts.Token);
 
-        // Wait a bit then stop
-        await Task.Delay(50);
+        // Wait for service to enter polling loop (deterministic)
+        if (_service.PollingStartedTask is not null)
+            await _service.PollingStartedTask;
+
         await _service.StopAsync(CancellationToken.None);
 
         // Ensure start task completes
         await startTask;
+    }
+
+    // ═══════════════════════════════════════════════════════════════════════
+    // Adaptive Polling Tests
+    // ═══════════════════════════════════════════════════════════════════════
+
+    [Test]
+    public void SetAdaptivePolling_Enable_DoesNotThrow()
+    {
+        var action = () => _service.SetAdaptivePolling(true, 1000);
+        action.Should().NotThrow();
+    }
+
+    [Test]
+    public void SetAdaptivePolling_Disable_RestoresBaseInterval()
+    {
+        // Arrange — change interval away from default first
+        _service.UpdatePollingInterval(2000);
+
+        // Act — disable adaptive polling with a specific base interval
+        _service.SetAdaptivePolling(false, 500);
+
+        // Assert — CurrentPollingIntervalMs should be restored to the base interval
+        _service.CurrentPollingIntervalMs.Should().Be(500);
+    }
+
+    [Test]
+    public void SetAdaptivePolling_WithLowBaseInterval_ClampsToMinimum()
+    {
+        // Arrange & Act — use a base interval below MinPollingIntervalMs (100)
+        _service.SetAdaptivePolling(false, 10);
+
+        // Assert — should be clamped to minimum (100ms)
+        _service.CurrentPollingIntervalMs.Should().Be(100);
+    }
+
+    [Test]
+    public void SetAdaptivePolling_EnableThenDisable_RestoresInterval()
+    {
+        // Arrange — enable adaptive polling with a known base
+        _service.SetAdaptivePolling(true, 750);
+
+        // Act — change the polling interval (simulating adaptive adjustment), then disable
+        _service.UpdatePollingInterval(3000);
+        _service.SetAdaptivePolling(false, 750);
+
+        // Assert — disabling should restore the base interval
+        _service.CurrentPollingIntervalMs.Should().Be(750);
+    }
+
+    [Test]
+    public void CurrentPollingIntervalMs_ReturnsCurrentValue()
+    {
+        // The default polling interval is 1000ms
+        _service.CurrentPollingIntervalMs.Should().Be(1000);
+    }
+
+    [Test]
+    public void CurrentPollingIntervalMs_AfterUpdatePollingInterval_ReflectsNewValue()
+    {
+        // Arrange & Act
+        _service.UpdatePollingInterval(2500);
+
+        // Assert
+        _service.CurrentPollingIntervalMs.Should().Be(2500);
+    }
+
+    [Test]
+    public void SetAdaptivePolling_MultipleCalls_DoesNotThrow()
+    {
+        var action = () =>
+        {
+            _service.SetAdaptivePolling(true, 1000);
+            _service.SetAdaptivePolling(true, 500);
+            _service.SetAdaptivePolling(false, 2000);
+            _service.SetAdaptivePolling(true, 300);
+            _service.SetAdaptivePolling(false, 1000);
+        };
+        action.Should().NotThrow();
     }
 }

@@ -1,5 +1,7 @@
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Time.Testing;
 using WireBound.Avalonia.ViewModels;
+using WireBound.Core;
 using WireBound.Core.Models;
 using WireBound.Core.Services;
 using WireBound.Platform.Abstract.Services;
@@ -13,19 +15,23 @@ namespace WireBound.Tests.ViewModels;
 /// </summary>
 public class SettingsViewModelTests : IAsyncDisposable
 {
+    private readonly List<SettingsViewModel> _createdViewModels = [];
     private readonly IDataPersistenceService _persistence;
     private readonly INetworkMonitorService _networkMonitor;
+    private readonly INetworkPollingBackgroundService _pollingService;
     private readonly IStartupService _startupService;
     private readonly IElevationService _elevationService;
     private readonly IProcessNetworkService _processNetworkService;
     private readonly IDataExportService _dataExport;
     private readonly IUpdateService _updateService;
     private readonly ILogger<SettingsViewModel> _logger;
+    private readonly FakeTimeProvider _fakeTimeProvider = new();
 
     public SettingsViewModelTests()
     {
         _persistence = Substitute.For<IDataPersistenceService>();
         _networkMonitor = Substitute.For<INetworkMonitorService>();
+        _pollingService = Substitute.For<INetworkPollingBackgroundService>();
         _startupService = Substitute.For<IStartupService>();
         _elevationService = Substitute.For<IElevationService>();
         _processNetworkService = Substitute.For<IProcessNetworkService>();
@@ -79,15 +85,19 @@ public class SettingsViewModelTests : IAsyncDisposable
 
     private SettingsViewModel CreateViewModel()
     {
-        return new SettingsViewModel(
+        var viewModel = new SettingsViewModel(
             _persistence,
             _networkMonitor,
+            _pollingService,
             _startupService,
             _elevationService,
             _processNetworkService,
             _dataExport,
             _updateService,
+            _fakeTimeProvider,
             _logger);
+        _createdViewModels.Add(viewModel);
+        return viewModel;
     }
 
     #region Constructor Tests
@@ -231,8 +241,9 @@ public class SettingsViewModelTests : IAsyncDisposable
         // Act
         viewModel.PollingIntervalMs = 2000;
 
-        // Wait for auto-save delay (500ms) plus buffer
-        await Task.Delay(700);
+        // Advance fake time past debounce delay
+        _fakeTimeProvider.Advance(TimeSpan.FromMilliseconds(500));
+        await viewModel.PendingAutoSaveTask!;
 
         // Assert
         await _persistence.Received().SaveSettingsAsync(Arg.Any<AppSettings>());
@@ -250,8 +261,9 @@ public class SettingsViewModelTests : IAsyncDisposable
         // Act
         viewModel.UseIpHelperApi = true;
 
-        // Wait for auto-save delay
-        await Task.Delay(700);
+        // Advance fake time past debounce delay
+        _fakeTimeProvider.Advance(TimeSpan.FromMilliseconds(500));
+        await viewModel.PendingAutoSaveTask!;
 
         // Assert
         await _persistence.Received().SaveSettingsAsync(Arg.Any<AppSettings>());
@@ -269,8 +281,9 @@ public class SettingsViewModelTests : IAsyncDisposable
         // Act
         viewModel.MinimizeToTray = false;
 
-        // Wait for auto-save delay
-        await Task.Delay(700);
+        // Advance fake time past debounce delay
+        _fakeTimeProvider.Advance(TimeSpan.FromMilliseconds(500));
+        await viewModel.PendingAutoSaveTask!;
 
         // Assert
         await _persistence.Received().SaveSettingsAsync(Arg.Any<AppSettings>());
@@ -288,8 +301,9 @@ public class SettingsViewModelTests : IAsyncDisposable
         // Act
         viewModel.SelectedSpeedUnit = SpeedUnit.BitsPerSecond;
 
-        // Wait for auto-save delay
-        await Task.Delay(700);
+        // Advance fake time past debounce delay
+        _fakeTimeProvider.Advance(TimeSpan.FromMilliseconds(500));
+        await viewModel.PendingAutoSaveTask!;
 
         // Assert
         await _persistence.Received().SaveSettingsAsync(Arg.Any<AppSettings>());
@@ -306,13 +320,12 @@ public class SettingsViewModelTests : IAsyncDisposable
 
         // Act - make rapid changes
         viewModel.PollingIntervalMs = 2000;
-        await Task.Delay(100);
         viewModel.PollingIntervalMs = 3000;
-        await Task.Delay(100);
         viewModel.PollingIntervalMs = 4000;
 
-        // Wait for auto-save delay
-        await Task.Delay(700);
+        // Advance fake time past debounce delay
+        _fakeTimeProvider.Advance(TimeSpan.FromMilliseconds(500));
+        await viewModel.PendingAutoSaveTask!;
 
         // Assert - should debounce to fewer saves (ideally just one with final value)
         await _persistence.Received().SaveSettingsAsync(Arg.Is<AppSettings>(s => s.PollingIntervalMs == 4000));
@@ -330,8 +343,9 @@ public class SettingsViewModelTests : IAsyncDisposable
         // Act
         viewModel.ShowSystemMetricsInHeader = false;
 
-        // Wait for auto-save delay
-        await Task.Delay(700);
+        // Advance fake time past debounce delay
+        _fakeTimeProvider.Advance(TimeSpan.FromMilliseconds(500));
+        await viewModel.PendingAutoSaveTask!;
 
         // Assert
         await _persistence.Received().SaveSettingsAsync(Arg.Any<AppSettings>());
@@ -592,8 +606,8 @@ public class SettingsViewModelTests : IAsyncDisposable
         // Act
         viewModel.IsPerAppTrackingEnabled = true;
 
-        // Wait for async operation
-        await Task.Delay(100);
+        // Await the per-app tracking task
+        await viewModel.PendingPerAppTrackingTask!;
 
         // Assert
         await _processNetworkService.Received(1).StartAsync();
@@ -615,8 +629,8 @@ public class SettingsViewModelTests : IAsyncDisposable
         // Act
         viewModel.IsPerAppTrackingEnabled = false;
 
-        // Wait for async operation
-        await Task.Delay(100);
+        // Await the per-app tracking task
+        await viewModel.PendingPerAppTrackingTask!;
 
         // Assert
         await _processNetworkService.Received(1).StopAsync();
@@ -865,8 +879,9 @@ public class SettingsViewModelTests : IAsyncDisposable
         // Act
         viewModel.AutoDownloadUpdates = false;
 
-        // Wait for auto-save delay
-        await Task.Delay(700);
+        // Advance fake time past debounce delay
+        _fakeTimeProvider.Advance(TimeSpan.FromMilliseconds(500));
+        await viewModel.PendingAutoSaveTask!;
 
         // Assert
         await _persistence.Received().SaveSettingsAsync(
@@ -970,6 +985,11 @@ public class SettingsViewModelTests : IAsyncDisposable
 
     public ValueTask DisposeAsync()
     {
+        foreach (var vm in _createdViewModels)
+        {
+            vm.Dispose();
+        }
+        _createdViewModels.Clear();
         return ValueTask.CompletedTask;
     }
 }

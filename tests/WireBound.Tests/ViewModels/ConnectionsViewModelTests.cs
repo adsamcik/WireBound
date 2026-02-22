@@ -1,5 +1,7 @@
 using AwesomeAssertions;
+using Microsoft.Extensions.Time.Testing;
 using WireBound.Avalonia.ViewModels;
+using WireBound.Core;
 using WireBound.Core.Services;
 using WireBound.Platform.Abstract.Models;
 using WireBound.Platform.Abstract.Services;
@@ -12,16 +14,20 @@ namespace WireBound.Tests.ViewModels;
 /// </summary>
 public class ConnectionsViewModelTests : IAsyncDisposable
 {
+    private readonly List<ConnectionsViewModel> _createdViewModels = [];
     private readonly IUiDispatcher _dispatcher = new SynchronousDispatcher();
+    private readonly FakeTimeProvider _fakeTimeProvider = new();
     private readonly IProcessNetworkService _processNetworkServiceMock;
     private readonly IDnsResolverService _dnsResolverMock;
     private readonly IElevationService _elevationServiceMock;
+    private readonly INavigationService _navigationServiceMock;
 
     public ConnectionsViewModelTests()
     {
         _processNetworkServiceMock = Substitute.For<IProcessNetworkService>();
         _dnsResolverMock = Substitute.For<IDnsResolverService>();
         _elevationServiceMock = Substitute.For<IElevationService>();
+        _navigationServiceMock = Substitute.For<INavigationService>();
 
         SetupDefaultMocks();
     }
@@ -38,17 +44,24 @@ public class ConnectionsViewModelTests : IAsyncDisposable
         _elevationServiceMock.RequiresElevationFor(Arg.Any<ElevatedFeature>()).Returns(false);
         _elevationServiceMock.IsElevationSupported.Returns(true);
 
+        // Setup navigation — mark Connections as active so visibility-aware updates are processed
+        _navigationServiceMock.CurrentView.Returns(Routes.Connections);
+
         // Setup DNS resolver defaults
         _dnsResolverMock.GetCached(Arg.Any<string>()).Returns((string?)null);
     }
 
     private ConnectionsViewModel CreateViewModel()
     {
-        return new ConnectionsViewModel(
+        var viewModel = new ConnectionsViewModel(
             _dispatcher,
             _processNetworkServiceMock,
             _dnsResolverMock,
-            _elevationServiceMock);
+            _elevationServiceMock,
+            _navigationServiceMock,
+            _fakeTimeProvider);
+        _createdViewModels.Add(viewModel);
+        return viewModel;
     }
 
     private static ConnectionStats CreateConnectionStats(
@@ -82,14 +95,15 @@ public class ConnectionsViewModelTests : IAsyncDisposable
     #region Constructor Tests
 
     [Test]
-    public void Constructor_InitializesDefaultValues()
+    public async Task Constructor_InitializesDefaultValues()
     {
         // Act
         var viewModel = CreateViewModel();
+        await viewModel.InitializationTask;
 
         // Assert
-        // Note: HasError may be true due to fire-and-forget InitializeAsync in constructor
-        // that uses Dispatcher.UIThread which doesn't exist in test context
+        viewModel.IsLoading.Should().BeFalse();
+        viewModel.HasError.Should().BeFalse();
         viewModel.ErrorMessage.Should().BeEmpty();
         viewModel.SearchText.Should().BeEmpty();
         viewModel.SortColumn.Should().Be("Speed");
@@ -440,25 +454,21 @@ public class ConnectionsViewModelTests : IAsyncDisposable
     }
 
     [Test]
-    public void Dispose_StopsRefreshTimer()
+    public async Task Dispose_StopsRefreshTimer()
     {
         // Arrange
         var viewModel = CreateViewModel();
-        Thread.Sleep(100); // Allow timer to start
+        await viewModel.InitializationTask;
 
         // Act
         viewModel.Dispose();
+        _processNetworkServiceMock.ClearReceivedCalls();
 
-        // Small delay to ensure timer would have fired if still running
-        Thread.Sleep(2500);
+        // Advance time past several timer intervals
+        _fakeTimeProvider.Advance(TimeSpan.FromSeconds(5));
 
-        // Clear invocations after dispose
-        var invocationCountBefore = _processNetworkServiceMock.ReceivedCalls().Count();
-
-        Thread.Sleep(2500); // Wait for potential timer tick
-
-        // Assert - no new invocations after dispose
-        _processNetworkServiceMock.ReceivedCalls().Count().Should().BeLessThanOrEqualTo(invocationCountBefore);
+        // Assert - no new calls after dispose
+        await _processNetworkServiceMock.DidNotReceive().GetConnectionStatsAsync();
     }
 
     #endregion
@@ -478,7 +488,8 @@ public class ConnectionsViewModelTests : IAsyncDisposable
         viewModel.SearchText = "chrome";
 
         // Allow async operation
-        await Task.Delay(50);
+        if (viewModel.PendingSearchTask is not null)
+            await viewModel.PendingSearchTask;
 
         // Assert
         _processNetworkServiceMock.Received().GetConnectionStatsAsync();
@@ -615,7 +626,8 @@ public class ConnectionsViewModelTests : IAsyncDisposable
             _dispatcher,
             null!,
             _dnsResolverMock,
-            _elevationServiceMock);
+            _elevationServiceMock,
+            _navigationServiceMock);
 
         viewModel.IsPlatformSupported.Should().BeFalse();
         viewModel.Dispose();
@@ -629,7 +641,8 @@ public class ConnectionsViewModelTests : IAsyncDisposable
             _dispatcher,
             _processNetworkServiceMock,
             null!,
-            _elevationServiceMock);
+            _elevationServiceMock,
+            _navigationServiceMock);
 
         viewModel.Dispose();
     }
@@ -638,6 +651,11 @@ public class ConnectionsViewModelTests : IAsyncDisposable
 
     public ValueTask DisposeAsync()
     {
+        foreach (var vm in _createdViewModels)
+        {
+            vm.Dispose();
+        }
+        _createdViewModels.Clear();
         return ValueTask.CompletedTask;
     }
 }

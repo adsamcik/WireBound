@@ -1,3 +1,4 @@
+using Microsoft.Extensions.Time.Testing;
 using WireBound.IPC.Security;
 
 namespace WireBound.Tests.IPC;
@@ -49,15 +50,16 @@ public class AuthRateLimiterTests
     }
 
     [Test]
-    public async Task TryAcquire_AfterWindowExpiry_ResetsCount()
+    public void TryAcquire_AfterWindowExpiry_ResetsCount()
     {
-        var limiter = new AuthRateLimiter(maxAttemptsPerSecond: 1, maxConsecutiveFailures: 10);
+        var fakeTime = new FakeTimeProvider();
+        var limiter = new AuthRateLimiter(maxAttemptsPerSecond: 1, maxConsecutiveFailures: 10, timeProvider: fakeTime);
 
         limiter.TryAcquire("client1").Should().BeTrue();
         limiter.TryAcquire("client1").Should().BeFalse("exhausted in current window");
 
-        // Wait for the 1-second window to expire
-        await Task.Delay(1100);
+        // Advance past the 1-second window
+        fakeTime.Advance(TimeSpan.FromMilliseconds(1100));
 
         limiter.TryAcquire("client1").Should().BeTrue("new window started");
     }

@@ -102,8 +102,10 @@ public class IpcTransportSecurityTests
 
         public override async ValueTask<int> ReadAsync(Memory<byte> buffer, CancellationToken ct = default)
         {
-            // Block until cancellation
-            await Task.Delay(Timeout.Infinite, ct);
+            // Block until cancellation using a TCS instead of Task.Delay
+            var tcs = new TaskCompletionSource<int>();
+            await using (ct.Register(() => tcs.TrySetCanceled(ct)))
+                await tcs.Task;
             return 0;
         }
     }

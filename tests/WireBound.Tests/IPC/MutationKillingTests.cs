@@ -1,3 +1,4 @@
+using Microsoft.Extensions.Time.Testing;
 using WireBound.IPC;
 using WireBound.IPC.Messages;
 using WireBound.IPC.Security;
@@ -46,15 +47,16 @@ public class MutationKillingTests
     }
 
     [Test]
-    public async Task RateLimiter_WindowResetAt1000ms()
+    public void RateLimiter_WindowResetAt1000ms()
     {
-        var limiter = new RateLimiter(maxRequestsPerSecond: 1);
+        var fakeTime = new FakeTimeProvider();
+        var limiter = new RateLimiter(maxRequestsPerSecond: 1, timeProvider: fakeTime);
 
         limiter.TryAcquire("s1").Should().BeTrue();
         limiter.TryAcquire("s1").Should().BeFalse();
 
-        // Wait just over 1 second for window reset
-        await Task.Delay(1100);
+        // Advance past the 1-second window
+        fakeTime.Advance(TimeSpan.FromMilliseconds(1100));
 
         limiter.TryAcquire("s1").Should().BeTrue("new window should start");
     }
@@ -188,30 +190,50 @@ public class MutationKillingTests
     // ═══════════════════════════════════════════════════════════════════════
 
     [Test]
-    public void Transport_MessageAtMaxSize_Accepted()
+    public async Task Transport_MessageAtExactMaxSize_Accepted()
     {
-        // Create a message that serializes to just under max
-        var msg = new IpcMessage
-        {
-            Type = MessageType.Error,
-            RequestId = "x",
-            Payload = new byte[IpcConstants.MaxMessageSize - 100] // Leave room for envelope
-        };
+        // Calibrate: measure MessagePack serialization overhead for this envelope shape
+        var overhead = await MeasureSerializationOverheadAsync();
 
-        using var ms = new MemoryStream();
-        var act = () => IpcTransport.SendAsync(ms, msg).GetAwaiter().GetResult();
-        // If serialized size <= MaxMessageSize, this should succeed
-        // The actual serialized size depends on MessagePack overhead
-        // This test verifies the check is against serialized bytes, not Payload.Length
-        try
-        {
-            act();
-            ms.Length.Should().BeGreaterThan(0);
-        }
-        catch (InvalidOperationException ex) when (ex.Message.Contains("max size"))
-        {
-            // If the overhead pushes it over, that's also correct behavior
-        }
+        // Construct a message whose serialized size is exactly MaxMessageSize
+        var exactPayloadSize = IpcConstants.MaxMessageSize - overhead;
+        var msg = new IpcMessage { Type = MessageType.Error, RequestId = "x", Payload = new byte[exactPayloadSize] };
+
+        using var stream = new MemoryStream();
+        await IpcTransport.SendAsync(stream, msg);
+
+        // Stream has 4-byte length prefix + serialized bytes
+        ((int)stream.Length - 4).Should().Be(IpcConstants.MaxMessageSize,
+            "serialized message should be exactly at max size");
+    }
+
+    [Test]
+    public async Task Transport_MessageOneOverMaxSize_Rejected()
+    {
+        // Calibrate overhead using same envelope shape
+        var overhead = await MeasureSerializationOverheadAsync();
+
+        // Construct a message whose serialized size is MaxMessageSize + 1
+        var overPayloadSize = IpcConstants.MaxMessageSize - overhead + 1;
+        var msg = new IpcMessage { Type = MessageType.Error, RequestId = "x", Payload = new byte[overPayloadSize] };
+
+        using var stream = new MemoryStream();
+        var act = () => IpcTransport.SendAsync(stream, msg).GetAwaiter().GetResult();
+        act.Should().Throw<InvalidOperationException>().Which.Message.Should().Contain("max size");
+    }
+
+    /// <summary>
+    /// Measures the fixed MessagePack overhead (envelope fields minus payload bytes)
+    /// by serializing a calibration message with a known payload size.
+    /// Both calibration and target payloads use bin32 format so overhead is constant.
+    /// </summary>
+    private static async Task<int> MeasureSerializationOverheadAsync()
+    {
+        const int calibrationSize = 100_000;
+        var calibration = new IpcMessage { Type = MessageType.Error, RequestId = "x", Payload = new byte[calibrationSize] };
+        using var stream = new MemoryStream();
+        await IpcTransport.SendAsync(stream, calibration);
+        return (int)stream.Length - 4 - calibrationSize;
     }
 
     // ═══════════════════════════════════════════════════════════════════════

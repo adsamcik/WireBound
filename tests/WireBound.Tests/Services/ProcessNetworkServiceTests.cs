@@ -188,8 +188,9 @@ public class ProcessNetworkServiceTests : IDisposable
             _providerFactory,
             new ProviderChangedEventArgs(newProvider));
 
-        // Allow the async void handler to complete
-        await Task.Delay(50);
+        // Allow the async handler to complete
+        if (_service.PendingProviderChangeTask is not null)
+            await _service.PendingProviderChangeTask;
 
         // Assert — new provider was started, old provider was stopped
         await newProvider.Received(1).StartMonitoringAsync(Arg.Any<CancellationToken>());
@@ -210,7 +211,8 @@ public class ProcessNetworkServiceTests : IDisposable
         _providerFactory.ProviderChanged += Raise.EventWith(
             _providerFactory,
             new ProviderChangedEventArgs(newProvider));
-        await Task.Delay(50);
+        if (_service.PendingProviderChangeTask is not null)
+            await _service.PendingProviderChangeTask;
 
         // Assert — raising StatsUpdated on OLD provider should NOT propagate
         ProcessStatsUpdatedEventArgs? received = null;
@@ -236,7 +238,8 @@ public class ProcessNetworkServiceTests : IDisposable
         _providerFactory.ProviderChanged += Raise.EventWith(
             _providerFactory,
             new ProviderChangedEventArgs(newProvider));
-        await Task.Delay(50);
+        if (_service.PendingProviderChangeTask is not null)
+            await _service.PendingProviderChangeTask;
 
         // Act — raise StatsUpdated on NEW provider
         ProcessStatsUpdatedEventArgs? received = null;
@@ -263,7 +266,8 @@ public class ProcessNetworkServiceTests : IDisposable
         _providerFactory.ProviderChanged += Raise.EventWith(
             _providerFactory,
             new ProviderChangedEventArgs(newProvider));
-        await Task.Delay(50);
+        if (_service.PendingProviderChangeTask is not null)
+            await _service.PendingProviderChangeTask;
 
         // Assert — new provider should NOT be started
         await newProvider.DidNotReceive().StartMonitoringAsync(Arg.Any<CancellationToken>());
@@ -283,7 +287,8 @@ public class ProcessNetworkServiceTests : IDisposable
         _providerFactory.ProviderChanged += Raise.EventWith(
             _providerFactory,
             new ProviderChangedEventArgs(newProvider));
-        await Task.Delay(50);
+        if (_service.PendingProviderChangeTask is not null)
+            await _service.PendingProviderChangeTask;
 
         var result = await _service.GetConnectionStatsAsync();
 

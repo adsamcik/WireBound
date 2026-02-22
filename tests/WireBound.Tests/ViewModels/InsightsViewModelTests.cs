@@ -1,6 +1,7 @@
 using AwesomeAssertions;
 using Microsoft.Extensions.Logging;
 using WireBound.Avalonia.ViewModels;
+using WireBound.Core;
 using WireBound.Core.Models;
 using WireBound.Core.Services;
 using WireBound.Tests.Fixtures;
@@ -12,6 +13,7 @@ namespace WireBound.Tests.ViewModels;
 /// </summary>
 public class InsightsViewModelTests : IAsyncDisposable
 {
+    private readonly List<InsightsViewModel> _createdViewModels = [];
     private readonly IDataPersistenceService _persistenceMock;
     private readonly ISystemHistoryService _systemHistoryMock;
     private readonly ILogger<InsightsViewModel> _loggerMock;
@@ -37,20 +39,24 @@ public class InsightsViewModelTests : IAsyncDisposable
 
     private InsightsViewModel CreateViewModel()
     {
-        return new InsightsViewModel(
+        var viewModel = new InsightsViewModel(
             _persistenceMock,
             _systemHistoryMock,
             null,
             _loggerMock);
+        _createdViewModels.Add(viewModel);
+        return viewModel;
     }
 
     private InsightsViewModel CreateViewModelWithoutSystemHistory()
     {
-        return new InsightsViewModel(
+        var viewModel = new InsightsViewModel(
             _persistenceMock,
             null,
             null,
             _loggerMock);
+        _createdViewModels.Add(viewModel);
+        return viewModel;
     }
 
     #region Constructor Tests
@@ -234,7 +240,7 @@ public class InsightsViewModelTests : IAsyncDisposable
 
         // Act
         viewModel.SelectedTab = InsightsTab.SystemTrends;
-        await Task.Delay(50); // Wait for tab-change-triggered async load
+        await viewModel.PendingLoadTask!;
 
         // Assert
         _systemHistoryMock.Received().GetHourlyStatsAsync(Arg.Any<DateTime>(), Arg.Any<DateTime>());
@@ -349,7 +355,7 @@ public class InsightsViewModelTests : IAsyncDisposable
 
         // Act
         viewModel.SelectedPeriod = InsightsPeriod.ThisMonth;
-        await Task.Delay(50); // Wait for period-change-triggered async load
+        await viewModel.PendingLoadTask!;
 
         // Assert
         _persistenceMock.Received().GetDailyUsageAsync(Arg.Any<DateOnly>(), Arg.Any<DateOnly>());
@@ -397,13 +403,13 @@ public class InsightsViewModelTests : IAsyncDisposable
         var viewModel = CreateViewModel();
         viewModel.SelectedPeriod = InsightsPeriod.Custom;
         viewModel.CustomEndDate = DateTimeOffset.Now;
-        await Task.Delay(50);
+        if (viewModel.PendingLoadTask is not null) await viewModel.PendingLoadTask;
 
         _persistenceMock.ClearReceivedCalls();
 
         // Act
         viewModel.CustomStartDate = DateTimeOffset.Now.AddDays(-14);
-        await Task.Delay(50);
+        await viewModel.PendingLoadTask!;
 
         // Assert
         _persistenceMock.Received().GetDailyUsageAsync(Arg.Any<DateOnly>(), Arg.Any<DateOnly>());
@@ -416,13 +422,13 @@ public class InsightsViewModelTests : IAsyncDisposable
         var viewModel = CreateViewModel();
         viewModel.SelectedPeriod = InsightsPeriod.Custom;
         viewModel.CustomStartDate = DateTimeOffset.Now.AddDays(-7);
-        await Task.Delay(50);
+        if (viewModel.PendingLoadTask is not null) await viewModel.PendingLoadTask;
 
         _persistenceMock.ClearReceivedCalls();
 
         // Act
         viewModel.CustomEndDate = DateTimeOffset.Now.AddDays(-1);
-        await Task.Delay(50);
+        await viewModel.PendingLoadTask!;
 
         // Assert
         _persistenceMock.Received().GetDailyUsageAsync(Arg.Any<DateOnly>(), Arg.Any<DateOnly>());
@@ -458,7 +464,7 @@ public class InsightsViewModelTests : IAsyncDisposable
 
         // Act - switch to SystemTrends tab to trigger loading
         viewModel.SelectedTab = InsightsTab.SystemTrends;
-        await Task.Delay(50);
+        await viewModel.PendingLoadTask!;
 
         // Assert - verify the ViewModel's actual CpuTrendStatus property
         viewModel.CpuTrendStatus.Should().Be(expectedStatus);
@@ -481,7 +487,7 @@ public class InsightsViewModelTests : IAsyncDisposable
 
         // Act
         viewModel.SelectedTab = InsightsTab.SystemTrends;
-        await Task.Delay(50); // Wait for async load
+        await viewModel.PendingLoadTask!;
 
         // Assert
         viewModel.CpuTrendStatus.Should().Be("Critical"); // avg 87.5 > 80
@@ -507,7 +513,7 @@ public class InsightsViewModelTests : IAsyncDisposable
 
         // Act
         viewModel.SelectedTab = InsightsTab.Correlations;
-        await Task.Delay(50);
+        await viewModel.PendingLoadTask!;
 
         // Assert
         viewModel.NetworkCpuCorrelation.Should().Be(0);
@@ -524,7 +530,7 @@ public class InsightsViewModelTests : IAsyncDisposable
 
         // Act
         viewModel.SelectedTab = InsightsTab.Correlations;
-        await Task.Delay(50);
+        await viewModel.PendingLoadTask!;
 
         // Assert
         viewModel.CorrelationInsights.Should().Contain(x => x.Contains("unavailable"));
@@ -564,10 +570,10 @@ public class InsightsViewModelTests : IAsyncDisposable
         await viewModel.InitializationTask;
 
         // Assert
-        viewModel.TotalDownload.Should().NotBe("0 B");
-        viewModel.TotalUpload.Should().NotBe("0 B");
-        viewModel.PeakDownloadSpeed.Should().NotBe("0 B/s");
-        viewModel.PeakUploadSpeed.Should().NotBe("0 B/s");
+        viewModel.TotalDownload.Should().Be("300.00 MB");
+        viewModel.TotalUpload.Should().Be("150.00 MB");
+        viewModel.PeakDownloadSpeed.Should().Be("2.00 MB/s");
+        viewModel.PeakUploadSpeed.Should().Be("1.00 MB/s");
     }
 
     [Test]
@@ -601,7 +607,7 @@ public class InsightsViewModelTests : IAsyncDisposable
 
         // Act
         viewModel.SelectedTab = InsightsTab.SystemTrends;
-        await Task.Delay(50);
+        await viewModel.PendingLoadTask!;
 
         // Assert
         viewModel.CpuTrendStatus.Should().Be("Unavailable");
@@ -619,7 +625,7 @@ public class InsightsViewModelTests : IAsyncDisposable
 
         // Act
         viewModel.SelectedTab = InsightsTab.SystemTrends;
-        await Task.Delay(50);
+        await viewModel.PendingLoadTask!;
 
         // Assert
         viewModel.CpuTrendStatus.Should().Be("No Data");
@@ -643,7 +649,7 @@ public class InsightsViewModelTests : IAsyncDisposable
 
         // Act
         viewModel.SelectedTab = InsightsTab.SystemTrends;
-        await Task.Delay(50);
+        await viewModel.PendingLoadTask!;
 
         // Assert
         viewModel.AvgCpuPercent.Should().Be(50); // (40 + 60) / 2
@@ -667,7 +673,7 @@ public class InsightsViewModelTests : IAsyncDisposable
 
         // Act
         viewModel.RefreshCommand.Execute(null);
-        await Task.Delay(50);
+        await viewModel.PendingLoadTask!;
 
         // Assert
         viewModel.HasError.Should().BeFalse();
@@ -684,7 +690,7 @@ public class InsightsViewModelTests : IAsyncDisposable
 
         // Act
         await viewModel.RefreshCommand.ExecuteAsync(null);
-        await Task.Delay(50);
+        await viewModel.PendingLoadTask!;
 
         // Assert
         await _persistenceMock.Received().GetDailyUsageAsync(Arg.Any<DateOnly>(), Arg.Any<DateOnly>());
@@ -869,7 +875,7 @@ public class InsightsViewModelTests : IAsyncDisposable
 
         // Act - change tab before first load completes
         viewModel.SelectedTab = InsightsTab.SystemTrends;
-        await Task.Delay(50);
+        await viewModel.PendingLoadTask!;
 
         // Complete the slow task
         slowTask.SetResult(new List<DailyUsage>());
@@ -882,6 +888,11 @@ public class InsightsViewModelTests : IAsyncDisposable
 
     public ValueTask DisposeAsync()
     {
+        foreach (var vm in _createdViewModels)
+        {
+            vm.Dispose();
+        }
+        _createdViewModels.Clear();
         return ValueTask.CompletedTask;
     }
 }

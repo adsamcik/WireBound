@@ -1,6 +1,7 @@
 using System.Net.NetworkInformation;
 using System.Reflection;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Time.Testing;
 using WireBound.Avalonia.Services;
 using WireBound.Core.Models;
 using WireBound.Core.Services;
@@ -19,6 +20,7 @@ public class CrossPlatformNetworkMonitorServiceTests
 {
     private static readonly Type ServiceType = typeof(CrossPlatformNetworkMonitorService);
     private readonly ILogger<CrossPlatformNetworkMonitorService> _logger;
+    private readonly FakeTimeProvider _fakeTimeProvider = new();
 
     public CrossPlatformNetworkMonitorServiceTests()
     {
@@ -29,7 +31,7 @@ public class CrossPlatformNetworkMonitorServiceTests
     // Helpers
     // ═══════════════════════════════════════════════════════════════════════
 
-    private CrossPlatformNetworkMonitorService CreateService() => new(_logger);
+    private CrossPlatformNetworkMonitorService CreateService() => new(_logger, _fakeTimeProvider);
 
     private static NetworkInterface MockNic(
         string name = "Ethernet",
@@ -381,12 +383,12 @@ public class CrossPlatformNetworkMonitorServiceTests
     }
 
     [Test]
-    public async Task Poll_CalculatesDownloadSpeed_FromByteDelta()
+    public void Poll_CalculatesDownloadSpeed_FromByteDelta()
     {
         var service = CreateService();
         service.Poll();
 
-        await Task.Delay(150); // >100 ms so the speed guard allows calculation
+        _fakeTimeProvider.Advance(TimeSpan.FromMilliseconds(150));
         service.Poll();
 
         var stats = service.GetCurrentStats();
@@ -394,12 +396,12 @@ public class CrossPlatformNetworkMonitorServiceTests
     }
 
     [Test]
-    public async Task Poll_CalculatesUploadSpeed_FromByteDelta()
+    public void Poll_CalculatesUploadSpeed_FromByteDelta()
     {
         var service = CreateService();
         service.Poll();
 
-        await Task.Delay(150);
+        _fakeTimeProvider.Advance(TimeSpan.FromMilliseconds(150));
         service.Poll();
 
         var stats = service.GetCurrentStats();
@@ -427,13 +429,13 @@ public class CrossPlatformNetworkMonitorServiceTests
     // ═══════════════════════════════════════════════════════════════════════
 
     [Test]
-    public async Task Poll_AggregatesAllAdapters_WhenNoSpecificAdapterSelected()
+    public void Poll_AggregatesAllAdapters_WhenNoSpecificAdapterSelected()
     {
         var service = CreateService();
         service.SetAdapter(string.Empty); // Explicitly select aggregate mode
 
         service.Poll();
-        await Task.Delay(150);
+        _fakeTimeProvider.Advance(TimeSpan.FromMilliseconds(150));
         service.Poll();
 
         var stats = service.GetCurrentStats();
@@ -442,7 +444,7 @@ public class CrossPlatformNetworkMonitorServiceTests
     }
 
     [Test]
-    public async Task Poll_ReturnsSpecificAdapterStats_WhenAdapterSelected()
+    public void Poll_ReturnsSpecificAdapterStats_WhenAdapterSelected()
     {
         var service = CreateService();
         var adapters = service.GetAdapters(includeVirtual: true);
@@ -455,7 +457,7 @@ public class CrossPlatformNetworkMonitorServiceTests
         service.SetAdapter(target.Id);
 
         service.Poll();
-        await Task.Delay(150);
+        _fakeTimeProvider.Advance(TimeSpan.FromMilliseconds(150));
         service.Poll();
 
         var stats = service.GetCurrentStats();
@@ -481,15 +483,15 @@ public class CrossPlatformNetworkMonitorServiceTests
     }
 
     [Test]
-    public async Task Poll_ContinuesWorking_AfterTransientError()
+    public void Poll_ContinuesWorking_AfterTransientError()
     {
         var service = CreateService();
 
         // Successive polls must not throw
         service.Poll();
-        await Task.Delay(150);
+        _fakeTimeProvider.Advance(TimeSpan.FromMilliseconds(150));
         service.Poll();
-        await Task.Delay(150);
+        _fakeTimeProvider.Advance(TimeSpan.FromMilliseconds(150));
         service.Poll();
 
         var stats = service.GetCurrentStats();
@@ -502,16 +504,16 @@ public class CrossPlatformNetworkMonitorServiceTests
     // ═══════════════════════════════════════════════════════════════════════
 
     [Test]
-    public async Task SessionBytes_AccumulateOverMultiplePolls()
+    public void SessionBytes_AccumulateOverMultiplePolls()
     {
         var service = CreateService();
 
         service.Poll();
-        await Task.Delay(150);
+        _fakeTimeProvider.Advance(TimeSpan.FromMilliseconds(150));
         service.Poll();
         var first = service.GetCurrentStats();
 
-        await Task.Delay(150);
+        _fakeTimeProvider.Advance(TimeSpan.FromMilliseconds(150));
         service.Poll();
         var second = service.GetCurrentStats();
 
@@ -521,12 +523,12 @@ public class CrossPlatformNetworkMonitorServiceTests
     }
 
     [Test]
-    public async Task SessionBytes_ResetOnSessionReset()
+    public void SessionBytes_ResetOnSessionReset()
     {
         var service = CreateService();
 
         service.Poll();
-        await Task.Delay(150);
+        _fakeTimeProvider.Advance(TimeSpan.FromMilliseconds(150));
         service.Poll();
 
         service.ResetSession();
@@ -635,11 +637,11 @@ public class CrossPlatformNetworkMonitorServiceTests
     }
 
     [Test]
-    public async Task AutoMode_ResolvesAdapterId()
+    public void AutoMode_ResolvesAdapterId()
     {
         var service = CreateService();
         service.Poll();
-        await Task.Delay(150);
+        _fakeTimeProvider.Advance(TimeSpan.FromMilliseconds(150));
         service.Poll();
 
         var stats = service.GetCurrentStats();
@@ -660,11 +662,11 @@ public class CrossPlatformNetworkMonitorServiceTests
     }
 
     [Test]
-    public async Task AutoMode_SpeedsAreNonNegative()
+    public void AutoMode_SpeedsAreNonNegative()
     {
         var service = CreateService();
         service.Poll();
-        await Task.Delay(150);
+        _fakeTimeProvider.Advance(TimeSpan.FromMilliseconds(150));
         service.Poll();
 
         var stats = service.GetCurrentStats();

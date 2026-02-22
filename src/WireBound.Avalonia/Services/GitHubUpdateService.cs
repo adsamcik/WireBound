@@ -12,7 +12,7 @@ namespace WireBound.Avalonia.Services;
 /// Legacy update service using GitHub API only (no in-app download/apply).
 /// Kept as fallback; VelopackUpdateService is the primary implementation.
 /// </summary>
-public class GitHubUpdateService : IUpdateService
+public partial class GitHubUpdateService : IUpdateService
 {
     private const string GitHubApiUrl = "https://api.github.com/repos/adsamcik/WireBound/releases/latest";
     private static readonly HttpClient HttpClient = new()
@@ -36,7 +36,7 @@ public class GitHubUpdateService : IUpdateService
             var response = await HttpClient.GetAsync(GitHubApiUrl, cancellationToken);
             response.EnsureSuccessStatusCode();
             var json = await response.Content.ReadAsStringAsync(cancellationToken);
-            var release = JsonSerializer.Deserialize<GitHubRelease>(json);
+            var release = JsonSerializer.Deserialize(json, GitHubUpdateJsonContext.Default.GitHubRelease);
             if (release is null) return null;
 
             var latestVersion = release.TagName.TrimStart('v');
@@ -69,4 +69,7 @@ public class GitHubUpdateService : IUpdateService
         [property: JsonPropertyName("tag_name")] string TagName,
         [property: JsonPropertyName("html_url")] string HtmlUrl,
         [property: JsonPropertyName("published_at")] DateTimeOffset PublishedAt);
+
+    [JsonSerializable(typeof(GitHubRelease))]
+    private partial class GitHubUpdateJsonContext : JsonSerializerContext;
 }

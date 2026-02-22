@@ -1,7 +1,9 @@
 using System.IO.Pipes;
+using System.Runtime.InteropServices;
 using System.Security.AccessControl;
 using System.Security.Principal;
 using System.Text.RegularExpressions;
+using Microsoft.Win32.SafeHandles;
 using Serilog;
 using WireBound.IPC;
 using WireBound.IPC.Messages;
@@ -152,17 +154,19 @@ public sealed partial class ElevationServer : IDisposable
     {
         try
         {
-            // GetClientProcessId is available on Windows
-            return (int)server.GetType()
-                .GetMethod("GetClientProcessId",
-                    System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance)?
-                .Invoke(server, null)!;
+            return GetNamedPipeClientProcessId(server.SafePipeHandle, out var pid) ? (int)pid : 0;
         }
         catch
         {
             return 0;
         }
     }
+
+    [LibraryImport("kernel32.dll", SetLastError = true)]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    private static partial bool GetNamedPipeClientProcessId(
+        SafePipeHandle pipe,
+        out uint clientProcessId);
 
     internal async Task HandleClientAsync(Stream stream, CancellationToken cancellationToken)
     {

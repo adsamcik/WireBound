@@ -47,9 +47,8 @@ public partial class MainViewModel : ObservableObject, IRecipient<UpdateAvailabl
 
     private static string GetAppVersion()
     {
-        var version = Assembly.GetExecutingAssembly()
+        var version = typeof(MainViewModel).Assembly
             .GetCustomAttribute<AssemblyInformationalVersionAttribute>()?.InformationalVersion
-            ?? Assembly.GetExecutingAssembly().GetName().Version?.ToString()
             ?? "Unknown";
 
         // Remove any metadata after '+' (e.g., commit hash)

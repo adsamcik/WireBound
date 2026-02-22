@@ -13,7 +13,7 @@ namespace WireBound.Avalonia.Services;
 /// <summary>
 /// Update service using Velopack for installed mode, with GitHub API fallback for portable mode.
 /// </summary>
-public sealed class VelopackUpdateService : IUpdateService
+public sealed partial class VelopackUpdateService : IUpdateService
 {
     private const string Owner = "adsamcik";
     private const string Repo = "WireBound";
@@ -105,7 +105,7 @@ public sealed class VelopackUpdateService : IUpdateService
             var response = await HttpClient.GetAsync(GitHubApiUrl, cancellationToken);
             response.EnsureSuccessStatusCode();
             var json = await response.Content.ReadAsStringAsync(cancellationToken);
-            var release = JsonSerializer.Deserialize<GitHubRelease>(json);
+            var release = JsonSerializer.Deserialize(json, VelopackJsonContext.Default.GitHubRelease);
             if (release is null) return null;
 
             var latestVersion = release.TagName.TrimStart('v');
@@ -132,4 +132,7 @@ public sealed class VelopackUpdateService : IUpdateService
         [property: JsonPropertyName("tag_name")] string TagName,
         [property: JsonPropertyName("html_url")] string HtmlUrl,
         [property: JsonPropertyName("published_at")] DateTimeOffset PublishedAt);
+
+    [JsonSerializable(typeof(GitHubRelease))]
+    private partial class VelopackJsonContext : JsonSerializerContext;
 }

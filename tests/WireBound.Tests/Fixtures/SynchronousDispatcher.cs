@@ -10,6 +10,8 @@ public sealed class SynchronousDispatcher : IUiDispatcher
 {
     public void Post(Action action) => action();
 
+    public void Post(Action action, UiDispatcherPriority priority) => action();
+
     public Task InvokeAsync(Action action)
     {
         action();

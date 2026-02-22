@@ -5,7 +5,7 @@
              xmlns:controls="using:WireBound.Avalonia.Controls"
              x:Class="WireBound.Avalonia.Views.OverviewView"
              x:DataType="vm:OverviewViewModel"
-             Background="{DynamicResource BackgroundBrush}"
+             Background="{StaticResource BackgroundBrush}"
              AutomationProperties.Name="Overview View">
 
     <Grid RowDefinitions="Auto, Auto, *" Margin="28">
@@ -54,7 +54,7 @@
         <!-- AUTO SWITCH NOTIFICATION BANNER -->
         <Border Grid.Row="1"
                 IsVisible="{Binding IsAutoSwitchNotificationVisible}"
-                Background="{DynamicResource AccentBgTintBrush}"
+                Background="{StaticResource AccentBgTintBrush}"
                 CornerRadius="8"
                 Padding="12,8"
                 Margin="0,0,0,12"
@@ -64,7 +64,7 @@
                 <TextBlock Text="🔄" FontSize="14" VerticalAlignment="Center" />
                 <TextBlock Text="{Binding AutoSwitchNotification}"
                            FontSize="13" FontWeight="SemiBold"
-                           Foreground="{DynamicResource PrimaryTextBrush}"
+                           Foreground="{StaticResource PrimaryTextBrush}"
                            VerticalAlignment="Center" />
             </StackPanel>
         </Border>
@@ -79,9 +79,9 @@
                         <!-- Header Row -->
                         <Grid ColumnDefinitions="Auto, *, Auto">
                             <StackPanel Orientation="Horizontal" Spacing="8">
-                                <Border Background="{DynamicResource DownloadBgTintBrush}" CornerRadius="6" Width="28" Height="28">
+                                <Border Background="{StaticResource DownloadBgTintBrush}" CornerRadius="6" Width="28" Height="28">
                                     <TextBlock Text="↓" FontSize="16" 
-                                               Foreground="{DynamicResource DownloadBrush}"
+                                               Foreground="{StaticResource DownloadBrush}"
                                                HorizontalAlignment="Center"
                                                VerticalAlignment="Center" />
                                 </Border>
@@ -92,7 +92,7 @@
                                 <TextBlock Text="Peak:" Classes="Caption" Opacity="0.6" VerticalAlignment="Center" />
                                 <TextBlock Text="{Binding PeakDownloadSpeed}"
                                            FontSize="12" FontWeight="SemiBold"
-                                           Foreground="{DynamicResource DownloadColorDim}"
+                                           Foreground="{StaticResource DownloadColorDim}"
                                            VerticalAlignment="Center" />
                             </StackPanel>
                         </Grid>
@@ -101,7 +101,7 @@
                         <StackPanel Grid.Row="1" HorizontalAlignment="Center" Margin="0,16,0,16">
                             <TextBlock Text="{Binding DownloadSpeed}"
                                        FontSize="48" FontWeight="Bold"
-                                       Foreground="{DynamicResource DownloadBrush}"
+                                       Foreground="{StaticResource DownloadBrush}"
                                        HorizontalAlignment="Center"
                                        MinWidth="200"
                                        TextAlignment="Center" />
@@ -109,18 +109,18 @@
                             <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Spacing="4" Margin="0,4,0,0">
                                 <TextBlock Text="{Binding DownloadTrendIcon}"
                                            FontSize="12"
-                                           Foreground="{DynamicResource SecondaryTextBrush}"
+                                           Foreground="{StaticResource SecondaryTextBrush}"
                                            VerticalAlignment="Center" />
                                 <TextBlock Text="{Binding DownloadTrendText}"
                                            FontSize="12"
-                                           Foreground="{DynamicResource SecondaryTextBrush}"
+                                           Foreground="{StaticResource SecondaryTextBrush}"
                                            VerticalAlignment="Center" />
                             </StackPanel>
                         </StackPanel>
                         
                         <!-- Footer Stats -->
                         <Border Grid.Row="2" 
-                                Background="{DynamicResource BorderSubtleBrush}"
+                                Background="{StaticResource BorderSubtleBrush}"
                                 CornerRadius="6"
                                 Padding="12,8">
                             <Grid ColumnDefinitions="*, Auto, *">
@@ -128,15 +128,15 @@
                                     <TextBlock Text="Today" Classes="Caption" Opacity="0.7" VerticalAlignment="Center" />
                                     <TextBlock Text="{Binding TodayDownload}"
                                                FontSize="13" FontWeight="Bold"
-                                               Foreground="{DynamicResource DownloadBrush}"
+                                               Foreground="{StaticResource DownloadBrush}"
                                                VerticalAlignment="Center" />
                                 </StackPanel>
-                                <Border Grid.Column="1" Width="1" Background="{DynamicResource MutedTextBrush}" Opacity="0.3" Margin="8,2" />
+                                <Border Grid.Column="1" Width="1" Background="{StaticResource MutedTextBrush}" Opacity="0.3" Margin="8,2" />
                                 <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="4" HorizontalAlignment="Right">
                                     <TextBlock Text="Session" Classes="Caption" Opacity="0.7" VerticalAlignment="Center" />
                                     <TextBlock Text="{Binding SessionDownload}"
                                                FontSize="13" FontWeight="Bold"
-                                               Foreground="{DynamicResource DownloadBrush}"
+                                               Foreground="{StaticResource DownloadBrush}"
                                                VerticalAlignment="Center" />
                                 </StackPanel>
                             </Grid>
@@ -150,9 +150,9 @@
                         <!-- Header Row -->
                         <Grid ColumnDefinitions="Auto, *, Auto">
                             <StackPanel Orientation="Horizontal" Spacing="8">
-                                <Border Background="{DynamicResource UploadBgTintBrush}" CornerRadius="6" Width="28" Height="28">
+                                <Border Background="{StaticResource UploadBgTintBrush}" CornerRadius="6" Width="28" Height="28">
                                     <TextBlock Text="↑" FontSize="16" 
-                                               Foreground="{DynamicResource UploadBrush}"
+                                               Foreground="{StaticResource UploadBrush}"
                                                HorizontalAlignment="Center"
                                                VerticalAlignment="Center" />
                                 </Border>
@@ -163,7 +163,7 @@
                                 <TextBlock Text="Peak:" Classes="Caption" Opacity="0.6" VerticalAlignment="Center" />
                                 <TextBlock Text="{Binding PeakUploadSpeed}"
                                            FontSize="12" FontWeight="SemiBold"
-                                           Foreground="{DynamicResource UploadColorDim}"
+                                           Foreground="{StaticResource UploadColorDim}"
                                            VerticalAlignment="Center" />
                             </StackPanel>
                         </Grid>
@@ -172,7 +172,7 @@
                         <StackPanel Grid.Row="1" HorizontalAlignment="Center" Margin="0,16,0,16">
                             <TextBlock Text="{Binding UploadSpeed}"
                                        FontSize="48" FontWeight="Bold"
-                                       Foreground="{DynamicResource UploadBrush}"
+                                       Foreground="{StaticResource UploadBrush}"
                                        HorizontalAlignment="Center"
                                        MinWidth="200"
                                        TextAlignment="Center" />
@@ -180,18 +180,18 @@
                             <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Spacing="4" Margin="0,4,0,0">
                                 <TextBlock Text="{Binding UploadTrendIcon}"
                                            FontSize="12"
-                                           Foreground="{DynamicResource SecondaryTextBrush}"
+                                           Foreground="{StaticResource SecondaryTextBrush}"
                                            VerticalAlignment="Center" />
                                 <TextBlock Text="{Binding UploadTrendText}"
                                            FontSize="12"
-                                           Foreground="{DynamicResource SecondaryTextBrush}"
+                                           Foreground="{StaticResource SecondaryTextBrush}"
                                            VerticalAlignment="Center" />
                             </StackPanel>
                         </StackPanel>
                         
                         <!-- Footer Stats -->
                         <Border Grid.Row="2" 
-                                Background="{DynamicResource BorderSubtleBrush}"
+                                Background="{StaticResource BorderSubtleBrush}"
                                 CornerRadius="6"
                                 Padding="12,8">
                             <Grid ColumnDefinitions="*, Auto, *">
@@ -199,15 +199,15 @@
                                     <TextBlock Text="Today" Classes="Caption" Opacity="0.7" VerticalAlignment="Center" />
                                     <TextBlock Text="{Binding TodayUpload}"
                                                FontSize="13" FontWeight="Bold"
-                                               Foreground="{DynamicResource UploadBrush}"
+                                               Foreground="{StaticResource UploadBrush}"
                                                VerticalAlignment="Center" />
                                 </StackPanel>
-                                <Border Grid.Column="1" Width="1" Background="{DynamicResource MutedTextBrush}" Opacity="0.3" Margin="8,2" />
+                                <Border Grid.Column="1" Width="1" Background="{StaticResource MutedTextBrush}" Opacity="0.3" Margin="8,2" />
                                 <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="4" HorizontalAlignment="Right">
                                     <TextBlock Text="Session" Classes="Caption" Opacity="0.7" VerticalAlignment="Center" />
                                     <TextBlock Text="{Binding SessionUpload}"
                                                FontSize="13" FontWeight="Bold"
-                                               Foreground="{DynamicResource UploadBrush}"
+                                               Foreground="{StaticResource UploadBrush}"
                                                VerticalAlignment="Center" />
                                 </StackPanel>
                             </Grid>
@@ -218,7 +218,7 @@
                 <!-- SECONDARY ADAPTERS STRIP (VPN, other active adapters) -->
                 <Border Grid.Row="1" Grid.ColumnSpan="2"
                         IsVisible="{Binding HasSecondaryAdapters}"
-                        Background="{DynamicResource BorderSubtleBrush}"
+                        Background="{StaticResource BorderSubtleBrush}"
                         CornerRadius="8"
                         Padding="12,8"
                         Margin="0,12,0,0"
@@ -236,24 +236,14 @@
                                         <TextBlock Text="{Binding Icon}" FontSize="13" VerticalAlignment="Center" />
                                         <TextBlock Text="{Binding Name}" 
                                                    FontSize="12" FontWeight="SemiBold"
-                                                   Foreground="{DynamicResource SecondaryTextBrush}"
+                                                   Foreground="{StaticResource SecondaryTextBrush}"
                                                    VerticalAlignment="Center" />
                                         <TextBlock FontSize="12" VerticalAlignment="Center"
-                                                   Foreground="{DynamicResource DownloadBrush}">
-                                            <TextBlock.Text>
-                                                <MultiBinding StringFormat="↓{0}">
-                                                    <Binding Path="DownloadSpeed" />
-                                                </MultiBinding>
-                                            </TextBlock.Text>
-                                        </TextBlock>
+                                                   Foreground="{StaticResource DownloadBrush}"
+                                                   Text="{Binding DownloadSpeed, StringFormat='↓{0}'}" />
                                         <TextBlock FontSize="12" VerticalAlignment="Center"
-                                                   Foreground="{DynamicResource UploadBrush}">
-                                            <TextBlock.Text>
-                                                <MultiBinding StringFormat="↑{0}">
-                                                    <Binding Path="UploadSpeed" />
-                                                </MultiBinding>
-                                            </TextBlock.Text>
-                                        </TextBlock>
+                                                   Foreground="{StaticResource UploadBrush}"
+                                                   Text="{Binding UploadSpeed, StringFormat='↑{0}'}" />
                                     </StackPanel>
                                 </Border>
                             </DataTemplate>
@@ -309,7 +299,7 @@
                                               ToolTip.Tip="Toggle CPU usage overlay"
                                               AutomationProperties.Name="Toggle CPU Overlay">
                                     <StackPanel Orientation="Horizontal" Spacing="4">
-                                        <Ellipse Width="8" Height="8" Fill="{DynamicResource CpuBrush}" VerticalAlignment="Center" />
+                                        <Ellipse Width="8" Height="8" Fill="{StaticResource CpuBrush}" VerticalAlignment="Center" />
                                         <TextBlock Text="CPU" FontSize="12" VerticalAlignment="Center" />
                                     </StackPanel>
                                 </ToggleButton>
@@ -318,7 +308,7 @@
                                               ToolTip.Tip="Toggle Memory usage overlay"
                                               AutomationProperties.Name="Toggle Memory Overlay">
                                     <StackPanel Orientation="Horizontal" Spacing="4">
-                                        <Ellipse Width="8" Height="8" Fill="{DynamicResource MemoryBrush}" VerticalAlignment="Center" />
+                                        <Ellipse Width="8" Height="8" Fill="{StaticResource MemoryBrush}" VerticalAlignment="Center" />
                                         <TextBlock Text="RAM" FontSize="12" VerticalAlignment="Center" />
                                     </StackPanel>
                                 </ToggleButton>
@@ -339,20 +329,20 @@
                         <!-- Chart Legend -->
                         <StackPanel Grid.Row="2" Orientation="Horizontal" HorizontalAlignment="Center" Spacing="24" Margin="0,12,0,0">
                             <StackPanel Orientation="Horizontal" Spacing="6">
-                                <Border Width="16" Height="3" CornerRadius="1" Background="{DynamicResource DownloadBrush}" VerticalAlignment="Center" />
+                                <Border Width="16" Height="3" CornerRadius="1" Background="{StaticResource DownloadBrush}" VerticalAlignment="Center" />
                                 <TextBlock Text="Download" Classes="Caption" VerticalAlignment="Center" />
                             </StackPanel>
                             <StackPanel Orientation="Horizontal" Spacing="6">
-                                <Border Width="16" Height="3" CornerRadius="1" Background="{DynamicResource UploadBrush}" VerticalAlignment="Center" />
+                                <Border Width="16" Height="3" CornerRadius="1" Background="{StaticResource UploadBrush}" VerticalAlignment="Center" />
                                 <TextBlock Text="Upload" Classes="Caption" VerticalAlignment="Center" />
                             </StackPanel>
                             <StackPanel Orientation="Horizontal" Spacing="6" IsVisible="{Binding ShowCpuOverlay}">
-                                <Border Width="16" Height="2" CornerRadius="1" Background="{DynamicResource CpuBrush}" VerticalAlignment="Center" 
+                                <Border Width="16" Height="2" CornerRadius="1" Background="{StaticResource CpuBrush}" VerticalAlignment="Center" 
                                         Opacity="0.7" />
                                 <TextBlock Text="CPU %" Classes="Caption" VerticalAlignment="Center" />
                             </StackPanel>
                             <StackPanel Orientation="Horizontal" Spacing="6" IsVisible="{Binding ShowMemoryOverlay}">
-                                <Border Width="16" Height="2" CornerRadius="1" Background="{DynamicResource MemoryBrush}" VerticalAlignment="Center"
+                                <Border Width="16" Height="2" CornerRadius="1" Background="{StaticResource MemoryBrush}" VerticalAlignment="Center"
                                         Opacity="0.7" />
                                 <TextBlock Text="RAM %" Classes="Caption" VerticalAlignment="Center" />
                             </StackPanel>
@@ -387,7 +377,7 @@
                     <Grid RowDefinitions="Auto, *">
                         <!-- Card Header -->
                         <StackPanel Orientation="Horizontal" Spacing="8" Margin="0,0,0,16">
-                            <Border Background="{DynamicResource AccentBgTintBrush}" CornerRadius="6" Width="28" Height="28">
+                            <Border Background="{StaticResource AccentBgTintBrush}" CornerRadius="6" Width="28" Height="28">
                                 <TextBlock Text="📊" FontSize="14"
                                            HorizontalAlignment="Center"
                                            VerticalAlignment="Center" />
@@ -406,7 +396,7 @@
                             <TextBlock Grid.Column="1"
                                        Text="{Binding SessionDownload}"
                                        FontSize="16" FontWeight="Bold"
-                                       Foreground="{DynamicResource DownloadBrush}"
+                                       Foreground="{StaticResource DownloadBrush}"
                                        HorizontalAlignment="Right"
                                        VerticalAlignment="Center"
                                        Margin="0,0,0,8" />
@@ -421,7 +411,7 @@
                             <TextBlock Grid.Row="1" Grid.Column="1"
                                        Text="{Binding SessionUpload}"
                                        FontSize="16" FontWeight="Bold"
-                                       Foreground="{DynamicResource UploadBrush}"
+                                       Foreground="{StaticResource UploadBrush}"
                                        HorizontalAlignment="Right"
                                        VerticalAlignment="Center"
                                        Margin="0,0,0,8" />
@@ -436,7 +426,7 @@
                             <TextBlock Grid.Row="2" Grid.Column="1"
                                        Text="{Binding PeakDownloadSpeed}"
                                        FontSize="16" FontWeight="SemiBold"
-                                       Foreground="{DynamicResource PrimaryTextBrush}"
+                                       Foreground="{StaticResource PrimaryTextBrush}"
                                        HorizontalAlignment="Right"
                                        VerticalAlignment="Center"
                                        Margin="0,0,0,8" />
@@ -450,7 +440,7 @@
                             <TextBlock Grid.Row="3" Grid.Column="1"
                                        Text="{Binding PeakUploadSpeed}"
                                        FontSize="16" FontWeight="SemiBold"
-                                       Foreground="{DynamicResource PrimaryTextBrush}"
+                                       Foreground="{StaticResource PrimaryTextBrush}"
                                        HorizontalAlignment="Right"
                                        VerticalAlignment="Center" />
                         </Grid>
@@ -462,7 +452,7 @@
                     <Grid RowDefinitions="Auto, *">
                         <!-- Card Header -->
                         <StackPanel Orientation="Horizontal" Spacing="8" Margin="0,0,0,16">
-                            <Border Background="{DynamicResource CpuBgTintBrush}" CornerRadius="6" Width="28" Height="28">
+                            <Border Background="{StaticResource CpuBgTintBrush}" CornerRadius="6" Width="28" Height="28">
                                 <TextBlock Text="💻" FontSize="14"
                                            HorizontalAlignment="Center"
                                            VerticalAlignment="Center" />
@@ -476,20 +466,20 @@
                             <StackPanel HorizontalAlignment="Center" Spacing="8">
                                 <controls:CircularGauge Classes="Normal"
                                                         Value="{Binding CpuPercent}"
-                                                        GaugeColor="{DynamicResource CpuBrush}"
-                                                        BackgroundColor="{DynamicResource CpuBgTintBrush}"
+                                                        GaugeColor="{StaticResource CpuBrush}"
+                                                        BackgroundColor="{StaticResource CpuBgTintBrush}"
                                                         Label="CPU"
                                                         ShowLabel="True" />
                                 <TextBlock Text="{Binding CpuUsageFormatted}"
                                            FontSize="14" FontWeight="Bold"
-                                           Foreground="{DynamicResource CpuBrush}"
+                                           Foreground="{StaticResource CpuBrush}"
                                            HorizontalAlignment="Center" />
                             </StackPanel>
 
                             <!-- Separator -->
                             <Border Grid.Column="1"
                                     Width="1"
-                                    Background="{DynamicResource DividerBrush}"
+                                    Background="{StaticResource DividerBrush}"
                                     Margin="16,8"
                                     VerticalAlignment="Stretch" />
 
@@ -497,13 +487,13 @@
                             <StackPanel Grid.Column="2" HorizontalAlignment="Center" Spacing="8">
                                 <controls:CircularGauge Classes="Normal"
                                                         Value="{Binding MemoryPercent}"
-                                                        GaugeColor="{DynamicResource MemoryBrush}"
-                                                        BackgroundColor="{DynamicResource MemoryBgTintBrush}"
+                                                        GaugeColor="{StaticResource MemoryBrush}"
+                                                        BackgroundColor="{StaticResource MemoryBgTintBrush}"
                                                         Label="Memory"
                                                         ShowLabel="True" />
                                 <TextBlock Text="{Binding MemoryUsageFormatted}"
                                            FontSize="14" FontWeight="Bold"
-                                           Foreground="{DynamicResource MemoryBrush}"
+                                           Foreground="{StaticResource MemoryBrush}"
                                            HorizontalAlignment="Center" />
                             </StackPanel>
                         </Grid>

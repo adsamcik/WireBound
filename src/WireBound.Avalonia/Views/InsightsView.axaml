@@ -4,7 +4,7 @@
              xmlns:lvc="using:LiveChartsCore.SkiaSharpView.Avalonia"
              x:Class="WireBound.Avalonia.Views.InsightsView"
              x:DataType="vm:InsightsViewModel"
-             Background="{DynamicResource BackgroundBrush}"
+             Background="{StaticResource BackgroundBrush}"
              AutomationProperties.Name="Insights View">
 
     <ScrollViewer>
@@ -30,11 +30,11 @@
                                          CommandParameter="{x:Static vm:InsightsPeriod.Today}"
                                          Padding="12,8"
                                          CornerRadius="8"
-                                         Background="{DynamicResource SurfaceBrush}"
+                                         Background="{StaticResource SurfaceBrush}"
                                          AutomationProperties.Name="Today period">
                                 <RadioButton.Styles>
                                     <Style Selector="RadioButton:checked">
-                                        <Setter Property="Background" Value="{DynamicResource PrimaryBrush}" />
+                                        <Setter Property="Background" Value="{StaticResource PrimaryBrush}" />
                                         <Setter Property="Foreground" Value="White" />
                                     </Style>
                                 </RadioButton.Styles>
@@ -46,11 +46,11 @@
                                          CommandParameter="{x:Static vm:InsightsPeriod.ThisWeek}"
                                          Padding="12,8"
                                          CornerRadius="8"
-                                         Background="{DynamicResource SurfaceBrush}"
+                                         Background="{StaticResource SurfaceBrush}"
                                          AutomationProperties.Name="This week period">
                                 <RadioButton.Styles>
                                     <Style Selector="RadioButton:checked">
-                                        <Setter Property="Background" Value="{DynamicResource PrimaryBrush}" />
+                                        <Setter Property="Background" Value="{StaticResource PrimaryBrush}" />
                                         <Setter Property="Foreground" Value="White" />
                                     </Style>
                                 </RadioButton.Styles>
@@ -62,11 +62,11 @@
                                          CommandParameter="{x:Static vm:InsightsPeriod.ThisMonth}"
                                          Padding="12,8"
                                          CornerRadius="8"
-                                         Background="{DynamicResource SurfaceBrush}"
+                                         Background="{StaticResource SurfaceBrush}"
                                          AutomationProperties.Name="This month period">
                                 <RadioButton.Styles>
                                     <Style Selector="RadioButton:checked">
-                                        <Setter Property="Background" Value="{DynamicResource PrimaryBrush}" />
+                                        <Setter Property="Background" Value="{StaticResource PrimaryBrush}" />
                                         <Setter Property="Foreground" Value="White" />
                                     </Style>
                                 </RadioButton.Styles>
@@ -92,17 +92,17 @@
                         <ToggleButton.Styles>
                             <Style Selector="ToggleButton">
                                 <Setter Property="Background" Value="Transparent" />
-                                <Setter Property="Foreground" Value="{DynamicResource SecondaryTextBrush}" />
+                                <Setter Property="Foreground" Value="{StaticResource SecondaryTextBrush}" />
                             </Style>
                             <Style Selector="ToggleButton:checked">
-                                <Setter Property="Background" Value="{DynamicResource PrimaryBrush}" />
+                                <Setter Property="Background" Value="{StaticResource PrimaryBrush}" />
                                 <Setter Property="Foreground" Value="White" />
                             </Style>
                             <Style Selector="ToggleButton:pointerover">
-                                <Setter Property="Background" Value="{DynamicResource FlyoutItemHoverBrush}" />
+                                <Setter Property="Background" Value="{StaticResource FlyoutItemHoverBrush}" />
                             </Style>
                             <Style Selector="ToggleButton:checked:pointerover">
-                                <Setter Property="Background" Value="{DynamicResource PrimaryBrush}" />
+                                <Setter Property="Background" Value="{StaticResource PrimaryBrush}" />
                             </Style>
                         </ToggleButton.Styles>
                         <StackPanel Orientation="Horizontal" Spacing="8">
@@ -121,17 +121,17 @@
                         <ToggleButton.Styles>
                             <Style Selector="ToggleButton">
                                 <Setter Property="Background" Value="Transparent" />
-                                <Setter Property="Foreground" Value="{DynamicResource SecondaryTextBrush}" />
+                                <Setter Property="Foreground" Value="{StaticResource SecondaryTextBrush}" />
                             </Style>
                             <Style Selector="ToggleButton:checked">
-                                <Setter Property="Background" Value="{DynamicResource PrimaryBrush}" />
+                                <Setter Property="Background" Value="{StaticResource PrimaryBrush}" />
                                 <Setter Property="Foreground" Value="White" />
                             </Style>
                             <Style Selector="ToggleButton:pointerover">
-                                <Setter Property="Background" Value="{DynamicResource FlyoutItemHoverBrush}" />
+                                <Setter Property="Background" Value="{StaticResource FlyoutItemHoverBrush}" />
                             </Style>
                             <Style Selector="ToggleButton:checked:pointerover">
-                                <Setter Property="Background" Value="{DynamicResource PrimaryBrush}" />
+                                <Setter Property="Background" Value="{StaticResource PrimaryBrush}" />
                             </Style>
                         </ToggleButton.Styles>
                         <StackPanel Orientation="Horizontal" Spacing="8">
@@ -150,22 +150,51 @@
                         <ToggleButton.Styles>
                             <Style Selector="ToggleButton">
                                 <Setter Property="Background" Value="Transparent" />
-                                <Setter Property="Foreground" Value="{DynamicResource SecondaryTextBrush}" />
+                                <Setter Property="Foreground" Value="{StaticResource SecondaryTextBrush}" />
                             </Style>
                             <Style Selector="ToggleButton:checked">
-                                <Setter Property="Background" Value="{DynamicResource PrimaryBrush}" />
+                                <Setter Property="Background" Value="{StaticResource PrimaryBrush}" />
                                 <Setter Property="Foreground" Value="White" />
                             </Style>
                             <Style Selector="ToggleButton:pointerover">
-                                <Setter Property="Background" Value="{DynamicResource FlyoutItemHoverBrush}" />
+                                <Setter Property="Background" Value="{StaticResource FlyoutItemHoverBrush}" />
                             </Style>
                             <Style Selector="ToggleButton:checked:pointerover">
-                                <Setter Property="Background" Value="{DynamicResource PrimaryBrush}" />
+                                <Setter Property="Background" Value="{StaticResource PrimaryBrush}" />
                             </Style>
                         </ToggleButton.Styles>
                         <StackPanel Orientation="Horizontal" Spacing="8">
                             <TextBlock Text="🔗" FontSize="14" VerticalAlignment="Center" />
                             <TextBlock Text="Correlations" FontSize="13" FontWeight="SemiBold" VerticalAlignment="Center" />
+                        </StackPanel>
+                    </ToggleButton>
+
+                    <!-- Resource Insights Tab -->
+                    <ToggleButton IsChecked="{Binding SelectedTab, Converter={x:Static ObjectConverters.Equal}, ConverterParameter={x:Static vm:InsightsTab.ResourceInsights}}"
+                                  Command="{Binding SelectResourceInsightsTabCommand}"
+                                  Padding="16,10"
+                                  CornerRadius="10"
+                                  Cursor="Hand"
+                                  AutomationProperties.Name="Resource Insights Tab">
+                        <ToggleButton.Styles>
+                            <Style Selector="ToggleButton">
+                                <Setter Property="Background" Value="Transparent" />
+                                <Setter Property="Foreground" Value="{StaticResource SecondaryTextBrush}" />
+                            </Style>
+                            <Style Selector="ToggleButton:checked">
+                                <Setter Property="Background" Value="{StaticResource PrimaryBrush}" />
+                                <Setter Property="Foreground" Value="White" />
+                            </Style>
+                            <Style Selector="ToggleButton:pointerover">
+                                <Setter Property="Background" Value="{StaticResource FlyoutItemHoverBrush}" />
+                            </Style>
+                            <Style Selector="ToggleButton:checked:pointerover">
+                                <Setter Property="Background" Value="{StaticResource PrimaryBrush}" />
+                            </Style>
+                        </ToggleButton.Styles>
+                        <StackPanel Orientation="Horizontal" Spacing="8">
+                            <TextBlock Text="🧠" FontSize="14" VerticalAlignment="Center" />
+                            <TextBlock Text="Resource Insights" FontSize="13" FontWeight="SemiBold" VerticalAlignment="Center" />
                         </StackPanel>
                     </ToggleButton>
                 </StackPanel>
@@ -219,9 +248,9 @@
                         <Border Classes="ElevatedCard" Margin="0,0,10,0">
                             <StackPanel HorizontalAlignment="Center" Spacing="8">
                                 <StackPanel Orientation="Horizontal" Spacing="8" HorizontalAlignment="Center">
-                                    <Border Background="{DynamicResource DownloadBgTintBrush}" CornerRadius="6" Width="28" Height="28">
+                                    <Border Background="{StaticResource DownloadBgTintBrush}" CornerRadius="6" Width="28" Height="28">
                                         <TextBlock Text="↓" FontSize="16" 
-                                                   Foreground="{DynamicResource DownloadBrush}"
+                                                   Foreground="{StaticResource DownloadBrush}"
                                                    HorizontalAlignment="Center"
                                                    VerticalAlignment="Center" />
                                     </Border>
@@ -229,15 +258,15 @@
                                 </StackPanel>
                                 <TextBlock Text="{Binding TotalDownload}"
                                            FontSize="28" FontWeight="Bold"
-                                           Foreground="{DynamicResource DownloadBrush}"
+                                           Foreground="{StaticResource DownloadBrush}"
                                            HorizontalAlignment="Center" />
                                 <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Spacing="4">
                                     <TextBlock Text="{Binding DownloadChangePercent, StringFormat={}{0:+0.0;-0.0;0}%}"
                                                FontSize="12"
-                                               Foreground="{DynamicResource SecondaryTextBrush}" />
+                                               Foreground="{StaticResource SecondaryTextBrush}" />
                                     <TextBlock Text="vs last period"
                                                FontSize="12"
-                                               Foreground="{DynamicResource MutedTextBrush}" />
+                                               Foreground="{StaticResource MutedTextBrush}" />
                                 </StackPanel>
                             </StackPanel>
                         </Border>
@@ -246,9 +275,9 @@
                         <Border Grid.Column="1" Classes="ElevatedCard" Margin="5,0">
                             <StackPanel HorizontalAlignment="Center" Spacing="8">
                                 <StackPanel Orientation="Horizontal" Spacing="8" HorizontalAlignment="Center">
-                                    <Border Background="{DynamicResource UploadBgTintBrush}" CornerRadius="6" Width="28" Height="28">
+                                    <Border Background="{StaticResource UploadBgTintBrush}" CornerRadius="6" Width="28" Height="28">
                                         <TextBlock Text="↑" FontSize="16" 
-                                                   Foreground="{DynamicResource UploadBrush}"
+                                                   Foreground="{StaticResource UploadBrush}"
                                                    HorizontalAlignment="Center"
                                                    VerticalAlignment="Center" />
                                     </Border>
@@ -256,15 +285,15 @@
                                 </StackPanel>
                                 <TextBlock Text="{Binding TotalUpload}"
                                            FontSize="28" FontWeight="Bold"
-                                           Foreground="{DynamicResource UploadBrush}"
+                                           Foreground="{StaticResource UploadBrush}"
                                            HorizontalAlignment="Center" />
                                 <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Spacing="4">
                                     <TextBlock Text="{Binding UploadChangePercent, StringFormat={}{0:+0.0;-0.0;0}%}"
                                                FontSize="12"
-                                               Foreground="{DynamicResource SecondaryTextBrush}" />
+                                               Foreground="{StaticResource SecondaryTextBrush}" />
                                     <TextBlock Text="vs last period"
                                                FontSize="12"
-                                               Foreground="{DynamicResource MutedTextBrush}" />
+                                               Foreground="{StaticResource MutedTextBrush}" />
                                 </StackPanel>
                             </StackPanel>
                         </Border>
@@ -278,7 +307,7 @@
                                 </StackPanel>
                                 <TextBlock Text="{Binding PeakDownloadSpeed}"
                                            FontSize="28" FontWeight="Bold"
-                                           Foreground="{DynamicResource DownloadBrush}"
+                                           Foreground="{StaticResource DownloadBrush}"
                                            HorizontalAlignment="Center" />
                             </StackPanel>
                         </Border>
@@ -292,7 +321,7 @@
                                 </StackPanel>
                                 <TextBlock Text="{Binding PeakUploadSpeed}"
                                            FontSize="28" FontWeight="Bold"
-                                           Foreground="{DynamicResource UploadBrush}"
+                                           Foreground="{StaticResource UploadBrush}"
                                            HorizontalAlignment="Center" />
                             </StackPanel>
                         </Border>
@@ -307,7 +336,7 @@
                                                 XAxes="{Binding DailyUsageXAxes}"
                                                 YAxes="{Binding DailyUsageYAxes}"
                                                 TooltipPosition="Top"
-                                                Background="{DynamicResource CardBrush}"
+                                                Background="{StaticResource CardBrush}"
                                                 Margin="0,12,0,0"
                                                 AutomationProperties.Name="Daily Usage Bar Chart"
                                                 AutomationProperties.HelpText="Bar chart showing daily download and upload totals" />
@@ -345,7 +374,7 @@
                                 </StackPanel>
                                 <TextBlock Text="{Binding AvgCpuPercent, StringFormat={}{0:F1}%}"
                                            FontSize="32" FontWeight="Bold"
-                                           Foreground="{DynamicResource CpuBrush}"
+                                           Foreground="{StaticResource CpuBrush}"
                                            HorizontalAlignment="Center" />
                                 <TextBlock Text="{Binding CpuTrendStatus}"
                                            FontSize="12"
@@ -363,7 +392,7 @@
                                 </StackPanel>
                                 <TextBlock Text="{Binding AvgMemoryPercent, StringFormat={}{0:F1}%}"
                                            FontSize="32" FontWeight="Bold"
-                                           Foreground="{DynamicResource MemoryBrush}"
+                                           Foreground="{StaticResource MemoryBrush}"
                                            HorizontalAlignment="Center" />
                                 <TextBlock Text="{Binding MemoryTrendStatus}"
                                            FontSize="12"
@@ -381,7 +410,7 @@
                                 </StackPanel>
                                 <TextBlock Text="{Binding MaxMemoryPercent, StringFormat={}{0:F1}%}"
                                            FontSize="32" FontWeight="Bold"
-                                           Foreground="{DynamicResource WarningBrush}"
+                                           Foreground="{StaticResource WarningBrush}"
                                            HorizontalAlignment="Center" />
                             </StackPanel>
                         </Border>
@@ -396,7 +425,7 @@
                                                 XAxes="{Binding SystemTrendXAxes}"
                                                 YAxes="{Binding SystemTrendYAxes}"
                                                 TooltipPosition="Top"
-                                                Background="{DynamicResource CardBrush}"
+                                                Background="{StaticResource CardBrush}"
                                                 Margin="0,12,0,0"
                                                 AutomationProperties.Name="System Metrics Line Chart"
                                                 AutomationProperties.HelpText="Line chart showing CPU and Memory usage over time" />
@@ -430,7 +459,7 @@
                                 <TextBlock Text="Correlation Coefficients" Classes="SectionHeader" />
 
                                 <!-- Network ↔ CPU -->
-                                <Border Background="{DynamicResource BorderSubtleBrush}" CornerRadius="10" Padding="16,12">
+                                <Border Background="{StaticResource BorderSubtleBrush}" CornerRadius="10" Padding="16,12">
                                     <Grid ColumnDefinitions="*, Auto">
                                         <StackPanel Orientation="Horizontal" Spacing="8">
                                             <TextBlock Text="🌐" FontSize="16" VerticalAlignment="Center" />
@@ -441,13 +470,13 @@
                                         <TextBlock Grid.Column="1"
                                                    Text="{Binding NetworkCpuCorrelation, StringFormat={}{0:F2}}"
                                                    FontSize="20" FontWeight="Bold"
-                                                   Foreground="{DynamicResource PrimaryBrush}"
+                                                   Foreground="{StaticResource PrimaryBrush}"
                                                    VerticalAlignment="Center" />
                                     </Grid>
                                 </Border>
 
                                 <!-- Network ↔ Memory -->
-                                <Border Background="{DynamicResource BorderSubtleBrush}" CornerRadius="10" Padding="16,12">
+                                <Border Background="{StaticResource BorderSubtleBrush}" CornerRadius="10" Padding="16,12">
                                     <Grid ColumnDefinitions="*, Auto">
                                         <StackPanel Orientation="Horizontal" Spacing="8">
                                             <TextBlock Text="🌐" FontSize="16" VerticalAlignment="Center" />
@@ -458,13 +487,13 @@
                                         <TextBlock Grid.Column="1"
                                                    Text="{Binding NetworkMemoryCorrelation, StringFormat={}{0:F2}}"
                                                    FontSize="20" FontWeight="Bold"
-                                                   Foreground="{DynamicResource AccentBrush}"
+                                                   Foreground="{StaticResource AccentBrush}"
                                                    VerticalAlignment="Center" />
                                     </Grid>
                                 </Border>
 
                                 <!-- CPU ↔ Memory -->
-                                <Border Background="{DynamicResource BorderSubtleBrush}" CornerRadius="10" Padding="16,12">
+                                <Border Background="{StaticResource BorderSubtleBrush}" CornerRadius="10" Padding="16,12">
                                     <Grid ColumnDefinitions="*, Auto">
                                         <StackPanel Orientation="Horizontal" Spacing="8">
                                             <TextBlock Text="🔲" FontSize="16" VerticalAlignment="Center" />
@@ -475,7 +504,7 @@
                                         <TextBlock Grid.Column="1"
                                                    Text="{Binding CpuMemoryCorrelation, StringFormat={}{0:F2}}"
                                                    FontSize="20" FontWeight="Bold"
-                                                   Foreground="{DynamicResource SuccessBrush}"
+                                                   Foreground="{StaticResource SuccessBrush}"
                                                    VerticalAlignment="Center" />
                                     </Grid>
                                 </Border>
@@ -490,14 +519,14 @@
                                 <ItemsControl ItemsSource="{Binding CorrelationInsights}">
                                     <ItemsControl.ItemTemplate>
                                         <DataTemplate x:DataType="x:String">
-                                            <Border Background="{DynamicResource BorderSubtleBrush}" 
+                                            <Border Background="{StaticResource BorderSubtleBrush}" 
                                                     CornerRadius="8" 
                                                     Padding="12,10"
                                                     Margin="0,0,0,8">
                                                 <StackPanel Orientation="Horizontal" Spacing="10">
                                                     <TextBlock Text="•" 
                                                                FontSize="16" 
-                                                               Foreground="{DynamicResource PrimaryBrush}"
+                                                               Foreground="{StaticResource PrimaryBrush}"
                                                                VerticalAlignment="Top" />
                                                     <TextBlock Text="{Binding}"
                                                                FontSize="13"
@@ -532,7 +561,7 @@
                                                 XAxes="{Binding SystemTrendXAxes}"
                                                 YAxes="{Binding SystemTrendYAxes}"
                                                 TooltipPosition="Top"
-                                                Background="{DynamicResource CardBrush}"
+                                                Background="{StaticResource CardBrush}"
                                                 Margin="0,12,0,0"
                                                 AutomationProperties.Name="Correlation Overlay Chart"
                                                 AutomationProperties.HelpText="Overlay chart showing normalized Network, CPU, and Memory metrics" />
@@ -547,6 +576,152 @@
                                        FontSize="18" FontWeight="Bold"
                                        HorizontalAlignment="Center" />
                             <TextBlock Text="Correlations require both network and system data"
+                                       Classes="Subtitle"
+                                       HorizontalAlignment="Center" />
+                        </StackPanel>
+                    </Border>
+                </StackPanel>
+
+                <!-- ═══════════════════════════════════════════════════════════════ -->
+                <!-- RESOURCE INSIGHTS TAB CONTENT                                    -->
+                <!-- ═══════════════════════════════════════════════════════════════ -->
+                <StackPanel IsVisible="{Binding SelectedTab, Converter={x:Static ObjectConverters.Equal}, ConverterParameter={x:Static vm:InsightsTab.ResourceInsights}}"
+                            Spacing="20">
+
+                    <!-- Memory / CPU Toggle -->
+                    <Border Classes="CompactCard" Padding="10" HorizontalAlignment="Left">
+                        <StackPanel Orientation="Horizontal" Spacing="4">
+                            <TextBlock Text="Metric" Classes="Caption" VerticalAlignment="Center" Margin="0,0,8,0" />
+                            <RadioButton GroupName="ResourceMetric"
+                                         IsChecked="{Binding ShowMemoryMetric}"
+                                         Padding="12,8"
+                                         CornerRadius="8"
+                                         Background="{StaticResource SurfaceBrush}"
+                                         AutomationProperties.Name="Show Memory metric">
+                                <RadioButton.Styles>
+                                    <Style Selector="RadioButton:checked">
+                                        <Setter Property="Background" Value="{StaticResource PrimaryBrush}" />
+                                        <Setter Property="Foreground" Value="White" />
+                                    </Style>
+                                </RadioButton.Styles>
+                                <TextBlock Text="Memory" FontSize="12" />
+                            </RadioButton>
+                            <RadioButton GroupName="ResourceMetric"
+                                         IsChecked="{Binding !ShowMemoryMetric}"
+                                         Padding="12,8"
+                                         CornerRadius="8"
+                                         Background="{StaticResource SurfaceBrush}"
+                                         AutomationProperties.Name="Show CPU metric">
+                                <RadioButton.Styles>
+                                    <Style Selector="RadioButton:checked">
+                                        <Setter Property="Background" Value="{StaticResource PrimaryBrush}" />
+                                        <Setter Property="Foreground" Value="White" />
+                                    </Style>
+                                </RadioButton.Styles>
+                                <TextBlock Text="CPU" FontSize="12" />
+                            </RadioButton>
+                        </StackPanel>
+                    </Border>
+
+                    <!-- Summary Cards -->
+                    <Grid ColumnDefinitions="*, *, *, *">
+                        <!-- Total Memory Used -->
+                        <Border Classes="ElevatedCard" Margin="0,0,10,0">
+                            <StackPanel HorizontalAlignment="Center" Spacing="8">
+                                <TextBlock Text="Total Memory" Classes="Caption" HorizontalAlignment="Center" />
+                                <TextBlock Text="{Binding ResourceTotalMemoryUsed}" FontSize="24" FontWeight="Bold" HorizontalAlignment="Center" />
+                            </StackPanel>
+                        </Border>
+                        <!-- Total CPU -->
+                        <Border Grid.Column="1" Classes="ElevatedCard" Margin="5,0">
+                            <StackPanel HorizontalAlignment="Center" Spacing="8">
+                                <TextBlock Text="Total CPU" Classes="Caption" HorizontalAlignment="Center" />
+                                <TextBlock Text="{Binding ResourceTotalCpuPercent}" FontSize="24" FontWeight="Bold" HorizontalAlignment="Center" />
+                            </StackPanel>
+                        </Border>
+                        <!-- App Count -->
+                        <Border Grid.Column="2" Classes="ElevatedCard" Margin="5,0">
+                            <StackPanel HorizontalAlignment="Center" Spacing="8">
+                                <TextBlock Text="Applications" Classes="Caption" HorizontalAlignment="Center" />
+                                <TextBlock Text="{Binding ResourceAppCount}" FontSize="24" FontWeight="Bold" HorizontalAlignment="Center" />
+                            </StackPanel>
+                        </Border>
+                        <!-- Largest Consumer -->
+                        <Border Grid.Column="3" Classes="ElevatedCard" Margin="10,0,0,0">
+                            <StackPanel HorizontalAlignment="Center" Spacing="8">
+                                <TextBlock Text="Largest Consumer" Classes="Caption" HorizontalAlignment="Center" />
+                                <TextBlock Text="{Binding ResourceLargestConsumer}" FontSize="16" FontWeight="Bold"
+                                           HorizontalAlignment="Center" TextTrimming="CharacterEllipsis" MaxWidth="200"
+                                           ToolTip.Tip="{Binding ResourceLargestConsumer}" />
+                            </StackPanel>
+                        </Border>
+                    </Grid>
+
+                    <!-- Charts Row -->
+                    <Grid ColumnDefinitions="*, 2*">
+                        <!-- Category Donut Chart -->
+                        <Border Classes="Card" Padding="20" Margin="0,0,10,0">
+                            <StackPanel Spacing="12">
+                                <TextBlock Text="By Category" FontSize="16" FontWeight="SemiBold" />
+                                <lvc:PieChart Series="{Binding ResourceCategoryChart}"
+                                              Height="280"
+                                              Background="{StaticResource CardBrush}"
+                                              AutomationProperties.Name="Resource usage by category chart" />
+                            </StackPanel>
+                        </Border>
+
+                        <!-- Top Apps Bar Chart -->
+                        <Border Grid.Column="1" Classes="Card" Padding="20" Margin="10,0,0,0">
+                            <StackPanel Spacing="12">
+                                <TextBlock Text="Top Applications" FontSize="16" FontWeight="SemiBold" />
+                                <lvc:CartesianChart Series="{Binding ResourceTopAppsChart}"
+                                                    XAxes="{Binding ResourceTopAppsXAxes}"
+                                                    YAxes="{Binding ResourceTopAppsYAxes}"
+                                                    MinHeight="280"
+                                                    Height="400"
+                                                    Background="{StaticResource CardBrush}"
+                                                    ZoomMode="None"
+                                                    AutomationProperties.Name="Top applications by resource usage chart" />
+                            </StackPanel>
+                        </Border>
+                    </Grid>
+
+                    <!-- Historical Trend Chart -->
+                    <Border Classes="Card" Padding="20"
+                            IsVisible="{Binding ResourceHistoryChart.Length}">
+                        <StackPanel Spacing="12">
+                            <TextBlock Text="Historical Trends by Category" FontSize="16" FontWeight="SemiBold" />
+                            <TextBlock Text="Shows average resource usage over time for the top categories."
+                                       Classes="Subtitle" />
+                            <lvc:CartesianChart Series="{Binding ResourceHistoryChart}"
+                                                XAxes="{Binding ResourceHistoryXAxes}"
+                                                YAxes="{Binding ResourceHistoryYAxes}"
+                                                Height="300"
+                                                Background="{StaticResource CardBrush}"
+                                                ZoomMode="None"
+                                                AutomationProperties.Name="Historical resource usage trend chart" />
+                        </StackPanel>
+                    </Border>
+
+                    <!-- Info Tooltip -->
+                    <Border Classes="CompactCard" Padding="14,10">
+                        <StackPanel Orientation="Horizontal" Spacing="8">
+                            <TextBlock Text="ℹ️" FontSize="14" VerticalAlignment="Center" />
+                            <TextBlock Text="Shows committed memory (what apps have allocated) with smoothed values. Unlike Task Manager, readings are stable and grouped by application/category."
+                                       Classes="Caption" VerticalAlignment="Center" TextWrapping="Wrap" />
+                        </StackPanel>
+                    </Border>
+
+                    <!-- Empty State -->
+                    <Border Classes="Card" Padding="40"
+                            IsVisible="{Binding !HasData}"
+                            HorizontalAlignment="Center">
+                        <StackPanel HorizontalAlignment="Center" Spacing="12">
+                            <TextBlock Text="🧠" FontSize="32" HorizontalAlignment="Center" />
+                            <TextBlock Text="No resource data yet"
+                                       FontSize="18" FontWeight="Bold"
+                                       HorizontalAlignment="Center" />
+                            <TextBlock Text="Resource insights will appear after the first polling cycle"
                                        Classes="Subtitle"
                                        HorizontalAlignment="Center" />
                         </StackPanel>

@@ -3,7 +3,7 @@
              xmlns:vm="using:WireBound.Avalonia.ViewModels"
              x:Class="WireBound.Avalonia.Views.ConnectionsView"
              x:DataType="vm:ConnectionsViewModel"
-             Background="{DynamicResource BackgroundBrush}"
+             Background="{StaticResource BackgroundBrush}"
              AutomationProperties.Name="Connections View">
 
     <Grid RowDefinitions="Auto, *">
@@ -11,9 +11,9 @@
         <!-- Loading Overlay -->
         <Border Grid.RowSpan="2"
                 IsVisible="{Binding IsLoading}"
-                Background="{DynamicResource OverlayColor}"
+                Background="{StaticResource OverlayColor}"
                 ZIndex="100">
-            <Border Background="{DynamicResource CardBrush}"
+            <Border Background="{StaticResource CardBrush}"
                     CornerRadius="16"
                     Padding="32"
                     HorizontalAlignment="Center"
@@ -55,17 +55,17 @@
 
                 <!-- Platform Warning -->
                 <Border Classes="Card"
-                        Background="{DynamicResource WarningBannerColor}"
+                        Background="{StaticResource WarningBannerColor}"
                         IsVisible="{Binding !IsPlatformSupported}">
                     <StackPanel Orientation="Horizontal" Spacing="16">
-                        <Border Background="{DynamicResource WarningBgTintBrush}" CornerRadius="10" Width="48" Height="48">
+                        <Border Background="{StaticResource WarningBgTintBrush}" CornerRadius="10" Width="48" Height="48">
                             <TextBlock Text="⚠️" FontSize="24"
                                        HorizontalAlignment="Center" VerticalAlignment="Center" />
                         </Border>
                         <StackPanel VerticalAlignment="Center">
                             <TextBlock Text="Feature Not Available"
                                        FontSize="16" FontWeight="Bold"
-                                       Foreground="{DynamicResource WarningBrush}" />
+                                       Foreground="{StaticResource WarningBrush}" />
                             <TextBlock Text="Connection tracking is not available on this platform."
                                        Classes="Subtitle" />
                         </StackPanel>
@@ -74,17 +74,17 @@
 
                 <!-- Error Banner -->
                 <Border Classes="Card"
-                        Background="{DynamicResource ErrorBannerColor}"
+                        Background="{StaticResource ErrorBannerColor}"
                         IsVisible="{Binding HasError}">
                     <StackPanel Orientation="Horizontal" Spacing="16">
-                        <Border Background="{DynamicResource ErrorBgTintBrush}" CornerRadius="10" Width="48" Height="48">
+                        <Border Background="{StaticResource ErrorBgTintBrush}" CornerRadius="10" Width="48" Height="48">
                             <TextBlock Text="❌" FontSize="24"
                                        HorizontalAlignment="Center" VerticalAlignment="Center" />
                         </Border>
                         <StackPanel VerticalAlignment="Center" Spacing="4">
                             <TextBlock Text="Error"
                                        FontSize="16" FontWeight="Bold"
-                                       Foreground="{DynamicResource ErrorBrush}" />
+                                       Foreground="{StaticResource ErrorBrush}" />
                             <TextBlock Text="{Binding ErrorMessage}"
                                        Classes="Subtitle"
                                        TextWrapping="Wrap" />
@@ -94,10 +94,10 @@
 
                 <!-- Byte Tracking Preview Banner -->
                 <Border Classes="Card"
-                        Background="{DynamicResource InfoBannerColor}"
+                        Background="{StaticResource InfoBannerColor}"
                         IsVisible="{Binding IsByteTrackingLimited}">
                     <StackPanel Orientation="Horizontal" Spacing="16">
-                        <Border Background="{DynamicResource InfoBgTintBrush}" CornerRadius="10" Width="48" Height="48">
+                        <Border Background="{StaticResource InfoBgTintBrush}" CornerRadius="10" Width="48" Height="48">
                             <TextBlock Text="🔬" FontSize="24"
                                        HorizontalAlignment="Center" VerticalAlignment="Center" />
                         </Border>
@@ -105,11 +105,11 @@
                             <StackPanel Orientation="Horizontal" Spacing="8">
                                 <TextBlock Text="Byte Tracking Preview"
                                            FontSize="16" FontWeight="Bold"
-                                           Foreground="{DynamicResource PrimaryBrush}" />
-                                <Border Background="{DynamicResource AccentBgTintBrush}" 
+                                           Foreground="{StaticResource PrimaryBrush}" />
+                                <Border Background="{StaticResource AccentBgTintBrush}" 
                                         CornerRadius="6" Padding="8,2">
                                     <TextBlock Text="LIMITED" FontSize="10" FontWeight="Bold"
-                                               Foreground="{DynamicResource PrimaryBrush}" />
+                                               Foreground="{StaticResource PrimaryBrush}" />
                                 </Border>
                             </StackPanel>
                             <TextBlock Text="Per-connection byte counts are estimated. Accurate tracking requires starting the elevated helper."
@@ -141,7 +141,7 @@
                                            FontSize="24" FontWeight="Bold" />
                                 <TextBlock Text="/"
                                            FontSize="24" FontWeight="Bold"
-                                           Foreground="{DynamicResource SecondaryTextBrush}" />
+                                           Foreground="{StaticResource SecondaryTextBrush}" />
                                 <TextBlock Text="{Binding UdpCount}"
                                            FontSize="24" FontWeight="Bold" />
                             </StackPanel>
@@ -155,7 +155,7 @@
                             </StackPanel>
                             <TextBlock Text="{Binding TotalReceived}"
                                        FontSize="24" FontWeight="Bold"
-                                       Foreground="{DynamicResource DownloadBrush}" />
+                                       Foreground="{StaticResource DownloadBrush}" />
                         </StackPanel>
                     </Border>
                     <Border Grid.Column="3" Classes="ElevatedCard" Margin="10,0,0,0">
@@ -166,7 +166,7 @@
                             </StackPanel>
                             <TextBlock Text="{Binding TotalSent}"
                                        FontSize="24" FontWeight="Bold"
-                                       Foreground="{DynamicResource UploadBrush}" />
+                                       Foreground="{StaticResource UploadBrush}" />
                         </StackPanel>
                     </Border>
                 </Grid>
@@ -190,7 +190,7 @@
                         
                         <!-- Section Header -->
                         <StackPanel Orientation="Horizontal" Spacing="12">
-                            <Border Background="{DynamicResource DownloadBgTintBrush}" CornerRadius="8" Width="40" Height="40">
+                            <Border Background="{StaticResource DownloadBgTintBrush}" CornerRadius="8" Width="40" Height="40">
                                 <TextBlock Text="🌐" FontSize="20"
                                            HorizontalAlignment="Center" VerticalAlignment="Center" />
                             </Border>
@@ -202,7 +202,7 @@
                         
                         <!-- Table Header -->
                         <Border Grid.Row="1"
-                                Background="{DynamicResource BorderSubtleBrush}"
+                                Background="{StaticResource BorderSubtleBrush}"
                                 CornerRadius="8"
                                 Padding="16,12"
                                 Margin="0,16,0,0">
@@ -236,12 +236,25 @@
                             </Grid>
                         </Border>
                         
-                        <!-- Connection List -->
-                        <ScrollViewer Grid.Row="2" MaxHeight="500" Margin="0,8,0,0">
-                            <ItemsControl ItemsSource="{Binding Connections}"
-                                          AutomationProperties.Name="Active Connections List"
-                                          AutomationProperties.HelpText="List of active network connections with details">
-                                <ItemsControl.ItemTemplate>
+                        <!-- Connection List (virtualized) -->
+                        <ListBox Grid.Row="2" MaxHeight="500" Margin="0,8,0,0"
+                                 ItemsSource="{Binding Connections}"
+                                 SelectionMode="Toggle"
+                                 Background="Transparent"
+                                 BorderThickness="0"
+                                 AutomationProperties.Name="Active Connections List"
+                                 AutomationProperties.HelpText="List of active network connections with details">
+                            <ListBox.Styles>
+                                <Style Selector="ListBoxItem">
+                                    <Setter Property="Padding" Value="0"/>
+                                    <Setter Property="Margin" Value="0"/>
+                                    <Setter Property="Background" Value="Transparent"/>
+                                </Style>
+                                <Style Selector="ListBoxItem:selected /template/ ContentPresenter#PART_ContentPresenter">
+                                    <Setter Property="Background" Value="Transparent"/>
+                                </Style>
+                            </ListBox.Styles>
+                            <ListBox.ItemTemplate>
                                     <DataTemplate x:DataType="vm:ConnectionDisplayItem">
                                         <Border Background="Transparent"
                                                 CornerRadius="8"
@@ -249,18 +262,18 @@
                                                 Margin="0,2">
                                             <Border.Styles>
                                                 <Style Selector="Border:pointerover">
-                                                    <Setter Property="Background" Value="{DynamicResource FlyoutItemHoverColor}" />
+                                                    <Setter Property="Background" Value="{StaticResource FlyoutItemHoverColor}" />
                                                 </Style>
                                             </Border.Styles>
                                             <Grid ColumnDefinitions="0.5*, 2*, 1.5*, 0.8*, 1*, 1*">
                                                 <!-- Protocol Badge -->
-                                                <Border Background="{DynamicResource BorderSubtleBrush}"
+                                                <Border Background="{StaticResource BorderSubtleBrush}"
                                                         CornerRadius="4"
                                                         Padding="8,4"
                                                         HorizontalAlignment="Left">
                                                     <TextBlock Text="{Binding Protocol}"
                                                                FontSize="11" FontWeight="Bold"
-                                                               Foreground="{DynamicResource PrimaryBrush}" />
+                                                               Foreground="{StaticResource PrimaryBrush}" />
                                                 </Border>
                                                 
                                                 <!-- Remote Address -->
@@ -270,7 +283,7 @@
                                                                TextTrimming="CharacterEllipsis" />
                                                     <TextBlock Text="{Binding RemoteEndpoint}"
                                                                FontSize="11"
-                                                               Foreground="{DynamicResource SecondaryTextBrush}"
+                                                               Foreground="{StaticResource SecondaryTextBrush}"
                                                                TextTrimming="CharacterEllipsis"
                                                                IsVisible="{Binding RemoteHostname, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
                                                 </StackPanel>
@@ -282,7 +295,7 @@
                                                                TextTrimming="CharacterEllipsis" />
                                                     <TextBlock Text="{Binding ProcessId, StringFormat='PID: {0}'}"
                                                                FontSize="11"
-                                                               Foreground="{DynamicResource SecondaryTextBrush}" />
+                                                               Foreground="{StaticResource SecondaryTextBrush}" />
                                                 </StackPanel>
                                                 
                                                 <!-- State -->
@@ -295,11 +308,11 @@
                                                 <StackPanel Grid.Column="4" HorizontalAlignment="Right" Spacing="2">
                                                     <TextBlock Text="{Binding BytesReceived}"
                                                                FontSize="13"
-                                                               Foreground="{DynamicResource DownloadBrush}"
+                                                               Foreground="{StaticResource DownloadBrush}"
                                                                HorizontalAlignment="Right" />
                                                     <TextBlock Text="{Binding ReceiveSpeed}"
                                                                FontSize="11"
-                                                               Foreground="{DynamicResource SecondaryTextBrush}"
+                                                               Foreground="{StaticResource SecondaryTextBrush}"
                                                                HorizontalAlignment="Right"
                                                                IsVisible="{Binding HasByteCounters}" />
                                                 </StackPanel>
@@ -308,30 +321,29 @@
                                                 <StackPanel Grid.Column="5" HorizontalAlignment="Right" Spacing="2">
                                                     <TextBlock Text="{Binding BytesSent}"
                                                                FontSize="13"
-                                                               Foreground="{DynamicResource UploadBrush}"
+                                                               Foreground="{StaticResource UploadBrush}"
                                                                HorizontalAlignment="Right" />
                                                     <TextBlock Text="{Binding SendSpeed}"
                                                                FontSize="11"
-                                                               Foreground="{DynamicResource SecondaryTextBrush}"
+                                                               Foreground="{StaticResource SecondaryTextBrush}"
                                                                HorizontalAlignment="Right"
                                                                IsVisible="{Binding HasByteCounters}" />
                                                 </StackPanel>
                                             </Grid>
                                         </Border>
                                     </DataTemplate>
-                                </ItemsControl.ItemTemplate>
-                            </ItemsControl>
-                        </ScrollViewer>
+                                </ListBox.ItemTemplate>
+                            </ListBox>
                         
                         <!-- Empty State -->
                         <Border Grid.Row="2"
-                                Background="{DynamicResource BorderSubtleBrush}"
+                                Background="{StaticResource BorderSubtleBrush}"
                                 CornerRadius="12"
                                 Padding="40"
                                 Margin="0,16,0,0"
                                 IsVisible="{Binding !ConnectionCount}">
                             <StackPanel HorizontalAlignment="Center" Spacing="12">
-                                <Border Background="{DynamicResource SurfaceBrush}"
+                                <Border Background="{StaticResource SurfaceBrush}"
                                         CornerRadius="20"
                                         Width="80" Height="80">
                                     <TextBlock Text="🔌" FontSize="36"

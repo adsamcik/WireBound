@@ -4,7 +4,7 @@
              xmlns:lvc="using:LiveChartsCore.SkiaSharpView.Avalonia"
              x:Class="WireBound.Avalonia.Views.ChartsView"
              x:DataType="vm:ChartsViewModel"
-             Background="{DynamicResource BackgroundBrush}"
+             Background="{StaticResource BackgroundBrush}"
              AutomationProperties.Name="Live Chart View">
 
     <Grid RowDefinitions="Auto, Auto, *, Auto" Margin="28">
@@ -41,7 +41,7 @@
         <Border Grid.Row="1" Classes="Card" Padding="20" Margin="0,20,0,0">
             <Grid ColumnDefinitions="*, *, *, *">
                 
-                <Border Background="{DynamicResource BorderSubtleBrush}" CornerRadius="12" Padding="16,12" Margin="0,0,10,0">
+                <Border Background="{StaticResource BorderSubtleBrush}" CornerRadius="12" Padding="16,12" Margin="0,0,10,0">
                     <StackPanel HorizontalAlignment="Center" Spacing="6">
                         <StackPanel Orientation="Horizontal" Spacing="6" HorizontalAlignment="Center">
                             <TextBlock Text="⬇️" FontSize="12" />
@@ -49,12 +49,12 @@
                         </StackPanel>
                         <TextBlock Text="{Binding PeakDownloadSpeed}"
                                    FontSize="22" FontWeight="Bold"
-                                   Foreground="{DynamicResource DownloadBrush}"
+                                   Foreground="{StaticResource DownloadBrush}"
                                    HorizontalAlignment="Center" />
                     </StackPanel>
                 </Border>
                 
-                <Border Grid.Column="1" Background="{DynamicResource BorderSubtleBrush}" CornerRadius="12" Padding="16,12" Margin="10,0">
+                <Border Grid.Column="1" Background="{StaticResource BorderSubtleBrush}" CornerRadius="12" Padding="16,12" Margin="10,0">
                     <StackPanel HorizontalAlignment="Center" Spacing="6">
                         <StackPanel Orientation="Horizontal" Spacing="6" HorizontalAlignment="Center">
                             <TextBlock Text="📊" FontSize="12" />
@@ -62,12 +62,12 @@
                         </StackPanel>
                         <TextBlock Text="{Binding AverageDownloadSpeed}"
                                    FontSize="22" FontWeight="Bold"
-                                   Foreground="{DynamicResource DownloadColorDim}"
+                                   Foreground="{StaticResource DownloadColorDim}"
                                    HorizontalAlignment="Center" />
                     </StackPanel>
                 </Border>
                 
-                <Border Grid.Column="2" Background="{DynamicResource BorderSubtleBrush}" CornerRadius="12" Padding="16,12" Margin="10,0">
+                <Border Grid.Column="2" Background="{StaticResource BorderSubtleBrush}" CornerRadius="12" Padding="16,12" Margin="10,0">
                     <StackPanel HorizontalAlignment="Center" Spacing="6">
                         <StackPanel Orientation="Horizontal" Spacing="6" HorizontalAlignment="Center">
                             <TextBlock Text="⬆️" FontSize="12" />
@@ -75,12 +75,12 @@
                         </StackPanel>
                         <TextBlock Text="{Binding PeakUploadSpeed}"
                                    FontSize="22" FontWeight="Bold"
-                                   Foreground="{DynamicResource UploadBrush}"
+                                   Foreground="{StaticResource UploadBrush}"
                                    HorizontalAlignment="Center" />
                     </StackPanel>
                 </Border>
                 
-                <Border Grid.Column="3" Background="{DynamicResource BorderSubtleBrush}" CornerRadius="12" Padding="16,12" Margin="10,0,0,0">
+                <Border Grid.Column="3" Background="{StaticResource BorderSubtleBrush}" CornerRadius="12" Padding="16,12" Margin="10,0,0,0">
                     <StackPanel HorizontalAlignment="Center" Spacing="6">
                         <StackPanel Orientation="Horizontal" Spacing="6" HorizontalAlignment="Center">
                             <TextBlock Text="📊" FontSize="12" />
@@ -88,7 +88,7 @@
                         </StackPanel>
                         <TextBlock Text="{Binding AverageUploadSpeed}"
                                    FontSize="22" FontWeight="Bold"
-                                   Foreground="{DynamicResource UploadColorDim}"
+                                   Foreground="{StaticResource UploadColorDim}"
                                    HorizontalAlignment="Center" />
                     </StackPanel>
                 </Border>
@@ -102,14 +102,14 @@
                 <!-- Legend -->
                 <StackPanel Orientation="Horizontal" Spacing="32" HorizontalAlignment="Center" Margin="0,0,0,16">
                     <StackPanel Orientation="Horizontal" Spacing="10">
-                        <Border Background="{DynamicResource DownloadBrush}"
+                        <Border Background="{StaticResource DownloadBrush}"
                                 Width="24" Height="4"
                                 CornerRadius="2"
                                 VerticalAlignment="Center" />
                         <TextBlock Text="Download" FontSize="13" FontWeight="Bold" VerticalAlignment="Center" />
                     </StackPanel>
                     <StackPanel Orientation="Horizontal" Spacing="10">
-                        <Border Background="{DynamicResource UploadBrush}"
+                        <Border Background="{StaticResource UploadBrush}"
                                 Width="24" Height="4"
                                 CornerRadius="2"
                                 VerticalAlignment="Center" />
@@ -125,13 +125,13 @@
                                     YAxes="{Binding YAxes}"
                                     ZoomMode="X"
                                     TooltipPosition="Top"
-                                    Background="{DynamicResource SurfaceBrush}"
+                                    Background="{StaticResource SurfaceBrush}"
                                     AutomationProperties.Name="Network Speed Chart"
                                     AutomationProperties.HelpText="Real-time chart showing download and upload speeds. Use scroll to zoom and drag to pan." />
                 
                 <!-- Hint -->
                 <Border Grid.Row="2"
-                        Background="{DynamicResource BorderSubtleBrush}"
+                        Background="{StaticResource BorderSubtleBrush}"
                         CornerRadius="8"
                         Padding="12,8"
                         HorizontalAlignment="Center">
@@ -139,7 +139,7 @@
                         <TextBlock Text="💡" FontSize="12" VerticalAlignment="Center" />
                         <TextBlock Text="Scroll to zoom • Drag to pan • Change time range above"
                                    FontSize="12"
-                                   Foreground="{DynamicResource SecondaryTextBrush}"
+                                   Foreground="{StaticResource SecondaryTextBrush}"
                                    VerticalAlignment="Center" />
                     </StackPanel>
                 </Border>
@@ -152,16 +152,16 @@
                 
                 <!-- Download -->
                 <StackPanel Orientation="Horizontal" Spacing="16" HorizontalAlignment="Center" Margin="0,0,12,0">
-                    <Border Background="{DynamicResource DownloadBgTintBrush}" CornerRadius="10" Width="48" Height="48" VerticalAlignment="Center">
+                    <Border Background="{StaticResource DownloadBgTintBrush}" CornerRadius="10" Width="48" Height="48" VerticalAlignment="Center">
                         <TextBlock Text="↓" FontSize="28" FontWeight="Bold"
-                                   Foreground="{DynamicResource DownloadBrush}"
+                                   Foreground="{StaticResource DownloadBrush}"
                                    HorizontalAlignment="Center" VerticalAlignment="Center" />
                     </Border>
                     <StackPanel VerticalAlignment="Center" Spacing="2">
                         <TextBlock Text="Download Speed" Classes="Caption" />
                         <TextBlock Text="{Binding DownloadSpeed}"
                                    FontSize="28" FontWeight="Bold"
-                                   Foreground="{DynamicResource DownloadBrush}" />
+                                   Foreground="{StaticResource DownloadBrush}" />
                     </StackPanel>
                 </StackPanel>
                 
@@ -169,16 +169,16 @@
                 
                 <!-- Upload -->
                 <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="16" HorizontalAlignment="Center" Margin="12,0,0,0">
-                    <Border Background="{DynamicResource UploadBgTintBrush}" CornerRadius="10" Width="48" Height="48" VerticalAlignment="Center">
+                    <Border Background="{StaticResource UploadBgTintBrush}" CornerRadius="10" Width="48" Height="48" VerticalAlignment="Center">
                         <TextBlock Text="↑" FontSize="28" FontWeight="Bold"
-                                   Foreground="{DynamicResource UploadBrush}"
+                                   Foreground="{StaticResource UploadBrush}"
                                    HorizontalAlignment="Center" VerticalAlignment="Center" />
                     </Border>
                     <StackPanel VerticalAlignment="Center" Spacing="2">
                         <TextBlock Text="Upload Speed" Classes="Caption" />
                         <TextBlock Text="{Binding UploadSpeed}"
                                    FontSize="28" FontWeight="Bold"
-                                   Foreground="{DynamicResource UploadBrush}" />
+                                   Foreground="{StaticResource UploadBrush}" />
                     </StackPanel>
                 </StackPanel>
             </Grid>

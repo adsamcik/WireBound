@@ -3,7 +3,7 @@
              xmlns:vm="using:WireBound.Avalonia.ViewModels"
              x:Class="WireBound.Avalonia.Views.SettingsView"
              x:DataType="vm:SettingsViewModel"
-             Background="{DynamicResource BackgroundBrush}"
+             Background="{StaticResource BackgroundBrush}"
              AutomationProperties.Name="Settings View">
 
     <ScrollViewer Margin="28">
@@ -20,7 +20,7 @@
                 <StackPanel Spacing="24">
                     
                     <StackPanel Orientation="Horizontal" Spacing="12">
-                        <Border Background="{DynamicResource DownloadBgTintBrush}" CornerRadius="8" Width="40" Height="40">
+                        <Border Background="{StaticResource DownloadBgTintBrush}" CornerRadius="8" Width="40" Height="40">
                             <TextBlock Text="📡" FontSize="20"
                                        HorizontalAlignment="Center" VerticalAlignment="Center" />
                         </Border>
@@ -31,7 +31,7 @@
                     </StackPanel>
                     
                     <!-- Network Adapter -->
-                    <Border Background="{DynamicResource BorderSubtleBrush}" CornerRadius="12" Padding="16">
+                    <Border Background="{StaticResource BorderSubtleBrush}" CornerRadius="12" Padding="16">
                         <Grid ColumnDefinitions="*, Auto">
                             <StackPanel Spacing="4">
                                 <TextBlock Text="Network Adapter" Classes="CardTitle" />
@@ -54,7 +54,7 @@
                     </Border>
                     
                     <!-- Polling Interval -->
-                    <Border Background="{DynamicResource BorderSubtleBrush}" CornerRadius="12" Padding="16">
+                    <Border Background="{StaticResource BorderSubtleBrush}" CornerRadius="12" Padding="16">
                         <Grid ColumnDefinitions="*, Auto">
                             <StackPanel Spacing="4">
                                 <TextBlock Text="Polling Interval" Classes="CardTitle" />
@@ -71,7 +71,7 @@
                     </Border>
                     
                     <!-- Speed Unit -->
-                    <Border Background="{DynamicResource BorderSubtleBrush}" CornerRadius="12" Padding="16">
+                    <Border Background="{StaticResource BorderSubtleBrush}" CornerRadius="12" Padding="16">
                         <Grid ColumnDefinitions="*, Auto">
                             <StackPanel Spacing="4">
                                 <TextBlock Text="Speed Unit" Classes="CardTitle" />
@@ -94,7 +94,7 @@
                     </Border>
                     
                     <!-- Use IP Helper API -->
-                    <Border Background="{DynamicResource BorderSubtleBrush}" CornerRadius="12" Padding="16">
+                    <Border Background="{StaticResource BorderSubtleBrush}" CornerRadius="12" Padding="16">
                         <Grid ColumnDefinitions="*, Auto">
                             <StackPanel Spacing="4">
                                 <TextBlock Text="Use IP Helper API" Classes="CardTitle" />
@@ -109,14 +109,14 @@
                     </Border>
                     
                     <!-- Per-App Tracking -->
-                    <Border Background="{DynamicResource BorderSubtleBrush}" CornerRadius="12" Padding="16">
+                    <Border Background="{StaticResource BorderSubtleBrush}" CornerRadius="12" Padding="16">
                         <Grid ColumnDefinitions="*, Auto">
                             <StackPanel Spacing="4">
                                 <TextBlock Text="Per-App Network Tracking" Classes="CardTitle" />
                                 <TextBlock Text="Track network usage for individual applications" Classes="Caption" />
                                 <TextBlock Text="⚠️ Requires elevated helper"
                                            Classes="Caption"
-                                           Foreground="{DynamicResource WarningBrush}"
+                                           Foreground="{StaticResource WarningBrush}"
                                            IsVisible="{Binding RequiresElevation}" />
                             </StackPanel>
                             <ToggleSwitch Grid.Column="1"
@@ -135,7 +135,7 @@
                 <StackPanel Spacing="24">
                     
                     <StackPanel Orientation="Horizontal" Spacing="12">
-                        <Border Background="{DynamicResource UploadBgTintBrush}" CornerRadius="8" Width="40" Height="40">
+                        <Border Background="{StaticResource UploadBgTintBrush}" CornerRadius="8" Width="40" Height="40">
                             <TextBlock Text="🖥️" FontSize="20"
                                        HorizontalAlignment="Center" VerticalAlignment="Center" />
                         </Border>
@@ -146,7 +146,7 @@
                     </StackPanel>
                     
                     <!-- Theme -->
-                    <Border Background="{DynamicResource BorderSubtleBrush}" CornerRadius="12" Padding="16">
+                    <Border Background="{StaticResource BorderSubtleBrush}" CornerRadius="12" Padding="16">
                         <Grid ColumnDefinitions="*, Auto">
                             <StackPanel Spacing="4">
                                 <TextBlock Text="Theme" Classes="CardTitle" />
@@ -163,18 +163,18 @@
                     </Border>
                     
                     <!-- Start with Windows -->
-                    <Border Background="{DynamicResource BorderSubtleBrush}" CornerRadius="12" Padding="16">
+                    <Border Background="{StaticResource BorderSubtleBrush}" CornerRadius="12" Padding="16">
                         <Grid ColumnDefinitions="*, Auto">
                             <StackPanel Spacing="4">
                                 <TextBlock Text="Start with Windows" Classes="CardTitle" />
                                 <TextBlock Text="Launch WireBound when Windows starts" Classes="Caption" />
                                 <TextBlock Text="⚠️ Disabled in Windows Settings > Apps > Startup"
                                            Classes="Caption"
-                                           Foreground="{DynamicResource WarningBrush}"
+                                           Foreground="{StaticResource WarningBrush}"
                                            IsVisible="{Binding IsStartupDisabledByUser}" />
                                 <TextBlock Text="⚠️ Disabled by system policy"
                                            Classes="Caption"
-                                           Foreground="{DynamicResource WarningBrush}"
+                                           Foreground="{StaticResource WarningBrush}"
                                            IsVisible="{Binding IsStartupDisabledByPolicy}" />
                             </StackPanel>
                             <ToggleSwitch Grid.Column="1"
@@ -186,7 +186,7 @@
                     </Border>
                     
                     <!-- Minimize to Tray -->
-                    <Border Background="{DynamicResource BorderSubtleBrush}" CornerRadius="12" Padding="16">
+                    <Border Background="{StaticResource BorderSubtleBrush}" CornerRadius="12" Padding="16">
                         <Grid ColumnDefinitions="*, Auto">
                             <StackPanel Spacing="4">
                                 <TextBlock Text="Minimize to System Tray" Classes="CardTitle" />
@@ -201,7 +201,7 @@
                     </Border>
                     
                     <!-- Start Minimized -->
-                    <Border Background="{DynamicResource BorderSubtleBrush}" CornerRadius="12" Padding="16">
+                    <Border Background="{StaticResource BorderSubtleBrush}" CornerRadius="12" Padding="16">
                         <Grid ColumnDefinitions="*, Auto">
                             <StackPanel Spacing="4">
                                 <TextBlock Text="Start Minimized" Classes="CardTitle" />
@@ -216,7 +216,7 @@
                     </Border>
                     
                     <!-- Check for Updates -->
-                    <Border Background="{DynamicResource BorderSubtleBrush}" CornerRadius="12" Padding="16">
+                    <Border Background="{StaticResource BorderSubtleBrush}" CornerRadius="12" Padding="16">
                         <Grid ColumnDefinitions="*, Auto">
                             <StackPanel Spacing="4">
                                 <TextBlock Text="Check for Updates on Startup" Classes="CardTitle" />
@@ -231,7 +231,7 @@
                     </Border>
 
                     <!-- Auto-Download Updates (only visible in installed mode) -->
-                    <Border Background="{DynamicResource BorderSubtleBrush}" CornerRadius="12" Padding="16"
+                    <Border Background="{StaticResource BorderSubtleBrush}" CornerRadius="12" Padding="16"
                             IsVisible="{Binding IsUpdateSupported}">
                         <Grid ColumnDefinitions="*, Auto">
                             <StackPanel Spacing="4">
@@ -246,7 +246,7 @@
                     </Border>
 
                     <!-- Up-to-date / Check Now (when no update available) -->
-                    <Border Background="{DynamicResource BorderSubtleBrush}" CornerRadius="12" Padding="16"
+                    <Border Background="{StaticResource BorderSubtleBrush}" CornerRadius="12" Padding="16"
                             IsVisible="{Binding !UpdateAvailable}">
                         <Grid ColumnDefinitions="*, Auto">
                             <TextBlock Text="You're on the latest version" Classes="CardTitle" />
@@ -259,17 +259,17 @@
                     </Border>
 
                     <!-- Update Available — multi-state card -->
-                    <Border Background="{DynamicResource AccentBgTintBrush}" CornerRadius="12" Padding="16"
+                    <Border Background="{StaticResource AccentBgTintBrush}" CornerRadius="12" Padding="16"
                             IsVisible="{Binding UpdateAvailable}">
                         <StackPanel Spacing="12">
                             <!-- Header: version info -->
                             <TextBlock Text="{Binding LatestVersion, StringFormat='Update available: v{0}'}"
                                        Classes="CardTitle"
-                                       Foreground="{DynamicResource AccentBrush}" />
+                                       Foreground="{StaticResource AccentBrush}" />
 
                             <!-- Error message -->
                             <TextBlock Text="{Binding UpdateError}"
-                                       Foreground="{DynamicResource ErrorBrush}"
+                                       Foreground="{StaticResource ErrorBrush}"
                                        TextWrapping="Wrap"
                                        IsVisible="{Binding UpdateError, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
 
@@ -315,7 +315,7 @@
                                         AutomationProperties.Name="View Release" />
                                 <TextBlock Text="In-app updates are available with the installed version"
                                            Classes="Caption"
-                                           Foreground="{DynamicResource MutedTextBrush}" />
+                                           Foreground="{StaticResource MutedTextBrush}" />
                             </StackPanel>
                         </StackPanel>
                     </Border>
@@ -327,7 +327,7 @@
                 <StackPanel Spacing="24">
                     
                     <StackPanel Orientation="Horizontal" Spacing="12">
-                        <Border Background="{DynamicResource AccentBgTintBrush}" CornerRadius="8" Width="40" Height="40">
+                        <Border Background="{StaticResource AccentBgTintBrush}" CornerRadius="8" Width="40" Height="40">
                             <TextBlock Text="📊" FontSize="20"
                                        HorizontalAlignment="Center" VerticalAlignment="Center" />
                         </Border>
@@ -338,7 +338,7 @@
                     </StackPanel>
                     
                     <!-- Show System Metrics in Header -->
-                    <Border Background="{DynamicResource BorderSubtleBrush}" CornerRadius="12" Padding="16">
+                    <Border Background="{StaticResource BorderSubtleBrush}" CornerRadius="12" Padding="16">
                         <Grid ColumnDefinitions="*, Auto">
                             <StackPanel Spacing="4">
                                 <TextBlock Text="Show System Metrics in Header" Classes="CardTitle" />
@@ -352,7 +352,7 @@
                     </Border>
                     
                     <!-- Default Time Range -->
-                    <Border Background="{DynamicResource BorderSubtleBrush}" CornerRadius="12" Padding="16">
+                    <Border Background="{StaticResource BorderSubtleBrush}" CornerRadius="12" Padding="16">
                         <Grid ColumnDefinitions="*, Auto">
                             <StackPanel Spacing="4">
                                 <TextBlock Text="Default Time Range" Classes="CardTitle" />
@@ -368,7 +368,7 @@
                     </Border>
                     
                     <!-- Show CPU Overlay by Default -->
-                    <Border Background="{DynamicResource BorderSubtleBrush}" CornerRadius="12" Padding="16">
+                    <Border Background="{StaticResource BorderSubtleBrush}" CornerRadius="12" Padding="16">
                         <Grid ColumnDefinitions="*, Auto">
                             <StackPanel Spacing="4">
                                 <TextBlock Text="Show CPU Overlay by Default" Classes="CardTitle" />
@@ -382,7 +382,7 @@
                     </Border>
                     
                     <!-- Show Memory Overlay by Default -->
-                    <Border Background="{DynamicResource BorderSubtleBrush}" CornerRadius="12" Padding="16">
+                    <Border Background="{StaticResource BorderSubtleBrush}" CornerRadius="12" Padding="16">
                         <Grid ColumnDefinitions="*, Auto">
                             <StackPanel Spacing="4">
                                 <TextBlock Text="Show Memory Overlay by Default" Classes="CardTitle" />
@@ -402,7 +402,7 @@
                 <StackPanel Spacing="24">
                     
                     <StackPanel Orientation="Horizontal" Spacing="12">
-                        <Border Background="{DynamicResource SuccessBgTintBrush}" CornerRadius="8" Width="40" Height="40">
+                        <Border Background="{StaticResource SuccessBgTintBrush}" CornerRadius="8" Width="40" Height="40">
                             <TextBlock Text="⚡" FontSize="20"
                                        HorizontalAlignment="Center" VerticalAlignment="Center" />
                         </Border>
@@ -413,11 +413,15 @@
                     </StackPanel>
                     
                     <!-- Performance Mode -->
-                    <Border Background="{DynamicResource BorderSubtleBrush}" CornerRadius="12" Padding="16">
+                    <Border Background="{StaticResource BorderSubtleBrush}" CornerRadius="12" Padding="16">
                         <Grid ColumnDefinitions="*, Auto">
                             <StackPanel Spacing="4">
                                 <TextBlock Text="Performance Mode" Classes="CardTitle" />
-                                <TextBlock Text="Reduce CPU usage by lowering update frequency" Classes="Caption" />
+                                <TextBlock Text="Automatically reduces polling frequency when CPU usage is high" Classes="Caption" />
+                                <TextBlock Text="70% CPU → 2× interval · 85% → 3× · 95% → 5×"
+                                           Classes="Caption"
+                                           IsVisible="{Binding PerformanceModeEnabled}"
+                                           Foreground="{StaticResource AccentBrush}" />
                             </StackPanel>
                             <ToggleSwitch Grid.Column="1"
                                           IsChecked="{Binding PerformanceModeEnabled}"
@@ -427,7 +431,7 @@
                     </Border>
                     
                     <!-- Chart Update Interval -->
-                    <Border Background="{DynamicResource BorderSubtleBrush}" CornerRadius="12" Padding="16">
+                    <Border Background="{StaticResource BorderSubtleBrush}" CornerRadius="12" Padding="16">
                         <Grid ColumnDefinitions="*, Auto">
                             <StackPanel Spacing="4">
                                 <TextBlock Text="Chart Update Interval" Classes="CardTitle" />
@@ -449,7 +453,7 @@
                 <StackPanel Spacing="24">
                     
                     <StackPanel Orientation="Horizontal" Spacing="12">
-                        <Border Background="{DynamicResource DownloadBgTintBrush}" CornerRadius="8" Width="40" Height="40">
+                        <Border Background="{StaticResource DownloadBgTintBrush}" CornerRadius="8" Width="40" Height="40">
                             <TextBlock Text="💡" FontSize="20"
                                        HorizontalAlignment="Center" VerticalAlignment="Center" />
                         </Border>
@@ -460,7 +464,7 @@
                     </StackPanel>
                     
                     <!-- Default Insights Period -->
-                    <Border Background="{DynamicResource BorderSubtleBrush}" CornerRadius="12" Padding="16">
+                    <Border Background="{StaticResource BorderSubtleBrush}" CornerRadius="12" Padding="16">
                         <Grid ColumnDefinitions="*, Auto">
                             <StackPanel Spacing="4">
                                 <TextBlock Text="Default Insights Period" Classes="CardTitle" />
@@ -482,7 +486,7 @@
                     </Border>
                     
                     <!-- Show Correlation Insights -->
-                    <Border Background="{DynamicResource BorderSubtleBrush}" CornerRadius="12" Padding="16">
+                    <Border Background="{StaticResource BorderSubtleBrush}" CornerRadius="12" Padding="16">
                         <Grid ColumnDefinitions="*, Auto">
                             <StackPanel Spacing="4">
                                 <TextBlock Text="Show Correlation Insights" Classes="CardTitle" />
@@ -502,7 +506,7 @@
                 <StackPanel Spacing="24">
                     
                     <StackPanel Orientation="Horizontal" Spacing="12">
-                        <Border Background="{DynamicResource WarningBgTintBrush}" CornerRadius="8" Width="40" Height="40">
+                        <Border Background="{StaticResource WarningBgTintBrush}" CornerRadius="8" Width="40" Height="40">
                             <TextBlock Text="🛡️" FontSize="20"
                                        HorizontalAlignment="Center" VerticalAlignment="Center" />
                         </Border>
@@ -512,18 +516,18 @@
                         </StackPanel>
                     </StackPanel>
                     
-                    <Border Background="{DynamicResource BorderSubtleBrush}" CornerRadius="12" Padding="16">
+                    <Border Background="{StaticResource BorderSubtleBrush}" CornerRadius="12" Padding="16">
                         <Grid ColumnDefinitions="*, Auto">
                             <StackPanel Spacing="4">
                                 <StackPanel Orientation="Horizontal" Spacing="8">
                                     <TextBlock Text="Current Status:" Classes="CardTitle" />
                                     <TextBlock Text="Helper Connected"
-                                               Foreground="{DynamicResource SuccessBrush}"
+                                               Foreground="{StaticResource SuccessBrush}"
                                                FontWeight="Bold"
                                                IsVisible="{Binding IsElevated}"
                                                VerticalAlignment="Center" />
                                     <TextBlock Text="Helper Not Connected"
-                                               Foreground="{DynamicResource WarningBrush}"
+                                               Foreground="{StaticResource WarningBrush}"
                                                FontWeight="Bold"
                                                IsVisible="{Binding !IsElevated}"
                                                VerticalAlignment="Center" />
@@ -533,7 +537,7 @@
                                            IsVisible="{Binding RequiresElevation}" />
                                 <TextBlock Text="All features are available"
                                            Classes="Caption"
-                                           Foreground="{DynamicResource SuccessBrush}"
+                                           Foreground="{StaticResource SuccessBrush}"
                                            IsVisible="{Binding IsElevated}" />
                             </StackPanel>
                             <Button Grid.Column="1"

@@ -6,7 +6,7 @@
         MinWidth="400" MinHeight="300"
         CanResize="False"
         WindowStartupLocation="CenterOwner"
-        Background="{DynamicResource BackgroundBrush}"
+        Background="{StaticResource BackgroundBrush}"
         AutomationProperties.Name="What's New dialog">
 
     <Border Margin="32" CornerRadius="8">
@@ -26,14 +26,14 @@
                        x:Name="TitleText"
                        FontSize="22"
                        FontWeight="SemiBold"
-                       Foreground="{DynamicResource PrimaryTextBrush}"
+                       Foreground="{StaticResource PrimaryTextBrush}"
                        Margin="0,0,0,16" />
 
             <!-- Release notes content -->
             <ScrollViewer VerticalScrollBarVisibility="Auto">
                 <TextBlock x:Name="NotesText"
                            TextWrapping="Wrap"
-                           Foreground="{DynamicResource SecondaryTextBrush}"
+                           Foreground="{StaticResource SecondaryTextBrush}"
                            FontSize="14"
                            LineHeight="22" />
             </ScrollViewer>

@@ -1,12 +1,15 @@
 using Avalonia;
 using Serilog;
 using System;
+using System.Threading;
 using Velopack;
 
 namespace WireBound.Avalonia;
 
 class Program
 {
+    private const string MutexName = "WireBound-SingleInstance-A3F8D2E1";
+
     // Initialization code. Don't use any Avalonia, third-party APIs or any
     // SynchronizationContext-reliant code before AppMain is called: things aren't initialized
     // yet and stuff might break.
@@ -22,6 +25,14 @@ class Program
                 Environment.SetEnvironmentVariable("WIREBOUND_UPDATED_TO", v?.ToString());
             })
             .Run();
+
+        // Single-instance enforcement — exit immediately if another instance is running
+        using var mutex = new Mutex(true, MutexName, out var createdNew);
+        if (!createdNew)
+        {
+            Console.Error.WriteLine("WireBound is already running.");
+            return;
+        }
 
         // Configure Serilog early
         var logPath = Path.Combine(

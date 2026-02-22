@@ -287,6 +287,11 @@ public sealed partial class InsightsViewModel : ObservableObject, IDisposable
     [ObservableProperty]
     private Axis[] _resourceHistoryYAxes = [];
 
+    /// <summary>
+    /// Legend text paint shared across all resource insight charts.
+    /// </summary>
+    public SolidColorPaint LegendTextPaint { get; } = new(ChartColors.AxisLabelColor);
+
     // ═══════════════════════════════════════════════════════════════════════════
     // STATE PROPERTIES
     // ═══════════════════════════════════════════════════════════════════════════
@@ -1075,17 +1080,7 @@ public sealed partial class InsightsViewModel : ObservableObject, IDisposable
     private void BuildResourceCategoryChart(IReadOnlyList<CategoryResourceUsage> categories)
     {
         var pieSeries = new List<ISeries>();
-        var colors = new SKColor[]
-        {
-            new(0, 229, 255),   // Cyan
-            new(255, 107, 53),  // Orange
-            new(0, 255, 136),   // Green
-            new(156, 39, 176),  // Purple
-            new(255, 182, 39),  // Amber
-            new(30, 136, 229),  // Blue
-            new(244, 91, 105),  // Red
-            new(160, 168, 184), // Gray
-        };
+        var colors = ChartColors.SeriesPalette;
 
         for (int i = 0; i < categories.Count; i++)
         {
@@ -1136,6 +1131,13 @@ public sealed partial class InsightsViewModel : ObservableObject, IDisposable
                 Stroke = null,
                 MaxBarWidth = 24,
                 Padding = 4,
+                DataLabelsPaint = new SolidColorPaint(ChartColors.AxisLabelColor),
+                DataLabelsSize = 11,
+                DataLabelsPosition = LiveChartsCore.Measure.DataLabelsPosition.End,
+                DataLabelsFormatter = point =>
+                    isMemory
+                        ? ByteFormatter.FormatBytes((long)point.Coordinate.PrimaryValue)
+                        : $"{point.Coordinate.PrimaryValue:F1}%",
                 YToolTipLabelFormatter = point =>
                 {
                     var idx = point.Index;
@@ -1154,7 +1156,7 @@ public sealed partial class InsightsViewModel : ObservableObject, IDisposable
             {
                 Labels = labels,
                 LabelsPaint = new SolidColorPaint(ChartColors.AxisLabelColor),
-                TextSize = 11,
+                TextSize = 12,
                 MinStep = 1
             }
         ];
@@ -1166,7 +1168,7 @@ public sealed partial class InsightsViewModel : ObservableObject, IDisposable
                 Name = ShowMemoryMetric ? "Memory" : "CPU %",
                 NamePaint = new SolidColorPaint(ChartColors.AxisNameColor),
                 LabelsPaint = new SolidColorPaint(ChartColors.AxisLabelColor),
-                TextSize = 10,
+                TextSize = 12,
                 MinLimit = 0,
                 Labeler = ShowMemoryMetric
                     ? (value => ByteFormatter.FormatBytes((long)value))
@@ -1187,14 +1189,7 @@ public sealed partial class InsightsViewModel : ObservableObject, IDisposable
             .Take(5)
             .ToList();
 
-        var colors = new SKColor[]
-        {
-            new(0, 229, 255),
-            new(255, 107, 53),
-            new(0, 255, 136),
-            new(156, 39, 176),
-            new(255, 182, 39)
-        };
+        var colors = ChartColors.SeriesPalette;
 
         var series = new List<ISeries>();
         for (int i = 0; i < categoryGroups.Count; i++)
@@ -1211,7 +1206,7 @@ public sealed partial class InsightsViewModel : ObservableObject, IDisposable
                 Name = group.Key,
                 Values = points,
                 Fill = null,
-                Stroke = new SolidColorPaint(color, 2),
+                Stroke = new SolidColorPaint(color, 2.5f),
                 GeometryFill = null,
                 GeometryStroke = null,
                 LineSmoothness = 0.5
@@ -1227,7 +1222,7 @@ public sealed partial class InsightsViewModel : ObservableObject, IDisposable
                 Name = "Time",
                 NamePaint = new SolidColorPaint(ChartColors.AxisNameColor),
                 LabelsPaint = new SolidColorPaint(ChartColors.AxisLabelColor),
-                TextSize = 10,
+                TextSize = 12,
                 LabelsRotation = -30,
                 SeparatorsPaint = new SolidColorPaint(ChartColors.GridLineColor)
             }
@@ -1240,7 +1235,7 @@ public sealed partial class InsightsViewModel : ObservableObject, IDisposable
                 Name = ShowMemoryMetric ? "Memory" : "CPU %",
                 NamePaint = new SolidColorPaint(ChartColors.AxisNameColor),
                 LabelsPaint = new SolidColorPaint(ChartColors.AxisLabelColor),
-                TextSize = 11,
+                TextSize = 12,
                 MinLimit = 0,
                 SeparatorsPaint = new SolidColorPaint(ChartColors.GridLineColor),
                 Labeler = ShowMemoryMetric

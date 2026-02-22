@@ -663,10 +663,30 @@
                         <Border Classes="Card" Padding="20" Margin="0,0,10,0">
                             <StackPanel Spacing="12">
                                 <TextBlock Text="By Category" FontSize="16" FontWeight="SemiBold" />
-                                <lvc:PieChart Series="{Binding ResourceCategoryChart}"
-                                              Height="280"
-                                              Background="{StaticResource CardBrush}"
-                                              AutomationProperties.Name="Resource usage by category chart" />
+                                <Grid>
+                                    <lvc:PieChart Series="{Binding ResourceCategoryChart}"
+                                                  Height="280"
+                                                  LegendPosition="Right"
+                                                  LegendTextPaint="{Binding LegendTextPaint}"
+                                                  LegendTextSize="12"
+                                                  Background="{StaticResource CardBrush}"
+                                                  AutomationProperties.Name="Resource usage by category chart" />
+                                    <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center"
+                                                IsHitTestVisible="False" Margin="-80,0,0,0">
+                                        <TextBlock Text="{Binding ResourceTotalMemoryUsed}"
+                                                   IsVisible="{Binding ShowMemoryMetric}"
+                                                   FontSize="16" FontWeight="Bold"
+                                                   Foreground="{StaticResource PrimaryTextBrush}"
+                                                   HorizontalAlignment="Center" />
+                                        <TextBlock Text="{Binding ResourceTotalCpuPercent}"
+                                                   IsVisible="{Binding !ShowMemoryMetric}"
+                                                   FontSize="16" FontWeight="Bold"
+                                                   Foreground="{StaticResource PrimaryTextBrush}"
+                                                   HorizontalAlignment="Center" />
+                                        <TextBlock Text="Total" Classes="Caption"
+                                                   HorizontalAlignment="Center" />
+                                    </StackPanel>
+                                </Grid>
                             </StackPanel>
                         </Border>
 
@@ -697,6 +717,9 @@
                                                 XAxes="{Binding ResourceHistoryXAxes}"
                                                 YAxes="{Binding ResourceHistoryYAxes}"
                                                 Height="300"
+                                                LegendPosition="Top"
+                                                LegendTextPaint="{Binding LegendTextPaint}"
+                                                LegendTextSize="12"
                                                 Background="{StaticResource CardBrush}"
                                                 ZoomMode="None"
                                                 AutomationProperties.Name="Historical resource usage trend chart" />

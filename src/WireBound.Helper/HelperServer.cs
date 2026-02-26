@@ -1,5 +1,8 @@
 using System.IO.Pipes;
 using System.Net.Sockets;
+using System.Runtime.Versioning;
+using System.Security.AccessControl;
+using System.Security.Principal;
 using Serilog;
 using WireBound.IPC;
 using WireBound.IPC.Messages;
@@ -12,12 +15,13 @@ namespace WireBound.Helper;
 /// Main server loop that listens for IPC connections and handles requests.
 /// Uses named pipes on Windows and Unix domain sockets on Linux.
 /// </summary>
-public class HelperServer : IDisposable
+public sealed class HelperServer : IDisposable
 {
     private readonly byte[] _secret;
     private readonly SessionManager _sessionManager = new();
     private readonly RateLimiter _rateLimiter = new();
-    private readonly DateTimeOffset _startTime = DateTimeOffset.UtcNow;
+    private readonly AuthRateLimiter _authRateLimiter = new();
+    private readonly RateLimiter _heartbeatRateLimiter = new(1);
     private readonly ConnectionTracker _connectionTracker = new();
 
     public HelperServer()
@@ -41,18 +45,14 @@ public class HelperServer : IDisposable
         }
     }
 
+    [SupportedOSPlatform("windows")]
     private async Task RunNamedPipeServerAsync(CancellationToken cancellationToken)
     {
         Log.Information("Starting named pipe server: {Pipe}", IpcConstants.WindowsPipeName);
 
         while (!cancellationToken.IsCancellationRequested)
         {
-            var server = new NamedPipeServerStream(
-                IpcConstants.WindowsPipeName,
-                PipeDirection.InOut,
-                NamedPipeServerStream.MaxAllowedServerInstances,
-                PipeTransmissionMode.Byte,
-                PipeOptions.Asynchronous);
+            var server = CreateSecurePipe();
 
             try
             {
@@ -73,11 +73,36 @@ public class HelperServer : IDisposable
         }
     }
 
+    [SupportedOSPlatform("windows")]
+    private static NamedPipeServerStream CreateSecurePipe()
+    {
+        var security = new PipeSecurity();
+        var currentUserSid = WindowsIdentity.GetCurrent().User
+            ?? throw new InvalidOperationException("Current Windows identity SID is unavailable.");
+        security.AddAccessRule(new PipeAccessRule(
+            currentUserSid,
+            PipeAccessRights.ReadWrite,
+            AccessControlType.Allow));
+
+        return NamedPipeServerStreamAcl.Create(
+            IpcConstants.WindowsPipeName,
+            PipeDirection.InOut,
+            NamedPipeServerStream.MaxAllowedServerInstances,
+            PipeTransmissionMode.Byte,
+            PipeOptions.Asynchronous,
+            inBufferSize: 0,
+            outBufferSize: 0,
+            security);
+    }
+
+    [SupportedOSPlatform("linux")]
     private async Task RunUnixSocketServerAsync(CancellationToken cancellationToken)
     {
         var socketDir = Path.GetDirectoryName(IpcConstants.LinuxSocketPath)!;
         if (!Directory.Exists(socketDir))
             Directory.CreateDirectory(socketDir);
+        File.SetUnixFileMode(socketDir,
+            UnixFileMode.UserRead | UnixFileMode.UserWrite | UnixFileMode.UserExecute);
 
         if (File.Exists(IpcConstants.LinuxSocketPath))
             File.Delete(IpcConstants.LinuxSocketPath);
@@ -85,6 +110,8 @@ public class HelperServer : IDisposable
         var endpoint = new UnixDomainSocketEndPoint(IpcConstants.LinuxSocketPath);
         using var listener = new Socket(AddressFamily.Unix, SocketType.Stream, ProtocolType.Unspecified);
         listener.Bind(endpoint);
+        File.SetUnixFileMode(IpcConstants.LinuxSocketPath,
+            UnixFileMode.UserRead | UnixFileMode.UserWrite);
         listener.Listen(IpcConstants.MaxConcurrentSessions);
 
         Log.Information("Starting Unix socket server: {Path}", IpcConstants.LinuxSocketPath);
@@ -111,12 +138,21 @@ public class HelperServer : IDisposable
     private async Task HandleClientAsync(Stream stream, CancellationToken cancellationToken)
     {
         string? sessionId = null;
+        var clientId = stream.GetHashCode().ToString();
         try
         {
             while (!cancellationToken.IsCancellationRequested)
             {
                 var message = await IpcTransport.ReceiveAsync(stream, cancellationToken);
                 if (message is null) break;
+
+                if (sessionId is null && message.Type == MessageType.Authenticate && !_authRateLimiter.TryAcquire(clientId))
+                {
+                    var authRateLimitResponse = CreateResponse(message.RequestId, MessageType.Error,
+                        new ErrorResponse { Error = "Auth rate limit exceeded" });
+                    await IpcTransport.SendAsync(stream, authRateLimitResponse, cancellationToken);
+                    continue;
+                }
 
                 // Rate limit authenticated sessions
                 if (sessionId is not null && !_rateLimiter.TryAcquire(sessionId))
@@ -127,15 +163,45 @@ public class HelperServer : IDisposable
                     continue;
                 }
 
+                if (message.Type == MessageType.Heartbeat)
+                {
+                    var heartbeatSource = sessionId ?? clientId;
+                    if (!_heartbeatRateLimiter.TryAcquire(heartbeatSource))
+                    {
+                        var heartbeatRateLimitResp = CreateResponse(message.RequestId, MessageType.Error,
+                            new ErrorResponse { Error = "Heartbeat rate limit exceeded" });
+                        await IpcTransport.SendAsync(stream, heartbeatRateLimitResp, cancellationToken);
+                        continue;
+                    }
+                }
+
                 var response = message.Type switch
                 {
                     MessageType.Authenticate => HandleAuthenticate(message, out sessionId),
                     MessageType.ConnectionStats => HandleConnectionStats(message, sessionId),
                     MessageType.ProcessStats => HandleProcessStats(message, sessionId),
-                    MessageType.Heartbeat => HandleHeartbeat(sessionId),
+                    MessageType.Heartbeat => HandleHeartbeat(),
                     MessageType.Shutdown => HandleShutdown(message, sessionId),
                     _ => CreateErrorResponse(message.RequestId, $"Unknown message type: {message.Type}")
                 };
+
+                // Track auth failures and disconnect after too many consecutive failures
+                if (message.Type == MessageType.Authenticate)
+                {
+                    if (sessionId is null)
+                    {
+                        if (_authRateLimiter.RecordFailure(clientId))
+                        {
+                            Log.Warning("Client {ClientId} exceeded max consecutive auth failures, disconnecting", clientId);
+                            await IpcTransport.SendAsync(stream, response, cancellationToken);
+                            break;
+                        }
+                    }
+                    else
+                    {
+                        _authRateLimiter.RecordSuccess(clientId);
+                    }
+                }
 
                 await IpcTransport.SendAsync(stream, response, cancellationToken);
 
@@ -154,7 +220,10 @@ public class HelperServer : IDisposable
             {
                 _sessionManager.RemoveSession(sessionId);
                 _rateLimiter.RemoveClient(sessionId);
+                _heartbeatRateLimiter.RemoveClient(sessionId);
             }
+            _authRateLimiter.RemoveClient(clientId);
+            _heartbeatRateLimiter.RemoveClient(clientId);
             if (stream is IDisposable disposable)
                 disposable.Dispose();
         }
@@ -219,14 +288,12 @@ public class HelperServer : IDisposable
             new ProcessStatsResponse { Success = true });
     }
 
-    private IpcMessage HandleHeartbeat(string? sessionId)
+    private IpcMessage HandleHeartbeat()
     {
         return CreateResponse(Guid.NewGuid().ToString("N"), MessageType.Heartbeat,
             new HeartbeatResponse
             {
-                Alive = true,
-                UptimeSeconds = (long)(DateTimeOffset.UtcNow - _startTime).TotalSeconds,
-                ActiveSessions = _sessionManager.ActiveCount
+                Alive = true
             });
     }
 
@@ -276,6 +343,10 @@ public class HelperServer : IDisposable
     public void Dispose()
     {
         _connectionTracker.Dispose();
+
+        if (_secret.Length > 0)
+            Array.Clear(_secret, 0, _secret.Length);
+
         SecretManager.Delete();
     }
 }

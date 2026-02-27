@@ -239,6 +239,12 @@ public sealed partial class InsightsViewModel : ObservableObject, IDisposable
 
     partial void OnShowMemoryMetricChanged(bool value)
     {
+        OnPropertyChanged(nameof(ResourcePrimaryMetricLabel));
+        OnPropertyChanged(nameof(ResourcePrimaryMetricValue));
+        OnPropertyChanged(nameof(ResourceSecondaryMetricLabel));
+        OnPropertyChanged(nameof(ResourceSecondaryMetricValue));
+        OnPropertyChanged(nameof(ResourceLargestConsumerLabel));
+
         if (SelectedTab == InsightsTab.ResourceInsights)
         {
             PendingLoadTask = LoadDataForTabAsync(InsightsTab.ResourceInsights);
@@ -248,11 +254,81 @@ public sealed partial class InsightsViewModel : ObservableObject, IDisposable
     [RelayCommand]
     private void ToggleResourceMetric() => ShowMemoryMetric = !ShowMemoryMetric;
 
+    // ─── Sort & Filter ───
+
+    [ObservableProperty]
+    private string _resourceSearchText = "";
+
+    [ObservableProperty]
+    private string _resourceSortBy = "Value";
+
+    partial void OnResourceSearchTextChanged(string value)
+    {
+        if (SelectedTab == InsightsTab.ResourceInsights)
+        {
+            RebuildTopAppsFromCache();
+        }
+    }
+
+    partial void OnResourceSortByChanged(string value)
+    {
+        if (SelectedTab == InsightsTab.ResourceInsights)
+        {
+            RebuildTopAppsFromCache();
+        }
+    }
+
+    /// <summary>
+    /// Sort options for the resource top apps chart.
+    /// </summary>
+    public static IReadOnlyList<string> ResourceSortOptions { get; } = ["Value", "Name", "Category"];
+
+    // Cached data for search/sort without re-polling
+    private IReadOnlyList<AppResourceUsage> _cachedMergedApps = [];
+    private IReadOnlyList<CategoryResourceUsage> _cachedCategories = [];
+
     [ObservableProperty]
     private string _resourceTotalMemoryUsed = "0 B";
 
     [ObservableProperty]
     private string _resourceTotalCpuPercent = "0%";
+
+    partial void OnResourceTotalMemoryUsedChanged(string value)
+    {
+        OnPropertyChanged(nameof(ResourcePrimaryMetricValue));
+        OnPropertyChanged(nameof(ResourceSecondaryMetricValue));
+    }
+
+    partial void OnResourceTotalCpuPercentChanged(string value)
+    {
+        OnPropertyChanged(nameof(ResourcePrimaryMetricValue));
+        OnPropertyChanged(nameof(ResourceSecondaryMetricValue));
+    }
+
+    /// <summary>
+    /// Primary metric label — changes with Memory/CPU toggle.
+    /// </summary>
+    public string ResourcePrimaryMetricLabel => ShowMemoryMetric ? "Total Memory" : "Total CPU";
+
+    /// <summary>
+    /// Primary metric value — the selected metric's total.
+    /// </summary>
+    public string ResourcePrimaryMetricValue => ShowMemoryMetric ? ResourceTotalMemoryUsed : ResourceTotalCpuPercent;
+
+    /// <summary>
+    /// Secondary metric label — the other metric (smaller, muted).
+    /// </summary>
+    public string ResourceSecondaryMetricLabel => ShowMemoryMetric ? "Total CPU" : "Total Memory";
+
+    /// <summary>
+    /// Secondary metric value — the non-selected metric's total.
+    /// </summary>
+    public string ResourceSecondaryMetricValue => ShowMemoryMetric ? ResourceTotalCpuPercent : ResourceTotalMemoryUsed;
+
+    /// <summary>
+    /// Contextual label for largest consumer card.
+    /// </summary>
+    public string ResourceLargestConsumerLabel => ShowMemoryMetric ? "Largest Memory Hog" : "Hottest CPU App";
 
     [ObservableProperty]
     private int _resourceAppCount;
@@ -1036,17 +1112,28 @@ public sealed partial class InsightsViewModel : ObservableObject, IDisposable
             // Top apps bar chart — merge entries with same display name before charting
             var mergedApps = apps
                 .GroupBy(a => a.AppName, StringComparer.OrdinalIgnoreCase)
-                .Select(g => new AppResourceUsage
+                .Select(g =>
                 {
-                    AppName = g.Key,
-                    PrivateBytes = g.Sum(a => a.PrivateBytes),
-                    CpuPercent = g.Sum(a => a.CpuPercent),
-                    ProcessCount = g.Sum(a => a.ProcessCount)
+                    // Prefer the dominant category (highest resource contributor)
+                    var dominant = ShowMemoryMetric
+                        ? g.OrderByDescending(a => a.PrivateBytes).First()
+                        : g.OrderByDescending(a => a.CpuPercent).First();
+                    return new AppResourceUsage
+                    {
+                        AppName = !string.IsNullOrWhiteSpace(g.Key) ? g.Key : dominant.CategoryName,
+                        CategoryName = dominant.CategoryName,
+                        ExecutablePath = dominant.ExecutablePath,
+                        PrivateBytes = g.Sum(a => a.PrivateBytes),
+                        CpuPercent = g.Sum(a => a.CpuPercent),
+                        ProcessCount = g.Sum(a => a.ProcessCount)
+                    };
                 })
-                .OrderByDescending(a => ShowMemoryMetric ? a.PrivateBytes : (long)(a.CpuPercent * 1_000_000))
-                .Take(10)
+                .Where(a => !string.IsNullOrWhiteSpace(a.AppName))
                 .ToList();
-            BuildResourceTopAppsChart(mergedApps);
+
+            _cachedMergedApps = mergedApps;
+            _cachedCategories = categories;
+            RebuildTopAppsFromCache();
 
             HasData = true;
         }
@@ -1075,6 +1162,35 @@ public sealed partial class InsightsViewModel : ObservableObject, IDisposable
             _logger?.LogError(ex, "Failed to load resource history (table may not exist yet)");
             ResourceHistoryChart = [];
         }
+    }
+
+    private void RebuildTopAppsFromCache()
+    {
+        if (_cachedMergedApps.Count == 0) return;
+
+        IEnumerable<AppResourceUsage> filtered = _cachedMergedApps;
+
+        // Apply search filter
+        if (!string.IsNullOrWhiteSpace(ResourceSearchText))
+        {
+            var search = ResourceSearchText;
+            filtered = filtered.Where(a =>
+                a.AppName.Contains(search, StringComparison.OrdinalIgnoreCase) ||
+                a.CategoryName.Contains(search, StringComparison.OrdinalIgnoreCase));
+        }
+
+        // Apply sort
+        filtered = ResourceSortBy switch
+        {
+            "Name" => filtered.OrderBy(a => a.AppName, StringComparer.OrdinalIgnoreCase),
+            "Category" => filtered
+                .OrderBy(a => a.CategoryName, StringComparer.OrdinalIgnoreCase)
+                .ThenByDescending(a => ShowMemoryMetric ? a.PrivateBytes : (long)(a.CpuPercent * 1_000_000)),
+            _ => filtered.OrderByDescending(a => ShowMemoryMetric ? a.PrivateBytes : (long)(a.CpuPercent * 1_000_000))
+        };
+
+        var top = filtered.Take(10).ToList();
+        BuildResourceTopAppsChart(top, _cachedCategories);
     }
 
     private void BuildResourceCategoryChart(IReadOnlyList<CategoryResourceUsage> categories)
@@ -1108,7 +1224,9 @@ public sealed partial class InsightsViewModel : ObservableObject, IDisposable
         ResourceCategoryChart = pieSeries.ToArray();
     }
 
-    private void BuildResourceTopAppsChart(IReadOnlyList<AppResourceUsage> apps)
+    private void BuildResourceTopAppsChart(
+        IReadOnlyList<AppResourceUsage> apps,
+        IReadOnlyList<CategoryResourceUsage> categories)
     {
         // Reverse so largest app appears at top of horizontal bar chart
         var sorted = apps.Reverse().ToList();
@@ -1116,18 +1234,46 @@ public sealed partial class InsightsViewModel : ObservableObject, IDisposable
             ? sorted.Select(a => (double)a.PrivateBytes).ToList()
             : sorted.Select(a => a.CpuPercent).ToList();
 
-        var labels = sorted.Select(a => a.AppName).ToArray();
+        var labels = sorted.Select(a => !string.IsNullOrWhiteSpace(a.AppName)
+            ? a.AppName
+            : !string.IsNullOrWhiteSpace(a.ExecutablePath)
+                ? System.IO.Path.GetFileNameWithoutExtension(a.ExecutablePath)
+                : "Unknown").ToArray();
         var isMemory = ShowMemoryMetric;
 
-        ResourceTopAppsChart =
-        [
-            new RowSeries<double>
+        // Build category → color index map (matches donut chart colors)
+        var categoryColorMap = new Dictionary<string, SKColor>(StringComparer.OrdinalIgnoreCase);
+        var palette = ChartColors.SeriesPalette;
+        for (int i = 0; i < categories.Count; i++)
+        {
+            categoryColorMap[categories[i].CategoryName] = palette[i % palette.Length];
+        }
+
+        // Assign per-bar colors based on category
+        var barColors = sorted.Select(a =>
+            categoryColorMap.TryGetValue(a.CategoryName, out var color) ? color : palette[0]).ToList();
+
+        // Build one RowSeries per category group to get proper coloring
+        var seriesList = new List<ISeries>();
+        var categoryGroups = sorted
+            .Select((app, index) => (app, index))
+            .GroupBy(x => x.app.CategoryName, StringComparer.OrdinalIgnoreCase);
+
+        foreach (var group in categoryGroups)
+        {
+            var color = categoryColorMap.TryGetValue(group.Key, out var c) ? c : palette[0];
+            // Create a sparse array (nulls for positions not in this category)
+            var seriesValues = new double?[sorted.Count];
+            foreach (var (_, index) in group)
             {
-                Name = ShowMemoryMetric ? "Memory" : "CPU",
-                Values = values,
-                Fill = new SolidColorPaint(ShowMemoryMetric
-                    ? new SKColor(156, 39, 176)   // Purple for memory
-                    : new SKColor(30, 136, 229)),  // Blue for CPU
+                seriesValues[index] = values[index];
+            }
+
+            seriesList.Add(new RowSeries<double?>
+            {
+                Name = !string.IsNullOrWhiteSpace(group.Key) ? group.Key : "Other",
+                Values = seriesValues,
+                Fill = new SolidColorPaint(color),
                 Stroke = null,
                 MaxBarWidth = 24,
                 Padding = 4,
@@ -1144,11 +1290,15 @@ public sealed partial class InsightsViewModel : ObservableObject, IDisposable
                     return idx < labels.Length ? labels[idx] : "?";
                 },
                 XToolTipLabelFormatter = point =>
-                    isMemory
-                        ? ByteFormatter.FormatBytes((long)point.Model)
-                        : $"{point.Model:F1}%"
-            }
-        ];
+                    point.Model.HasValue
+                        ? (isMemory
+                            ? ByteFormatter.FormatBytes((long)point.Model.Value)
+                            : $"{point.Model.Value:F1}%")
+                        : ""
+            });
+        }
+
+        ResourceTopAppsChart = seriesList.ToArray();
 
         ResourceTopAppsYAxes =
         [

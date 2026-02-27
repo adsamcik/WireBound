@@ -2,13 +2,34 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:vm="using:WireBound.Avalonia.ViewModels"
              xmlns:lvc="using:LiveChartsCore.SkiaSharpView.Avalonia"
-             x:Class="WireBound.Avalonia.Views.InsightsView"
-             x:DataType="vm:InsightsViewModel"
-             Background="{StaticResource BackgroundBrush}"
-             AutomationProperties.Name="Insights View">
+              x:Class="WireBound.Avalonia.Views.InsightsView"
+              x:DataType="vm:InsightsViewModel"
+              Background="{StaticResource BackgroundBrush}"
+              AutomationProperties.Name="Insights View">
+
+    <UserControl.Styles>
+        <Style Selector="ToggleButton.tab-toggle">
+            <Setter Property="Background" Value="Transparent" />
+            <Setter Property="Foreground" Value="{StaticResource SecondaryTextBrush}" />
+        </Style>
+        <Style Selector="ToggleButton.tab-toggle:checked">
+            <Setter Property="Background" Value="{StaticResource PrimaryBrush}" />
+            <Setter Property="Foreground" Value="White" />
+        </Style>
+        <Style Selector="ToggleButton.tab-toggle:pointerover">
+            <Setter Property="Background" Value="{StaticResource FlyoutItemHoverBrush}" />
+        </Style>
+        <Style Selector="ToggleButton.tab-toggle:checked:pointerover">
+            <Setter Property="Background" Value="{StaticResource PrimaryBrush}" />
+        </Style>
+        <Style Selector="RadioButton.segmented-option:checked">
+            <Setter Property="Background" Value="{StaticResource PrimaryBrush}" />
+            <Setter Property="Foreground" Value="White" />
+        </Style>
+    </UserControl.Styles>
 
     <ScrollViewer>
-        <Grid RowDefinitions="Auto, Auto, *" Margin="28">
+        <Grid RowDefinitions="Auto, Auto, Auto" Margin="28">
 
             <!-- ═══════════════════════════════════════════════════════════════════ -->
             <!-- PAGE HEADER                                                          -->
@@ -28,48 +49,33 @@
                                          IsChecked="{Binding SelectedPeriod, Converter={x:Static ObjectConverters.Equal}, ConverterParameter={x:Static vm:InsightsPeriod.Today}}"
                                          Command="{Binding SetPeriodCommand}"
                                          CommandParameter="{x:Static vm:InsightsPeriod.Today}"
+                                         Classes="segmented-option"
                                          Padding="12,8"
                                          CornerRadius="8"
                                          Background="{StaticResource SurfaceBrush}"
                                          AutomationProperties.Name="Today period">
-                                <RadioButton.Styles>
-                                    <Style Selector="RadioButton:checked">
-                                        <Setter Property="Background" Value="{StaticResource PrimaryBrush}" />
-                                        <Setter Property="Foreground" Value="White" />
-                                    </Style>
-                                </RadioButton.Styles>
                                 <TextBlock Text="Today" FontSize="12" />
                             </RadioButton>
                             <RadioButton GroupName="Period"
                                          IsChecked="{Binding SelectedPeriod, Converter={x:Static ObjectConverters.Equal}, ConverterParameter={x:Static vm:InsightsPeriod.ThisWeek}}"
                                          Command="{Binding SetPeriodCommand}"
                                          CommandParameter="{x:Static vm:InsightsPeriod.ThisWeek}"
+                                         Classes="segmented-option"
                                          Padding="12,8"
                                          CornerRadius="8"
                                          Background="{StaticResource SurfaceBrush}"
                                          AutomationProperties.Name="This week period">
-                                <RadioButton.Styles>
-                                    <Style Selector="RadioButton:checked">
-                                        <Setter Property="Background" Value="{StaticResource PrimaryBrush}" />
-                                        <Setter Property="Foreground" Value="White" />
-                                    </Style>
-                                </RadioButton.Styles>
                                 <TextBlock Text="Week" FontSize="12" />
                             </RadioButton>
                             <RadioButton GroupName="Period"
                                          IsChecked="{Binding SelectedPeriod, Converter={x:Static ObjectConverters.Equal}, ConverterParameter={x:Static vm:InsightsPeriod.ThisMonth}}"
                                          Command="{Binding SetPeriodCommand}"
                                          CommandParameter="{x:Static vm:InsightsPeriod.ThisMonth}"
+                                         Classes="segmented-option"
                                          Padding="12,8"
                                          CornerRadius="8"
                                          Background="{StaticResource SurfaceBrush}"
                                          AutomationProperties.Name="This month period">
-                                <RadioButton.Styles>
-                                    <Style Selector="RadioButton:checked">
-                                        <Setter Property="Background" Value="{StaticResource PrimaryBrush}" />
-                                        <Setter Property="Foreground" Value="White" />
-                                    </Style>
-                                </RadioButton.Styles>
                                 <TextBlock Text="Month" FontSize="12" />
                             </RadioButton>
                         </StackPanel>
@@ -85,26 +91,11 @@
                     <!-- Network Usage Tab -->
                     <ToggleButton IsChecked="{Binding SelectedTab, Converter={x:Static ObjectConverters.Equal}, ConverterParameter={x:Static vm:InsightsTab.NetworkUsage}}"
                                   Command="{Binding SelectNetworkTabCommand}"
+                                  Classes="tab-toggle"
                                   Padding="16,10"
                                   CornerRadius="10"
                                   Cursor="Hand"
                                   AutomationProperties.Name="Network Usage Tab">
-                        <ToggleButton.Styles>
-                            <Style Selector="ToggleButton">
-                                <Setter Property="Background" Value="Transparent" />
-                                <Setter Property="Foreground" Value="{StaticResource SecondaryTextBrush}" />
-                            </Style>
-                            <Style Selector="ToggleButton:checked">
-                                <Setter Property="Background" Value="{StaticResource PrimaryBrush}" />
-                                <Setter Property="Foreground" Value="White" />
-                            </Style>
-                            <Style Selector="ToggleButton:pointerover">
-                                <Setter Property="Background" Value="{StaticResource FlyoutItemHoverBrush}" />
-                            </Style>
-                            <Style Selector="ToggleButton:checked:pointerover">
-                                <Setter Property="Background" Value="{StaticResource PrimaryBrush}" />
-                            </Style>
-                        </ToggleButton.Styles>
                         <StackPanel Orientation="Horizontal" Spacing="8">
                             <TextBlock Text="📊" FontSize="14" VerticalAlignment="Center" />
                             <TextBlock Text="Network Usage" FontSize="13" FontWeight="SemiBold" VerticalAlignment="Center" />
@@ -114,26 +105,11 @@
                     <!-- System Trends Tab -->
                     <ToggleButton IsChecked="{Binding SelectedTab, Converter={x:Static ObjectConverters.Equal}, ConverterParameter={x:Static vm:InsightsTab.SystemTrends}}"
                                   Command="{Binding SelectSystemTrendsTabCommand}"
+                                  Classes="tab-toggle"
                                   Padding="16,10"
                                   CornerRadius="10"
                                   Cursor="Hand"
                                   AutomationProperties.Name="System Trends Tab">
-                        <ToggleButton.Styles>
-                            <Style Selector="ToggleButton">
-                                <Setter Property="Background" Value="Transparent" />
-                                <Setter Property="Foreground" Value="{StaticResource SecondaryTextBrush}" />
-                            </Style>
-                            <Style Selector="ToggleButton:checked">
-                                <Setter Property="Background" Value="{StaticResource PrimaryBrush}" />
-                                <Setter Property="Foreground" Value="White" />
-                            </Style>
-                            <Style Selector="ToggleButton:pointerover">
-                                <Setter Property="Background" Value="{StaticResource FlyoutItemHoverBrush}" />
-                            </Style>
-                            <Style Selector="ToggleButton:checked:pointerover">
-                                <Setter Property="Background" Value="{StaticResource PrimaryBrush}" />
-                            </Style>
-                        </ToggleButton.Styles>
                         <StackPanel Orientation="Horizontal" Spacing="8">
                             <TextBlock Text="💻" FontSize="14" VerticalAlignment="Center" />
                             <TextBlock Text="System Trends" FontSize="13" FontWeight="SemiBold" VerticalAlignment="Center" />
@@ -143,26 +119,11 @@
                     <!-- Correlations Tab -->
                     <ToggleButton IsChecked="{Binding SelectedTab, Converter={x:Static ObjectConverters.Equal}, ConverterParameter={x:Static vm:InsightsTab.Correlations}}"
                                   Command="{Binding SelectCorrelationsTabCommand}"
+                                  Classes="tab-toggle"
                                   Padding="16,10"
                                   CornerRadius="10"
                                   Cursor="Hand"
                                   AutomationProperties.Name="Correlations Tab">
-                        <ToggleButton.Styles>
-                            <Style Selector="ToggleButton">
-                                <Setter Property="Background" Value="Transparent" />
-                                <Setter Property="Foreground" Value="{StaticResource SecondaryTextBrush}" />
-                            </Style>
-                            <Style Selector="ToggleButton:checked">
-                                <Setter Property="Background" Value="{StaticResource PrimaryBrush}" />
-                                <Setter Property="Foreground" Value="White" />
-                            </Style>
-                            <Style Selector="ToggleButton:pointerover">
-                                <Setter Property="Background" Value="{StaticResource FlyoutItemHoverBrush}" />
-                            </Style>
-                            <Style Selector="ToggleButton:checked:pointerover">
-                                <Setter Property="Background" Value="{StaticResource PrimaryBrush}" />
-                            </Style>
-                        </ToggleButton.Styles>
                         <StackPanel Orientation="Horizontal" Spacing="8">
                             <TextBlock Text="🔗" FontSize="14" VerticalAlignment="Center" />
                             <TextBlock Text="Correlations" FontSize="13" FontWeight="SemiBold" VerticalAlignment="Center" />
@@ -172,26 +133,11 @@
                     <!-- Resource Insights Tab -->
                     <ToggleButton IsChecked="{Binding SelectedTab, Converter={x:Static ObjectConverters.Equal}, ConverterParameter={x:Static vm:InsightsTab.ResourceInsights}}"
                                   Command="{Binding SelectResourceInsightsTabCommand}"
+                                  Classes="tab-toggle"
                                   Padding="16,10"
                                   CornerRadius="10"
                                   Cursor="Hand"
                                   AutomationProperties.Name="Resource Insights Tab">
-                        <ToggleButton.Styles>
-                            <Style Selector="ToggleButton">
-                                <Setter Property="Background" Value="Transparent" />
-                                <Setter Property="Foreground" Value="{StaticResource SecondaryTextBrush}" />
-                            </Style>
-                            <Style Selector="ToggleButton:checked">
-                                <Setter Property="Background" Value="{StaticResource PrimaryBrush}" />
-                                <Setter Property="Foreground" Value="White" />
-                            </Style>
-                            <Style Selector="ToggleButton:pointerover">
-                                <Setter Property="Background" Value="{StaticResource FlyoutItemHoverBrush}" />
-                            </Style>
-                            <Style Selector="ToggleButton:checked:pointerover">
-                                <Setter Property="Background" Value="{StaticResource PrimaryBrush}" />
-                            </Style>
-                        </ToggleButton.Styles>
                         <StackPanel Orientation="Horizontal" Spacing="8">
                             <TextBlock Text="🧠" FontSize="14" VerticalAlignment="Center" />
                             <TextBlock Text="Resource Insights" FontSize="13" FontWeight="SemiBold" VerticalAlignment="Center" />
@@ -208,6 +154,7 @@
                 <!-- Loading Indicator -->
                 <Border Classes="Card" Padding="40"
                         IsVisible="{Binding IsLoading}"
+                        ZIndex="10"
                         HorizontalAlignment="Center"
                         VerticalAlignment="Center">
                     <StackPanel HorizontalAlignment="Center" Spacing="16">
@@ -594,30 +541,20 @@
                             <TextBlock Text="Metric" Classes="Caption" VerticalAlignment="Center" Margin="0,0,8,0" />
                             <RadioButton GroupName="ResourceMetric"
                                          IsChecked="{Binding ShowMemoryMetric}"
+                                         Classes="segmented-option"
                                          Padding="12,8"
                                          CornerRadius="8"
                                          Background="{StaticResource SurfaceBrush}"
                                          AutomationProperties.Name="Show Memory metric">
-                                <RadioButton.Styles>
-                                    <Style Selector="RadioButton:checked">
-                                        <Setter Property="Background" Value="{StaticResource PrimaryBrush}" />
-                                        <Setter Property="Foreground" Value="White" />
-                                    </Style>
-                                </RadioButton.Styles>
                                 <TextBlock Text="Memory" FontSize="12" />
                             </RadioButton>
                             <RadioButton GroupName="ResourceMetric"
                                          IsChecked="{Binding !ShowMemoryMetric}"
+                                         Classes="segmented-option"
                                          Padding="12,8"
                                          CornerRadius="8"
                                          Background="{StaticResource SurfaceBrush}"
                                          AutomationProperties.Name="Show CPU metric">
-                                <RadioButton.Styles>
-                                    <Style Selector="RadioButton:checked">
-                                        <Setter Property="Background" Value="{StaticResource PrimaryBrush}" />
-                                        <Setter Property="Foreground" Value="White" />
-                                    </Style>
-                                </RadioButton.Styles>
                                 <TextBlock Text="CPU" FontSize="12" />
                             </RadioButton>
                         </StackPanel>
@@ -625,18 +562,19 @@
 
                     <!-- Summary Cards -->
                     <Grid ColumnDefinitions="*, *, *, *">
-                        <!-- Total Memory Used -->
+                        <!-- Primary Metric (changes with toggle) -->
                         <Border Classes="ElevatedCard" Margin="0,0,10,0">
                             <StackPanel HorizontalAlignment="Center" Spacing="8">
-                                <TextBlock Text="Total Memory" Classes="Caption" HorizontalAlignment="Center" />
-                                <TextBlock Text="{Binding ResourceTotalMemoryUsed}" FontSize="24" FontWeight="Bold" HorizontalAlignment="Center" />
+                                <TextBlock Text="{Binding ResourcePrimaryMetricLabel}" Classes="Caption" HorizontalAlignment="Center" />
+                                <TextBlock Text="{Binding ResourcePrimaryMetricValue}" FontSize="24" FontWeight="Bold" HorizontalAlignment="Center" />
                             </StackPanel>
                         </Border>
-                        <!-- Total CPU -->
+                        <!-- Secondary Metric (the other one) -->
                         <Border Grid.Column="1" Classes="ElevatedCard" Margin="5,0">
                             <StackPanel HorizontalAlignment="Center" Spacing="8">
-                                <TextBlock Text="Total CPU" Classes="Caption" HorizontalAlignment="Center" />
-                                <TextBlock Text="{Binding ResourceTotalCpuPercent}" FontSize="24" FontWeight="Bold" HorizontalAlignment="Center" />
+                                <TextBlock Text="{Binding ResourceSecondaryMetricLabel}" Classes="Caption" HorizontalAlignment="Center" />
+                                <TextBlock Text="{Binding ResourceSecondaryMetricValue}" FontSize="14" FontWeight="SemiBold"
+                                           Foreground="{StaticResource SecondaryTextBrush}" HorizontalAlignment="Center" />
                             </StackPanel>
                         </Border>
                         <!-- App Count -->
@@ -649,7 +587,7 @@
                         <!-- Largest Consumer -->
                         <Border Grid.Column="3" Classes="ElevatedCard" Margin="10,0,0,0">
                             <StackPanel HorizontalAlignment="Center" Spacing="8">
-                                <TextBlock Text="Largest Consumer" Classes="Caption" HorizontalAlignment="Center" />
+                                <TextBlock Text="{Binding ResourceLargestConsumerLabel}" Classes="Caption" HorizontalAlignment="Center" />
                                 <TextBlock Text="{Binding ResourceLargestConsumer}" FontSize="16" FontWeight="Bold"
                                            HorizontalAlignment="Center" TextTrimming="CharacterEllipsis" MaxWidth="200"
                                            ToolTip.Tip="{Binding ResourceLargestConsumer}" />
@@ -667,12 +605,13 @@
                                     <lvc:PieChart Series="{Binding ResourceCategoryChart}"
                                                   Height="280"
                                                   LegendPosition="Right"
-                                                  LegendTextPaint="{Binding LegendTextPaint}"
+                                                  LegendTextPaint="#A0A8B8"
                                                   LegendTextSize="12"
                                                   Background="{StaticResource CardBrush}"
                                                   AutomationProperties.Name="Resource usage by category chart" />
-                                    <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center"
-                                                IsHitTestVisible="False" Margin="-80,0,0,0">
+                                    <StackPanel HorizontalAlignment="Left" VerticalAlignment="Center"
+                                                IsHitTestVisible="False"
+                                                Width="120" Margin="20,0,0,0">
                                         <TextBlock Text="{Binding ResourceTotalMemoryUsed}"
                                                    IsVisible="{Binding ShowMemoryMetric}"
                                                    FontSize="16" FontWeight="Bold"
@@ -693,7 +632,29 @@
                         <!-- Top Apps Bar Chart -->
                         <Border Grid.Column="1" Classes="Card" Padding="20" Margin="10,0,0,0">
                             <StackPanel Spacing="12">
-                                <TextBlock Text="Top Applications" FontSize="16" FontWeight="SemiBold" />
+                                <Grid ColumnDefinitions="*, Auto, Auto">
+                                    <TextBlock Text="Top Applications" FontSize="16" FontWeight="SemiBold"
+                                               VerticalAlignment="Center" />
+                                    <Border Grid.Column="1"
+                                            Background="{StaticResource SurfaceBrush}"
+                                            CornerRadius="8"
+                                            BorderBrush="{StaticResource GlassBorderBrush}"
+                                            BorderThickness="1"
+                                            Padding="8,0"
+                                            Margin="0,0,8,0">
+                                        <TextBox Watermark="🔍 Search..."
+                                                 Text="{Binding ResourceSearchText}"
+                                                 Background="Transparent"
+                                                 BorderThickness="0"
+                                                 MinWidth="120"
+                                                 AutomationProperties.Name="Search Resource Applications" />
+                                    </Border>
+                                    <ComboBox Grid.Column="2"
+                                              ItemsSource="{x:Static vm:InsightsViewModel.ResourceSortOptions}"
+                                              SelectedItem="{Binding ResourceSortBy}"
+                                              MinWidth="100"
+                                              AutomationProperties.Name="Sort Applications By" />
+                                </Grid>
                                 <lvc:CartesianChart Series="{Binding ResourceTopAppsChart}"
                                                     XAxes="{Binding ResourceTopAppsXAxes}"
                                                     YAxes="{Binding ResourceTopAppsYAxes}"
@@ -718,7 +679,7 @@
                                                 YAxes="{Binding ResourceHistoryYAxes}"
                                                 Height="300"
                                                 LegendPosition="Top"
-                                                LegendTextPaint="{Binding LegendTextPaint}"
+                                                LegendTextPaint="#A0A8B8"
                                                 LegendTextSize="12"
                                                 Background="{StaticResource CardBrush}"
                                                 ZoomMode="None"

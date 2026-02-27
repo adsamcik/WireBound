@@ -1249,27 +1249,26 @@ public sealed partial class InsightsViewModel : ObservableObject, IDisposable
             categoryColorMap[categories[i].CategoryName] = palette[i % palette.Length];
         }
 
-        // Assign per-bar colors based on category
-        var barColors = sorted.Select(a =>
-            categoryColorMap.TryGetValue(a.CategoryName, out var color) ? color : palette[0]).ToList();
-
-        // Build one RowSeries per category group to get proper coloring
+        // Build one StackedRowSeries per category group for proper coloring.
+        // Each position has a non-zero value only for its matching category;
+        // other series use 0, which renders as an invisible stacked segment.
+        // StackedRowSeries avoids the rendering issue with RowSeries<double?> sparse nulls.
         var seriesList = new List<ISeries>();
         var categoryGroups = sorted
             .Select((app, index) => (app, index))
-            .GroupBy(x => x.app.CategoryName, StringComparer.OrdinalIgnoreCase);
+            .GroupBy(x => x.app.CategoryName ?? "", StringComparer.OrdinalIgnoreCase);
 
         foreach (var group in categoryGroups)
         {
-            var color = categoryColorMap.TryGetValue(group.Key, out var c) ? c : palette[0];
-            // Create a sparse array (nulls for positions not in this category)
-            var seriesValues = new double?[sorted.Count];
+            var color = !string.IsNullOrEmpty(group.Key) && categoryColorMap.TryGetValue(group.Key, out var c)
+                ? c : palette[0];
+            var seriesValues = new double[sorted.Count];
             foreach (var (_, index) in group)
             {
                 seriesValues[index] = values[index];
             }
 
-            seriesList.Add(new RowSeries<double?>
+            seriesList.Add(new StackedRowSeries<double>
             {
                 Name = !string.IsNullOrWhiteSpace(group.Key) ? group.Key : "Other",
                 Values = seriesValues,
@@ -1281,19 +1280,21 @@ public sealed partial class InsightsViewModel : ObservableObject, IDisposable
                 DataLabelsSize = 11,
                 DataLabelsPosition = LiveChartsCore.Measure.DataLabelsPosition.End,
                 DataLabelsFormatter = point =>
-                    isMemory
-                        ? ByteFormatter.FormatBytes((long)point.Coordinate.PrimaryValue)
-                        : $"{point.Coordinate.PrimaryValue:F1}%",
+                    point.Model > 0
+                        ? (isMemory
+                            ? ByteFormatter.FormatBytes((long)point.Coordinate.PrimaryValue)
+                            : $"{point.Coordinate.PrimaryValue:F1}%")
+                        : "",
                 YToolTipLabelFormatter = point =>
                 {
                     var idx = point.Index;
                     return idx < labels.Length ? labels[idx] : "?";
                 },
                 XToolTipLabelFormatter = point =>
-                    point.Model.HasValue
+                    point.Model > 0
                         ? (isMemory
-                            ? ByteFormatter.FormatBytes((long)point.Model.Value)
-                            : $"{point.Model.Value:F1}%")
+                            ? ByteFormatter.FormatBytes((long)point.Model)
+                            : $"{point.Model:F1}%")
                         : ""
             });
         }

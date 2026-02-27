@@ -561,111 +561,99 @@
                     </Border>
 
                     <!-- Summary Cards -->
-                    <Grid ColumnDefinitions="*, *, *, *">
+                    <Grid ColumnDefinitions="*, *, *">
                         <!-- Primary Metric (changes with toggle) -->
                         <Border Classes="ElevatedCard" Margin="0,0,10,0">
                             <StackPanel HorizontalAlignment="Center" Spacing="8">
                                 <TextBlock Text="{Binding ResourcePrimaryMetricLabel}" Classes="Caption" HorizontalAlignment="Center" />
-                                <TextBlock Text="{Binding ResourcePrimaryMetricValue}" FontSize="24" FontWeight="Bold" HorizontalAlignment="Center" />
-                            </StackPanel>
-                        </Border>
-                        <!-- Secondary Metric (the other one) -->
-                        <Border Grid.Column="1" Classes="ElevatedCard" Margin="5,0">
-                            <StackPanel HorizontalAlignment="Center" Spacing="8">
-                                <TextBlock Text="{Binding ResourceSecondaryMetricLabel}" Classes="Caption" HorizontalAlignment="Center" />
-                                <TextBlock Text="{Binding ResourceSecondaryMetricValue}" FontSize="14" FontWeight="SemiBold"
-                                           Foreground="{StaticResource SecondaryTextBrush}" HorizontalAlignment="Center" />
+                                <TextBlock Text="{Binding ResourcePrimaryMetricValue}" FontSize="28" FontWeight="Bold" HorizontalAlignment="Center" />
                             </StackPanel>
                         </Border>
                         <!-- App Count -->
-                        <Border Grid.Column="2" Classes="ElevatedCard" Margin="5,0">
+                        <Border Grid.Column="1" Classes="ElevatedCard" Margin="5,0">
                             <StackPanel HorizontalAlignment="Center" Spacing="8">
                                 <TextBlock Text="Applications" Classes="Caption" HorizontalAlignment="Center" />
-                                <TextBlock Text="{Binding ResourceAppCount}" FontSize="24" FontWeight="Bold" HorizontalAlignment="Center" />
+                                <TextBlock Text="{Binding ResourceAppCount}" FontSize="28" FontWeight="Bold" HorizontalAlignment="Center" />
                             </StackPanel>
                         </Border>
                         <!-- Largest Consumer -->
-                        <Border Grid.Column="3" Classes="ElevatedCard" Margin="10,0,0,0">
+                        <Border Grid.Column="2" Classes="ElevatedCard" Margin="10,0,0,0">
                             <StackPanel HorizontalAlignment="Center" Spacing="8">
                                 <TextBlock Text="{Binding ResourceLargestConsumerLabel}" Classes="Caption" HorizontalAlignment="Center" />
-                                <TextBlock Text="{Binding ResourceLargestConsumer}" FontSize="16" FontWeight="Bold"
-                                           HorizontalAlignment="Center" TextTrimming="CharacterEllipsis" MaxWidth="200"
+                                <TextBlock Text="{Binding ResourceLargestConsumer}" FontSize="18" FontWeight="Bold"
+                                           HorizontalAlignment="Center" TextTrimming="CharacterEllipsis" MaxWidth="280"
                                            ToolTip.Tip="{Binding ResourceLargestConsumer}" />
                             </StackPanel>
                         </Border>
                     </Grid>
 
-                    <!-- Charts Row -->
-                    <Grid ColumnDefinitions="*, 2*">
-                        <!-- Category Donut Chart -->
-                        <Border Classes="Card" Padding="20" Margin="0,0,10,0">
-                            <StackPanel Spacing="12">
-                                <TextBlock Text="By Category" FontSize="16" FontWeight="SemiBold" />
-                                <Grid>
-                                    <lvc:PieChart Series="{Binding ResourceCategoryChart}"
-                                                  Height="280"
-                                                  LegendPosition="Right"
-                                                  LegendTextPaint="#A0A8B8"
-                                                  LegendTextSize="12"
-                                                  Background="{StaticResource CardBrush}"
-                                                  AutomationProperties.Name="Resource usage by category chart" />
-                                    <StackPanel HorizontalAlignment="Left" VerticalAlignment="Center"
-                                                IsHitTestVisible="False"
-                                                Width="120" Margin="20,0,0,0">
-                                        <TextBlock Text="{Binding ResourceTotalMemoryUsed}"
-                                                   IsVisible="{Binding ShowMemoryMetric}"
-                                                   FontSize="16" FontWeight="Bold"
-                                                   Foreground="{StaticResource PrimaryTextBrush}"
-                                                   HorizontalAlignment="Center" />
-                                        <TextBlock Text="{Binding ResourceTotalCpuPercent}"
-                                                   IsVisible="{Binding !ShowMemoryMetric}"
-                                                   FontSize="16" FontWeight="Bold"
-                                                   Foreground="{StaticResource PrimaryTextBrush}"
-                                                   HorizontalAlignment="Center" />
-                                        <TextBlock Text="Total" Classes="Caption"
-                                                   HorizontalAlignment="Center" />
-                                    </StackPanel>
-                                </Grid>
-                            </StackPanel>
-                        </Border>
+                    <!-- Category Donut Chart (full width) -->
+                    <Border Classes="Card" Padding="20">
+                        <StackPanel Spacing="12">
+                            <TextBlock Text="By Category" FontSize="16" FontWeight="SemiBold" />
+                            <Grid>
+                                <lvc:PieChart Series="{Binding ResourceCategoryChart}"
+                                              Height="300"
+                                              LegendPosition="Right"
+                                              LegendTextPaint="#A0A8B8"
+                                              LegendTextSize="13"
+                                              Background="{StaticResource CardBrush}"
+                                              AutomationProperties.Name="Resource usage by category chart" />
+                                <StackPanel HorizontalAlignment="Left" VerticalAlignment="Center"
+                                            IsHitTestVisible="False"
+                                            Width="140" Margin="30,0,0,0">
+                                    <TextBlock Text="{Binding ResourceTotalMemoryUsed}"
+                                               IsVisible="{Binding ShowMemoryMetric}"
+                                               FontSize="18" FontWeight="Bold"
+                                               Foreground="{StaticResource PrimaryTextBrush}"
+                                               HorizontalAlignment="Center" />
+                                    <TextBlock Text="{Binding ResourceTotalCpuPercent}"
+                                               IsVisible="{Binding !ShowMemoryMetric}"
+                                               FontSize="18" FontWeight="Bold"
+                                               Foreground="{StaticResource PrimaryTextBrush}"
+                                               HorizontalAlignment="Center" />
+                                    <TextBlock Text="Total" Classes="Caption"
+                                               HorizontalAlignment="Center" />
+                                </StackPanel>
+                            </Grid>
+                        </StackPanel>
+                    </Border>
 
-                        <!-- Top Apps Bar Chart -->
-                        <Border Grid.Column="1" Classes="Card" Padding="20" Margin="10,0,0,0">
-                            <StackPanel Spacing="12">
-                                <Grid ColumnDefinitions="*, Auto, Auto">
-                                    <TextBlock Text="Top Applications" FontSize="16" FontWeight="SemiBold"
-                                               VerticalAlignment="Center" />
-                                    <Border Grid.Column="1"
-                                            Background="{StaticResource SurfaceBrush}"
-                                            CornerRadius="8"
-                                            BorderBrush="{StaticResource GlassBorderBrush}"
-                                            BorderThickness="1"
-                                            Padding="8,0"
-                                            Margin="0,0,8,0">
-                                        <TextBox Watermark="🔍 Search..."
-                                                 Text="{Binding ResourceSearchText}"
-                                                 Background="Transparent"
-                                                 BorderThickness="0"
-                                                 MinWidth="120"
-                                                 AutomationProperties.Name="Search Resource Applications" />
-                                    </Border>
-                                    <ComboBox Grid.Column="2"
-                                              ItemsSource="{x:Static vm:InsightsViewModel.ResourceSortOptions}"
-                                              SelectedItem="{Binding ResourceSortBy}"
-                                              MinWidth="100"
-                                              AutomationProperties.Name="Sort Applications By" />
-                                </Grid>
-                                <lvc:CartesianChart Series="{Binding ResourceTopAppsChart}"
-                                                    XAxes="{Binding ResourceTopAppsXAxes}"
-                                                    YAxes="{Binding ResourceTopAppsYAxes}"
-                                                    MinHeight="280"
-                                                    Height="400"
-                                                    Background="{StaticResource CardBrush}"
-                                                    ZoomMode="None"
-                                                    AutomationProperties.Name="Top applications by resource usage chart" />
-                            </StackPanel>
-                        </Border>
-                    </Grid>
+                    <!-- Top Apps Bar Chart (full width) -->
+                    <Border Classes="Card" Padding="20">
+                        <StackPanel Spacing="12">
+                            <Grid ColumnDefinitions="*, Auto, Auto">
+                                <TextBlock Text="Top Applications" FontSize="16" FontWeight="SemiBold"
+                                           VerticalAlignment="Center" />
+                                <Border Grid.Column="1"
+                                        Background="{StaticResource SurfaceBrush}"
+                                        CornerRadius="8"
+                                        BorderBrush="{StaticResource GlassBorderBrush}"
+                                        BorderThickness="1"
+                                        Padding="8,0"
+                                        Margin="0,0,8,0">
+                                    <TextBox Watermark="🔍 Search..."
+                                             Text="{Binding ResourceSearchText}"
+                                             Background="Transparent"
+                                             BorderThickness="0"
+                                             MinWidth="140"
+                                             AutomationProperties.Name="Search Resource Applications" />
+                                </Border>
+                                <ComboBox Grid.Column="2"
+                                          ItemsSource="{x:Static vm:InsightsViewModel.ResourceSortOptions}"
+                                          SelectedItem="{Binding ResourceSortBy}"
+                                          MinWidth="100"
+                                          AutomationProperties.Name="Sort Applications By" />
+                            </Grid>
+                            <lvc:CartesianChart Series="{Binding ResourceTopAppsChart}"
+                                                XAxes="{Binding ResourceTopAppsXAxes}"
+                                                YAxes="{Binding ResourceTopAppsYAxes}"
+                                                Height="400"
+                                                Background="{StaticResource CardBrush}"
+                                                ZoomMode="None"
+                                                AutomationProperties.Name="Top applications by resource usage chart" />
+                        </StackPanel>
+                    </Border>
 
                     <!-- Historical Trend Chart -->
                     <Border Classes="Card" Padding="20"

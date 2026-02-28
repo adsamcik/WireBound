@@ -26,7 +26,7 @@
 
     <!-- Entity Framework -->
     <PackageVersion Include="Microsoft.EntityFrameworkCore.InMemory" Version="10.0.2" />
-    <PackageVersion Include="Microsoft.EntityFrameworkCore.Sqlite" Version="10.0.2" />
+    <PackageVersion Include="Microsoft.EntityFrameworkCore.Sqlite" Version="10.0.3" />
 
     <!-- Logging -->
     <PackageVersion Include="Serilog" Version="4.3.0" />

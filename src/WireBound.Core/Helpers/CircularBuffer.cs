@@ -73,6 +73,27 @@ public class CircularBuffer<T>
         return snapshot;
     }
 
+    /// <summary>
+    /// Returns a filtered snapshot of the buffer contents as an enumerable.
+    /// The snapshot is taken atomically to ensure thread safety.
+    /// </summary>
+    public IEnumerable<T> AsEnumerable(Func<T, bool> predicate)
+    {
+        if (predicate == null) throw new ArgumentNullException(nameof(predicate));
+
+        var snapshot = new List<T>();
+        lock (_lock)
+        {
+            for (int i = 0; i < _count; i++)
+            {
+                var item = _buffer[(_tail + i) % _buffer.Length];
+                if (predicate(item))
+                    snapshot.Add(item);
+            }
+        }
+        return snapshot;
+    }
+
     public T[] ToArray()
     {
         lock (_lock)

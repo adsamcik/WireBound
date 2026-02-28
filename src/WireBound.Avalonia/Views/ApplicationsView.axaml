@@ -180,94 +180,95 @@
                 </Border>
 
                 <!-- Historical Usage -->
-                <StackPanel Spacing="16">
+                <Grid RowDefinitions="Auto,*" RowSpacing="16">
                     <StackPanel Orientation="Horizontal" Spacing="12">
                         <TextBlock Text="📊" FontSize="16" VerticalAlignment="Center" />
                         <TextBlock Text="HISTORICAL USAGE" Classes="MetricLabel" VerticalAlignment="Center" />
                     </StackPanel>
-                    
-                    <Border Classes="Card">
-                        <ListBox ItemsSource="{Binding AllApps}"
-                                 MaxHeight="600"
-                                 Background="Transparent"
-                                 BorderThickness="0"
-                                 AutomationProperties.Name="Application Usage List"
-                                 AutomationProperties.HelpText="List of applications with their network usage statistics">
-                            <ListBox.Styles>
-                                <Style Selector="ListBoxItem">
-                                    <Setter Property="Padding" Value="0"/>
-                                    <Setter Property="Margin" Value="0"/>
-                                    <Setter Property="Background" Value="Transparent"/>
-                                </Style>
-                                <Style Selector="ListBoxItem:selected /template/ ContentPresenter#PART_ContentPresenter">
-                                    <Setter Property="Background" Value="Transparent"/>
-                                </Style>
-                            </ListBox.Styles>
-                            <ListBox.ItemTemplate>
-                                <DataTemplate x:DataType="models:AppUsageRecord">
-                                    <Border Padding="16" Margin="0,0,0,8"
-                                            Background="{StaticResource BorderSubtleBrush}"
-                                            CornerRadius="12">
-                                        <Grid ColumnDefinitions="Auto, *, Auto, Auto, Auto">
-                                            <Border Width="48" Height="48"
-                                                    Background="{StaticResource AccentBgTintBrush}"
-                                                    CornerRadius="12"
-                                                    Margin="0,0,20,0">
-                                                <TextBlock Text="📦" FontSize="22"
-                                                           HorizontalAlignment="Center"
-                                                           VerticalAlignment="Center" />
-                                            </Border>
-                                            <StackPanel Grid.Column="1" VerticalAlignment="Center" Spacing="2"
-                                                        Margin="0,0,20,0">
-                                                <TextBlock Text="{Binding AppName}"
-                                                           FontSize="15" FontWeight="Bold"
-                                                           TextTrimming="CharacterEllipsis" />
-                                                <TextBlock Text="{Binding ProcessName}" Classes="Caption" />
-                                            </StackPanel>
-                                            <StackPanel Grid.Column="2" VerticalAlignment="Center" Spacing="2">
-                                                <TextBlock Text="Download" Classes="Caption" HorizontalAlignment="Right" />
-                                                <TextBlock Text="{Binding BytesReceived, StringFormat='{}{0:N0} B'}"
-                                                           FontSize="14" FontWeight="Bold"
-                                                           Foreground="{StaticResource DownloadBrush}"
-                                                           HorizontalAlignment="Right" />
-                                            </StackPanel>
-                                            <StackPanel Grid.Column="3" VerticalAlignment="Center" Spacing="2">
-                                                <TextBlock Text="Upload" Classes="Caption" HorizontalAlignment="Right" />
-                                                <TextBlock Text="{Binding BytesSent, StringFormat='{}{0:N0} B'}"
-                                                           FontSize="14" FontWeight="Bold"
-                                                           Foreground="{StaticResource UploadBrush}"
-                                                           HorizontalAlignment="Right" />
-                                            </StackPanel>
-                                            <StackPanel Grid.Column="4" VerticalAlignment="Center" Spacing="2">
-                                                <TextBlock Text="Total" Classes="Caption" HorizontalAlignment="Right" />
-                                                <TextBlock Text="{Binding TotalBytes, StringFormat='{}{0:N0} B'}"
-                                                           FontSize="14" FontWeight="Bold"
-                                                           HorizontalAlignment="Right" />
-                                            </StackPanel>
-                                        </Grid>
-                                    </Border>
-                                </DataTemplate>
-                            </ListBox.ItemTemplate>
-                        </ListBox>
-                    </Border>
 
-                    <!-- Empty State -->
-                    <Border Background="{StaticResource BorderSubtleBrush}"
-                            CornerRadius="12"
-                            Padding="40"
-                            Margin="0,8"
-                            IsVisible="{Binding !AllApps.Count}">
-                        <StackPanel HorizontalAlignment="Center" Spacing="12">
-                            <TextBlock Text="📦" FontSize="36" HorizontalAlignment="Center" />
-                            <TextBlock Text="No application data found"
-                                       FontSize="16" FontWeight="Bold"
-                                       HorizontalAlignment="Center" />
-                            <TextBlock Text="for the selected date range"
-                                       Classes="Subtitle"
-                                       HorizontalAlignment="Center" />
-                        </StackPanel>
-                    </Border>
-                </StackPanel>
+                    <Grid Grid.Row="1">
+                        <Border Classes="Card">
+                            <ListBox ItemsSource="{Binding AllApps}"
+                                     Background="Transparent"
+                                     BorderThickness="0"
+                                     AutomationProperties.Name="Application Usage List"
+                                     AutomationProperties.HelpText="List of applications with their network usage statistics">
+                                <ListBox.Styles>
+                                    <Style Selector="ListBoxItem">
+                                        <Setter Property="Padding" Value="0"/>
+                                        <Setter Property="Margin" Value="0"/>
+                                        <Setter Property="Background" Value="Transparent"/>
+                                    </Style>
+                                    <Style Selector="ListBoxItem:selected /template/ ContentPresenter#PART_ContentPresenter">
+                                        <Setter Property="Background" Value="Transparent"/>
+                                    </Style>
+                                </ListBox.Styles>
+                                <ListBox.ItemTemplate>
+                                    <DataTemplate x:DataType="models:AppUsageRecord">
+                                        <Border Padding="16" Margin="0,0,0,8"
+                                                Background="{StaticResource BorderSubtleBrush}"
+                                                CornerRadius="12">
+                                            <Grid ColumnDefinitions="Auto, *, Auto, Auto, Auto">
+                                                <Border Width="48" Height="48"
+                                                        Background="{StaticResource AccentBgTintBrush}"
+                                                        CornerRadius="12"
+                                                        Margin="0,0,20,0">
+                                                    <TextBlock Text="📦" FontSize="22"
+                                                               HorizontalAlignment="Center"
+                                                               VerticalAlignment="Center" />
+                                                </Border>
+                                                <StackPanel Grid.Column="1" VerticalAlignment="Center" Spacing="2"
+                                                            Margin="0,0,20,0">
+                                                    <TextBlock Text="{Binding AppName}"
+                                                               FontSize="15" FontWeight="Bold"
+                                                               TextTrimming="CharacterEllipsis" />
+                                                    <TextBlock Text="{Binding ProcessName}" Classes="Caption" />
+                                                </StackPanel>
+                                                <StackPanel Grid.Column="2" VerticalAlignment="Center" Spacing="2">
+                                                    <TextBlock Text="Download" Classes="Caption" HorizontalAlignment="Right" />
+                                                    <TextBlock Text="{Binding BytesReceived, StringFormat='{}{0:N0} B'}"
+                                                               FontSize="14" FontWeight="Bold"
+                                                               Foreground="{StaticResource DownloadBrush}"
+                                                               HorizontalAlignment="Right" />
+                                                </StackPanel>
+                                                <StackPanel Grid.Column="3" VerticalAlignment="Center" Spacing="2">
+                                                    <TextBlock Text="Upload" Classes="Caption" HorizontalAlignment="Right" />
+                                                    <TextBlock Text="{Binding BytesSent, StringFormat='{}{0:N0} B'}"
+                                                               FontSize="14" FontWeight="Bold"
+                                                               Foreground="{StaticResource UploadBrush}"
+                                                               HorizontalAlignment="Right" />
+                                                </StackPanel>
+                                                <StackPanel Grid.Column="4" VerticalAlignment="Center" Spacing="2">
+                                                    <TextBlock Text="Total" Classes="Caption" HorizontalAlignment="Right" />
+                                                    <TextBlock Text="{Binding TotalBytes, StringFormat='{}{0:N0} B'}"
+                                                               FontSize="14" FontWeight="Bold"
+                                                               HorizontalAlignment="Right" />
+                                                </StackPanel>
+                                            </Grid>
+                                        </Border>
+                                    </DataTemplate>
+                                </ListBox.ItemTemplate>
+                            </ListBox>
+                        </Border>
+
+                        <!-- Empty State -->
+                        <Border Background="{StaticResource BorderSubtleBrush}"
+                                CornerRadius="12"
+                                Padding="40"
+                                Margin="0,8"
+                                IsVisible="{Binding !AllApps.Count}">
+                            <StackPanel HorizontalAlignment="Center" Spacing="12">
+                                <TextBlock Text="📦" FontSize="36" HorizontalAlignment="Center" />
+                                <TextBlock Text="No application data found"
+                                           FontSize="16" FontWeight="Bold"
+                                           HorizontalAlignment="Center" />
+                                <TextBlock Text="for the selected date range"
+                                           Classes="Subtitle"
+                                           HorizontalAlignment="Center" />
+                            </StackPanel>
+                        </Border>
+                    </Grid>
+                </Grid>
 
             </StackPanel>
         </ScrollViewer>

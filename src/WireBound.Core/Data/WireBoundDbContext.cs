@@ -54,7 +54,30 @@ public sealed class WireBoundDbContext : DbContext
             "wirebound.db");
 
         // Ensure directory exists
-        Directory.CreateDirectory(Path.GetDirectoryName(dbPath)!);
+        var dbDirectory = Path.GetDirectoryName(dbPath)!;
+        Directory.CreateDirectory(dbDirectory);
+
+        if (OperatingSystem.IsLinux())
+        {
+            File.SetUnixFileMode(dbDirectory,
+                UnixFileMode.UserRead | UnixFileMode.UserWrite | UnixFileMode.UserExecute);
+
+            if (!File.Exists(dbPath))
+            {
+                var fileOptions = new FileStreamOptions
+                {
+                    Mode = FileMode.CreateNew,
+                    Access = FileAccess.ReadWrite,
+                    Share = FileShare.None,
+                    UnixCreateMode = UnixFileMode.UserRead | UnixFileMode.UserWrite
+                };
+                using var _ = new FileStream(dbPath, fileOptions);
+            }
+            else
+            {
+                File.SetUnixFileMode(dbPath, UnixFileMode.UserRead | UnixFileMode.UserWrite);
+            }
+        }
 
         optionsBuilder.UseSqlite($"Data Source={dbPath}");
     }
@@ -258,7 +281,7 @@ public sealed class WireBoundDbContext : DbContext
                 ("StartWithWindows", "INTEGER NOT NULL DEFAULT 0"),
                 ("MinimizeToTray", "INTEGER NOT NULL DEFAULT 1"),
                 ("UseIpHelperApi", "INTEGER NOT NULL DEFAULT 0"),
-                ("SelectedAdapterId", "TEXT NOT NULL DEFAULT ''"),
+                ("SelectedAdapterId", "TEXT NOT NULL DEFAULT 'auto'"),
                 ("DataRetentionDays", "INTEGER NOT NULL DEFAULT 365"),
                 ("Theme", "TEXT NOT NULL DEFAULT 'Dark'"),
                 ("SpeedUnit", "INTEGER NOT NULL DEFAULT 0"),
@@ -455,52 +478,6 @@ public sealed class WireBoundDbContext : DbContext
                 alterCmd.CommandText = $"ALTER TABLE {table} ADD COLUMN {column} {definition}";
                 alterCmd.ExecuteNonQuery();
             }
-        }
-    }
-
-    /// <summary>
-    /// Adds a column to a table if it doesn't already exist.
-    /// Used for incremental schema migrations.
-    /// </summary>
-    /// <remarks>
-    /// SECURITY NOTE: This method uses string interpolation for SQL identifiers because
-    /// SQLite does not support parameterized table/column names. All identifiers are
-    /// validated using <see cref="ValidateSqlIdentifier"/> before use to prevent SQL injection.
-    /// Only call this method with hardcoded, trusted identifier values.
-    /// </remarks>
-    /// <param name="connection">The database connection.</param>
-    /// <param name="table">The table name (must be alphanumeric/underscore only).</param>
-    /// <param name="column">The column name (must be alphanumeric/underscore only).</param>
-    /// <param name="definition">The column definition (type and constraints).</param>
-    private static void AddColumnIfNotExists(System.Data.Common.DbConnection connection, string table, string column, string definition)
-    {
-        // Validate identifiers to prevent SQL injection
-        // Even though we currently only call this with hardcoded values,
-        // validation provides defense-in-depth and protects against future misuse
-        ValidateSqlIdentifier(table, nameof(table));
-        ValidateSqlIdentifier(column, nameof(column));
-
-        using var command = connection.CreateCommand();
-        command.CommandText = $"PRAGMA table_info({table})";
-
-        var columnExists = false;
-        using (var reader = command.ExecuteReader())
-        {
-            while (reader.Read())
-            {
-                if (reader.GetString(1).Equals(column, StringComparison.OrdinalIgnoreCase))
-                {
-                    columnExists = true;
-                    break;
-                }
-            }
-        }
-
-        if (!columnExists)
-        {
-            using var alterCommand = connection.CreateCommand();
-            alterCommand.CommandText = $"ALTER TABLE {table} ADD COLUMN {column} {definition}";
-            alterCommand.ExecuteNonQuery();
         }
     }
 

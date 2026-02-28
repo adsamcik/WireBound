@@ -85,7 +85,8 @@ public sealed class WindowsHelperProcessManager : IHelperProcessManager
             if (!_helperProcess.HasExited)
             {
                 _helperProcess.Kill();
-                await _helperProcess.WaitForExitAsync(new CancellationTokenSource(timeoutMs).Token);
+                using var stopCts = new CancellationTokenSource(timeoutMs);
+                await _helperProcess.WaitForExitAsync(stopCts.Token);
             }
         }
         catch (Exception ex)

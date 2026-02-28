@@ -18,6 +18,7 @@ public class ApplicationsViewModelTests : IAsyncDisposable
     private readonly IDataPersistenceService _persistenceMock;
     private readonly IProcessNetworkService _processNetworkServiceMock;
     private readonly IElevationService _elevationServiceMock;
+    private readonly INavigationService _navigationServiceMock;
 
     public ApplicationsViewModelTests()
     {
@@ -25,6 +26,7 @@ public class ApplicationsViewModelTests : IAsyncDisposable
         _persistenceMock = Substitute.For<IDataPersistenceService>();
         _processNetworkServiceMock = Substitute.For<IProcessNetworkService>();
         _elevationServiceMock = Substitute.For<IElevationService>();
+        _navigationServiceMock = Substitute.For<INavigationService>();
 
         SetupDefaultMocks();
     }
@@ -53,7 +55,8 @@ public class ApplicationsViewModelTests : IAsyncDisposable
             _dispatcherMock,
             _persistenceMock,
             _processNetworkServiceMock,
-            _elevationServiceMock);
+            _elevationServiceMock,
+            _navigationServiceMock);
         _createdViewModels.Add(viewModel);
         return viewModel;
     }

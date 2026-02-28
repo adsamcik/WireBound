@@ -20,6 +20,10 @@ public class ResourceInsightsServiceTests
         categoryService.GetCategory(Arg.Any<string>()).Returns("Other");
         categoryService.GetCategory("chrome").Returns("Web Browsers");
         categoryService.GetCategory("code").Returns("Development Tools");
+        // Also configure the new overload used by ResourceInsightsService
+        categoryService.GetCategory(Arg.Any<string>(), Arg.Any<string?>(), Arg.Any<int>()).Returns("Other");
+        categoryService.GetCategory("chrome", Arg.Any<string?>(), Arg.Any<int>()).Returns("Web Browsers");
+        categoryService.GetCategory("code", Arg.Any<string?>(), Arg.Any<int>()).Returns("Development Tools");
 
         var options = new DbContextOptionsBuilder<WireBoundDbContext>()
             .UseInMemoryDatabase(databaseName: Guid.NewGuid().ToString())

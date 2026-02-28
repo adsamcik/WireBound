@@ -44,7 +44,6 @@
     <PackageReference Include="CommunityToolkit.Mvvm" />
     <!-- Charts (Avalonia version) -->
     <PackageReference Include="LiveChartsCore.SkiaSharpView.Avalonia" />
-    <PackageReference Include="ManagedNativeWifi" />
 
     <!-- Hosting &amp; DI -->
     <PackageReference Include="Microsoft.Extensions.Hosting" />
@@ -88,7 +87,8 @@
       <ElevationOutputDir Condition="'$(ElevationProject)' != ''">$([MSBuild]::NormalizePath('$(MSBuildProjectDirectory)', '..', '$(ElevationProject)', 'bin', '$(Configuration)', '$(TargetFramework)'))</ElevationOutputDir>
     </PropertyGroup>
     <ItemGroup Condition="'$(ElevationOutputDir)' != ''">
-      <ElevationFiles Include="$(ElevationOutputDir)\WireBound.Elevation*" />
+      <ElevationFiles Include="$(ElevationOutputDir)\*"
+                      Exclude="$(ElevationOutputDir)\Microsoft.Extensions.*.dll" />
     </ItemGroup>
     <Copy SourceFiles="@(ElevationFiles)"
           DestinationFolder="$(OutputPath)"

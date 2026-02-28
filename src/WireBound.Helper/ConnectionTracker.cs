@@ -39,7 +39,7 @@ public class ConnectionTracker : IDisposable
             return new ConnectionStatsResponse
             {
                 Success = false,
-                ErrorMessage = ex.Message
+                ErrorMessage = "Failed to collect connection statistics"
             };
         }
     }

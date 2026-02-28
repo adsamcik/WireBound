@@ -1,35 +1,14 @@
 using System.Reflection;
+using Avalonia.Threading;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using CommunityToolkit.Mvvm.Messaging;
 using WireBound.Avalonia.Services;
 using WireBound.Core;
+using WireBound.Core.Models;
 using WireBound.Core.Services;
 
 namespace WireBound.Avalonia.ViewModels;
-
-/// <summary>
-/// Message sent when an update is available, so MainViewModel can show a badge.
-/// </summary>
-public record UpdateAvailableMessage(string Version);
-
-/// <summary>
-/// Navigation item for the sidebar
-/// </summary>
-public partial class NavigationItem : ObservableObject
-{
-    [ObservableProperty]
-    private string _title = string.Empty;
-
-    [ObservableProperty]
-    private string _icon = string.Empty;
-
-    [ObservableProperty]
-    private string _route = string.Empty;
-
-    [ObservableProperty]
-    private bool _hasBadge;
-}
 
 /// <summary>
 /// Main view model handling navigation and app state
@@ -38,12 +17,15 @@ public partial class MainViewModel : ObservableObject, IRecipient<UpdateAvailabl
 {
     private readonly INavigationService _navigationService;
     private readonly IViewFactory _viewFactory;
+    private readonly INetworkMonitorService _networkMonitor;
     private bool _disposed;
 
     /// <summary>
     /// Gets the application version from the assembly
     /// </summary>
     public string Version { get; } = GetAppVersion();
+    public string MonitoringStatusText => IsMonitoringActive ? "Monitoring Active" : "Monitoring Inactive";
+    public string MonitoringStatusAutomationName => $"Monitoring Status: {(IsMonitoringActive ? "Active" : "Inactive")}";
 
     private static string GetAppVersion()
     {
@@ -61,10 +43,12 @@ public partial class MainViewModel : ObservableObject, IRecipient<UpdateAvailabl
 
     public MainViewModel(
         INavigationService navigationService,
-        IViewFactory viewFactory)
+        IViewFactory viewFactory,
+        INetworkMonitorService networkMonitor)
     {
         _navigationService = navigationService;
         _viewFactory = viewFactory;
+        _networkMonitor = networkMonitor;
 
         // Initialize navigation items
         NavigationItems =
@@ -82,6 +66,8 @@ public partial class MainViewModel : ObservableObject, IRecipient<UpdateAvailabl
         _currentView = _viewFactory.CreateView(Routes.Overview);
 
         _navigationService.NavigationChanged += OnNavigationChanged;
+        _networkMonitor.StatsUpdated += OnNetworkStatsUpdated;
+        IsMonitoringActive = false;
 
         // Register for update badge messages
         WeakReferenceMessenger.Default.Register(this);
@@ -106,6 +92,15 @@ public partial class MainViewModel : ObservableObject, IRecipient<UpdateAvailabl
 
     [ObservableProperty]
     private object? _currentView;
+    
+    [ObservableProperty]
+    private bool _isMonitoringActive;
+
+    partial void OnIsMonitoringActiveChanged(bool value)
+    {
+        OnPropertyChanged(nameof(MonitoringStatusText));
+        OnPropertyChanged(nameof(MonitoringStatusAutomationName));
+    }
 
     partial void OnSelectedNavigationItemChanged(NavigationItem value)
     {
@@ -126,6 +121,22 @@ public partial class MainViewModel : ObservableObject, IRecipient<UpdateAvailabl
         CurrentView = _viewFactory.CreateView(route);
     }
 
+    private void OnNetworkStatsUpdated(object? sender, NetworkStats _)
+    {
+        if (IsMonitoringActive)
+        {
+            return;
+        }
+
+        if (Dispatcher.UIThread.CheckAccess())
+        {
+            IsMonitoringActive = true;
+            return;
+        }
+
+        Dispatcher.UIThread.Post(() => IsMonitoringActive = true);
+    }
+
     [RelayCommand]
     private void NavigateTo(string route)
     {
@@ -137,6 +148,7 @@ public partial class MainViewModel : ObservableObject, IRecipient<UpdateAvailabl
         if (_disposed) return;
         _disposed = true;
         _navigationService.NavigationChanged -= OnNavigationChanged;
+        _networkMonitor.StatsUpdated -= OnNetworkStatsUpdated;
         WeakReferenceMessenger.Default.Unregister<UpdateAvailableMessage>(this);
     }
 }

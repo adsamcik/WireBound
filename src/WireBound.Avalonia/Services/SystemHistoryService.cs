@@ -39,6 +39,9 @@ public sealed class SystemHistoryService : ISystemHistoryService, IDisposable
         double? GpuPercent,
         double? GpuMemoryPercent);
 
+    private static DateTime GetSampleHour(DateTime timestamp) =>
+        new(timestamp.Year, timestamp.Month, timestamp.Day, timestamp.Hour, 0, 0);
+
     public SystemHistoryService(IServiceProvider serviceProvider, ILogger<SystemHistoryService> logger)
     {
         _serviceProvider = serviceProvider;
@@ -195,35 +198,11 @@ public sealed class SystemHistoryService : ISystemHistoryService, IDisposable
 
         try
         {
-            // Collect samples from the buffer for the previous hour(s)
-            var samplesToProcess = new List<SystemStatsSample>();
-            var remainingSamples = new List<SystemStatsSample>();
-
-            while (_sampleBuffer.TryDequeue(out var sample))
-            {
-                var sampleHour = new DateTime(
-                    sample.Timestamp.Year,
-                    sample.Timestamp.Month,
-                    sample.Timestamp.Day,
-                    sample.Timestamp.Hour,
-                    0, 0);
-
-                if (sampleHour < currentHour)
-                {
-                    samplesToProcess.Add(sample);
-                }
-                else
-                {
-                    // Keep samples from current hour
-                    remainingSamples.Add(sample);
-                }
-            }
-
-            // Re-queue current hour samples
-            foreach (var sample in remainingSamples)
-            {
-                _sampleBuffer.Enqueue(sample);
-            }
+            // Copy samples for aggregation; dequeue only after successful persistence.
+            var bufferedSamples = _sampleBuffer.ToArray();
+            var samplesToProcess = bufferedSamples
+                .Where(sample => GetSampleHour(sample.Timestamp) < currentHour)
+                .ToList();
 
             if (samplesToProcess.Count == 0)
             {
@@ -236,11 +215,19 @@ public sealed class SystemHistoryService : ISystemHistoryService, IDisposable
 
             // Group samples by hour and aggregate
             var hourlyGroups = samplesToProcess
-                .GroupBy(s => new DateTime(s.Timestamp.Year, s.Timestamp.Month, s.Timestamp.Day, s.Timestamp.Hour, 0, 0))
+                .GroupBy(s => GetSampleHour(s.Timestamp))
                 .ToList();
 
             using var scope = _serviceProvider.CreateScope();
             var db = scope.ServiceProvider.GetRequiredService<WireBoundDbContext>();
+            var targetHours = hourlyGroups.Select(g => g.Key).ToList();
+            var existingRecords = await db.HourlySystemStats
+                .Where(h => targetHours.Contains(h.Hour))
+                .ToListAsync()
+                .ConfigureAwait(false);
+            var existingRecordLookup = existingRecords
+                .GroupBy(record => record.Hour)
+                .ToDictionary(group => group.Key, group => group.First());
 
             foreach (var group in hourlyGroups)
             {
@@ -250,9 +237,7 @@ public sealed class SystemHistoryService : ISystemHistoryService, IDisposable
                 if (samples.Count == 0)
                     continue;
 
-                var existingRecord = await db.HourlySystemStats
-                    .FirstOrDefaultAsync(h => h.Hour == hour)
-                    .ConfigureAwait(false);
+                existingRecordLookup.TryGetValue(hour, out var existingRecord);
 
                 var cpuValues = samples.Select(s => s.CpuPercent).ToList();
                 var memValues = samples.Select(s => s.MemoryPercent).ToList();
@@ -299,6 +284,18 @@ public sealed class SystemHistoryService : ISystemHistoryService, IDisposable
             }
 
             await db.SaveChangesAsync().ConfigureAwait(false);
+
+            // Remove aggregated samples from the queue.
+            // We drain items whose hour is before currentHour, which are the ones we just persisted.
+            // New items enqueued after ToArray() have timestamps >= currentHour and are preserved.
+            var drained = 0;
+            while (drained < bufferedSamples.Length && _sampleBuffer.TryPeek(out var peeked))
+            {
+                if (GetSampleHour(peeked.Timestamp) >= currentHour)
+                    break;
+                _sampleBuffer.TryDequeue(out _);
+                drained++;
+            }
 
             lock (_aggregationLock)
             {

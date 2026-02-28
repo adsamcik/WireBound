@@ -163,6 +163,7 @@ public partial class App : Application
 
         // Register UI thread dispatcher abstraction
         services.AddSingleton<IUiDispatcher, AvaloniaDispatcher>();
+        services.AddSingleton<IClipboardService, AvaloniaClipboardService>();
 
         // Register system time provider (injectable for testability)
         services.AddSingleton(TimeProvider.System);
@@ -258,8 +259,8 @@ public partial class App : Application
         try
         {
             // Load settings to get minimize to tray preference
-            var persistence = _serviceProvider.GetRequiredService<IDataPersistenceService>();
-            var settings = await persistence.GetSettingsAsync();
+            var settingsRepository = _serviceProvider.GetRequiredService<ISettingsRepository>();
+            var settings = await settingsRepository.GetSettingsAsync();
 
             var trayIconService = (TrayIconService)_serviceProvider.GetRequiredService<ITrayIconService>();
 
@@ -293,8 +294,8 @@ public partial class App : Application
 
         try
         {
-            var persistence = _serviceProvider.GetRequiredService<IDataPersistenceService>();
-            var settings = await persistence.GetSettingsAsync();
+            var settingsRepository = _serviceProvider.GetRequiredService<ISettingsRepository>();
+            var settings = await settingsRepository.GetSettingsAsync();
             await Dispatcher.UIThread.InvokeAsync(() =>
                 Helpers.ThemeHelper.ApplyTheme(settings.Theme));
             Log.Information("Applied theme: {Theme}", settings.Theme);
@@ -311,8 +312,8 @@ public partial class App : Application
 
         try
         {
-            var persistence = _serviceProvider.GetRequiredService<IDataPersistenceService>();
-            var settings = await persistence.GetSettingsAsync();
+            var settingsRepository = _serviceProvider.GetRequiredService<ISettingsRepository>();
+            var settings = await settingsRepository.GetSettingsAsync();
 
             if (settings.StartMinimized)
             {
@@ -337,8 +338,8 @@ public partial class App : Application
     {
         try
         {
-            var persistence = _serviceProvider!.GetRequiredService<IDataPersistenceService>();
-            var settings = await persistence.GetSettingsAsync();
+            var settingsRepository = _serviceProvider!.GetRequiredService<ISettingsRepository>();
+            var settings = await settingsRepository.GetSettingsAsync();
             if (!settings.CheckForUpdates) return;
 
             var updateService = _serviceProvider!.GetRequiredService<IUpdateService>();
@@ -460,13 +461,11 @@ public partial class App : Application
             // Dispose tray icon service
             _serviceProvider?.GetService<ITrayIconService>()?.Dispose();
 
-            // Stop background services - use async void pattern for shutdown
-            // This is acceptable here as the app is terminating
+            // Stop background services before disposing dependencies
             var pollingService = _serviceProvider?.GetService<NetworkPollingBackgroundService>();
             if (pollingService is not null)
             {
-                // Fire and forget with a reasonable timeout
-                _ = StopBackgroundServicesAsync(pollingService);
+                StopBackgroundServicesAsync(pollingService).GetAwaiter().GetResult();
             }
         }
         catch (Exception ex)
@@ -485,7 +484,7 @@ public partial class App : Application
         try
         {
             using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
-            await pollingService.StopAsync(cts.Token);
+            await pollingService.StopAsync(cts.Token).ConfigureAwait(false);
         }
         catch (OperationCanceledException)
         {

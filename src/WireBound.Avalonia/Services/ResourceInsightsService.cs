@@ -301,9 +301,11 @@ public sealed class ResourceInsightsService : IResourceInsightsService
                 AppIdentifier = app.AppIdentifier,
                 AppName = app.AppName,
                 ExecutablePath = app.ExecutablePath,
-                CategoryName = _categoryService.GetCategory(app.ExecutablePath.Length > 0
-                    ? Path.GetFileNameWithoutExtension(app.ExecutablePath)
-                    : app.AppName),
+                CategoryName = _categoryService.GetCategory(
+                    app.ExecutablePath.Length > 0
+                        ? Path.GetFileNameWithoutExtension(app.ExecutablePath)
+                        : app.AppName,
+                    app.ExecutablePath),
                 PrivateBytes = smoothedMemory,
                 CpuPercent = smoothedCpu,
                 ProcessCount = app.ProcessCount

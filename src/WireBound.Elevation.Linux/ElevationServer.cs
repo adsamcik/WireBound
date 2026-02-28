@@ -1,4 +1,5 @@
 using System.Net.Sockets;
+using System.Runtime.Versioning;
 using Serilog;
 using WireBound.IPC;
 using WireBound.IPC.Messages;
@@ -11,13 +12,14 @@ namespace WireBound.Elevation.Linux;
 /// Elevated IPC server for Linux using Unix domain sockets with file permission protection.
 /// Accepts authenticated clients and serves per-connection byte statistics via netlink SOCK_DIAG.
 /// </summary>
+[SupportedOSPlatform("linux")]
 public sealed class ElevationServer : IDisposable
 {
     private readonly byte[] _secret;
     private readonly SessionManager _sessionManager = new();
     private readonly RateLimiter _rateLimiter = new();
     private readonly AuthRateLimiter _authRateLimiter = new();
-    private readonly DateTimeOffset _startTime = DateTimeOffset.UtcNow;
+    private readonly RateLimiter _heartbeatRateLimiter = new(1);
     private readonly NetlinkConnectionTracker _tracker = new();
     private int _expectedPeerUid = -1;
 
@@ -198,6 +200,18 @@ public sealed class ElevationServer : IDisposable
                     continue;
                 }
 
+                if (message.Type == MessageType.Heartbeat)
+                {
+                    var heartbeatSource = sessionId ?? clientId;
+                    if (!_heartbeatRateLimiter.TryAcquire(heartbeatSource))
+                    {
+                        var heartbeatRateLimitResp = CreateResponse(message.RequestId, MessageType.Error,
+                            new ErrorResponse { Error = "Heartbeat rate limit exceeded" });
+                        await IpcTransport.SendAsync(stream, heartbeatRateLimitResp, cancellationToken);
+                        continue;
+                    }
+                }
+
                 var response = message.Type switch
                 {
                     MessageType.Authenticate => HandleAuthenticate(message, peerPid, out sessionId),
@@ -244,8 +258,10 @@ public sealed class ElevationServer : IDisposable
             {
                 _sessionManager.RemoveSession(sessionId);
                 _rateLimiter.RemoveClient(sessionId);
+                _heartbeatRateLimiter.RemoveClient(sessionId);
             }
             _authRateLimiter.RemoveClient(clientId);
+            _heartbeatRateLimiter.RemoveClient(clientId);
             if (stream is IDisposable disposable)
                 disposable.Dispose();
         }
@@ -281,16 +297,13 @@ public sealed class ElevationServer : IDisposable
                 new AuthenticateResponse { Success = false, ErrorMessage = "Authentication failed" });
         }
 
-        // Validate executable path via /proc/[pid]/exe
-        if (!string.IsNullOrEmpty(authRequest.ExecutablePath))
+        if (!string.IsNullOrWhiteSpace(authRequest.ExecutablePath) &&
+            !ValidateExecutablePath(authRequest.ExecutablePath, authRequest.ClientPid))
         {
-            if (!ValidateExecutablePath(authRequest.ExecutablePath, authRequest.ClientPid))
-            {
-                Log.Warning("Executable path validation failed for PID {Pid}: {Path}",
-                    authRequest.ClientPid, authRequest.ExecutablePath);
-                return CreateResponse(request.RequestId, MessageType.Authenticate,
-                    new AuthenticateResponse { Success = false, ErrorMessage = "Executable validation failed" });
-            }
+            Log.Warning("Executable path validation failed for PID {Pid}: {Path}",
+                authRequest.ClientPid, authRequest.ExecutablePath);
+            return CreateResponse(request.RequestId, MessageType.Authenticate,
+                new AuthenticateResponse { Success = false, ErrorMessage = "Executable validation failed" });
         }
 
         var session = _sessionManager.CreateSession(authRequest.ClientPid, authRequest.ExecutablePath);
@@ -345,9 +358,7 @@ public sealed class ElevationServer : IDisposable
         return CreateResponse(Guid.NewGuid().ToString("N"), MessageType.Heartbeat,
             new HeartbeatResponse
             {
-                Alive = true,
-                UptimeSeconds = (long)(DateTimeOffset.UtcNow - _startTime).TotalSeconds,
-                ActiveSessions = _sessionManager.ActiveCount
+                Alive = true
             });
     }
 

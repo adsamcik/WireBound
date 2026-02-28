@@ -13,12 +13,14 @@ public class MainViewModelTests : IAsyncDisposable
 {
     private readonly INavigationService _navigationService;
     private readonly IViewFactory _viewFactory;
+    private readonly INetworkMonitorService _networkMonitor;
     private readonly List<MainViewModel> _createdViewModels = [];
 
     public MainViewModelTests()
     {
         _navigationService = Substitute.For<INavigationService>();
         _viewFactory = Substitute.For<IViewFactory>();
+        _networkMonitor = Substitute.For<INetworkMonitorService>();
 
         SetupDefaultMocks();
     }
@@ -33,7 +35,8 @@ public class MainViewModelTests : IAsyncDisposable
     {
         var vm = new MainViewModel(
             _navigationService,
-            _viewFactory);
+            _viewFactory,
+            _networkMonitor);
         _createdViewModels.Add(vm);
         return vm;
     }
@@ -227,6 +230,72 @@ public class MainViewModelTests : IAsyncDisposable
 
         // Assert
         _navigationService.Received(1).NavigateTo(route);
+    }
+
+    #endregion
+
+    #region Monitoring Status Tests
+
+    [Test]
+    public void MonitoringStatusText_WhenInactive_ReturnsInactiveText()
+    {
+        // Arrange
+        using var viewModel = CreateViewModel();
+
+        // Assert
+        viewModel.MonitoringStatusText.Should().Be("Monitoring Inactive");
+    }
+
+    [Test]
+    public void MonitoringStatusText_WhenActive_ReturnsActiveText()
+    {
+        // Arrange
+        using var viewModel = CreateViewModel();
+
+        // Act
+        viewModel.IsMonitoringActive = true;
+
+        // Assert
+        viewModel.MonitoringStatusText.Should().Be("Monitoring Active");
+    }
+
+    [Test]
+    public void MonitoringStatusAutomationName_WhenInactive_ContainsInactive()
+    {
+        // Arrange
+        using var viewModel = CreateViewModel();
+
+        // Assert
+        viewModel.MonitoringStatusAutomationName.Should().Be("Monitoring Status: Inactive");
+    }
+
+    [Test]
+    public void MonitoringStatusAutomationName_WhenActive_ContainsActive()
+    {
+        // Arrange
+        using var viewModel = CreateViewModel();
+
+        // Act
+        viewModel.IsMonitoringActive = true;
+
+        // Assert
+        viewModel.MonitoringStatusAutomationName.Should().Be("Monitoring Status: Active");
+    }
+
+    [Test]
+    public void IsMonitoringActive_Changed_RaisesPropertyChangedForStatusText()
+    {
+        // Arrange
+        using var viewModel = CreateViewModel();
+        var changedProperties = new List<string>();
+        viewModel.PropertyChanged += (_, e) => changedProperties.Add(e.PropertyName!);
+
+        // Act
+        viewModel.IsMonitoringActive = true;
+
+        // Assert
+        changedProperties.Should().Contain(nameof(MainViewModel.MonitoringStatusText));
+        changedProperties.Should().Contain(nameof(MainViewModel.MonitoringStatusAutomationName));
     }
 
     #endregion

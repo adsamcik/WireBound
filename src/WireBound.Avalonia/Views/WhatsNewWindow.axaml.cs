@@ -5,19 +5,30 @@ namespace WireBound.Avalonia.Views;
 
 public partial class WhatsNewWindow : Window
 {
-    public WhatsNewWindow()
+    public WhatsNewWindow() : this(string.Empty, string.Empty)
     {
-        InitializeComponent();
     }
 
-    public WhatsNewWindow(string version, string releaseNotes) : this()
+    public WhatsNewWindow(string version, string releaseNotes)
     {
-        TitleText.Text = $"What's New in v{version}";
-        NotesText.Text = releaseNotes;
+        InitializeComponent();
+        DataContext = new WhatsNewWindowViewModel(version, releaseNotes);
     }
 
     private void OnGotItClick(object? sender, RoutedEventArgs e)
     {
         Close();
+    }
+
+    private sealed class WhatsNewWindowViewModel
+    {
+        public string Title { get; }
+        public string Notes { get; }
+
+        public WhatsNewWindowViewModel(string version, string notes)
+        {
+            Title = string.IsNullOrWhiteSpace(version) ? "What's New" : $"What's New in v{version}";
+            Notes = notes;
+        }
     }
 }

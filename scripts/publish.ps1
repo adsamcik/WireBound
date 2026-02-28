@@ -188,7 +188,7 @@ if ($Velopack) {
         $velopackOutput = Join-Path $OutputDir "velopack" $Runtime
         New-Item -ItemType Directory -Path $velopackOutput -Force | Out-Null
 
-        $exeName = if ($targetIsWindows) { "WireBound.Avalonia.exe" } else { "WireBound.Avalonia" }
+        $exeName = if ($targetIsWindows) { "WireBound.exe" } else { "WireBound" }
 
         $vpkArgs = @(
             "pack",

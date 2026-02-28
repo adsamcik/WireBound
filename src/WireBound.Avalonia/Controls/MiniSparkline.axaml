@@ -5,7 +5,8 @@
              x:DataType="controls:MiniSparkline"
              ClipToBounds="True"
              Height="20"
-             MinWidth="40">
+             MinWidth="40"
+             AutomationProperties.Name="Speed Sparkline">
     
     <UserControl.Styles>
         <!-- Size variant styles -->

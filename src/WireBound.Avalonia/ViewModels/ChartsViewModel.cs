@@ -22,7 +22,7 @@ public sealed partial class ChartsViewModel : ObservableObject, IDisposable
 {
     private readonly IUiDispatcher _dispatcher;
     private readonly INetworkMonitorService _networkMonitor;
-    private readonly IDataPersistenceService _persistence;
+    private readonly ISpeedSnapshotRepository _speedSnapshotRepository;
     private readonly INavigationService _navigationService;
     private readonly ISystemMonitorService? _systemMonitorService;
     private readonly ILogger<ChartsViewModel>? _logger;
@@ -117,14 +117,14 @@ public sealed partial class ChartsViewModel : ObservableObject, IDisposable
     public ChartsViewModel(
         IUiDispatcher dispatcher,
         INetworkMonitorService networkMonitor,
-        IDataPersistenceService persistence,
+        ISpeedSnapshotRepository speedSnapshotRepository,
         INavigationService navigationService,
         ISystemMonitorService? systemMonitorService = null,
         ILogger<ChartsViewModel>? logger = null)
     {
         _dispatcher = dispatcher;
         _networkMonitor = networkMonitor;
-        _persistence = persistence;
+        _speedSnapshotRepository = speedSnapshotRepository;
         _navigationService = navigationService;
         _systemMonitorService = systemMonitorService;
         _logger = logger;
@@ -166,7 +166,7 @@ public sealed partial class ChartsViewModel : ObservableObject, IDisposable
 
             // Load up to 1 hour of history (max range)
             var since = DateTime.Now.AddHours(-1);
-            var history = await _persistence.GetSpeedHistoryAsync(since).ConfigureAwait(false);
+            var history = await _speedSnapshotRepository.GetSpeedHistoryAsync(since).ConfigureAwait(false);
 
             if (history.Count == 0 || token.IsCancellationRequested)
                 return;
@@ -340,7 +340,23 @@ public sealed partial class ChartsViewModel : ObservableObject, IDisposable
         // Cancel any in-flight time range update to prevent stale data from overwriting
         _timeRangeCts?.Cancel();
         _timeRangeCts = new CancellationTokenSource();
-        _ = UpdateTimeRangeAsync(value.Seconds, _timeRangeCts.Token);
+        _ = UpdateTimeRangeSafelyAsync(value.Seconds, _timeRangeCts.Token);
+    }
+
+    private async Task UpdateTimeRangeSafelyAsync(int rangeSeconds, CancellationToken token)
+    {
+        try
+        {
+            await UpdateTimeRangeAsync(rangeSeconds, token);
+        }
+        catch (OperationCanceledException) when (token.IsCancellationRequested)
+        {
+            // Expected when rapidly switching time ranges.
+        }
+        catch (Exception ex)
+        {
+            _logger?.LogDebug(ex, "Failed to update chart time range");
+        }
     }
 
     private async Task UpdateTimeRangeAsync(int rangeSeconds, CancellationToken token)

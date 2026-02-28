@@ -1,4 +1,5 @@
 using System.IO.Pipes;
+using System.Runtime.Versioning;
 using WireBound.IPC;
 using WireBound.IPC.Messages;
 using WireBound.IPC.Security;
@@ -7,7 +8,8 @@ using WireBound.Platform.Abstract.Services;
 
 namespace WireBound.Platform.Windows.Services;
 
-public class WindowsHelperConnection : IHelperConnection
+[SupportedOSPlatform("windows")]
+public sealed class WindowsHelperConnection : IHelperConnection
 {
     private NamedPipeClientStream? _pipe;
     private string? _sessionId;

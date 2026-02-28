@@ -135,16 +135,14 @@ public class ChartDataManager
     public (List<DateTimePoint> Download, List<DateTimePoint> Upload) GetDisplayData(int rangeSeconds)
     {
         var cutoff = DateTime.Now.AddSeconds(-rangeSeconds);
-        var relevantData = _dataBuffer.AsEnumerable()
-            .Where(d => d.Time >= cutoff)
-            .ToList();
-
-        var downloadPoints = relevantData
-            .Select(d => new DateTimePoint(d.Time, d.Download))
-            .ToList();
-        var uploadPoints = relevantData
-            .Select(d => new DateTimePoint(d.Time, d.Upload))
-            .ToList();
+        var relevantData = _dataBuffer.AsEnumerable(d => d.Time >= cutoff);
+        var downloadPoints = new List<DateTimePoint>();
+        var uploadPoints = new List<DateTimePoint>();
+        foreach (var data in relevantData)
+        {
+            downloadPoints.Add(new DateTimePoint(data.Time, data.Download));
+            uploadPoints.Add(new DateTimePoint(data.Time, data.Upload));
+        }
 
         // Apply LTTB downsampling if we have too many points
         if (downloadPoints.Count > _maxDisplayPoints)
@@ -184,7 +182,7 @@ public class ChartDataManager
     public IEnumerable<(DateTime Time, long Download, long Upload)> GetRawData(int rangeSeconds)
     {
         var cutoff = DateTime.Now.AddSeconds(-rangeSeconds);
-        return _dataBuffer.AsEnumerable().Where(d => d.Time >= cutoff);
+        return _dataBuffer.AsEnumerable(d => d.Time >= cutoff);
     }
 
     /// <summary>

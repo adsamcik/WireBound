@@ -1,4 +1,5 @@
 using System.Net.Sockets;
+using System.Runtime.Versioning;
 using WireBound.IPC;
 using WireBound.IPC.Messages;
 using WireBound.IPC.Security;
@@ -7,7 +8,8 @@ using WireBound.Platform.Abstract.Services;
 
 namespace WireBound.Platform.Linux.Services;
 
-public class LinuxHelperConnection : IHelperConnection
+[SupportedOSPlatform("linux")]
+public sealed class LinuxHelperConnection : IHelperConnection
 {
     private Socket? _socket;
     private NetworkStream? _stream;

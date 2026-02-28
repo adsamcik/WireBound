@@ -21,6 +21,7 @@ public class ConnectionsViewModelTests : IAsyncDisposable
     private readonly IDnsResolverService _dnsResolverMock;
     private readonly IElevationService _elevationServiceMock;
     private readonly INavigationService _navigationServiceMock;
+    private readonly IClipboardService _clipboardServiceMock;
 
     public ConnectionsViewModelTests()
     {
@@ -28,6 +29,7 @@ public class ConnectionsViewModelTests : IAsyncDisposable
         _dnsResolverMock = Substitute.For<IDnsResolverService>();
         _elevationServiceMock = Substitute.For<IElevationService>();
         _navigationServiceMock = Substitute.For<INavigationService>();
+        _clipboardServiceMock = Substitute.For<IClipboardService>();
 
         SetupDefaultMocks();
     }
@@ -59,6 +61,7 @@ public class ConnectionsViewModelTests : IAsyncDisposable
             _dnsResolverMock,
             _elevationServiceMock,
             _navigationServiceMock,
+            _clipboardServiceMock,
             timeProvider: _fakeTimeProvider);
         _createdViewModels.Add(viewModel);
         return viewModel;
@@ -627,7 +630,8 @@ public class ConnectionsViewModelTests : IAsyncDisposable
             null!,
             _dnsResolverMock,
             _elevationServiceMock,
-            _navigationServiceMock);
+            _navigationServiceMock,
+            _clipboardServiceMock);
 
         viewModel.IsPlatformSupported.Should().BeFalse();
         viewModel.Dispose();
@@ -642,7 +646,8 @@ public class ConnectionsViewModelTests : IAsyncDisposable
             _processNetworkServiceMock,
             null!,
             _elevationServiceMock,
-            _navigationServiceMock);
+            _navigationServiceMock,
+            _clipboardServiceMock);
 
         viewModel.Dispose();
     }

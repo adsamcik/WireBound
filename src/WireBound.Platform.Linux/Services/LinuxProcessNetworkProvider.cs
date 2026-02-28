@@ -1,3 +1,4 @@
+using System.Collections.Concurrent;
 using System.Net;
 using System.Runtime.Versioning;
 using System.Security.Cryptography;
@@ -18,8 +19,11 @@ namespace WireBound.Platform.Linux.Services;
 [SupportedOSPlatform("linux")]
 public sealed partial class LinuxProcessNetworkProvider : IProcessNetworkProvider
 {
+    private const int MaxProcessCacheSize = 4096;
+    private const int ProcessCacheTrimTargetSize = 3072;
+
     private readonly Dictionary<int, ProcessNetworkStats> _processStats = [];
-    private readonly Dictionary<int, ProcessCacheEntry> _processCache = [];
+    private readonly ConcurrentDictionary<int, ProcessCacheEntry> _processCache = new();
     private readonly object _lock = new();
 
     private bool _isMonitoring;
@@ -350,9 +354,13 @@ public sealed partial class LinuxProcessNetworkProvider : IProcessNetworkProvide
         else if (hex.Length == 32) // IPv6
         {
             var bytes = new byte[16];
-            for (int i = 0; i < 16; i++)
+            for (int g = 0; g < 4; g++)
             {
-                bytes[i] = Convert.ToByte(hex.Substring(i * 2, 2), 16);
+                var hostOrder = Convert.ToUInt32(hex.Substring(g * 8, 8), 16);
+                bytes[g * 4 + 0] = (byte)(hostOrder & 0xFF);
+                bytes[g * 4 + 1] = (byte)((hostOrder >> 8) & 0xFF);
+                bytes[g * 4 + 2] = (byte)((hostOrder >> 16) & 0xFF);
+                bytes[g * 4 + 3] = (byte)((hostOrder >> 24) & 0xFF);
             }
             return new IPAddress(bytes);
         }
@@ -362,7 +370,10 @@ public sealed partial class LinuxProcessNetworkProvider : IProcessNetworkProvide
     private ProcessCacheEntry GetProcessInfo(int pid)
     {
         if (_processCache.TryGetValue(pid, out var cached))
+        {
+            cached.LastAccessUtc = DateTime.UtcNow;
             return cached;
+        }
 
         var info = new ProcessCacheEntry { Name = $"pid-{pid}", DisplayName = $"Unknown ({pid})", Path = "" };
 
@@ -397,8 +408,25 @@ public sealed partial class LinuxProcessNetworkProvider : IProcessNetworkProvide
             // Process may have exited
         }
 
+        info.LastAccessUtc = DateTime.UtcNow;
         _processCache[pid] = info;
+        TrimProcessCacheIfNeeded();
         return info;
+    }
+
+    private void TrimProcessCacheIfNeeded()
+    {
+        if (_processCache.Count <= MaxProcessCacheSize)
+            return;
+
+        var keysToRemove = _processCache
+            .OrderBy(entry => entry.Value.LastAccessUtc)
+            .Take(_processCache.Count - ProcessCacheTrimTargetSize)
+            .Select(entry => entry.Key)
+            .ToList();
+
+        foreach (var key in keysToRemove)
+            _processCache.TryRemove(key, out _);
     }
 
     private static string ComputeAppIdentifier(string path)
@@ -468,6 +496,7 @@ public sealed partial class LinuxProcessNetworkProvider : IProcessNetworkProvide
         public string Name { get; set; } = "";
         public string DisplayName { get; set; } = "";
         public string Path { get; set; } = "";
+        public DateTime LastAccessUtc { get; set; }
     }
 
     #endregion

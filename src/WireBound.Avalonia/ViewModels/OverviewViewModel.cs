@@ -273,7 +273,7 @@ public sealed partial class OverviewViewModel : ObservableObject, IDisposable
         LoadAdapters();
 
         // Load async initialization tasks
-        InitializationTask = Task.WhenAll(RestoreSelectedAdapterAsync(), LoadTodayUsageAsync());
+        InitializationTask = Task.WhenAll(RestoreSelectedAdapterAsync(), LoadTodayUsageAsync(), LoadSpeedHistoryAsync());
 
         // Get initial system stats
         var initialSystemStats = _systemMonitor.GetCurrentStats();
@@ -832,6 +832,41 @@ public sealed partial class OverviewViewModel : ObservableObject, IDisposable
         catch (Exception ex)
         {
             _logger?.LogDebug(ex, "Failed to load stored usage data");
+        }
+    }
+
+    private async Task LoadSpeedHistoryAsync()
+    {
+        if (_dataPersistence == null) return;
+
+        try
+        {
+            var since = DateTime.Now.AddHours(-1);
+            var history = await _dataPersistence.GetSpeedHistoryAsync(since).ConfigureAwait(false);
+
+            if (history.Count == 0) return;
+
+            _chartDataManager.LoadHistory(history.Select(s => (s.Timestamp, s.DownloadSpeedBps, s.UploadSpeedBps)));
+
+            var rangeSeconds = GetTimeRangeSeconds(SelectedTimeRange);
+            var (downloadPoints, uploadPoints) = await _chartDataManager.GetDisplayDataAsync(rangeSeconds);
+
+            await _dispatcher.InvokeAsync(() =>
+            {
+                _downloadSpeedPoints.ReplaceAll(downloadPoints);
+                _uploadSpeedPoints.ReplaceAll(uploadPoints);
+                UpdatePeakSpeeds();
+
+                if (ChartXAxes.Length > 0 && downloadPoints.Count > 0)
+                {
+                    ChartXAxes[0].MinLimit = DateTime.Now.AddSeconds(-rangeSeconds).Ticks;
+                    ChartXAxes[0].MaxLimit = DateTime.Now.Ticks;
+                }
+            });
+        }
+        catch (Exception ex)
+        {
+            _logger?.LogDebug(ex, "Failed to load speed history for overview chart");
         }
     }
 

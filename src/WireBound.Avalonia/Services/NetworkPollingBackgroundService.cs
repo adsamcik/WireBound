@@ -23,6 +23,7 @@ public sealed class NetworkPollingBackgroundService : BackgroundService, INetwor
     private readonly Stopwatch _cleanupStopwatch = new();
     private readonly Stopwatch _snapshotFlushStopwatch = new();
     private readonly Stopwatch _systemStatsAggregationStopwatch = new();
+    private readonly Stopwatch _retentionCleanupStopwatch = new();
     private readonly List<(long download, long upload, DateTime time)> _snapshotBuffer = new(SnapshotBufferCapacity);
     private readonly object _snapshotBufferLock = new();
     private PeriodicTimer? _timer;
@@ -71,6 +72,11 @@ public sealed class NetworkPollingBackgroundService : BackgroundService, INetwor
     /// Interval for aggregating system stats (CPU, memory) into hourly and daily summaries.
     /// </summary>
     private const int SystemStatsAggregationIntervalMinutes = 5;
+
+    /// <summary>
+    /// Interval between data retention cleanup runs (once per hour is sufficient).
+    /// </summary>
+    private const int RetentionCleanupIntervalMinutes = 60;
 
     /// <summary>
     /// How long to retain detailed speed snapshots before cleanup.
@@ -166,6 +172,7 @@ public sealed class NetworkPollingBackgroundService : BackgroundService, INetwor
         _cleanupStopwatch.Start();
         _snapshotFlushStopwatch.Start();
         _systemStatsAggregationStopwatch.Start();
+        _retentionCleanupStopwatch.Start();
 
         // Use PeriodicTimer for more consistent timing than Task.Delay
         _timer = new PeriodicTimer(TimeSpan.FromMilliseconds(_pollIntervalMs));
@@ -238,6 +245,13 @@ public sealed class NetworkPollingBackgroundService : BackgroundService, INetwor
                         }
 
                         _systemStatsAggregationStopwatch.Restart();
+                    }
+
+                    // Periodic data retention cleanup (once per hour)
+                    if (_retentionCleanupStopwatch.Elapsed.TotalMinutes >= RetentionCleanupIntervalMinutes)
+                    {
+                        await _persistence.CleanupOldDataAsync(settings.DataRetentionDays).ConfigureAwait(false);
+                        _retentionCleanupStopwatch.Restart();
                     }
 
                     // Periodic cleanup of old speed snapshots

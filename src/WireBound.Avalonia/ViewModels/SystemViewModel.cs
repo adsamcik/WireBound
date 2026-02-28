@@ -27,6 +27,9 @@ public sealed partial class SystemViewModel : ObservableObject, IDisposable
     private bool _isViewActive;
     private const int MaxHistoryPoints = 60; // 1 minute of data at 1 point/second
 
+    // Buffer for system stats (keeps data even when view is not active)
+    private readonly CircularBuffer<(DateTime Timestamp, double CpuPercent, double MemoryPercent)> _statsBuffer = new(3600);
+
     // Latest-wins coalescing: only one UI post in-flight at a time
     private SystemStats? _pendingSystemStats;
     private int _systemUpdateQueued;
@@ -139,16 +142,47 @@ public sealed partial class SystemViewModel : ObservableObject, IDisposable
         // Get initial stats
         var initialStats = _systemMonitorService.GetCurrentStats();
         UpdateProperties(initialStats);
+        if (initialStats != null)
+        {
+            _statsBuffer.Add((initialStats.Timestamp, initialStats.Cpu.UsagePercent, initialStats.Memory.UsagePercent));
+        }
     }
 
     private void OnNavigationChanged(string route)
     {
+        var wasActive = _isViewActive;
         _isViewActive = route == Routes.System;
+
+        if (_isViewActive && !wasActive)
+        {
+            _dispatcher.Post(RefreshChartsFromBuffer);
+        }
+    }
+
+    private void RefreshChartsFromBuffer()
+    {
+        var bufferData = _statsBuffer.ToArray();
+        var startIndex = Math.Max(0, bufferData.Length - MaxHistoryPoints);
+
+        var cpuPoints = new DateTimePoint[bufferData.Length - startIndex];
+        var memPoints = new DateTimePoint[bufferData.Length - startIndex];
+        for (var i = startIndex; i < bufferData.Length; i++)
+        {
+            var idx = i - startIndex;
+            cpuPoints[idx] = new DateTimePoint(bufferData[i].Timestamp, bufferData[i].CpuPercent);
+            memPoints[idx] = new DateTimePoint(bufferData[i].Timestamp, bufferData[i].MemoryPercent);
+        }
+
+        CpuHistoryPoints.ReplaceAll(cpuPoints);
+        MemoryHistoryPoints.ReplaceAll(memPoints);
     }
 
     private void OnStatsUpdated(object? sender, SystemStats e)
     {
-        // Skip entirely when not visible — no buffering needed for system view
+        // Always buffer data regardless of view visibility
+        _statsBuffer.Add((e.Timestamp, e.Cpu.UsagePercent, e.Memory.UsagePercent));
+
+        // Skip UI updates when not visible
         if (!_isViewActive) return;
 
         Volatile.Write(ref _pendingSystemStats, e);

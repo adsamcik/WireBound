@@ -1,6 +1,7 @@
 using System.Runtime.Versioning;
+using System.Security.AccessControl;
 using System.Security.Cryptography;
-using System.Text;
+using System.Security.Principal;
 
 namespace WireBound.IPC.Security;
 
@@ -35,9 +36,21 @@ public static class SecretManager
         var dir = Path.GetDirectoryName(path)!;
         if (!Directory.Exists(dir))
             Directory.CreateDirectory(dir);
+        if (File.Exists(path))
+            File.Delete(path);
 
-        File.WriteAllBytes(path, secret);
-        RestrictFileAccess(path);
+        if (OperatingSystem.IsWindows())
+        {
+            WriteSecretWindows(path, secret);
+        }
+        else if (OperatingSystem.IsLinux())
+        {
+            WriteSecretLinux(path, secret);
+        }
+        else
+        {
+            File.WriteAllBytes(path, secret);
+        }
 
         return secret;
     }
@@ -71,55 +84,49 @@ public static class SecretManager
     }
 
     /// <summary>
-    /// Sets restrictive file permissions so only the current user (and SYSTEM/root) can read.
+    /// Creates and writes the secret file using restrictive ACL from the first write.
     /// </summary>
-    private static void RestrictFileAccess(string path)
+    [SupportedOSPlatform("windows")]
+    private static void WriteSecretWindows(string path, byte[] secret)
     {
-        if (OperatingSystem.IsWindows())
-        {
-            SetWindowsAcl(path);
-        }
-        else if (OperatingSystem.IsLinux())
-        {
-            // chmod 600 — owner read/write only
-            File.SetUnixFileMode(path,
-                UnixFileMode.UserRead | UnixFileMode.UserWrite);
-        }
+        var directoryPath = Path.GetDirectoryName(path)
+            ?? throw new InvalidOperationException("Secret directory path is unavailable.");
+        var security = new DirectorySecurity();
+        security.SetAccessRuleProtection(isProtected: true, preserveInheritance: false);
+
+        security.AddAccessRule(new FileSystemAccessRule(
+            WindowsIdentity.GetCurrent().User!,
+            FileSystemRights.FullControl,
+            InheritanceFlags.ContainerInherit | InheritanceFlags.ObjectInherit,
+            PropagationFlags.None,
+            AccessControlType.Allow));
+
+        security.AddAccessRule(new FileSystemAccessRule(
+            new SecurityIdentifier(WellKnownSidType.LocalSystemSid, null),
+            FileSystemRights.FullControl,
+            InheritanceFlags.ContainerInherit | InheritanceFlags.ObjectInherit,
+            PropagationFlags.None,
+            AccessControlType.Allow));
+
+        new DirectoryInfo(directoryPath).SetAccessControl(security);
+        File.WriteAllBytes(path, secret);
     }
 
     /// <summary>
-    /// Sets explicit Windows ACL: only current user + SYSTEM can access the file.
-    /// Removes all inherited ACLs to prevent enterprise/roaming profile leakage.
+    /// Creates and writes the secret file with owner-only permissions (0600).
     /// </summary>
-    [SupportedOSPlatform("windows")]
-    private static void SetWindowsAcl(string path)
+    [SupportedOSPlatform("linux")]
+    private static void WriteSecretLinux(string path, byte[] secret)
     {
-        var fileInfo = new FileInfo(path);
-        var security = fileInfo.GetAccessControl();
-
-        // Remove all inherited rules so enterprise/roaming ACLs don't leak access
-        security.SetAccessRuleProtection(isProtected: true, preserveInheritance: false);
-        var existingRules = security.GetAccessRules(
-            includeExplicit: true, includeInherited: true,
-            targetType: typeof(System.Security.Principal.SecurityIdentifier));
-        foreach (System.Security.AccessControl.FileSystemAccessRule rule in existingRules)
+        var options = new FileStreamOptions
         {
-            security.RemoveAccessRule(rule);
-        }
+            Mode = FileMode.Create,
+            Access = FileAccess.Write,
+            Share = FileShare.None,
+            UnixCreateMode = UnixFileMode.UserRead | UnixFileMode.UserWrite
+        };
 
-        // Grant current user full control
-        security.AddAccessRule(new System.Security.AccessControl.FileSystemAccessRule(
-            System.Security.Principal.WindowsIdentity.GetCurrent().User!,
-            System.Security.AccessControl.FileSystemRights.FullControl,
-            System.Security.AccessControl.AccessControlType.Allow));
-
-        // Grant SYSTEM full control (needed for elevated helper)
-        security.AddAccessRule(new System.Security.AccessControl.FileSystemAccessRule(
-            new System.Security.Principal.SecurityIdentifier(
-                System.Security.Principal.WellKnownSidType.LocalSystemSid, null),
-            System.Security.AccessControl.FileSystemRights.FullControl,
-            System.Security.AccessControl.AccessControlType.Allow));
-
-        fileInfo.SetAccessControl(security);
+        using var stream = new FileStream(path, options);
+        stream.Write(secret);
     }
 }

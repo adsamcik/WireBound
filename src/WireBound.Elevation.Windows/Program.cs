@@ -35,7 +35,11 @@ try
         cts.Cancel();
     };
 
-    AppDomain.CurrentDomain.ProcessExit += (_, _) => cts.Cancel();
+    AppDomain.CurrentDomain.ProcessExit += (_, _) =>
+    {
+        try { cts.Cancel(); }
+        catch (ObjectDisposedException) { }
+    };
 
     using var server = new ElevationServer(callerSid);
     await server.RunAsync(cts.Token);

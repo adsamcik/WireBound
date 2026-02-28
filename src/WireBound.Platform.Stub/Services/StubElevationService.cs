@@ -49,7 +49,7 @@ public sealed class StubElevationService : IElevationService
     /// <inheritdoc />
     public IHelperConnection? GetHelperConnection()
     {
-        return null;
+        return new StubHelperConnection();
     }
 
     /// <inheritdoc />

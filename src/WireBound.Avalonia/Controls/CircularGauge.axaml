@@ -3,7 +3,8 @@
              xmlns:controls="using:WireBound.Avalonia.Controls"
              x:Class="WireBound.Avalonia.Controls.CircularGauge"
              x:DataType="controls:CircularGauge"
-             ClipToBounds="False">
+             ClipToBounds="False"
+             AutomationProperties.Name="Usage Gauge">
     
     <UserControl.Styles>
         <!-- Size-specific styles -->

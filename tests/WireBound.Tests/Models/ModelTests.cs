@@ -594,7 +594,7 @@ public class ModelTests
     public void ConnectionInfo_NewInstance_HasDefaultValues()
     {
         // Act
-        var conn = new WireBound.Core.Models.ConnectionInfo();
+        var conn = new WireBound.Platform.Abstract.Models.ConnectionInfo();
 
         // Assert
         conn.LocalAddress.Should().Be(string.Empty);
@@ -603,14 +603,14 @@ public class ModelTests
         conn.RemotePort.Should().Be(0);
         conn.ProcessId.Should().Be(0);
         conn.Protocol.Should().Be("TCP");
-        conn.State.Should().Be(WireBound.Core.Models.ConnectionState.Unknown);
+        conn.State.Should().Be(WireBound.Platform.Abstract.Models.ConnectionState.Unknown);
     }
 
     [Test]
     public void ConnectionInfo_Properties_CanBeSet()
     {
         // Arrange & Act
-        var conn = new WireBound.Core.Models.ConnectionInfo
+        var conn = new WireBound.Platform.Abstract.Models.ConnectionInfo
         {
             LocalAddress = "192.168.1.100",
             LocalPort = 54321,
@@ -618,7 +618,7 @@ public class ModelTests
             RemotePort = 443,
             ProcessId = 1234,
             Protocol = "TCP",
-            State = WireBound.Core.Models.ConnectionState.Established
+            State = WireBound.Platform.Abstract.Models.ConnectionState.Established
         };
 
         // Assert
@@ -633,7 +633,7 @@ public class ModelTests
     public void ConnectionInfo_IsIPv6_TrueForIPv6Address()
     {
         // Arrange
-        var conn = new WireBound.Core.Models.ConnectionInfo
+        var conn = new WireBound.Platform.Abstract.Models.ConnectionInfo
         {
             LocalAddress = "::1"
         };
@@ -646,7 +646,7 @@ public class ModelTests
     public void ConnectionInfo_IsIPv6_FalseForIPv4Address()
     {
         // Arrange
-        var conn = new WireBound.Core.Models.ConnectionInfo
+        var conn = new WireBound.Platform.Abstract.Models.ConnectionInfo
         {
             LocalAddress = "192.168.1.1"
         };
@@ -659,7 +659,7 @@ public class ModelTests
     public void ConnectionInfo_ConnectionKey_FormatsCorrectly()
     {
         // Arrange
-        var conn = new WireBound.Core.Models.ConnectionInfo
+        var conn = new WireBound.Platform.Abstract.Models.ConnectionInfo
         {
             Protocol = "TCP",
             LocalAddress = "192.168.1.1",
@@ -676,7 +676,7 @@ public class ModelTests
     public void ConnectionInfo_RemoteEndpoint_IncludesPortWhenNonZero()
     {
         // Arrange
-        var conn = new WireBound.Core.Models.ConnectionInfo
+        var conn = new WireBound.Platform.Abstract.Models.ConnectionInfo
         {
             RemoteAddress = "8.8.8.8",
             RemotePort = 443
@@ -690,7 +690,7 @@ public class ModelTests
     public void ConnectionInfo_RemoteEndpoint_OmitsPortWhenZero()
     {
         // Arrange
-        var conn = new WireBound.Core.Models.ConnectionInfo
+        var conn = new WireBound.Platform.Abstract.Models.ConnectionInfo
         {
             RemoteAddress = "8.8.8.8",
             RemotePort = 0
@@ -704,7 +704,7 @@ public class ModelTests
     public void ConnectionInfo_LocalEndpoint_FormatsCorrectly()
     {
         // Arrange
-        var conn = new WireBound.Core.Models.ConnectionInfo
+        var conn = new WireBound.Platform.Abstract.Models.ConnectionInfo
         {
             LocalAddress = "127.0.0.1",
             LocalPort = 3000
@@ -876,9 +876,9 @@ public class ModelTests
     public void ConnectionState_HasExpectedValues()
     {
         // Assert
-        WireBound.Core.Models.ConnectionState.Unknown.Should().Be(WireBound.Core.Models.ConnectionState.Unknown);
-        ((int)WireBound.Core.Models.ConnectionState.Established).Should().Be(5);
-        ((int)WireBound.Core.Models.ConnectionState.TimeWait).Should().Be(11);
+        WireBound.Platform.Abstract.Models.ConnectionState.Unknown.Should().Be(WireBound.Platform.Abstract.Models.ConnectionState.Unknown);
+        ((int)WireBound.Platform.Abstract.Models.ConnectionState.Established).Should().Be(5);
+        ((int)WireBound.Platform.Abstract.Models.ConnectionState.TimeWait).Should().Be(11);
     }
 
     // ═══════════════════════════════════════════════════════════════════════

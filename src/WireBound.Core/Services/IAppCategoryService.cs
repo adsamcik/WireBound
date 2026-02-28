@@ -16,6 +16,17 @@ public interface IAppCategoryService
     string GetCategory(string executableName);
 
     /// <summary>
+    /// Get the category using a layered detection pipeline with richer context.
+    /// Pipeline: user override → exe match → publisher mapping → OS metadata → path heuristics → parent process → "Other".
+    /// Results are cached by executable path for performance.
+    /// </summary>
+    /// <param name="executableName">Process name or executable filename</param>
+    /// <param name="executablePath">Full path to the executable (enables publisher/path detection)</param>
+    /// <param name="processId">Process ID (enables parent process attribution)</param>
+    /// <returns>Category name</returns>
+    string GetCategory(string executableName, string? executablePath, int processId = 0);
+
+    /// <summary>
     /// Get all known category names.
     /// </summary>
     IReadOnlyList<string> GetAllCategories();

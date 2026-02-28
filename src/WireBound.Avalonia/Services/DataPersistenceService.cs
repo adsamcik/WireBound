@@ -14,6 +14,8 @@ namespace WireBound.Avalonia.Services;
 [System.Diagnostics.CodeAnalysis.SuppressMessage("Trimming", "IL2026", Justification = "EF Core LINQ queries use expression trees that may require unreferenced code; works at runtime")]
 public sealed class DataPersistenceService : IDataPersistenceService
 {
+    private const int MaxSpeedHistoryRows = 3600;
+    private const int DefaultDataRetentionDays = 365;
     private readonly IServiceProvider _serviceProvider;
     private readonly SemaphoreSlim _saveLock = new(1, 1);
     private long _lastSavedReceived;
@@ -209,11 +211,16 @@ public sealed class DataPersistenceService : IDataPersistenceService
         using var scope = _serviceProvider.CreateScope();
         var db = scope.ServiceProvider.GetRequiredService<WireBoundDbContext>();
 
-        var cutoffDate = DateOnly.FromDateTime(DateTime.Now.AddDays(-retentionDays));
+        var effectiveRetentionDays = retentionDays > 0 ? retentionDays : DefaultDataRetentionDays;
+        var cutoffDate = DateOnly.FromDateTime(DateTime.Now.AddDays(-effectiveRetentionDays));
         var cutoffDateTime = cutoffDate.ToDateTime(TimeOnly.MinValue);
 
         await db.DailyUsages.Where(d => d.Date < cutoffDate).ExecuteDeleteAsync().ConfigureAwait(false);
         await db.HourlyUsages.Where(h => h.Hour < cutoffDateTime).ExecuteDeleteAsync().ConfigureAwait(false);
+        await db.DailySystemStats.Where(d => d.Date < cutoffDate).ExecuteDeleteAsync().ConfigureAwait(false);
+        await db.HourlySystemStats.Where(h => h.Hour < cutoffDateTime).ExecuteDeleteAsync().ConfigureAwait(false);
+        await db.AddressUsageRecords.Where(a => a.Timestamp < cutoffDateTime).ExecuteDeleteAsync().ConfigureAwait(false);
+        await db.ResourceInsightSnapshots.Where(r => r.Timestamp < cutoffDateTime).ExecuteDeleteAsync().ConfigureAwait(false);
     }
 
     public async Task<AppSettings> GetSettingsAsync()
@@ -552,6 +559,8 @@ public sealed class DataPersistenceService : IDataPersistenceService
         return await db.SpeedSnapshots
             .AsNoTracking()
             .Where(s => s.Timestamp >= since)
+            .OrderByDescending(s => s.Timestamp)
+            .Take(MaxSpeedHistoryRows)
             .OrderBy(s => s.Timestamp)
             .ToListAsync()
             .ConfigureAwait(false);

@@ -3,6 +3,7 @@ using CommunityToolkit.Mvvm.Input;
 using Microsoft.Extensions.Logging;
 using System.Collections.ObjectModel;
 using WireBound.Avalonia.Helpers;
+using WireBound.Core;
 using WireBound.Core.Helpers;
 using WireBound.Core.Models;
 using WireBound.Core.Services;
@@ -36,9 +37,12 @@ public sealed partial class ApplicationsViewModel : ObservableObject, IDisposabl
     private readonly IDataPersistenceService _persistence;
     private readonly IProcessNetworkService? _processNetworkService;
     private readonly IElevationService _elevationService;
+    private readonly INavigationService _navigationService;
     private readonly ILogger<ApplicationsViewModel>? _logger;
     private readonly CancellationTokenSource _cts = new();
+    private CancellationTokenSource? _searchDebounceCts;
     private bool _disposed;
+    private bool _isViewActive;
 
     /// <summary>Completes when async initialization finishes. Exposed for testability.</summary>
     public Task InitializationTask { get; }
@@ -94,13 +98,16 @@ public sealed partial class ApplicationsViewModel : ObservableObject, IDisposabl
         IDataPersistenceService persistence,
         IProcessNetworkService processNetworkService,
         IElevationService elevationService,
+        INavigationService navigationService,
         ILogger<ApplicationsViewModel>? logger = null)
     {
         _dispatcher = dispatcher;
         _persistence = persistence;
         _processNetworkService = processNetworkService;
         _elevationService = elevationService;
+        _navigationService = navigationService;
         _logger = logger;
+        _isViewActive = navigationService.CurrentView == Routes.Applications;
 
         // Per-app network tracking requires IProcessNetworkService which is now implemented
         IsPlatformSupported = _processNetworkService?.IsPlatformSupported ?? false;
@@ -122,8 +129,39 @@ public sealed partial class ApplicationsViewModel : ObservableObject, IDisposabl
 
         // Subscribe to helper state changes
         _elevationService.HelperConnectionStateChanged += OnHelperConnectionStateChanged;
+        _navigationService.NavigationChanged += OnNavigationChanged;
 
         InitializationTask = InitializeAsync();
+    }
+
+    private void OnNavigationChanged(string route)
+    {
+        var wasActive = _isViewActive;
+        _isViewActive = route == Routes.Applications;
+
+        if (_isViewActive && !wasActive)
+        {
+            OnViewActivated();
+        }
+        else if (!_isViewActive && wasActive)
+        {
+            OnViewDeactivated();
+        }
+    }
+
+    private void OnViewActivated()
+    {
+        if (_processNetworkService == null) return;
+
+        _dispatcher.Post(() =>
+        {
+            ActiveApps.ReplaceAll(_processNetworkService.GetTopProcesses(10)
+                .OrderByDescending(s => s.TotalSpeedBps));
+        }, UiDispatcherPriority.Background);
+    }
+
+    private void OnViewDeactivated()
+    {
     }
 
     private void OnHelperConnectionStateChanged(object? sender, HelperConnectionStateChangedEventArgs e)
@@ -139,22 +177,29 @@ public sealed partial class ApplicationsViewModel : ObservableObject, IDisposabl
 
     private async Task InitializeAsync()
     {
-        var token = _cts.Token;
-
-        // Load settings to check if per-app tracking is enabled
-        var settings = await _persistence.GetSettingsAsync();
-
-        if (token.IsCancellationRequested) return;
-
-        if (settings.IsPerAppTrackingEnabled && _processNetworkService != null)
+        try
         {
-            // Only start monitoring if the setting is enabled
-            await StartMonitoringAsync();
+            var token = _cts.Token;
+
+            // Load settings to check if per-app tracking is enabled
+            var settings = await _persistence.GetSettingsAsync();
+
+            if (token.IsCancellationRequested) return;
+
+            if (settings.IsPerAppTrackingEnabled && _processNetworkService != null)
+            {
+                // Only start monitoring if the setting is enabled
+                await StartMonitoringAsync();
+            }
+
+            if (token.IsCancellationRequested) return;
+
+            await LoadDataAsync();
         }
-
-        if (token.IsCancellationRequested) return;
-
-        await LoadDataAsync();
+        catch (Exception ex)
+        {
+            _logger?.LogError(ex, "Failed to initialize applications view");
+        }
     }
 
     private async Task StartMonitoringAsync()
@@ -179,6 +224,8 @@ public sealed partial class ApplicationsViewModel : ObservableObject, IDisposabl
 
     private void OnProcessStatsUpdated(object? sender, ProcessStatsUpdatedEventArgs e)
     {
+        if (!_isViewActive) return;
+
         _dispatcher.Post(() =>
         {
             ActiveApps.ReplaceAll(e.Stats.OrderByDescending(s => s.TotalSpeedBps).Take(10));
@@ -225,6 +272,10 @@ public sealed partial class ApplicationsViewModel : ObservableObject, IDisposabl
             var totalUp = usageList.Sum(u => u.BytesSent);
             TotalDownload = ByteFormatter.FormatBytes(totalDown);
             TotalUpload = ByteFormatter.FormatBytes(totalUp);
+        }
+        catch (Exception ex)
+        {
+            _logger?.LogError(ex, "Failed to load application usage data");
         }
         finally
         {
@@ -283,7 +334,27 @@ public sealed partial class ApplicationsViewModel : ObservableObject, IDisposabl
 
     partial void OnSearchTextChanged(string value)
     {
-        _ = LoadDataAsync();
+        if (_disposed) return;
+
+        _searchDebounceCts?.Cancel();
+        _searchDebounceCts?.Dispose();
+        _searchDebounceCts = new CancellationTokenSource();
+
+        var token = _searchDebounceCts.Token;
+        _ = DebouncedLoadDataAsync(token);
+    }
+
+    private async Task DebouncedLoadDataAsync(CancellationToken token)
+    {
+        try
+        {
+            await Task.Delay(300, token);
+            if (token.IsCancellationRequested || _disposed) return;
+            await LoadDataAsync();
+        }
+        catch (OperationCanceledException)
+        {
+        }
     }
 
     /// <summary>
@@ -296,6 +367,8 @@ public sealed partial class ApplicationsViewModel : ObservableObject, IDisposabl
 
         _cts.Cancel();
         _cts.Dispose();
+        _searchDebounceCts?.Cancel();
+        _searchDebounceCts?.Dispose();
 
         if (_processNetworkService != null)
         {
@@ -304,5 +377,6 @@ public sealed partial class ApplicationsViewModel : ObservableObject, IDisposabl
         }
 
         _elevationService.HelperConnectionStateChanged -= OnHelperConnectionStateChanged;
+        _navigationService.NavigationChanged -= OnNavigationChanged;
     }
 }

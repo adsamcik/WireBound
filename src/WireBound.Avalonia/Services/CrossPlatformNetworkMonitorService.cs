@@ -482,12 +482,12 @@ public sealed class CrossPlatformNetworkMonitorService : INetworkMonitorService
     /// Detects the primary internet adapter by finding the adapter with a default gateway.
     /// Prefers adapters with IPv4 gateways, falls back to IPv6.
     /// </summary>
-    private string DetectGatewayAdapterId()
+    private string DetectGatewayAdapterId(NetworkInterface[]? networkInterfaces = null)
     {
         string? bestAdapterId = null;
         bool bestHasIpv4Gateway = false;
 
-        foreach (var nic in NetworkInterface.GetAllNetworkInterfaces())
+        foreach (var nic in networkInterfaces ?? NetworkInterface.GetAllNetworkInterfaces())
         {
             if (nic.OperationalStatus != OperationalStatus.Up)
                 continue;
@@ -602,7 +602,8 @@ public sealed class CrossPlatformNetworkMonitorService : INetworkMonitorService
             var activeVpnAdapters = new List<string>();
             var connectedVpnAdapters = new List<string>();
             bool isAutoMode = _selectedAdapterId == NetworkMonitorConstants.AutoAdapterId;
-            string resolvedAutoAdapterId = isAutoMode ? DetectGatewayAdapterId() : string.Empty;
+            var networkInterfaces = NetworkInterface.GetAllNetworkInterfaces();
+            string resolvedAutoAdapterId = isAutoMode ? DetectGatewayAdapterId(networkInterfaces) : string.Empty;
             string resolvedAutoAdapterName = string.Empty;
             bool hasSelectedAdapter = !string.IsNullOrEmpty(_selectedAdapterId) && !isAutoMode;
 
@@ -616,7 +617,7 @@ public sealed class CrossPlatformNetworkMonitorService : INetworkMonitorService
                 }
             }
 
-            foreach (var nic in NetworkInterface.GetAllNetworkInterfaces())
+            foreach (var nic in networkInterfaces)
             {
                 if (!_adapterStates.TryGetValue(nic.Id, out var state))
                     continue;

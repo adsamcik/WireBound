@@ -129,14 +129,14 @@ public sealed class ProcessNetworkService : IProcessNetworkService
         IReadOnlyList<ProcessNetworkStats> snapshot;
         lock (_statsLock)
         {
+            snapshot = e.Stats.ToList();
             _currentStats.Clear();
-            _currentStats.AddRange(e.Stats);
-            snapshot = _currentStats.ToList();
+            _currentStats.AddRange(snapshot);
         }
 
         // Publish immutable snapshot for lock-free reads
         _statsSnapshot = snapshot;
-        StatsUpdated?.Invoke(this, new ProcessStatsUpdatedEventArgs(e.Stats.ToList()));
+        StatsUpdated?.Invoke(this, new ProcessStatsUpdatedEventArgs(snapshot));
     }
 
     private void OnProviderErrorOccurred(object? sender, ProcessNetworkProviderErrorEventArgs e)

@@ -2,7 +2,10 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:controls="using:WireBound.Avalonia.Controls"
              x:Class="WireBound.Avalonia.Controls.SystemHealthStrip"
-             x:DataType="controls:SystemHealthStrip">
+             x:DataType="controls:SystemHealthStrip"
+             AutomationProperties.Name="System Health Indicator"
+             Focusable="True"
+             IsTabStop="True">
 
     <Border Classes="CompactCard" Padding="8,6">
         <StackPanel Orientation="Horizontal" Spacing="0">

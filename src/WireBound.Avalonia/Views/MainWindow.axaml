@@ -107,7 +107,9 @@
                                          Fill="{StaticResource AccentBrush}"
                                          HorizontalAlignment="Right" VerticalAlignment="Top"
                                          Margin="0,-2,-4,0"
-                                         IsVisible="{Binding HasBadge}" />
+                                         IsVisible="{Binding HasBadge}"
+                                         AutomationProperties.Name="Update Available"
+                                         AutomationProperties.LiveSetting="Polite" />
                             </Grid>
                         </DataTemplate>
                     </ListBox.ItemTemplate>
@@ -133,14 +135,23 @@
                     
                     <!-- Status Indicator -->
                     <StackPanel Orientation="Horizontal" Spacing="10"
-                                AutomationProperties.Name="Monitoring Status: Active"
-                                AutomationProperties.HelpText="Network monitoring is currently running">
+                                AutomationProperties.Name="{Binding MonitoringStatusAutomationName}"
+                                AutomationProperties.HelpText="Shows whether network monitoring is currently running"
+                                Classes.active="{Binding IsMonitoringActive}">
+                        <StackPanel.Styles>
+                            <Style Selector="StackPanel.active > Ellipse">
+                                <Setter Property="Fill" Value="{StaticResource SuccessBrush}" />
+                            </Style>
+                            <Style Selector="StackPanel.active > TextBlock">
+                                <Setter Property="Foreground" Value="{StaticResource SuccessBrush}" />
+                            </Style>
+                        </StackPanel.Styles>
                         <Ellipse Width="10" Height="10"
-                                 Fill="{StaticResource SuccessBrush}"
+                                 Fill="{StaticResource MutedTextBrush}"
                                  VerticalAlignment="Center" />
-                        <TextBlock x:Name="StatusText" Text="Monitoring Active"
+                        <TextBlock x:Name="StatusText" Text="{Binding MonitoringStatusText}"
                                    FontSize="12"
-                                   Foreground="{StaticResource SuccessBrush}"
+                                   Foreground="{StaticResource MutedTextBrush}"
                                    VerticalAlignment="Center" />
                     </StackPanel>
                     

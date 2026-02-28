@@ -1,6 +1,7 @@
 <Window xmlns="https://github.com/avaloniaui"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         x:Class="WireBound.Avalonia.Views.WhatsNewWindow"
+        x:CompileBindings="False"
         Title="What's New"
         Width="480" Height="400"
         MinWidth="400" MinHeight="300"
@@ -23,7 +24,7 @@
 
             <!-- Title -->
             <TextBlock DockPanel.Dock="Top"
-                       x:Name="TitleText"
+                       Text="{Binding Title}"
                        FontSize="22"
                        FontWeight="SemiBold"
                        Foreground="{StaticResource PrimaryTextBrush}"
@@ -31,7 +32,7 @@
 
             <!-- Release notes content -->
             <ScrollViewer VerticalScrollBarVisibility="Auto">
-                <TextBlock x:Name="NotesText"
+                <TextBlock Text="{Binding Notes}"
                            TextWrapping="Wrap"
                            Foreground="{StaticResource SecondaryTextBrush}"
                            FontSize="14"

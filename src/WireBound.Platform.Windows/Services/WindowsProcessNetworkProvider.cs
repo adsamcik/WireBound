@@ -1,3 +1,4 @@
+using System.Collections.Concurrent;
 using System.Diagnostics;
 using System.Net;
 using System.Runtime.InteropServices;
@@ -19,8 +20,11 @@ namespace WireBound.Platform.Windows.Services;
 [SupportedOSPlatform("windows")]
 public sealed class WindowsProcessNetworkProvider : IProcessNetworkProvider
 {
+    private const int MaxProcessCacheSize = 4096;
+    private const int ProcessCacheTrimTargetSize = 3072;
+
     private readonly Dictionary<int, ProcessNetworkStats> _processStats = [];
-    private readonly Dictionary<int, ProcessCacheEntry> _processCache = [];
+    private readonly ConcurrentDictionary<int, ProcessCacheEntry> _processCache = new();
     private readonly object _lock = new();
 
     private bool _isMonitoring;
@@ -344,7 +348,10 @@ public sealed class WindowsProcessNetworkProvider : IProcessNetworkProvider
     private ProcessCacheEntry GetProcessInfo(int pid)
     {
         if (_processCache.TryGetValue(pid, out var cached))
+        {
+            cached.LastAccessUtc = DateTime.UtcNow;
             return cached;
+        }
 
         var info = new ProcessCacheEntry { Name = $"PID {pid}", DisplayName = $"Unknown ({pid})", Path = "" };
 
@@ -380,8 +387,25 @@ public sealed class WindowsProcessNetworkProvider : IProcessNetworkProvider
             // Process has exited
         }
 
+        info.LastAccessUtc = DateTime.UtcNow;
         _processCache[pid] = info;
+        TrimProcessCacheIfNeeded();
         return info;
+    }
+
+    private void TrimProcessCacheIfNeeded()
+    {
+        if (_processCache.Count <= MaxProcessCacheSize)
+            return;
+
+        var keysToRemove = _processCache
+            .OrderBy(entry => entry.Value.LastAccessUtc)
+            .Take(_processCache.Count - ProcessCacheTrimTargetSize)
+            .Select(entry => entry.Key)
+            .ToList();
+
+        foreach (var key in keysToRemove)
+            _processCache.TryRemove(key, out _);
     }
 
     private static string ComputeAppIdentifier(string path)
@@ -511,6 +535,7 @@ public sealed class WindowsProcessNetworkProvider : IProcessNetworkProvider
         public string Name { get; set; } = "";
         public string DisplayName { get; set; } = "";
         public string Path { get; set; } = "";
+        public DateTime LastAccessUtc { get; set; }
     }
 
     #endregion

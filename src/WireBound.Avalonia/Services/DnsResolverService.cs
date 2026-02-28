@@ -18,6 +18,7 @@ public sealed class DnsResolverService : IDnsResolverService, IDisposable
     private readonly SemaphoreSlim _resolutionSemaphore = new(5); // Max 5 concurrent lookups
     private readonly object _lruLock = new();
     private readonly LinkedList<string> _lruList = new();
+    private readonly Dictionary<string, LinkedListNode<string>> _lruIndex = new();
     private readonly ILogger<DnsResolverService>? _logger;
     private bool _disposed;
 
@@ -133,6 +134,7 @@ public sealed class DnsResolverService : IDnsResolverService, IDisposable
         lock (_lruLock)
         {
             _lruList.Clear();
+            _lruIndex.Clear();
         }
     }
 
@@ -170,9 +172,13 @@ public sealed class DnsResolverService : IDnsResolverService, IDisposable
 
         lock (_lruLock)
         {
-            // Remove existing entry to prevent duplicates in the LRU list
-            _lruList.Remove(ipAddress);
-            _lruList.AddFirst(ipAddress);
+            if (_lruIndex.TryGetValue(ipAddress, out var existingNode))
+            {
+                _lruList.Remove(existingNode);
+            }
+
+            var newNode = _lruList.AddFirst(ipAddress);
+            _lruIndex[ipAddress] = newNode;
         }
     }
 
@@ -180,8 +186,7 @@ public sealed class DnsResolverService : IDnsResolverService, IDisposable
     {
         lock (_lruLock)
         {
-            var node = _lruList.Find(ipAddress);
-            if (node != null)
+            if (_lruIndex.TryGetValue(ipAddress, out var node))
             {
                 _lruList.Remove(node);
                 _lruList.AddFirst(node);
@@ -193,7 +198,11 @@ public sealed class DnsResolverService : IDnsResolverService, IDisposable
     {
         lock (_lruLock)
         {
-            _lruList.Remove(ipAddress);
+            if (_lruIndex.TryGetValue(ipAddress, out var node))
+            {
+                _lruList.Remove(node);
+                _lruIndex.Remove(ipAddress);
+            }
         }
     }
 
@@ -205,6 +214,7 @@ public sealed class DnsResolverService : IDnsResolverService, IDisposable
             {
                 var oldest = _lruList.Last.Value;
                 _lruList.RemoveLast();
+                _lruIndex.Remove(oldest);
                 _cache.TryRemove(oldest, out _);
             }
         }

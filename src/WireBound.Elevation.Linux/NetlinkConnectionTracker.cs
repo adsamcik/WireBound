@@ -297,7 +297,7 @@ public sealed class NetlinkConnectionTracker : IDisposable
             return new ConnectionStatsResponse
             {
                 Success = false,
-                ErrorMessage = ex.Message
+                ErrorMessage = "Failed to collect connection statistics"
             };
         }
     }
@@ -340,7 +340,7 @@ public sealed class NetlinkConnectionTracker : IDisposable
             return new ProcessStatsResponse
             {
                 Success = false,
-                ErrorMessage = ex.Message
+                ErrorMessage = "Failed to collect process statistics"
             };
         }
     }

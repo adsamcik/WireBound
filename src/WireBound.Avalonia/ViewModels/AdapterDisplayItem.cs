@@ -144,12 +144,14 @@ public partial class AdapterDisplayItem : ObservableObject
     /// <summary>
     /// Raw download bytes per second for sorting
     /// </summary>
-    public long DownloadBps { get; private set; }
+    [ObservableProperty]
+    private long _downloadBps;
 
     /// <summary>
     /// Raw upload bytes per second for sorting
     /// </summary>
-    public long UploadBps { get; private set; }
+    [ObservableProperty]
+    private long _uploadBps;
 
     /// <summary>
     /// Whether this adapter currently has traffic
@@ -178,8 +180,11 @@ public partial class AdapterDisplayItem : ObservableObject
         UploadSpeed = ByteFormatter.FormatSpeed(uploadBps);
         TodayDownload = ByteFormatter.FormatBytes(storedTodayDownload + sessionDownload);
         TodayUpload = ByteFormatter.FormatBytes(storedTodayUpload + sessionUpload);
-        OnPropertyChanged(nameof(HasTraffic));
     }
+
+    partial void OnDownloadBpsChanged(long value) => OnPropertyChanged(nameof(HasTraffic));
+
+    partial void OnUploadBpsChanged(long value) => OnPropertyChanged(nameof(HasTraffic));
 
     private string GetTypeIcon()
     {

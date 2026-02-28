@@ -25,7 +25,9 @@ public sealed partial class SettingsViewModel : ObservableObject, IDisposable
     private readonly IDataExportService _dataExport;
     private readonly IUpdateService _updateService;
     private readonly TimeProvider _timeProvider;
+    private readonly IUiDispatcher? _dispatcher;
     private readonly ILogger<SettingsViewModel>? _logger;
+    private bool _disposed;
     private CancellationTokenSource? _autoSaveCts;
     private CancellationTokenSource? _downloadCts;
     private bool _isLoading = true;
@@ -269,7 +271,8 @@ public sealed partial class SettingsViewModel : ObservableObject, IDisposable
         IDataExportService dataExport,
         IUpdateService updateService,
         TimeProvider timeProvider,
-        ILogger<SettingsViewModel>? logger = null)
+        ILogger<SettingsViewModel>? logger = null,
+        IUiDispatcher? dispatcher = null)
     {
         _persistence = persistence;
         _networkMonitor = networkMonitor;
@@ -281,6 +284,9 @@ public sealed partial class SettingsViewModel : ObservableObject, IDisposable
         _updateService = updateService;
         _timeProvider = timeProvider;
         _logger = logger;
+        _dispatcher = dispatcher;
+
+        _elevationService.HelperConnectionStateChanged += OnHelperConnectionStateChanged;
 
         InitializationTask = LoadSettingsAsync();
     }
@@ -351,9 +357,6 @@ public sealed partial class SettingsViewModel : ObservableObject, IDisposable
             // IsElevated reflects whether the helper is connected (NOT whether the main app is elevated)
             IsElevated = _elevationService.IsHelperConnected;
             RequiresElevation = _elevationService.RequiresElevation && _elevationService.IsElevationSupported;
-
-            // Subscribe to helper state changes
-            _elevationService.HelperConnectionStateChanged += OnHelperConnectionStateChanged;
         }
         catch (Exception ex)
         {
@@ -368,8 +371,19 @@ public sealed partial class SettingsViewModel : ObservableObject, IDisposable
     private void OnHelperConnectionStateChanged(object? sender, HelperConnectionStateChangedEventArgs e)
     {
         // Update UI state when helper connection changes
-        IsElevated = e.IsConnected;
-        RequiresElevation = !e.IsConnected && _elevationService.IsElevationSupported;
+        if (_dispatcher is not null)
+        {
+            _dispatcher.Post(() =>
+            {
+                IsElevated = e.IsConnected;
+                RequiresElevation = !e.IsConnected && _elevationService.IsElevationSupported;
+            }, UiDispatcherPriority.Background);
+        }
+        else
+        {
+            IsElevated = e.IsConnected;
+            RequiresElevation = !e.IsConnected && _elevationService.IsElevationSupported;
+        }
     }
 
     private async Task LoadStartupStateAsync()
@@ -682,6 +696,9 @@ public sealed partial class SettingsViewModel : ObservableObject, IDisposable
     /// </summary>
     public void Dispose()
     {
+        if (_disposed) return;
+        _disposed = true;
+
         _autoSaveCts?.Cancel();
         _autoSaveCts?.Dispose();
         _autoSaveCts = null;

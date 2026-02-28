@@ -237,7 +237,7 @@
                         </Border>
                         
                         <!-- Connection List (virtualized) -->
-                        <ListBox Grid.Row="2" MaxHeight="500" Margin="0,8,0,0"
+                        <ListBox Grid.Row="2" Margin="0,8,0,0"
                                  ItemsSource="{Binding Connections}"
                                  SelectionMode="Toggle"
                                  Background="Transparent"

@@ -1,5 +1,3 @@
-using Avalonia;
-using Avalonia.Controls.ApplicationLifetimes;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using Microsoft.Extensions.Logging;
@@ -57,6 +55,11 @@ public partial class ConnectionDisplayItem : ObservableObject
     [ObservableProperty]
     private bool _hasByteCounters;
 
+    public long ReceiveSpeedBps { get; private set; }
+    public long SendSpeedBps { get; private set; }
+    public long BytesSentValue { get; private set; }
+    public long BytesReceivedValue { get; private set; }
+
     public static ConnectionDisplayItem FromConnectionStats(ConnectionStats stats)
     {
         return new ConnectionDisplayItem
@@ -73,23 +76,53 @@ public partial class ConnectionDisplayItem : ObservableObject
             BytesReceived = ByteFormatter.FormatBytes(stats.BytesReceived),
             SendSpeed = ByteFormatter.FormatSpeed(stats.SendSpeedBps),
             ReceiveSpeed = ByteFormatter.FormatSpeed(stats.ReceiveSpeedBps),
+            BytesSentValue = stats.BytesSent,
+            BytesReceivedValue = stats.BytesReceived,
+            SendSpeedBps = stats.SendSpeedBps,
+            ReceiveSpeedBps = stats.ReceiveSpeedBps,
             HasByteCounters = stats.HasByteCounters
         };
     }
 
     public void UpdateFrom(ConnectionStats stats)
     {
-        State = stats.State.ToString();
-        BytesSent = ByteFormatter.FormatBytes(stats.BytesSent);
-        BytesReceived = ByteFormatter.FormatBytes(stats.BytesReceived);
-        SendSpeed = ByteFormatter.FormatSpeed(stats.SendSpeedBps);
-        ReceiveSpeed = ByteFormatter.FormatSpeed(stats.ReceiveSpeedBps);
-        HasByteCounters = stats.HasByteCounters;
+        var newState = stats.State.ToString();
+        if (State != newState)
+            State = newState;
+
+        if (BytesSentValue != stats.BytesSent)
+        {
+            BytesSentValue = stats.BytesSent;
+            BytesSent = ByteFormatter.FormatBytes(stats.BytesSent);
+        }
+
+        if (BytesReceivedValue != stats.BytesReceived)
+        {
+            BytesReceivedValue = stats.BytesReceived;
+            BytesReceived = ByteFormatter.FormatBytes(stats.BytesReceived);
+        }
+
+        if (SendSpeedBps != stats.SendSpeedBps)
+        {
+            SendSpeedBps = stats.SendSpeedBps;
+            SendSpeed = ByteFormatter.FormatSpeed(stats.SendSpeedBps);
+        }
+
+        if (ReceiveSpeedBps != stats.ReceiveSpeedBps)
+        {
+            ReceiveSpeedBps = stats.ReceiveSpeedBps;
+            ReceiveSpeed = ByteFormatter.FormatSpeed(stats.ReceiveSpeedBps);
+        }
+
+        if (HasByteCounters != stats.HasByteCounters)
+            HasByteCounters = stats.HasByteCounters;
 
         if (!string.IsNullOrEmpty(stats.ResolvedHostname))
         {
-            RemoteHostname = stats.ResolvedHostname;
-            DisplayName = stats.DisplayName;
+            if (RemoteHostname != stats.ResolvedHostname)
+                RemoteHostname = stats.ResolvedHostname;
+            if (DisplayName != stats.DisplayName)
+                DisplayName = stats.DisplayName;
         }
     }
 }
@@ -119,6 +152,7 @@ public sealed partial class ConnectionsViewModel : ObservableObject, IDisposable
     private readonly IDnsResolverService? _dnsResolver;
     private readonly IElevationService _elevationService;
     private readonly INavigationService _navigationService;
+    private readonly IClipboardService _clipboardService;
     private readonly ILogger<ConnectionsViewModel>? _logger;
     private readonly TimeProvider _timeProvider;
     private readonly Dictionary<string, ConnectionDisplayItem> _connectionMap = new();
@@ -193,6 +227,7 @@ public sealed partial class ConnectionsViewModel : ObservableObject, IDisposable
         IDnsResolverService dnsResolver,
         IElevationService elevationService,
         INavigationService navigationService,
+        IClipboardService clipboardService,
         ILogger<ConnectionsViewModel>? logger = null,
         TimeProvider? timeProvider = null)
     {
@@ -201,6 +236,7 @@ public sealed partial class ConnectionsViewModel : ObservableObject, IDisposable
         _dnsResolver = dnsResolver;
         _elevationService = elevationService;
         _navigationService = navigationService;
+        _clipboardService = clipboardService;
         _logger = logger;
         _timeProvider = timeProvider ?? TimeProvider.System;
         _isViewActive = navigationService.CurrentView == Routes.Connections;
@@ -330,8 +366,11 @@ public sealed partial class ConnectionsViewModel : ObservableObject, IDisposable
 
         try
         {
-            IsLoading = true;
-            HasError = false;
+            await _dispatcher.InvokeAsync(() =>
+            {
+                IsLoading = true;
+                HasError = false;
+            });
 
             // Get connection stats from the service
             var stats = await _processNetworkService.GetConnectionStatsAsync();
@@ -339,20 +378,18 @@ public sealed partial class ConnectionsViewModel : ObservableObject, IDisposable
             await _dispatcher.InvokeAsync(() =>
             {
                 UpdateConnectionsList(stats);
+                IsLoading = false;
             });
         }
         catch (Exception ex)
         {
             _logger?.LogError(ex, "Failed to refresh connections");
-            _dispatcher.Post(() =>
+            await _dispatcher.InvokeAsync(() =>
             {
                 HasError = true;
                 ErrorMessage = $"Failed to refresh connections: {ex.Message}";
-            }, UiDispatcherPriority.Background);
-        }
-        finally
-        {
-            IsLoading = false;
+                IsLoading = false;
+            });
         }
     }
 
@@ -478,8 +515,8 @@ public sealed partial class ConnectionsViewModel : ObservableObject, IDisposable
                 ? Connections.OrderBy(c => c.State)
                 : Connections.OrderByDescending(c => c.State),
             _ => SortAscending
-                ? Connections.OrderBy(c => c.ReceiveSpeed)
-                : Connections.OrderByDescending(c => c.ReceiveSpeed)
+                ? Connections.OrderBy(c => c.ReceiveSpeedBps)
+                : Connections.OrderByDescending(c => c.ReceiveSpeedBps)
         };
 
         Connections.ReplaceAll(sorted);
@@ -488,12 +525,7 @@ public sealed partial class ConnectionsViewModel : ObservableObject, IDisposable
     [RelayCommand]
     private async Task CopyToClipboardAsync(string text)
     {
-        if (Application.Current?.ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop)
-        {
-            var clipboard = desktop.MainWindow?.Clipboard;
-            if (clipboard != null)
-                await clipboard.SetTextAsync(text);
-        }
+        await _clipboardService.SetTextAsync(text);
     }
 
     public void Dispose()

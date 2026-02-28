@@ -74,7 +74,7 @@
             <Grid x:Name="SpeedCardsGrid" RowDefinitions="Auto, Auto, Auto, Auto" ColumnDefinitions="*, *">
 
                 <!-- DOWNLOAD SPEED CARD - Hero Design -->
-                <Border Classes="ElevatedCard" Margin="0,0,10,0">
+                <Border Classes="ElevatedCard" Margin="0,0,10,0" AutomationProperties.Name="Download Speed">
                     <Grid RowDefinitions="Auto, Auto, Auto">
                         <!-- Header Row -->
                         <Grid ColumnDefinitions="Auto, *, Auto">
@@ -145,7 +145,7 @@
                 </Border>
 
                 <!-- UPLOAD SPEED CARD - Hero Design -->
-                <Border Grid.Column="1" Classes="ElevatedCard" Margin="10,0,0,0">
+                <Border Grid.Column="1" Classes="ElevatedCard" Margin="10,0,0,0" AutomationProperties.Name="Upload Speed">
                     <Grid RowDefinitions="Auto, Auto, Auto">
                         <!-- Header Row -->
                         <Grid ColumnDefinitions="Auto, *, Auto">

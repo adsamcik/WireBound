@@ -412,7 +412,23 @@ public partial class SystemHealthStrip : UserControl
     protected override void OnPointerPressed(global::Avalonia.Input.PointerPressedEventArgs e)
     {
         base.OnPointerPressed(e);
+        ExecuteCommand();
+    }
 
+    /// <inheritdoc/>
+    protected override void OnKeyDown(global::Avalonia.Input.KeyEventArgs e)
+    {
+        base.OnKeyDown(e);
+
+        if (e.Key is global::Avalonia.Input.Key.Enter or global::Avalonia.Input.Key.Space)
+        {
+            ExecuteCommand();
+            e.Handled = true;
+        }
+    }
+
+    private void ExecuteCommand()
+    {
         if (Command?.CanExecute(CommandParameter) == true)
         {
             Command.Execute(CommandParameter);

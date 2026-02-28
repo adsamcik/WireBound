@@ -103,7 +103,8 @@
                                          Height="24"
                                          CornerRadius="12"
                                          Background="{StaticResource SurfaceBrush}"
-                                         Foreground="{StaticResource PrimaryBrush}" />
+                                         Foreground="{StaticResource PrimaryBrush}"
+                                         AutomationProperties.Name="CPU Usage" />
                             <TextBlock Text="{Binding CpuUsagePercent, StringFormat='{}{0:F1}%'}"
                                        FontSize="11" FontWeight="Bold"
                                        Foreground="{StaticResource PrimaryTextBrush}"
@@ -162,7 +163,7 @@
                                             Series="{Binding CpuSeries}"
                                             XAxes="{Binding CpuXAxes}"
                                             YAxes="{Binding CpuYAxes}"
-                                            ZoomMode="X"
+                                            ZoomMode="None"
                                             TooltipPosition="Top"
                                             Background="{StaticResource SurfaceBrush}"
                                             AutomationProperties.Name="CPU Usage Chart"
@@ -217,7 +218,8 @@
                                          Height="24"
                                          CornerRadius="12"
                                          Background="{StaticResource SurfaceBrush}"
-                                         Foreground="{StaticResource MemoryBrush}" />
+                                         Foreground="{StaticResource MemoryBrush}"
+                                         AutomationProperties.Name="Memory Usage" />
                             <TextBlock Text="{Binding MemoryUsagePercent, StringFormat='{}{0:F1}%'}"
                                        FontSize="11" FontWeight="Bold"
                                        Foreground="{StaticResource PrimaryTextBrush}"
@@ -283,7 +285,7 @@
                                             Series="{Binding MemorySeries}"
                                             XAxes="{Binding MemoryXAxes}"
                                             YAxes="{Binding MemoryYAxes}"
-                                            ZoomMode="X"
+                                            ZoomMode="None"
                                             TooltipPosition="Top"
                                             Background="{StaticResource SurfaceBrush}"
                                             AutomationProperties.Name="Memory Usage Chart"

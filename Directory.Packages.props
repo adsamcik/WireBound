@@ -41,7 +41,7 @@
     <PackageVersion Include="Velopack" Version="0.0.1298" />
 
     <!-- ETW (Windows only) -->
-    <PackageVersion Include="Microsoft.Diagnostics.Tracing.TraceEvent" Version="3.1.29" />
+    <PackageVersion Include="Microsoft.Diagnostics.Tracing.TraceEvent" Version="3.1.30" />
 
     <!-- Platform-specific -->
     <PackageVersion Include="ManagedNativeWifi" Version="3.0.2" />

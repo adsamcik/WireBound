@@ -46,6 +46,8 @@ public class HandleClientAsyncTests : IDisposable
     {
         var pid = Environment.ProcessId;
         var timestamp = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
+        var executablePath = Environment.ProcessPath
+            ?? throw new InvalidOperationException("Current executable path is unavailable.");
         return new IpcMessage
         {
             Type = MessageType.Authenticate,
@@ -55,7 +57,7 @@ public class HandleClientAsyncTests : IDisposable
                 ClientPid = pid,
                 Timestamp = timestamp,
                 Signature = HmacAuthenticator.Sign(pid, timestamp, _secret!),
-                ExecutablePath = ""
+                ExecutablePath = executablePath
             })
         };
     }
@@ -88,7 +90,7 @@ public class HandleClientAsyncTests : IDisposable
         var serverToClient = new MemoryStream();
         var duplex = new DuplexStream(clientToServer, serverToClient);
 
-        await _server!.HandleClientAsync(duplex, CancellationToken.None);
+        await _server!.HandleClientAsync(duplex, Environment.ProcessId, CancellationToken.None);
 
         return await ReadResponses(serverToClient);
     }
@@ -110,8 +112,9 @@ public class HandleClientAsyncTests : IDisposable
         responses.Count.Should().Be(2);
         var authResp = IpcTransport.DeserializePayload<AuthenticateResponse>(responses[0].Payload);
         authResp.Success.Should().BeTrue();
-        var sdResp = IpcTransport.DeserializePayload<HeartbeatResponse>(responses[1].Payload);
-        sdResp.Alive.Should().BeFalse();
+        var sdResp = IpcTransport.DeserializePayload<ShutdownResponse>(responses[1].Payload);
+        sdResp.Acknowledged.Should().BeTrue();
+        sdResp.Reason.Should().Contain("shutdown");
     }
 
     [Test]
@@ -291,7 +294,7 @@ public class HandleClientAsyncTests : IDisposable
         cts.CancelAfter(TimeSpan.FromMilliseconds(100));
 
         // Should not throw
-        await _server!.HandleClientAsync(duplex, cts.Token);
+        await _server!.HandleClientAsync(duplex, Environment.ProcessId, cts.Token);
 
         var responses = await ReadResponses(serverToClient);
         // At least the auth response should be there

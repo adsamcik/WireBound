@@ -1,6 +1,7 @@
 using System.Diagnostics;
 using System.Runtime.Versioning;
 using Microsoft.Extensions.Logging;
+using Serilog;
 using WireBound.Platform.Abstract.Services;
 
 namespace WireBound.Platform.Linux.Services;
@@ -17,15 +18,16 @@ public sealed class LinuxHelperProcessManager : IHelperProcessManager
     private bool _disposed;
 
     private const string ServiceName = "wirebound-elevation";
-    private const string ServiceFileName = $"{ServiceName}.service";
+    private const string ServiceFileName = "wirebound-elevation@.service";
     private const string PolkitPolicyId = "com.wirebound.elevation";
+    private const string SystemdSystemDir = "/etc/systemd/system";
 
     public LinuxHelperProcessManager(ILogger<LinuxHelperProcessManager>? logger = null)
     {
         _logger = logger;
     }
 
-    public bool IsRunning => _helperProcess is { HasExited: false } || IsSystemdServiceActive();
+    public bool IsRunning => _helperProcess is { HasExited: false } || IsSystemdServiceActiveAsync().GetAwaiter().GetResult();
     public int? HelperProcessId => _helperProcess?.HasExited == false ? _helperProcess.Id : null;
 
     public string HelperPath
@@ -66,11 +68,11 @@ public sealed class LinuxHelperProcessManager : IHelperProcessManager
     {
         var timeoutMs = (int)(timeout?.TotalMilliseconds ?? 5000);
 
-        if (IsSystemdServiceActive())
+        if (await IsSystemdServiceActiveAsync())
         {
             try
             {
-                RunCommand("systemctl", $"--user stop {ServiceName}");
+                await RunCommandAsync("/usr/bin/systemctl", $"stop {ServiceName}@{GetCurrentUid()}");
                 _logger?.LogInformation("Stopped systemd service");
             }
             catch (Exception ex)
@@ -104,8 +106,26 @@ public sealed class LinuxHelperProcessManager : IHelperProcessManager
         if (!File.Exists(HelperPath))
             return HelperValidationResult.Invalid($"Helper not found at: {HelperPath}");
 
-        // Check executable permission
+        // Reject symlinks — attacker could swap a real binary for a malicious one
         var fileInfo = new FileInfo(HelperPath);
+        if (fileInfo.Attributes.HasFlag(FileAttributes.ReparsePoint))
+            return HelperValidationResult.Invalid("Helper binary is a symbolic link — refusing to launch");
+
+        // Verify the binary is not world-writable or group-writable
+        try
+        {
+            var mode = File.GetUnixFileMode(HelperPath);
+            if (mode.HasFlag(UnixFileMode.OtherWrite))
+                return HelperValidationResult.Invalid("Helper binary is world-writable — refusing to launch");
+            if (mode.HasFlag(UnixFileMode.GroupWrite))
+                return HelperValidationResult.Invalid("Helper binary is group-writable — refusing to launch");
+        }
+        catch (Exception ex)
+        {
+            return HelperValidationResult.Invalid($"Cannot verify helper permissions: {ex.Message}");
+        }
+
+        // Check executable permission
         if ((File.GetUnixFileMode(HelperPath) & UnixFileMode.UserExecute) == 0)
             return HelperValidationResult.Invalid("Helper is not executable");
 
@@ -113,40 +133,66 @@ public sealed class LinuxHelperProcessManager : IHelperProcessManager
     }
 
     /// <summary>
-    /// Installs the systemd user service and polkit policy for passwordless startup.
+    /// Installs the systemd system service and polkit policy for passwordless startup.
     /// Requires a one-time password prompt via pkexec.
     /// </summary>
-    public bool InstallService()
+    public async Task<bool> InstallService()
     {
         try
         {
-            _logger?.LogInformation("Installing systemd service and polkit policy");
+            _logger?.LogInformation("Installing systemd system service and polkit policy");
 
-            // Create systemd user service file
-            var serviceDir = Path.Combine(
-                Environment.GetFolderPath(Environment.SpecialFolder.UserProfile),
-                ".config", "systemd", "user");
-            Directory.CreateDirectory(serviceDir);
-
-            var servicePath = Path.Combine(serviceDir, ServiceFileName);
+            // System-level service using the @ template so each user gets their own instance.
+            // The %i specifier expands to the instance name (UID) at runtime.
             var serviceContent = $"""
                 [Unit]
-                Description=WireBound Elevation Helper
+                Description=WireBound Elevation Helper for %i
                 After=network.target
 
                 [Service]
                 Type=simple
                 ExecStart={HelperPath}
-                Restart=on-failure
-                RestartSec=5
+                User=root
+                Environment=SUDO_UID=%i
                 Environment=DOTNET_SYSTEM_GLOBALIZATION_INVARIANT=1
 
-                [Install]
-                WantedBy=default.target
-                """;
-            File.WriteAllText(servicePath, serviceContent);
+                # Security hardening — restrict the helper to only what it needs
+                NoNewPrivileges=yes
+                ProtectSystem=strict
+                ProtectHome=read-only
+                PrivateTmp=yes
+                ProtectKernelModules=yes
+                ProtectKernelTunables=yes
+                ProtectControlGroups=yes
+                RestrictSUIDSGID=yes
+                RestrictRealtime=yes
+                RestrictNamespaces=yes
+                MemoryDenyWriteExecute=yes
+                LockPersonality=yes
 
-            // Install polkit policy (requires elevation)
+                # Only allow AF_UNIX (for IPC socket) and AF_NETLINK (for network monitoring)
+                RestrictAddressFamilies=AF_UNIX AF_NETLINK
+
+                # Read-write access for socket dir and the launching user's secret file
+                ReadWritePaths=/run/wirebound /home
+
+                [Install]
+                WantedBy=multi-user.target
+                """;
+
+            // Write the service file to the system directory using pkexec tee
+            // (piping via stdin avoids temp file TOCTOU where another same-user process
+            //  could modify the temp file between write and elevated copy)
+            var serviceResult = await PipeToElevatedFileAsync(
+                $"{SystemdSystemDir}/{ServiceFileName}", serviceContent);
+            if (serviceResult != 0)
+            {
+                _logger?.LogWarning("Failed to install system service file (exit code: {Code})", serviceResult);
+                return false;
+            }
+
+            // Install polkit policy (requires elevation).
+            // Restrict to active local sessions only — remote/inactive sessions cannot trigger elevation.
             var polkitContent = $"""
                 <?xml version="1.0" encoding="UTF-8"?>
                 <!DOCTYPE policyconfig PUBLIC
@@ -157,8 +203,8 @@ public sealed class LinuxHelperProcessManager : IHelperProcessManager
                     <description>WireBound Elevation Helper</description>
                     <message>WireBound needs elevated access for per-process network monitoring</message>
                     <defaults>
-                      <allow_any>auth_admin_keep</allow_any>
-                      <allow_inactive>auth_admin_keep</allow_inactive>
+                      <allow_any>no</allow_any>
+                      <allow_inactive>no</allow_inactive>
                       <allow_active>auth_admin_keep</allow_active>
                     </defaults>
                     <annotate key="org.freedesktop.policykit.exec.path">{HelperPath}</annotate>
@@ -168,23 +214,17 @@ public sealed class LinuxHelperProcessManager : IHelperProcessManager
                 """;
 
             var polkitPath = $"/usr/share/polkit-1/actions/{PolkitPolicyId}.policy";
-            var tempPolkit = Path.GetTempFileName();
-            File.WriteAllText(tempPolkit, polkitContent);
-
-            // Use pkexec to install the polkit policy (one-time prompt)
-            var result = RunCommand("pkexec", $"cp {tempPolkit} {polkitPath}");
-            File.Delete(tempPolkit);
-
-            if (result != 0)
+            var polkitResult = await PipeToElevatedFileAsync(polkitPath, polkitContent);
+            if (polkitResult != 0)
             {
-                _logger?.LogWarning("Failed to install polkit policy (exit code: {Code})", result);
+                _logger?.LogWarning("Failed to install polkit policy (exit code: {Code})", polkitResult);
                 return false;
             }
 
-            // Reload systemd
-            RunCommand("systemctl", "--user daemon-reload");
+            // Reload systemd to pick up the new unit file
+            await RunCommandAsync("/usr/bin/systemctl", "daemon-reload");
 
-            _logger?.LogInformation("Service and polkit policy installed successfully");
+            _logger?.LogInformation("System service and polkit policy installed successfully");
             return true;
         }
         catch (Exception ex)
@@ -197,27 +237,25 @@ public sealed class LinuxHelperProcessManager : IHelperProcessManager
     /// <summary>
     /// Uninstalls the systemd service and polkit policy.
     /// </summary>
-    public bool UninstallService()
+    public async Task<bool> UninstallService()
     {
         try
         {
-            // Stop service if running
-            RunCommand("systemctl", $"--user stop {ServiceName}");
-            RunCommand("systemctl", $"--user disable {ServiceName}");
+            var instanceName = $"{ServiceName}@{GetCurrentUid()}";
 
-            // Remove service file
-            var serviceDir = Path.Combine(
-                Environment.GetFolderPath(Environment.SpecialFolder.UserProfile),
-                ".config", "systemd", "user");
-            var servicePath = Path.Combine(serviceDir, ServiceFileName);
-            if (File.Exists(servicePath))
-                File.Delete(servicePath);
+            // Stop and disable the per-user instance
+            await RunCommandAsync("/usr/bin/systemctl", $"stop {instanceName}");
+            await RunCommandAsync("/usr/bin/systemctl", $"disable {instanceName}");
 
-            // Remove polkit policy
+            // Remove service template file (requires elevation)
+            var servicePath = $"{SystemdSystemDir}/{ServiceFileName}";
+            await RunCommandAsync("/usr/bin/pkexec", $"rm -f {servicePath}");
+
+            // Remove polkit policy (requires elevation)
             var polkitPath = $"/usr/share/polkit-1/actions/{PolkitPolicyId}.policy";
-            RunCommand("pkexec", $"rm -f {polkitPath}");
+            await RunCommandAsync("/usr/bin/pkexec", $"rm -f {polkitPath}");
 
-            RunCommand("systemctl", "--user daemon-reload");
+            await RunCommandAsync("/usr/bin/systemctl", "daemon-reload");
 
             _logger?.LogInformation("Service uninstalled successfully");
             return true;
@@ -229,19 +267,16 @@ public sealed class LinuxHelperProcessManager : IHelperProcessManager
         }
     }
 
-    private bool IsServiceInstalled()
-    {
-        var serviceDir = Path.Combine(
-            Environment.GetFolderPath(Environment.SpecialFolder.UserProfile),
-            ".config", "systemd", "user");
-        return File.Exists(Path.Combine(serviceDir, ServiceFileName));
-    }
+    private bool IsServiceInstalled() =>
+        File.Exists(Path.Combine(SystemdSystemDir, ServiceFileName));
 
-    private bool IsSystemdServiceActive()
+    private async Task<bool> IsSystemdServiceActiveAsync()
     {
         try
         {
-            return RunCommand("systemctl", $"--user is-active --quiet {ServiceName}") == 0;
+            return await RunCommandAsync(
+                "/usr/bin/systemctl",
+                $"is-active --quiet {ServiceName}@{GetCurrentUid()}") == 0;
         }
         catch
         {
@@ -253,7 +288,8 @@ public sealed class LinuxHelperProcessManager : IHelperProcessManager
     {
         try
         {
-            var result = RunCommand("systemctl", $"--user start {ServiceName}");
+            var instanceName = $"{ServiceName}@{GetCurrentUid()}";
+            var result = await RunCommandAsync("/usr/bin/systemctl", $"start {instanceName}");
             if (result != 0)
                 return HelperStartResult.Failed($"systemctl start failed (exit code: {result})");
 
@@ -286,11 +322,11 @@ public sealed class LinuxHelperProcessManager : IHelperProcessManager
 
             var startInfo = new ProcessStartInfo
             {
-                FileName = "pkexec",
-                Arguments = helperFullPath,
+                FileName = "/usr/bin/pkexec",
                 UseShellExecute = false,
                 CreateNoWindow = true
             };
+            startInfo.ArgumentList.Add(helperFullPath);
 
             _helperProcess = Process.Start(startInfo);
             if (_helperProcess is null)
@@ -330,20 +366,103 @@ public sealed class LinuxHelperProcessManager : IHelperProcessManager
         HelperExited?.Invoke(this, new HelperExitedEventArgs(exitCode, wasExpected: false));
     }
 
-    private static int RunCommand(string command, string arguments)
+    /// <summary>
+    /// Returns the real UID of the current process by reading /proc/self/status.
+    /// Falls back to the UID environment variable if /proc is unavailable.
+    /// </summary>
+    private static int GetCurrentUid()
+    {
+        try
+        {
+            foreach (var line in File.ReadLines("/proc/self/status"))
+            {
+                if (!line.StartsWith("Uid:", StringComparison.Ordinal))
+                    continue;
+                var parts = line.Split('\t', StringSplitOptions.RemoveEmptyEntries);
+                if (parts.Length >= 2 && int.TryParse(parts[1], out var uid))
+                    return uid;
+            }
+        }
+        catch { /* fall through to env var */ }
+
+        if (Environment.GetEnvironmentVariable("UID") is { } uidStr && int.TryParse(uidStr, out var envUid))
+            return envUid;
+
+        return -1;
+    }
+
+    /// <summary>
+    /// Pipes content directly to an elevated file via pkexec tee, avoiding temp file TOCTOU.
+    /// </summary>
+    private static async Task<int> PipeToElevatedFileAsync(string targetPath, string content)
     {
         var startInfo = new ProcessStartInfo
         {
-            FileName = command,
-            Arguments = arguments,
+            FileName = "/usr/bin/pkexec",
+            UseShellExecute = false,
+            CreateNoWindow = true,
+            RedirectStandardInput = true,
+            RedirectStandardOutput = true,
+            RedirectStandardError = true
+        };
+        startInfo.ArgumentList.Add("tee");
+        startInfo.ArgumentList.Add(targetPath);
+
+        using var process = Process.Start(startInfo)!;
+
+        await process.StandardInput.WriteAsync(content);
+        process.StandardInput.Close();
+
+        // Drain stdout (tee echoes input) and stderr
+        var stdoutTask = process.StandardOutput.ReadToEndAsync();
+        var stderrTask = process.StandardError.ReadToEndAsync();
+
+        process.WaitForExit(10000);
+
+        if (!process.HasExited)
+        {
+            process.Kill();
+            Log.Warning("pkexec tee timed out for: {Path}", targetPath);
+            return -1;
+        }
+
+        await stderrTask.ConfigureAwait(false);
+        return process.ExitCode;
+    }
+
+    private static async Task<int> RunCommandAsync(string fileName, string arguments)
+    {
+        var startInfo = new ProcessStartInfo
+        {
+            FileName = fileName,
             UseShellExecute = false,
             CreateNoWindow = true,
             RedirectStandardOutput = true,
             RedirectStandardError = true
         };
+        // Use ArgumentList for safe argument handling (no shell interpretation)
+        foreach (var arg in arguments.Split(' ', StringSplitOptions.RemoveEmptyEntries))
+            startInfo.ArgumentList.Add(arg);
 
         using var process = Process.Start(startInfo)!;
+
+        // Drain stdout/stderr asynchronously to prevent buffer-full deadlock
+        var stdoutTask = process.StandardOutput.ReadToEndAsync();
+        var stderrTask = process.StandardError.ReadToEndAsync();
+
         process.WaitForExit(10000);
+
+        if (!process.HasExited)
+        {
+            process.Kill();
+            Log.Warning("Command timed out: {FileName}", fileName);
+            return -1;
+        }
+
+        var stderr = await stderrTask.ConfigureAwait(false);
+        if (process.ExitCode != 0 && !string.IsNullOrWhiteSpace(stderr))
+            Log.Debug("Command {FileName} failed with stderr: {Stderr}", fileName, stderr);
+
         return process.ExitCode;
     }
 

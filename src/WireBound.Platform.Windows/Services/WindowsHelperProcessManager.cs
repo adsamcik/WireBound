@@ -1,5 +1,6 @@
 using System.Diagnostics;
 using System.Runtime.Versioning;
+using System.Security.AccessControl;
 using System.Security.Principal;
 using Microsoft.Extensions.Logging;
 using WireBound.Platform.Abstract.Services;
@@ -55,7 +56,7 @@ public sealed class WindowsHelperProcessManager : IHelperProcessManager
             return HelperStartResult.ValidationFailed(validation.ErrorMessage ?? "Validation failed");
 
         // Try Task Scheduler first (no UAC prompt)
-        if (IsScheduledTaskRegistered())
+        if (await IsScheduledTaskRegistered())
         {
             _logger?.LogInformation("Starting helper via Task Scheduler (no UAC prompt)");
             var taskResult = await StartViaTaskSchedulerAsync(cancellationToken);
@@ -105,6 +106,45 @@ public sealed class WindowsHelperProcessManager : IHelperProcessManager
         if (!File.Exists(HelperPath))
             return HelperValidationResult.Invalid($"Helper not found at: {HelperPath}");
 
+        // Reject reparse points (symlinks, junctions) — attacker could redirect to arbitrary binary
+        var fileInfo = new FileInfo(HelperPath);
+        if (fileInfo.Attributes.HasFlag(FileAttributes.ReparsePoint))
+            return HelperValidationResult.Invalid("Helper binary is a reparse point — refusing to launch");
+
+        // Verify the binary path is canonical (no .. traversal)
+        var canonicalPath = Path.GetFullPath(HelperPath);
+        if (!string.Equals(canonicalPath, HelperPath, StringComparison.OrdinalIgnoreCase))
+            return HelperValidationResult.Invalid(
+                $"Helper path is not canonical. Expected: {canonicalPath}, Got: {HelperPath}");
+
+        // Block launch if the helper directory grants write access to Everyone/Users.
+        // A writable install directory allows attackers to replace the helper binary.
+        var helperDir = Path.GetDirectoryName(HelperPath)!;
+        try
+        {
+            var dirInfo = new DirectoryInfo(helperDir);
+            var acl = dirInfo.GetAccessControl();
+            var rules = acl.GetAccessRules(true, true, typeof(SecurityIdentifier));
+
+            foreach (FileSystemAccessRule rule in rules)
+            {
+                var sid = (SecurityIdentifier)rule.IdentityReference;
+                if ((sid.IsWellKnown(WellKnownSidType.WorldSid) ||
+                     sid.IsWellKnown(WellKnownSidType.BuiltinUsersSid)) &&
+                    rule.AccessControlType == AccessControlType.Allow &&
+                    (rule.FileSystemRights & FileSystemRights.Write) != 0)
+                {
+                    return HelperValidationResult.Invalid(
+                        $"Helper directory {helperDir} has permissive write access for {sid.Value}. " +
+                        "Install to a protected location like Program Files.");
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger?.LogDebug("Could not verify helper directory ACL: {Error}", ex.Message);
+        }
+
         return HelperValidationResult.Valid();
     }
 
@@ -112,7 +152,7 @@ public sealed class WindowsHelperProcessManager : IHelperProcessManager
     /// Registers a scheduled task to run the helper at logon with highest privileges.
     /// Requires a one-time UAC prompt.
     /// </summary>
-    public bool RegisterScheduledTask()
+    public async Task<bool> RegisterScheduledTask()
     {
         try
         {
@@ -128,7 +168,7 @@ public sealed class WindowsHelperProcessManager : IHelperProcessManager
                        "/F " + // Force overwrite if exists
                        "/NP"; // No password prompt
 
-            var result = RunSchtasks(args);
+            var result = await RunSchtasksAsync(args);
             if (result == 0)
             {
                 _logger?.LogInformation("Scheduled task registered successfully");
@@ -148,11 +188,11 @@ public sealed class WindowsHelperProcessManager : IHelperProcessManager
     /// <summary>
     /// Unregisters the scheduled task.
     /// </summary>
-    public bool UnregisterScheduledTask()
+    public async Task<bool> UnregisterScheduledTask()
     {
         try
         {
-            var result = RunSchtasks($"/Delete /TN \"{TaskFolder}\\{TaskName}\" /F");
+            var result = await RunSchtasksAsync($"/Delete /TN \"{TaskFolder}\\{TaskName}\" /F");
             return result == 0;
         }
         catch (Exception ex)
@@ -162,11 +202,11 @@ public sealed class WindowsHelperProcessManager : IHelperProcessManager
         }
     }
 
-    public bool IsScheduledTaskRegistered()
+    public async Task<bool> IsScheduledTaskRegistered()
     {
         try
         {
-            var result = RunSchtasks($"/Query /TN \"{TaskFolder}\\{TaskName}\"");
+            var result = await RunSchtasksAsync($"/Query /TN \"{TaskFolder}\\{TaskName}\"");
             return result == 0;
         }
         catch
@@ -179,7 +219,7 @@ public sealed class WindowsHelperProcessManager : IHelperProcessManager
     {
         try
         {
-            var result = RunSchtasks($"/Run /TN \"{TaskFolder}\\{TaskName}\"");
+            var result = await RunSchtasksAsync($"/Run /TN \"{TaskFolder}\\{TaskName}\"");
             if (result != 0)
                 return HelperStartResult.Failed("Task Scheduler run failed");
 
@@ -291,11 +331,11 @@ public sealed class WindowsHelperProcessManager : IHelperProcessManager
         HelperExited?.Invoke(this, new HelperExitedEventArgs(exitCode, wasExpected: false));
     }
 
-    private static int RunSchtasks(string arguments)
+    private async Task<int> RunSchtasksAsync(string arguments)
     {
         var startInfo = new ProcessStartInfo
         {
-            FileName = "schtasks.exe",
+            FileName = Path.Combine(Environment.SystemDirectory, "schtasks.exe"),
             Arguments = arguments,
             UseShellExecute = false,
             CreateNoWindow = true,
@@ -304,7 +344,22 @@ public sealed class WindowsHelperProcessManager : IHelperProcessManager
         };
 
         using var process = Process.Start(startInfo)!;
+        // Drain stdout/stderr asynchronously to prevent buffer-full deadlock
+        var stdoutTask = process.StandardOutput.ReadToEndAsync();
+        var stderrTask = process.StandardError.ReadToEndAsync();
         process.WaitForExit(10000);
+
+        if (!process.HasExited)
+        {
+            process.Kill();
+            _logger?.LogWarning("schtasks timed out");
+            return -1;
+        }
+
+        var stderr = await stderrTask;
+        if (process.ExitCode != 0 && !string.IsNullOrWhiteSpace(stderr))
+            _logger?.LogDebug("schtasks failed with stderr: {Stderr}", stderr);
+
         return process.ExitCode;
     }
 

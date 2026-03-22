@@ -43,6 +43,8 @@ public class WindowsElevationServerHandlerTests : IDisposable
         var pid = Environment.ProcessId;
         var timestamp = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
         var signature = HmacAuthenticator.Sign(pid, timestamp, _secret!);
+        var executablePath = Environment.ProcessPath
+            ?? throw new InvalidOperationException("Current executable path is unavailable.");
 
         return new IpcMessage
         {
@@ -53,7 +55,7 @@ public class WindowsElevationServerHandlerTests : IDisposable
                 ClientPid = pid,
                 Timestamp = timestamp,
                 Signature = signature,
-                ExecutablePath = "" // Skip exe validation
+                ExecutablePath = executablePath
             })
         };
     }
@@ -63,12 +65,12 @@ public class WindowsElevationServerHandlerTests : IDisposable
     // ═══════════════════════════════════════════════════════════════════════
 
     [Test]
-    public void HandleAuthenticate_ValidHmac_ReturnsSuccess()
+    public async Task HandleAuthenticate_ValidHmac_ReturnsSuccess()
     {
         Skip.Unless(_available, "ElevationServer not available (wrong platform or secret file locked)");
 
         var request = CreateValidAuthRequest();
-        var response = _server!.HandleAuthenticate(request, out var sessionId);
+        var (response, sessionId) = await _server!.HandleAuthenticateAsync(request, 0, CancellationToken.None);
 
         var authResp = IpcTransport.DeserializePayload<AuthenticateResponse>(response.Payload);
         authResp.Success.Should().BeTrue();
@@ -78,7 +80,7 @@ public class WindowsElevationServerHandlerTests : IDisposable
     }
 
     [Test]
-    public void HandleAuthenticate_InvalidHmac_ReturnsFailed()
+    public async Task HandleAuthenticate_InvalidHmac_ReturnsFailed()
     {
         Skip.Unless(_available, "ElevationServer not available (wrong platform or secret file locked)");
 
@@ -94,7 +96,7 @@ public class WindowsElevationServerHandlerTests : IDisposable
             })
         };
 
-        var response = _server!.HandleAuthenticate(request, out var sessionId);
+        var (response, sessionId) = await _server!.HandleAuthenticateAsync(request, 0, CancellationToken.None);
 
         var authResp = IpcTransport.DeserializePayload<AuthenticateResponse>(response.Payload);
         authResp.Success.Should().BeFalse();
@@ -103,7 +105,7 @@ public class WindowsElevationServerHandlerTests : IDisposable
     }
 
     [Test]
-    public void HandleAuthenticate_ExpiredTimestamp_ReturnsFailed()
+    public async Task HandleAuthenticate_ExpiredTimestamp_ReturnsFailed()
     {
         Skip.Unless(_available, "ElevationServer not available (wrong platform or secret file locked)");
 
@@ -120,7 +122,7 @@ public class WindowsElevationServerHandlerTests : IDisposable
             })
         };
 
-        var response = _server!.HandleAuthenticate(request, out var sessionId);
+        var (response, sessionId) = await _server!.HandleAuthenticateAsync(request, 0, CancellationToken.None);
 
         var authResp = IpcTransport.DeserializePayload<AuthenticateResponse>(response.Payload);
         authResp.Success.Should().BeFalse();
@@ -128,7 +130,7 @@ public class WindowsElevationServerHandlerTests : IDisposable
     }
 
     [Test]
-    public void HandleAuthenticate_MalformedPayload_ReturnsInvalidAuth()
+    public async Task HandleAuthenticate_MalformedPayload_ReturnsInvalidAuth()
     {
         Skip.Unless(_available, "ElevationServer not available (wrong platform or secret file locked)");
 
@@ -139,7 +141,7 @@ public class WindowsElevationServerHandlerTests : IDisposable
             Payload = [0xFF, 0xFE] // Invalid MessagePack
         };
 
-        var response = _server!.HandleAuthenticate(request, out var sessionId);
+        var (response, sessionId) = await _server!.HandleAuthenticateAsync(request, 0, CancellationToken.None);
 
         var authResp = IpcTransport.DeserializePayload<AuthenticateResponse>(response.Payload);
         authResp.Success.Should().BeFalse();
@@ -148,7 +150,7 @@ public class WindowsElevationServerHandlerTests : IDisposable
     }
 
     [Test]
-    public void HandleAuthenticate_WrongExecutablePath_ReturnsFailed()
+    public async Task HandleAuthenticate_WrongExecutablePath_ReturnsFailed()
     {
         Skip.Unless(_available, "ElevationServer not available (wrong platform or secret file locked)");
 
@@ -169,7 +171,7 @@ public class WindowsElevationServerHandlerTests : IDisposable
             })
         };
 
-        var response = _server!.HandleAuthenticate(request, out var sessionId);
+        var (response, sessionId) = await _server!.HandleAuthenticateAsync(request, 0, CancellationToken.None);
 
         var authResp = IpcTransport.DeserializePayload<AuthenticateResponse>(response.Payload);
         authResp.Success.Should().BeFalse();
@@ -182,13 +184,13 @@ public class WindowsElevationServerHandlerTests : IDisposable
     // ═══════════════════════════════════════════════════════════════════════
 
     [Test]
-    public void HandleConnectionStats_WithValidSession_ReturnsSuccess()
+    public async Task HandleConnectionStats_WithValidSession_ReturnsSuccess()
     {
         Skip.Unless(_available, "ElevationServer not available (wrong platform or secret file locked)");
 
         // Authenticate first
         var authReq = CreateValidAuthRequest();
-        _server!.HandleAuthenticate(authReq, out var sessionId);
+        var (_, sessionId) = await _server!.HandleAuthenticateAsync(authReq, 0, CancellationToken.None);
         sessionId.Should().NotBeNull();
 
         var request = new IpcMessage
@@ -237,12 +239,12 @@ public class WindowsElevationServerHandlerTests : IDisposable
     // ═══════════════════════════════════════════════════════════════════════
 
     [Test]
-    public void HandleProcessStats_WithValidSession_ReturnsSuccess()
+    public async Task HandleProcessStats_WithValidSession_ReturnsSuccess()
     {
         Skip.Unless(_available, "ElevationServer not available (wrong platform or secret file locked)");
 
         var authReq = CreateValidAuthRequest();
-        _server!.HandleAuthenticate(authReq, out var sessionId);
+        var (_, sessionId) = await _server!.HandleAuthenticateAsync(authReq, 0, CancellationToken.None);
 
         var request = new IpcMessage
         {
@@ -275,12 +277,12 @@ public class WindowsElevationServerHandlerTests : IDisposable
     }
 
     [Test]
-    public void HandleProcessStats_MalformedPayload_FallsBackToDefault()
+    public async Task HandleProcessStats_MalformedPayload_FallsBackToDefault()
     {
         Skip.Unless(_available, "ElevationServer not available (wrong platform or secret file locked)");
 
         var authReq = CreateValidAuthRequest();
-        _server!.HandleAuthenticate(authReq, out var sessionId);
+        var (_, sessionId) = await _server!.HandleAuthenticateAsync(authReq, 0, CancellationToken.None);
 
         var request = new IpcMessage
         {
@@ -318,19 +320,20 @@ public class WindowsElevationServerHandlerTests : IDisposable
     // ═══════════════════════════════════════════════════════════════════════
 
     [Test]
-    public void HandleShutdown_WithValidSession_ReturnsResponse()
+    public async Task HandleShutdown_WithValidSession_ReturnsResponse()
     {
         Skip.Unless(_available, "ElevationServer not available (wrong platform or secret file locked)");
 
         var authReq = CreateValidAuthRequest();
-        _server!.HandleAuthenticate(authReq, out var sessionId);
+        var (_, sessionId) = await _server!.HandleAuthenticateAsync(authReq, 0, CancellationToken.None);
 
         var request = new IpcMessage { Type = MessageType.Shutdown, RequestId = "sd-1" };
         var response = _server!.HandleShutdown(request, sessionId);
 
         response.Type.Should().Be(MessageType.Shutdown);
-        var hbResp = IpcTransport.DeserializePayload<HeartbeatResponse>(response.Payload);
-        hbResp.Alive.Should().BeFalse();
+        var shutdownResp = IpcTransport.DeserializePayload<ShutdownResponse>(response.Payload);
+        shutdownResp.Acknowledged.Should().BeTrue();
+        shutdownResp.Reason.Should().Contain("shutdown");
     }
 
     [Test]
@@ -358,24 +361,24 @@ public class WindowsElevationServerHandlerTests : IDisposable
     }
 
     [Test]
-    public void ValidateSession_ValidSession_ReturnsTrue()
+    public async Task ValidateSession_ValidSession_ReturnsTrue()
     {
         Skip.Unless(_available, "ElevationServer not available (wrong platform or secret file locked)");
 
         var authReq = CreateValidAuthRequest();
-        _server!.HandleAuthenticate(authReq, out var sessionId);
+        var (_, sessionId) = await _server!.HandleAuthenticateAsync(authReq, 0, CancellationToken.None);
 
         _server!.ValidateSession(sessionId, out var error).Should().BeTrue();
         error.Should().BeEmpty();
     }
 
     [Test]
-    public void ValidateSession_RemovedSession_ReturnsFalse()
+    public async Task ValidateSession_RemovedSession_ReturnsFalse()
     {
         Skip.Unless(_available, "ElevationServer not available (wrong platform or secret file locked)");
 
         var authReq = CreateValidAuthRequest();
-        _server!.HandleAuthenticate(authReq, out var sessionId);
+        var (_, sessionId) = await _server!.HandleAuthenticateAsync(authReq, 0, CancellationToken.None);
 
         // Shutdown removes the session via the server's internal logic, but
         // we can test validation with a fake session ID
@@ -387,7 +390,7 @@ public class WindowsElevationServerHandlerTests : IDisposable
     // ═══════════════════════════════════════════════════════════════════════
 
     [Test]
-    public void HandleAuthenticate_MaxSessionsExceeded_ReturnsFailed()
+    public async Task HandleAuthenticate_MaxSessionsExceeded_ReturnsFailed()
     {
         Skip.Unless(_available, "ElevationServer not available (wrong platform or secret file locked)");
 
@@ -395,14 +398,14 @@ public class WindowsElevationServerHandlerTests : IDisposable
         for (var i = 0; i < IpcConstants.MaxConcurrentSessions; i++)
         {
             var req = CreateValidAuthRequest();
-            var resp = _server!.HandleAuthenticate(req, out _);
+            var (resp, _) = await _server!.HandleAuthenticateAsync(req, 0, CancellationToken.None);
             var authResp = IpcTransport.DeserializePayload<AuthenticateResponse>(resp.Payload);
             authResp.Success.Should().BeTrue($"session {i} should succeed");
         }
 
         // The next should fail
         var overflowReq = CreateValidAuthRequest();
-        var overflowResp = _server!.HandleAuthenticate(overflowReq, out var sid);
+        var (overflowResp, sid) = await _server!.HandleAuthenticateAsync(overflowReq, 0, CancellationToken.None);
 
         var overflowAuth = IpcTransport.DeserializePayload<AuthenticateResponse>(overflowResp.Payload);
         overflowAuth.Success.Should().BeFalse();
@@ -415,4 +418,3 @@ public class WindowsElevationServerHandlerTests : IDisposable
         _server?.Dispose();
     }
 }
-

@@ -118,11 +118,25 @@ public sealed class ElevationServer : IDisposable
                 UnixFileMode.OtherExecute);
         }
 
-        // Ensure single instance via lock file
+        // Ensure single instance via lock file with crash recovery.
+        // FileOptions.DeleteOnClose ensures the OS removes the file when the process exits
+        // (even on crash/SIGKILL), preventing stale lock files from blocking restart.
         var lockPath = "/run/wirebound/elevation.lock";
+        if (File.Exists(lockPath))
+        {
+            // Stale lock from a crash — try to remove it
+            try { File.Delete(lockPath); }
+            catch (IOException)
+            {
+                // Another live instance holds the file open — genuinely running
+                Log.Error("Another instance of the elevation helper is already running (lock file held: {Path})", lockPath);
+                throw new InvalidOperationException("Another instance is already running");
+            }
+        }
         try
         {
-            _lockFile = new FileStream(lockPath, FileMode.CreateNew, FileAccess.Write, FileShare.None);
+            _lockFile = new FileStream(lockPath, FileMode.CreateNew, FileAccess.Write,
+                FileShare.None, bufferSize: 1, FileOptions.DeleteOnClose);
         }
         catch (IOException)
         {
@@ -314,6 +328,13 @@ public sealed class ElevationServer : IDisposable
                 IpcMessage response;
                 if (message.Type == MessageType.Authenticate)
                 {
+                    // Clean up prior session on re-auth to prevent session pool exhaustion
+                    if (sessionId is not null)
+                    {
+                        _sessionManager.RemoveSession(sessionId);
+                        _rateLimiter.RemoveClient(sessionId);
+                        _heartbeatRateLimiter.RemoveClient(sessionId);
+                    }
                     var (authResponse, newSessionId) = await HandleAuthenticateAsync(message, peerPid, cancellationToken);
                     sessionId = newSessionId;
                     response = authResponse;
@@ -432,7 +453,7 @@ public sealed class ElevationServer : IDisposable
         Log.Information("Authenticated client PID {Pid}, session {SessionId}", authRequest.ClientPid, session.SessionId);
 
         // Server proves it holds the secret (mutual auth)
-        var serverSig = HmacAuthenticator.Sign(Environment.ProcessId, session.ExpiresAtUtc.ToUnixTimeSeconds(), _secret);
+        var serverSig = HmacAuthenticator.Sign(0, session.ExpiresAtUtc.ToUnixTimeSeconds(), _secret);
 
         return (CreateResponse(request.RequestId, MessageType.Authenticate,
             new AuthenticateResponse
@@ -465,8 +486,13 @@ public sealed class ElevationServer : IDisposable
         }
         catch
         {
-            statsRequest = new ProcessStatsRequest();
+            return CreateErrorResponse(request.RequestId, "Invalid process stats request");
         }
+
+        // Cap PID filter list to prevent O(n×m) quadratic DoS
+        const int maxFilterPids = 1000;
+        if (statsRequest.ProcessIds.Count > maxFilterPids)
+            return CreateErrorResponse(request.RequestId, $"Too many PIDs in filter (max {maxFilterPids})");
 
         var stats = _tracker.GetProcessStats(statsRequest.ProcessIds);
         return CreateResponse(request.RequestId, MessageType.ProcessStats, stats);

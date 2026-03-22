@@ -336,6 +336,8 @@ public class LinuxIntegrationTests : IDisposable
         var pid = Environment.ProcessId;
         var timestamp = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
         var signature = HmacAuthenticator.Sign(pid, timestamp, secret);
+        var executablePath = Environment.ProcessPath
+            ?? throw new InvalidOperationException("Current executable path is unavailable.");
 
         var authRequest = new IpcMessage
         {
@@ -346,7 +348,7 @@ public class LinuxIntegrationTests : IDisposable
                 ClientPid = pid,
                 Timestamp = timestamp,
                 Signature = signature,
-                ExecutablePath = "" // Skip exe validation
+                ExecutablePath = executablePath
             })
         };
 
@@ -391,8 +393,9 @@ public class LinuxIntegrationTests : IDisposable
         await IpcTransport.SendAsync(clientStream, shutdownRequest);
         var shutdownResponse = await IpcTransport.ReceiveAsync(clientStream);
         shutdownResponse.Should().NotBeNull();
-        var shutdownResult = IpcTransport.DeserializePayload<HeartbeatResponse>(shutdownResponse!.Payload);
-        shutdownResult.Alive.Should().BeFalse();
+        var shutdownResult = IpcTransport.DeserializePayload<ShutdownResponse>(shutdownResponse!.Payload);
+        shutdownResult.Acknowledged.Should().BeTrue();
+        shutdownResult.Reason.Should().Contain("shutdown");
 
         // Server task should complete after shutdown
         await cts.CancelAsync();

@@ -16,8 +16,37 @@ public sealed class SessionManager
     /// <summary>
     /// Creates a new session for an authenticated client.
     /// Returns null if the maximum number of concurrent sessions is reached.
-    /// Uses a lock to prevent TOCTOU race between count check and add.
+    /// Uses an async lock to prevent TOCTOU race between count check and add.
     /// </summary>
+    public async Task<SessionInfo?> CreateSessionAsync(int clientPid, string executablePath, CancellationToken cancellationToken = default)
+    {
+        CleanExpiredSessions();
+
+        await _createLock.WaitAsync(cancellationToken);
+        try
+        {
+            if (_sessions.Count >= _maxConcurrent)
+                return null;
+
+            var session = new SessionInfo
+            {
+                SessionId = Guid.NewGuid().ToString("N"),
+                ClientPid = clientPid,
+                ExecutablePath = executablePath,
+                CreatedAtUtc = DateTimeOffset.UtcNow,
+                ExpiresAtUtc = DateTimeOffset.UtcNow.Add(_maxDuration)
+            };
+
+            return _sessions.TryAdd(session.SessionId, session) ? session : null;
+        }
+        finally
+        {
+            _createLock.Release();
+        }
+    }
+
+    /// <inheritdoc cref="CreateSessionAsync"/>
+    [Obsolete("Use CreateSessionAsync instead")]
     public SessionInfo? CreateSession(int clientPid, string executablePath)
     {
         CleanExpiredSessions();

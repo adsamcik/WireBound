@@ -315,8 +315,12 @@ public sealed class TrayIconService : ITrayIconService
     /// <inheritdoc />
     public void SetUpdateAvailable(string? version, Action? onClicked)
     {
+        if (_isDisposed) return;
+
         Dispatcher.UIThread.Post(() =>
         {
+            if (_isDisposed) return;
+
             if (_updateMenuItem != null)
             {
                 _trayIcon?.Menu?.Items.Remove(_updateMenuItem);
@@ -498,6 +502,11 @@ public sealed class TrayIconService : ITrayIconService
 
     private void OnWindowClosing(object? sender, WindowClosingEventArgs e)
     {
+        // Allow OS shutdown and application shutdown to proceed without interference —
+        // cancelling these causes Windows to show "app is preventing shutdown" dialogs.
+        if (e.CloseReason is WindowCloseReason.OSShutdown or WindowCloseReason.ApplicationShutdown)
+            return;
+
         // Only minimize to tray if tray is actually supported
         if (_minimizeToTray && _isTraySupported && _trayIcon != null && !_isDisposed)
         {
@@ -614,8 +623,12 @@ public sealed class TrayIconService : ITrayIconService
 
         if (_trayIcon != null)
         {
-            var trayIcons = TrayIcon.GetIcons(Application.Current!);
-            trayIcons?.Remove(_trayIcon);
+            if (Application.Current is { } app)
+            {
+                var trayIcons = TrayIcon.GetIcons(app);
+                trayIcons?.Remove(_trayIcon);
+            }
+
             _trayIcon.Dispose();
             _trayIcon = null;
         }

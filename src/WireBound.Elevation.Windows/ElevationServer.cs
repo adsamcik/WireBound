@@ -399,8 +399,13 @@ public sealed partial class ElevationServer : IDisposable
         }
         catch
         {
-            statsRequest = new ProcessStatsRequest();
+            return CreateErrorResponse(request.RequestId, "Invalid process stats request");
         }
+
+        // Cap PID filter list to prevent O(n×m) quadratic DoS
+        const int maxFilterPids = 1000;
+        if (statsRequest.ProcessIds.Count > maxFilterPids)
+            return CreateErrorResponse(request.RequestId, $"Too many PIDs in filter (max {maxFilterPids})");
 
         var stats = _tracker.GetProcessStats(statsRequest.ProcessIds);
         return CreateResponse(request.RequestId, MessageType.ProcessStats, stats);

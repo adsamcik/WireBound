@@ -551,6 +551,22 @@
                                     AutomationProperties.HelpText="Start a minimal elevated helper process for advanced features" />
                         </Grid>
                     </Border>
+                    
+                    <!-- Helper Auto-Start -->
+                    <Border Background="{StaticResource BorderSubtleBrush}" CornerRadius="12" Padding="16"
+                            IsVisible="{Binding IsHelperStartupSupported}">
+                        <Grid ColumnDefinitions="*, Auto">
+                            <StackPanel Spacing="4">
+                                <TextBlock Text="Start Helper at Login" Classes="CardTitle" />
+                                <TextBlock Text="Automatically start elevated helper when you log in (no prompt)" Classes="Caption" />
+                            </StackPanel>
+                            <ToggleSwitch Grid.Column="1"
+                                          IsChecked="{Binding StartHelperWithSystem}"
+                                          VerticalAlignment="Center"
+                                          AutomationProperties.Name="Start Helper at Login"
+                                          AutomationProperties.HelpText="Register the elevated helper to start automatically at system login without a prompt" />
+                        </Grid>
+                    </Border>
                 </StackPanel>
             </Border>
 

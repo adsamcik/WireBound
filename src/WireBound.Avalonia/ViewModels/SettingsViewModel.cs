@@ -151,6 +151,12 @@ public sealed partial class SettingsViewModel : ObservableObject, IDisposable
     [ObservableProperty]
     private bool _isStartupDisabledByPolicy;
 
+    [ObservableProperty]
+    private bool _startHelperWithSystem;
+
+    [ObservableProperty]
+    private bool _isHelperStartupSupported;
+
     /// <summary>Completes when async initialization finishes. Exposed for testability.</summary>
     public Task InitializationTask { get; }
 
@@ -199,6 +205,7 @@ public sealed partial class SettingsViewModel : ObservableObject, IDisposable
         }
     }
     partial void OnStartWithWindowsChanged(bool value) => ScheduleAutoSave();
+    partial void OnStartHelperWithSystemChanged(bool value) => ScheduleAutoSave();
     partial void OnMinimizeToTrayChanged(bool value) => ScheduleAutoSave();
     partial void OnStartMinimizedChanged(bool value) => ScheduleAutoSave();
     partial void OnSelectedSpeedUnitChanged(SpeedUnit value) => ScheduleAutoSave();
@@ -400,6 +407,12 @@ public sealed partial class SettingsViewModel : ObservableObject, IDisposable
         StartWithWindows = state == StartupState.Enabled;
         IsStartupDisabledByUser = state == StartupState.DisabledByUser;
         IsStartupDisabledByPolicy = state == StartupState.DisabledByPolicy;
+
+        IsHelperStartupSupported = _startupService.IsHelperStartupSupported;
+        if (IsHelperStartupSupported)
+        {
+            StartHelperWithSystem = await _startupService.IsHelperStartupEnabledAsync();
+        }
     }
 
     [RelayCommand]
@@ -411,6 +424,7 @@ public sealed partial class SettingsViewModel : ObservableObject, IDisposable
             PollingIntervalMs = PollingIntervalMs,
             UseIpHelperApi = UseIpHelperApi,
             IsPerAppTrackingEnabled = IsPerAppTrackingEnabled,
+            StartHelperWithSystem = StartHelperWithSystem,
             MinimizeToTray = MinimizeToTray,
             StartMinimized = StartMinimized,
             StartWithWindows = StartWithWindows,
@@ -453,6 +467,17 @@ public sealed partial class SettingsViewModel : ObservableObject, IDisposable
             StartWithWindows = result.State == StartupState.Enabled;
             IsStartupDisabledByUser = result.State == StartupState.DisabledByUser;
             IsStartupDisabledByPolicy = result.State == StartupState.DisabledByPolicy;
+        }
+
+        // Apply helper startup setting to OS
+        if (_startupService.IsHelperStartupSupported)
+        {
+            var helperResult = await _startupService.SetHelperStartupEnabledAsync(StartHelperWithSystem);
+            if (!helperResult)
+            {
+                // Revert UI toggle if OS registration failed (e.g., user cancelled UAC)
+                StartHelperWithSystem = await _startupService.IsHelperStartupEnabledAsync();
+            }
         }
     }
 

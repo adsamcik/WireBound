@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using System.Runtime.Versioning;
 using Serilog;
 using WireBound.Platform.Abstract.Services;
@@ -14,6 +15,10 @@ public sealed class LinuxStartupService : IStartupService
 {
     private const string DesktopFileName = "wirebound.desktop";
     private const string AppName = "WireBound";
+
+    private const string HelperServiceName = "wirebound-elevation";
+    private const string HelperServiceFileName = $"{HelperServiceName}.service";
+    private const string HelperExecutableName = "wirebound-elevation";
 
     public bool IsStartupSupported => HasDesktopEnvironment();
 
@@ -222,5 +227,186 @@ public sealed class LinuxStartupService : IStartupService
             Log.Error(ex, "Failed to ensure startup path is updated");
             return Task.FromResult(false);
         }
+    }
+
+    // === Helper Startup (systemd user service) ===
+
+    public bool IsHelperStartupSupported => true;
+
+    public Task<bool> IsHelperStartupEnabledAsync()
+    {
+        try
+        {
+            var result = RunCommand("systemctl", $"--user is-enabled --quiet {HelperServiceName}");
+            return Task.FromResult(result == 0);
+        }
+        catch (Exception ex)
+        {
+            Log.Error(ex, "Failed to check helper startup status");
+            return Task.FromResult(false);
+        }
+    }
+
+    public Task<bool> SetHelperStartupEnabledAsync(bool enable)
+    {
+        try
+        {
+            if (enable)
+            {
+                var helperPath = GetHelperPath();
+                if (string.IsNullOrEmpty(helperPath) || !File.Exists(helperPath))
+                {
+                    Log.Error("Helper executable not found at: {Path}", helperPath);
+                    return Task.FromResult(false);
+                }
+
+                // Create the systemd user service file
+                if (!EnsureServiceFileExists(helperPath))
+                {
+                    return Task.FromResult(false);
+                }
+
+                // Enable the service for auto-start at login
+                var result = RunCommand("systemctl", $"--user enable {HelperServiceName}");
+                if (result == 0)
+                {
+                    Log.Information("Enabled helper for auto-start via systemd user service");
+                    return Task.FromResult(true);
+                }
+
+                Log.Error("Failed to enable helper systemd service (exit code: {Code})", result);
+                return Task.FromResult(false);
+            }
+            else
+            {
+                RunCommand("systemctl", $"--user disable {HelperServiceName}");
+
+                // Remove the service file
+                var servicePath = GetServiceFilePath();
+                if (File.Exists(servicePath))
+                {
+                    File.Delete(servicePath);
+                }
+
+                RunCommand("systemctl", "--user daemon-reload");
+
+                Log.Information("Disabled helper auto-start");
+                return Task.FromResult(true);
+            }
+        }
+        catch (Exception ex)
+        {
+            Log.Error(ex, "Failed to set helper startup");
+            return Task.FromResult(false);
+        }
+    }
+
+    public Task<bool> EnsureHelperStartupPathUpdatedAsync()
+    {
+        try
+        {
+            var servicePath = GetServiceFilePath();
+            if (!File.Exists(servicePath))
+            {
+                // Service not installed, nothing to update
+                return Task.FromResult(true);
+            }
+
+            var helperPath = GetHelperPath();
+            if (string.IsNullOrEmpty(helperPath))
+            {
+                Log.Warning("Could not determine helper executable path");
+                return Task.FromResult(false);
+            }
+
+            var content = File.ReadAllText(servicePath);
+            var expectedExecStart = $"ExecStart={helperPath}";
+
+            if (content.Contains(expectedExecStart, StringComparison.Ordinal))
+            {
+                return Task.FromResult(true);
+            }
+
+            Log.Information("Updating helper systemd service path to: {Path}", helperPath);
+
+            // Rewrite the service file with updated path
+            if (!EnsureServiceFileExists(helperPath))
+            {
+                return Task.FromResult(false);
+            }
+
+            RunCommand("systemctl", "--user daemon-reload");
+
+            Log.Information("Helper service path updated successfully");
+            return Task.FromResult(true);
+        }
+        catch (Exception ex)
+        {
+            Log.Error(ex, "Failed to ensure helper startup path is updated");
+            return Task.FromResult(false);
+        }
+    }
+
+    private static string GetHelperPath() =>
+        Path.Combine(AppContext.BaseDirectory, HelperExecutableName);
+
+    private static string GetServiceFilePath()
+    {
+        var serviceDir = Path.Combine(
+            Environment.GetFolderPath(Environment.SpecialFolder.UserProfile),
+            ".config", "systemd", "user");
+        return Path.Combine(serviceDir, HelperServiceFileName);
+    }
+
+    private bool EnsureServiceFileExists(string helperPath)
+    {
+        try
+        {
+            var servicePath = GetServiceFilePath();
+            var serviceDir = Path.GetDirectoryName(servicePath)!;
+            Directory.CreateDirectory(serviceDir);
+
+            var serviceContent = $"""
+                [Unit]
+                Description=WireBound Elevation Helper
+                After=network.target
+
+                [Service]
+                Type=simple
+                ExecStart={helperPath}
+                Restart=on-failure
+                RestartSec=5
+                Environment=DOTNET_SYSTEM_GLOBALIZATION_INVARIANT=1
+
+                [Install]
+                WantedBy=default.target
+                """;
+
+            File.WriteAllText(servicePath, serviceContent);
+            RunCommand("systemctl", "--user daemon-reload");
+            return true;
+        }
+        catch (Exception ex)
+        {
+            Log.Error(ex, "Failed to create helper service file");
+            return false;
+        }
+    }
+
+    private static int RunCommand(string command, string arguments)
+    {
+        var startInfo = new ProcessStartInfo
+        {
+            FileName = command,
+            Arguments = arguments,
+            UseShellExecute = false,
+            CreateNoWindow = true,
+            RedirectStandardOutput = true,
+            RedirectStandardError = true
+        };
+
+        using var process = Process.Start(startInfo)!;
+        process.WaitForExit(10000);
+        return process.ExitCode;
     }
 }

@@ -72,6 +72,12 @@ public class AppSettings
     public bool IsPerAppTrackingEnabled { get; set; } = false;
 
     /// <summary>
+    /// Whether to auto-start the elevated helper process at system login.
+    /// Uses Task Scheduler (Windows) or systemd (Linux) to start without prompts.
+    /// </summary>
+    public bool StartHelperWithSystem { get; set; } = false;
+
+    /// <summary>
     /// Number of days to retain per-app usage data (0 = indefinite)
     /// </summary>
     public int AppDataRetentionDays { get; set; } = 0;

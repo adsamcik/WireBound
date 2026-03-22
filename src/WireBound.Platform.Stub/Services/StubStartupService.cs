@@ -21,4 +21,12 @@ public sealed class StubStartupService : IStartupService
 
     public Task<bool> EnsureStartupPathUpdatedAsync() =>
         Task.FromResult(true);
+
+    public bool IsHelperStartupSupported => false;
+
+    public Task<bool> IsHelperStartupEnabledAsync() => Task.FromResult(false);
+
+    public Task<bool> SetHelperStartupEnabledAsync(bool enable) => Task.FromResult(false);
+
+    public Task<bool> EnsureHelperStartupPathUpdatedAsync() => Task.FromResult(true);
 }

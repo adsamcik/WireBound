@@ -124,6 +124,7 @@ public partial class App : Application
         services.AddSingleton<IAppUsageRepository>(sp => sp.GetRequiredService<DataPersistenceService>());
         services.AddSingleton<ISettingsRepository>(sp => sp.GetRequiredService<DataPersistenceService>());
         services.AddSingleton<ISpeedSnapshotRepository>(sp => sp.GetRequiredService<DataPersistenceService>());
+        services.AddSingleton<ISystemSnapshotRepository>(sp => sp.GetRequiredService<DataPersistenceService>());
 
         services.AddSingleton<IWiFiInfoService, WiFiInfoService>();
 
@@ -230,6 +231,16 @@ public partial class App : Application
             if (!result)
             {
                 Log.Warning("Failed to ensure startup path is updated");
+            }
+
+            // Also update the helper startup path if registered
+            if (startupService.IsHelperStartupSupported)
+            {
+                var helperResult = await startupService.EnsureHelperStartupPathUpdatedAsync();
+                if (!helperResult)
+                {
+                    Log.Warning("Failed to ensure helper startup path is updated");
+                }
             }
         }
         catch (Exception ex)

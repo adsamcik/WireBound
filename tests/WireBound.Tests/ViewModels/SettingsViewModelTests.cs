@@ -54,6 +54,9 @@ public class SettingsViewModelTests : IAsyncDisposable
         _startupService.IsStartupSupported.Returns(true);
         _startupService.GetStartupStateAsync().Returns(StartupState.Disabled);
         _startupService.SetStartupWithResultAsync(Arg.Any<bool>()).Returns(StartupResult.Succeeded(StartupState.Disabled));
+        _startupService.IsHelperStartupSupported.Returns(true);
+        _startupService.IsHelperStartupEnabledAsync().Returns(false);
+        _startupService.SetHelperStartupEnabledAsync(Arg.Any<bool>()).Returns(true);
 
         // Setup elevation service
         _elevationService.IsHelperConnected.Returns(false);
@@ -587,6 +590,112 @@ public class SettingsViewModelTests : IAsyncDisposable
 
         // Assert
         await _startupService.Received(1).SetStartupWithResultAsync(true);
+    }
+
+    [Test]
+    public async Task StartHelperWithSystem_WhenHelperStartupEnabled_IsTrue()
+    {
+        // Arrange
+        _startupService.IsHelperStartupSupported.Returns(true);
+        _startupService.IsHelperStartupEnabledAsync().Returns(true);
+
+        // Act
+        var viewModel = CreateViewModel();
+        await viewModel.InitializationTask;
+
+        // Assert
+        viewModel.StartHelperWithSystem.Should().BeTrue();
+        viewModel.IsHelperStartupSupported.Should().BeTrue();
+    }
+
+    [Test]
+    public async Task StartHelperWithSystem_WhenHelperStartupDisabled_IsFalse()
+    {
+        // Arrange
+        _startupService.IsHelperStartupSupported.Returns(true);
+        _startupService.IsHelperStartupEnabledAsync().Returns(false);
+
+        // Act
+        var viewModel = CreateViewModel();
+        await viewModel.InitializationTask;
+
+        // Assert
+        viewModel.StartHelperWithSystem.Should().BeFalse();
+    }
+
+    [Test]
+    public async Task StartHelperWithSystem_WhenNotSupported_IsFalse()
+    {
+        // Arrange
+        _startupService.IsHelperStartupSupported.Returns(false);
+
+        // Act
+        var viewModel = CreateViewModel();
+        await viewModel.InitializationTask;
+
+        // Assert
+        viewModel.StartHelperWithSystem.Should().BeFalse();
+        viewModel.IsHelperStartupSupported.Should().BeFalse();
+    }
+
+    [Test]
+    public async Task SaveCommand_WhenHelperStartupSupported_AppliesHelperStartupSetting()
+    {
+        // Arrange
+        _startupService.IsHelperStartupSupported.Returns(true);
+        _startupService.SetHelperStartupEnabledAsync(true).Returns(true);
+
+        var viewModel = CreateViewModel();
+        await viewModel.InitializationTask;
+
+        // Change helper startup setting
+        viewModel.StartHelperWithSystem = true;
+
+        // Act
+        await viewModel.SaveCommand.ExecuteAsync(null);
+
+        // Assert
+        await _startupService.Received(1).SetHelperStartupEnabledAsync(true);
+    }
+
+    [Test]
+    public async Task SaveCommand_WhenHelperStartupFails_RevertsToggle()
+    {
+        // Arrange
+        _startupService.IsHelperStartupSupported.Returns(true);
+        _startupService.SetHelperStartupEnabledAsync(true).Returns(false);
+        _startupService.IsHelperStartupEnabledAsync().Returns(false);
+
+        var viewModel = CreateViewModel();
+        await viewModel.InitializationTask;
+
+        // Try to enable helper startup
+        viewModel.StartHelperWithSystem = true;
+
+        // Act
+        await viewModel.SaveCommand.ExecuteAsync(null);
+
+        // Assert - should revert to actual OS state
+        viewModel.StartHelperWithSystem.Should().BeFalse();
+    }
+
+    [Test]
+    public async Task StartHelperWithSystem_WhenChanged_TriggersAutoSave()
+    {
+        // Arrange
+        var viewModel = CreateViewModel();
+        await viewModel.InitializationTask;
+
+        // Act
+        viewModel.StartHelperWithSystem = true;
+
+        // Wait for auto-save debounce
+        _fakeTimeProvider.Advance(TimeSpan.FromMilliseconds(600));
+        if (viewModel.PendingAutoSaveTask is not null)
+            await viewModel.PendingAutoSaveTask;
+
+        // Assert
+        await _persistence.Received().SaveSettingsAsync(Arg.Is<AppSettings>(s => s.StartHelperWithSystem));
     }
 
     #endregion

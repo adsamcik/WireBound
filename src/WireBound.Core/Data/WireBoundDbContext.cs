@@ -19,6 +19,7 @@ public sealed class WireBoundDbContext : DbContext
     public DbSet<AppSettings> Settings { get; set; } = null!;
     public DbSet<AppUsageRecord> AppUsageRecords { get; set; } = null!;
     public DbSet<SpeedSnapshot> SpeedSnapshots { get; set; } = null!;
+    public DbSet<SystemSnapshot> SystemSnapshots { get; set; } = null!;
     public DbSet<HourlySystemStats> HourlySystemStats { get; set; } = null!;
     public DbSet<DailySystemStats> DailySystemStats { get; set; } = null!;
     public DbSet<AddressUsageRecord> AddressUsageRecords { get; set; } = null!;
@@ -118,6 +119,10 @@ public sealed class WireBoundDbContext : DbContext
 
         // SpeedSnapshot index for efficient time-based queries
         modelBuilder.Entity<SpeedSnapshot>()
+            .HasIndex(s => s.Timestamp);
+
+        // SystemSnapshot index for efficient time-based queries
+        modelBuilder.Entity<SystemSnapshot>()
             .HasIndex(s => s.Timestamp);
 
         // HourlySystemStats index for efficient time-based queries
@@ -299,7 +304,8 @@ public sealed class WireBoundDbContext : DbContext
                 ("DefaultInsightsPeriod", "TEXT NOT NULL DEFAULT 'ThisWeek'"),
                 ("ShowCorrelationInsights", "INTEGER NOT NULL DEFAULT 1"),
                 ("CheckForUpdates", "INTEGER NOT NULL DEFAULT 1"),
-                ("AutoDownloadUpdates", "INTEGER NOT NULL DEFAULT 1"));
+                ("AutoDownloadUpdates", "INTEGER NOT NULL DEFAULT 1"),
+                ("StartHelperWithSystem", "INTEGER NOT NULL DEFAULT 0"));
 
             EnsureColumnsExist(connection, "HourlyUsages",
                 ("Hour", "TEXT NOT NULL DEFAULT '0001-01-01'"),
@@ -323,6 +329,11 @@ public sealed class WireBoundDbContext : DbContext
                 ("Timestamp", "TEXT NOT NULL DEFAULT '0001-01-01'"),
                 ("DownloadSpeedBps", "INTEGER NOT NULL DEFAULT 0"),
                 ("UploadSpeedBps", "INTEGER NOT NULL DEFAULT 0"));
+
+            EnsureColumnsExist(connection, "SystemSnapshots",
+                ("Timestamp", "TEXT NOT NULL DEFAULT '0001-01-01'"),
+                ("CpuPercent", "REAL NOT NULL DEFAULT 0"),
+                ("MemoryPercent", "REAL NOT NULL DEFAULT 0"));
 
             EnsureColumnsExist(connection, "AppUsageRecords",
                 ("AppIdentifier", "TEXT NOT NULL DEFAULT ''"),

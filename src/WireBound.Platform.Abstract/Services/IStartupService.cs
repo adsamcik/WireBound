@@ -42,6 +42,39 @@ public interface IStartupService
     /// </summary>
     /// <returns>True if startup was updated or was already correct, false if there was an error.</returns>
     Task<bool> EnsureStartupPathUpdatedAsync();
+
+    /// <summary>
+    /// Gets whether registering the elevated helper for auto-start is supported on the current platform.
+    /// </summary>
+    /// <remarks>
+    /// On Windows this uses Task Scheduler with "Run with highest privileges".
+    /// On Linux this uses a systemd user service.
+    /// </remarks>
+    bool IsHelperStartupSupported { get; }
+
+    /// <summary>
+    /// Gets whether the elevated helper is currently registered to start with the OS.
+    /// </summary>
+    Task<bool> IsHelperStartupEnabledAsync();
+
+    /// <summary>
+    /// Enables or disables the elevated helper auto-start with the operating system.
+    /// </summary>
+    /// <remarks>
+    /// Enabling may trigger a one-time elevation prompt (UAC on Windows, polkit on Linux)
+    /// to register the helper with the appropriate system mechanism. Subsequent system
+    /// startups will launch the helper without any prompt.
+    /// </remarks>
+    /// <param name="enable">True to enable helper startup, false to disable.</param>
+    /// <returns>True if the operation succeeded, false otherwise.</returns>
+    Task<bool> SetHelperStartupEnabledAsync(bool enable);
+
+    /// <summary>
+    /// Ensures that if helper startup is enabled, it points to the current helper executable path.
+    /// This cleans up stale entries after application updates that change the install path.
+    /// </summary>
+    /// <returns>True if updated or already correct, false if there was an error.</returns>
+    Task<bool> EnsureHelperStartupPathUpdatedAsync();
 }
 
 /// <summary>

@@ -138,8 +138,9 @@ public sealed partial class ElevationServer : IDisposable
     /// <summary>
     /// Creates a named pipe with restrictive ACL:
     /// - SYSTEM: Full control (required for the elevated service)
+    /// - Administrators: Full control (the helper runs elevated via UAC and needs
+    ///   CreateNewInstance to create subsequent pipe instances in the server loop)
     /// - Launching user (callerSid): Read/Write (so the non-elevated app can connect)
-    /// No other principals (including Administrators) get access — least privilege.
     /// </summary>
     private NamedPipeServerStream CreateSecurePipe()
     {
@@ -147,6 +148,13 @@ public sealed partial class ElevationServer : IDisposable
 
         security.AddAccessRule(new PipeAccessRule(
             new SecurityIdentifier(WellKnownSidType.LocalSystemSid, null),
+            PipeAccessRights.FullControl,
+            AccessControlType.Allow));
+
+        // The elevated helper runs as admin via UAC (not SYSTEM). It needs
+        // CreateNewInstance to create additional pipe instances in the accept loop.
+        security.AddAccessRule(new PipeAccessRule(
+            new SecurityIdentifier(WellKnownSidType.BuiltinAdministratorsSid, null),
             PipeAccessRights.FullControl,
             AccessControlType.Allow));
 
@@ -233,6 +241,13 @@ public sealed partial class ElevationServer : IDisposable
                 IpcMessage response;
                 if (message.Type == MessageType.Authenticate)
                 {
+                    // Clean up prior session on re-auth to prevent session pool exhaustion
+                    if (sessionId is not null)
+                    {
+                        _sessionManager.RemoveSession(sessionId);
+                        _rateLimiter.RemoveClient(sessionId);
+                        _heartbeatRateLimiter.RemoveClient(sessionId);
+                    }
                     var (authResponse, newSessionId) = await HandleAuthenticateAsync(message, peerPid, cancellationToken);
                     sessionId = newSessionId;
                     response = authResponse;

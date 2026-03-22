@@ -472,16 +472,18 @@
                                                     CornerRadius="8" 
                                                     Padding="12,10"
                                                     Margin="0,0,0,8">
-                                                <StackPanel Orientation="Horizontal" Spacing="10">
+                                                <DockPanel>
                                                     <TextBlock Text="•" 
                                                                FontSize="16" 
                                                                Foreground="{StaticResource PrimaryBrush}"
-                                                               VerticalAlignment="Top" />
+                                                               VerticalAlignment="Top"
+                                                               Margin="0,0,10,0"
+                                                               DockPanel.Dock="Left" />
                                                     <TextBlock Text="{Binding}"
                                                                FontSize="13"
                                                                TextWrapping="Wrap"
                                                                VerticalAlignment="Center" />
-                                                </StackPanel>
+                                                </DockPanel>
                                             </Border>
                                         </DataTemplate>
                                     </ItemsControl.ItemTemplate>
@@ -600,6 +602,8 @@
                                               LegendPosition="Right"
                                               LegendTextPaint="#A0A8B8"
                                               LegendTextSize="13"
+                                              TooltipTextPaint="#E0E4EA"
+                                              TooltipTextSize="13"
                                               Background="{StaticResource CardBrush}"
                                               AutomationProperties.Name="Resource usage by category chart" />
                                 <StackPanel HorizontalAlignment="Left" VerticalAlignment="Center"

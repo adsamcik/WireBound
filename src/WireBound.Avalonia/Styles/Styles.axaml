@@ -1,5 +1,15 @@
 <Styles xmlns="https://github.com/avaloniaui"
-        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:lvc="using:LiveChartsCore.SkiaSharpView.Avalonia"
+        xmlns:helpers="using:WireBound.Avalonia.Helpers">
+
+    <!-- Block mouse wheel scroll propagation on all chart controls -->
+    <Style Selector="lvc|CartesianChart">
+        <Setter Property="helpers:ScrollBlockBehavior.BlockScroll" Value="True" />
+    </Style>
+    <Style Selector="lvc|PieChart">
+        <Setter Property="helpers:ScrollBlockBehavior.BlockScroll" Value="True" />
+    </Style>
 
     <!-- 
     ═══════════════════════════════════════════════════════════════════════════

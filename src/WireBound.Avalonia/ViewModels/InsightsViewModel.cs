@@ -1213,11 +1213,15 @@ public sealed partial class InsightsViewModel : ObservableObject, IDisposable
                 Fill = new SolidColorPaint(color),
                 Stroke = null,
                 Pushout = 0,
+                HoverPushout = 8,
                 InnerRadius = 60,
                 ToolTipLabelFormatter = point =>
-                    isMemory
-                        ? $"{point.Context.Series.Name}: {ByteFormatter.FormatBytes((long)point.Model)}"
-                        : $"{point.Context.Series.Name}: {point.Model:F1}%"
+                {
+                    var share = point.StackedValue.Share;
+                    return isMemory
+                        ? $"{ByteFormatter.FormatBytes((long)point.Model)} ({share:P1})"
+                        : $"{point.Model:F1}% ({share:P1} of total)";
+                }
             });
         }
 
@@ -1249,10 +1253,9 @@ public sealed partial class InsightsViewModel : ObservableObject, IDisposable
             categoryColorMap[categories[i].CategoryName] = palette[i % palette.Length];
         }
 
-        // Build one StackedRowSeries per category group for proper coloring.
-        // Each position has a non-zero value only for its matching category;
-        // other series use 0, which renders as an invisible stacked segment.
-        // StackedRowSeries avoids the rendering issue with RowSeries<double?> sparse nulls.
+        // Build one RowSeries<ObservablePoint> per category group.
+        // Each point carries explicit (X=position, Y=value) coordinates so bars
+        // only appear at their specific row — no sparse arrays or zero-fill needed.
         var seriesList = new List<ISeries>();
         var categoryGroups = sorted
             .Select((app, index) => (app, index))
@@ -1262,16 +1265,15 @@ public sealed partial class InsightsViewModel : ObservableObject, IDisposable
         {
             var color = !string.IsNullOrEmpty(group.Key) && categoryColorMap.TryGetValue(group.Key, out var c)
                 ? c : palette[0];
-            var seriesValues = new double[sorted.Count];
-            foreach (var (_, index) in group)
-            {
-                seriesValues[index] = values[index];
-            }
 
-            seriesList.Add(new StackedRowSeries<double>
+            var points = group
+                .Select(x => new ObservablePoint(x.index, values[x.index]))
+                .ToList();
+
+            seriesList.Add(new RowSeries<ObservablePoint>
             {
                 Name = !string.IsNullOrWhiteSpace(group.Key) ? group.Key : "Other",
-                Values = seriesValues,
+                Values = points,
                 Fill = new SolidColorPaint(color),
                 Stroke = null,
                 MaxBarWidth = 24,
@@ -1280,27 +1282,32 @@ public sealed partial class InsightsViewModel : ObservableObject, IDisposable
                 DataLabelsSize = 11,
                 DataLabelsPosition = LiveChartsCore.Measure.DataLabelsPosition.End,
                 DataLabelsFormatter = point =>
-                    point.Model > 0
+                {
+                    var val = point.Coordinate.PrimaryValue;
+                    return val > 0
                         ? (isMemory
-                            ? ByteFormatter.FormatBytes((long)point.Coordinate.PrimaryValue)
-                            : $"{point.Coordinate.PrimaryValue:F1}%")
-                        : "",
+                            ? ByteFormatter.FormatBytes((long)val)
+                            : $"{val:F1}%")
+                        : "";
+                },
                 YToolTipLabelFormatter = point =>
                 {
-                    var idx = point.Index;
-                    return idx < labels.Length ? labels[idx] : "?";
+                    var idx = (int)point.Coordinate.SecondaryValue;
+                    return idx >= 0 && idx < labels.Length ? labels[idx] : "?";
                 },
                 XToolTipLabelFormatter = point =>
-                    point.Model > 0
+                {
+                    var val = point.Coordinate.PrimaryValue;
+                    return val > 0
                         ? (isMemory
-                            ? ByteFormatter.FormatBytes((long)point.Model)
-                            : $"{point.Model:F1}%")
-                        : ""
+                            ? ByteFormatter.FormatBytes((long)val)
+                            : $"{val:F1}%")
+                        : "";
+                }
             });
         }
 
-        ResourceTopAppsChart = seriesList.ToArray();
-
+        // Set axes BEFORE series so the chart has valid axes when it first renders data
         ResourceTopAppsYAxes =
         [
             new Axis
@@ -1308,7 +1315,9 @@ public sealed partial class InsightsViewModel : ObservableObject, IDisposable
                 Labels = labels,
                 LabelsPaint = new SolidColorPaint(ChartColors.AxisLabelColor),
                 TextSize = 12,
-                MinStep = 1
+                MinStep = 1,
+                MinLimit = -0.5,
+                MaxLimit = sorted.Count - 0.5
             }
         ];
 
@@ -1327,6 +1336,8 @@ public sealed partial class InsightsViewModel : ObservableObject, IDisposable
                 SeparatorsPaint = new SolidColorPaint(ChartColors.GridLineColor)
             }
         ];
+
+        ResourceTopAppsChart = seriesList.ToArray();
     }
 
     private void BuildResourceHistoryChart(IReadOnlyList<ResourceInsightSnapshot> history)
@@ -1364,8 +1375,7 @@ public sealed partial class InsightsViewModel : ObservableObject, IDisposable
             });
         }
 
-        ResourceHistoryChart = series.ToArray();
-
+        // Set axes BEFORE series so the chart has valid axes when it first renders data
         ResourceHistoryXAxes =
         [
             new DateTimeAxis(TimeSpan.FromHours(1), date => date.ToString("MM/dd HH:mm"))
@@ -1394,6 +1404,8 @@ public sealed partial class InsightsViewModel : ObservableObject, IDisposable
                     : (value => $"{value:F0}%")
             }
         ];
+
+        ResourceHistoryChart = series.ToArray();
     }
 
     // ═══════════════════════════════════════════════════════════════════════════

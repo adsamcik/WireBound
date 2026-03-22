@@ -7,51 +7,35 @@
              Focusable="True"
              IsTabStop="True">
 
-    <Border Classes="CompactCard" Padding="8,6">
+    <Border Classes="CompactCard" Padding="10,5">
         <StackPanel Orientation="Horizontal" Spacing="0">
-            
+
             <!-- CPU Metric -->
-            <StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
-                <controls:CircularGauge Classes="Compact"
-                                        Value="{Binding CpuPercent, RelativeSource={RelativeSource AncestorType=controls:SystemHealthStrip}}"
-                                        GaugeColor="{Binding CpuGaugeColor, RelativeSource={RelativeSource AncestorType=controls:SystemHealthStrip}}"
-                                        BackgroundColor="{StaticResource CpuBgTintBrush}"
-                                        ShowLabel="False" />
-                <StackPanel VerticalAlignment="Center" Spacing="0">
-                    <TextBlock Text="CPU"
-                               FontSize="11"
-                               FontWeight="SemiBold"
-                               Foreground="{StaticResource CpuBrush}" />
-                    <TextBlock Text="{Binding CpuPercentText, RelativeSource={RelativeSource AncestorType=controls:SystemHealthStrip}}"
-                               FontSize="13"
-                               FontWeight="Bold"
-                               Foreground="{StaticResource PrimaryTextBrush}" />
-                </StackPanel>
+            <StackPanel Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
+                <Ellipse Width="8" Height="8"
+                         Fill="{Binding CpuGaugeColor, RelativeSource={RelativeSource AncestorType=controls:SystemHealthStrip}}" />
+                <TextBlock FontSize="12" VerticalAlignment="Center">
+                    <Run Text="CPU" Foreground="{StaticResource SecondaryTextBrush}" />
+                    <Run Text="{Binding CpuPercentText, RelativeSource={RelativeSource AncestorType=controls:SystemHealthStrip}}"
+                         FontWeight="SemiBold" Foreground="{StaticResource PrimaryTextBrush}" />
+                </TextBlock>
             </StackPanel>
 
             <!-- Separator -->
             <Border Width="1"
                     Background="{StaticResource DividerBrush}"
-                    Margin="16,4"
+                    Margin="12,3"
                     VerticalAlignment="Stretch" />
 
             <!-- RAM Metric -->
-            <StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
-                <controls:CircularGauge Classes="Compact"
-                                        Value="{Binding MemoryPercent, RelativeSource={RelativeSource AncestorType=controls:SystemHealthStrip}}"
-                                        GaugeColor="{Binding MemoryGaugeColor, RelativeSource={RelativeSource AncestorType=controls:SystemHealthStrip}}"
-                                        BackgroundColor="{StaticResource MemoryBgTintBrush}"
-                                        ShowLabel="False" />
-                <StackPanel VerticalAlignment="Center" Spacing="0">
-                    <TextBlock Text="RAM"
-                               FontSize="11"
-                               FontWeight="SemiBold"
-                               Foreground="{StaticResource MemoryBrush}" />
-                    <TextBlock Text="{Binding MemoryPercentText, RelativeSource={RelativeSource AncestorType=controls:SystemHealthStrip}}"
-                               FontSize="13"
-                               FontWeight="Bold"
-                               Foreground="{StaticResource PrimaryTextBrush}" />
-                </StackPanel>
+            <StackPanel Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
+                <Ellipse Width="8" Height="8"
+                         Fill="{Binding MemoryGaugeColor, RelativeSource={RelativeSource AncestorType=controls:SystemHealthStrip}}" />
+                <TextBlock FontSize="12" VerticalAlignment="Center">
+                    <Run Text="RAM" Foreground="{StaticResource SecondaryTextBrush}" />
+                    <Run Text="{Binding MemoryPercentText, RelativeSource={RelativeSource AncestorType=controls:SystemHealthStrip}}"
+                         FontWeight="SemiBold" Foreground="{StaticResource PrimaryTextBrush}" />
+                </TextBlock>
             </StackPanel>
 
             <!-- GPU Section (conditionally visible) -->
@@ -61,26 +45,18 @@
                 <!-- Separator -->
                 <Border Width="1"
                         Background="{StaticResource DividerBrush}"
-                        Margin="16,4"
+                        Margin="12,3"
                         VerticalAlignment="Stretch" />
 
                 <!-- GPU Metric -->
-                <StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
-                    <controls:CircularGauge Classes="Compact"
-                                            Value="{Binding GpuDisplayPercent, RelativeSource={RelativeSource AncestorType=controls:SystemHealthStrip}}"
-                                            GaugeColor="{Binding GpuGaugeColor, RelativeSource={RelativeSource AncestorType=controls:SystemHealthStrip}}"
-                                            BackgroundColor="{StaticResource GpuBgTintBrush}"
-                                            ShowLabel="False" />
-                    <StackPanel VerticalAlignment="Center" Spacing="0">
-                        <TextBlock Text="GPU"
-                                   FontSize="11"
-                                   FontWeight="SemiBold"
-                                   Foreground="{StaticResource GpuBrush}" />
-                        <TextBlock Text="{Binding GpuPercentText, RelativeSource={RelativeSource AncestorType=controls:SystemHealthStrip}}"
-                                   FontSize="13"
-                                   FontWeight="Bold"
-                                   Foreground="{StaticResource PrimaryTextBrush}" />
-                    </StackPanel>
+                <StackPanel Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
+                    <Ellipse Width="8" Height="8"
+                             Fill="{Binding GpuGaugeColor, RelativeSource={RelativeSource AncestorType=controls:SystemHealthStrip}}" />
+                    <TextBlock FontSize="12" VerticalAlignment="Center">
+                        <Run Text="GPU" Foreground="{StaticResource SecondaryTextBrush}" />
+                        <Run Text="{Binding GpuPercentText, RelativeSource={RelativeSource AncestorType=controls:SystemHealthStrip}}"
+                             FontWeight="SemiBold" Foreground="{StaticResource PrimaryTextBrush}" />
+                    </TextBlock>
                 </StackPanel>
             </StackPanel>
 

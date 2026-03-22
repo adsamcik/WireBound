@@ -1,5 +1,6 @@
 using System.Net.Sockets;
 using System.Runtime.Versioning;
+using System.Security.Cryptography;
 using WireBound.IPC;
 using WireBound.IPC.Messages;
 using WireBound.IPC.Security;
@@ -55,6 +56,16 @@ public sealed class LinuxHelperConnection : IHelperConnection
 
             var authResponse = IpcTransport.DeserializePayload<AuthenticateResponse>(response.Payload);
             if (!authResponse.Success) return false;
+
+            // Verify server identity (mutual auth) — server must prove it holds the secret
+            var expectedServerSig = HmacAuthenticator.Sign(0, authResponse.ExpiresAtUtc, secret);
+            if (!CryptographicOperations.FixedTimeEquals(
+                System.Text.Encoding.UTF8.GetBytes(expectedServerSig),
+                System.Text.Encoding.UTF8.GetBytes(authResponse.ServerSignature)))
+            {
+                Serilog.Log.Warning("Server signature verification failed — possible pipe squatting attack");
+                return false;
+            }
 
             _sessionId = authResponse.SessionId;
             return true;

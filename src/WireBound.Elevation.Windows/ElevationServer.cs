@@ -27,6 +27,7 @@ public sealed partial class ElevationServer : IDisposable
     private readonly AuthRateLimiter _authRateLimiter = new();
     private readonly RateLimiter _heartbeatRateLimiter = new(1);
     private readonly EtwConnectionTracker _tracker = new();
+    private readonly SemaphoreSlim _connectionSemaphore = new(20); // Max 20 concurrent handshakes
 
     /// <summary>
     /// Creates the elevation server, granting pipe access to the specified caller SID.
@@ -91,6 +92,13 @@ public sealed partial class ElevationServer : IDisposable
 
     public async Task RunAsync(CancellationToken cancellationToken)
     {
+        using var mutex = new Mutex(true, @"Global\WireBound.Elevation.Instance", out var createdNew);
+        if (!createdNew)
+        {
+            Log.Error("Another instance of the elevation helper is already running");
+            throw new InvalidOperationException("Another instance is already running");
+        }
+
         _tracker.Start();
         Log.Information("Starting named pipe server: {Pipe}", IpcConstants.WindowsPipeName);
 
@@ -103,7 +111,14 @@ public sealed partial class ElevationServer : IDisposable
                 await server.WaitForConnectionAsync(cancellationToken);
                 var clientPid = GetClientPid(server);
                 Log.Information("Client connected via named pipe (PID: {Pid})", clientPid);
-                _ = HandleClientAsync(server, cancellationToken);
+
+                if (!_connectionSemaphore.Wait(0))
+                {
+                    Log.Warning("Too many concurrent connections, rejecting (PID: {Pid})", clientPid);
+                    await server.DisposeAsync();
+                    continue;
+                }
+                _ = HandleClientAsync(server, clientPid, cancellationToken);
             }
             catch (OperationCanceledException)
             {
@@ -146,7 +161,7 @@ public sealed partial class ElevationServer : IDisposable
             PipeDirection.InOut,
             NamedPipeServerStream.MaxAllowedServerInstances,
             PipeTransmissionMode.Byte,
-            PipeOptions.Asynchronous,
+            PipeOptions.Asynchronous | (PipeOptions)0x8, // PIPE_REJECT_REMOTE_CLIENTS
             inBufferSize: 0,
             outBufferSize: 0,
             security);
@@ -170,10 +185,11 @@ public sealed partial class ElevationServer : IDisposable
         SafePipeHandle pipe,
         out uint clientProcessId);
 
-    internal async Task HandleClientAsync(Stream stream, CancellationToken cancellationToken)
+    internal async Task HandleClientAsync(Stream stream, int peerPid, CancellationToken cancellationToken)
     {
         string? sessionId = null;
-        var clientId = stream.GetHashCode().ToString();
+        // Use verified pipe PID as rate limiter identity (stable across reconnections)
+        var clientId = peerPid > 0 ? $"pid-{peerPid}" : stream.GetHashCode().ToString();
         try
         {
             while (!cancellationToken.IsCancellationRequested)
@@ -181,8 +197,8 @@ public sealed partial class ElevationServer : IDisposable
                 var message = await IpcTransport.ReceiveAsync(stream, cancellationToken);
                 if (message is null) break;
 
-                // Pre-auth rate limiting for authentication attempts
-                if (sessionId is null && message.Type == MessageType.Authenticate)
+                // Pre-auth rate limiting for ALL messages from unauthenticated clients
+                if (sessionId is null)
                 {
                     if (!_authRateLimiter.TryAcquire(clientId))
                     {
@@ -214,15 +230,24 @@ public sealed partial class ElevationServer : IDisposable
                     }
                 }
 
-                var response = message.Type switch
+                IpcMessage response;
+                if (message.Type == MessageType.Authenticate)
                 {
-                    MessageType.Authenticate => HandleAuthenticate(message, out sessionId),
-                    MessageType.ConnectionStats => HandleConnectionStats(message, sessionId),
-                    MessageType.ProcessStats => HandleProcessStats(message, sessionId),
-                    MessageType.Heartbeat => HandleHeartbeat(),
-                    MessageType.Shutdown => HandleShutdown(message, sessionId),
-                    _ => CreateErrorResponse(message.RequestId, $"Unknown message type: {message.Type}")
-                };
+                    var (authResponse, newSessionId) = await HandleAuthenticateAsync(message, peerPid, cancellationToken);
+                    sessionId = newSessionId;
+                    response = authResponse;
+                }
+                else
+                {
+                    response = message.Type switch
+                    {
+                        MessageType.ConnectionStats => HandleConnectionStats(message, sessionId),
+                        MessageType.ProcessStats => HandleProcessStats(message, sessionId),
+                        MessageType.Heartbeat => HandleHeartbeat(),
+                        MessageType.Shutdown => HandleShutdown(message, sessionId),
+                        _ => CreateErrorResponse(message.RequestId, $"Unknown message type: {message.Type}")
+                    };
+                }
 
                 // Track auth failures and disconnect after too many consecutive failures
                 if (message.Type == MessageType.Authenticate)
@@ -255,6 +280,7 @@ public sealed partial class ElevationServer : IDisposable
         }
         finally
         {
+            _connectionSemaphore.Release();
             if (sessionId is not null)
             {
                 _sessionManager.RemoveSession(sessionId);
@@ -268,9 +294,9 @@ public sealed partial class ElevationServer : IDisposable
         }
     }
 
-    internal IpcMessage HandleAuthenticate(IpcMessage request, out string? sessionId)
+    internal async Task<(IpcMessage Response, string? SessionId)> HandleAuthenticateAsync(
+        IpcMessage request, int peerPid, CancellationToken cancellationToken)
     {
-        sessionId = null;
         AuthenticateRequest authRequest;
         try
         {
@@ -278,43 +304,63 @@ public sealed partial class ElevationServer : IDisposable
         }
         catch
         {
-            return CreateResponse(request.RequestId, MessageType.Authenticate,
-                new AuthenticateResponse { Success = false, ErrorMessage = "Invalid auth request" });
+            return (CreateResponse(request.RequestId, MessageType.Authenticate,
+                new AuthenticateResponse { Success = false, ErrorMessage = "Invalid auth request" }), null);
+        }
+
+        // Cross-verify: the PID in the auth request must match the actual named pipe client PID
+        if (peerPid > 0 && authRequest.ClientPid != peerPid)
+        {
+            Log.Warning("PID mismatch: claimed {ClaimedPid}, actual {ActualPid}",
+                authRequest.ClientPid, peerPid);
+            return (CreateResponse(request.RequestId, MessageType.Authenticate,
+                new AuthenticateResponse { Success = false, ErrorMessage = "PID verification failed" }), null);
         }
 
         if (!HmacAuthenticator.Validate(authRequest.ClientPid, authRequest.Timestamp, authRequest.Signature, _secret))
         {
             Log.Warning("Authentication failed for PID {Pid}", authRequest.ClientPid);
-            return CreateResponse(request.RequestId, MessageType.Authenticate,
-                new AuthenticateResponse { Success = false, ErrorMessage = "Authentication failed" });
+            return (CreateResponse(request.RequestId, MessageType.Authenticate,
+                new AuthenticateResponse { Success = false, ErrorMessage = "Authentication failed" }), null);
         }
 
-        if (!string.IsNullOrWhiteSpace(authRequest.ExecutablePath) &&
-            !ValidateExecutablePath(authRequest.ExecutablePath, authRequest.ClientPid))
+        if (string.IsNullOrWhiteSpace(authRequest.ExecutablePath))
+        {
+            Log.Warning("Auth request from PID {Pid} missing executable path", authRequest.ClientPid);
+            return (CreateResponse(request.RequestId, MessageType.Authenticate,
+                new AuthenticateResponse { Success = false, ErrorMessage = "Executable path required" }), null);
+        }
+
+        if (!ValidateExecutablePath(authRequest.ExecutablePath, authRequest.ClientPid))
         {
             Log.Warning("Executable path validation failed for PID {Pid}: {Path}",
                 authRequest.ClientPid, authRequest.ExecutablePath);
-            return CreateResponse(request.RequestId, MessageType.Authenticate,
-                new AuthenticateResponse { Success = false, ErrorMessage = "Executable validation failed" });
+            return (CreateResponse(request.RequestId, MessageType.Authenticate,
+                new AuthenticateResponse { Success = false, ErrorMessage = "Executable validation failed" }), null);
         }
 
-        var session = _sessionManager.CreateSession(authRequest.ClientPid, authRequest.ExecutablePath);
+        var session = await _sessionManager.CreateSessionAsync(
+            authRequest.ClientPid, authRequest.ExecutablePath, cancellationToken);
         if (session is null)
         {
-            return CreateResponse(request.RequestId, MessageType.Authenticate,
-                new AuthenticateResponse { Success = false, ErrorMessage = "Max sessions exceeded" });
+            return (CreateResponse(request.RequestId, MessageType.Authenticate,
+                new AuthenticateResponse { Success = false, ErrorMessage = "Max sessions exceeded" }), null);
         }
 
-        sessionId = session.SessionId;
+        var sessionId = session.SessionId;
         Log.Information("Authenticated client PID {Pid}, session {SessionId}", authRequest.ClientPid, sessionId);
 
-        return CreateResponse(request.RequestId, MessageType.Authenticate,
+        // Server proves it holds the secret (mutual auth)
+        var serverSig = HmacAuthenticator.Sign(Environment.ProcessId, session.ExpiresAtUtc.ToUnixTimeSeconds(), _secret);
+
+        return (CreateResponse(request.RequestId, MessageType.Authenticate,
             new AuthenticateResponse
             {
                 Success = true,
                 SessionId = sessionId,
-                ExpiresAtUtc = session.ExpiresAtUtc.ToUnixTimeSeconds()
-            });
+                ExpiresAtUtc = session.ExpiresAtUtc.ToUnixTimeSeconds(),
+                ServerSignature = serverSig
+            }), sessionId);
     }
 
     internal IpcMessage HandleConnectionStats(IpcMessage request, string? sessionId)
@@ -361,7 +407,7 @@ public sealed partial class ElevationServer : IDisposable
 
         Log.Information("Shutdown requested by session {SessionId}", sessionId);
         return CreateResponse(request.RequestId, MessageType.Shutdown,
-            new HeartbeatResponse { Alive = false });
+            new ShutdownResponse { Acknowledged = true, Reason = "Client requested shutdown" });
     }
 
     internal bool ValidateSession(string? sessionId, out string error)

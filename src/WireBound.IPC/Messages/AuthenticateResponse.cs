@@ -16,4 +16,7 @@ public class AuthenticateResponse
 
     [Key(3)]
     public long ExpiresAtUtc { get; set; }
+
+    [Key(4)]
+    public string ServerSignature { get; set; } = string.Empty;
 }

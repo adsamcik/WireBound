@@ -21,12 +21,85 @@ public sealed class ElevationServer : IDisposable
     private readonly AuthRateLimiter _authRateLimiter = new();
     private readonly RateLimiter _heartbeatRateLimiter = new(1);
     private readonly NetlinkConnectionTracker _tracker = new();
+    private readonly SemaphoreSlim _connectionSemaphore = new(20);
     private int _expectedPeerUid = -1;
+    private FileStream? _lockFile;
+    private string? _secretFilePath;
 
     public ElevationServer()
     {
+        // Resolve the launching user's home directory so the secret is written
+        // where the unprivileged client can read it (not in /root/.local/share/).
+        var peerUid = ResolveExpectedPeerUid();
+        if (peerUid >= 0)
+        {
+            var userHome = ResolveUserHome(peerUid);
+            if (userHome is not null)
+            {
+                var secretPath = SecretManager.GetSecretFilePathForUser(userHome);
+                var secretDir = Path.GetDirectoryName(secretPath)!;
+                if (!Directory.Exists(secretDir))
+                    Directory.CreateDirectory(secretDir);
+                _secret = SecretManager.GenerateAndStore(secretDir);
+                _secretFilePath = secretPath;
+                // Chown the secret file to the launching user so they can read it
+                ChownFile(secretPath, peerUid);
+                Log.Information("Secret stored at {Path} (owned by UID {Uid})", secretPath, peerUid);
+                _expectedPeerUid = peerUid;
+                return;
+            }
+        }
+
+        // Fallback: write to default path (may not work under pkexec but is fail-safe)
         _secret = SecretManager.GenerateAndStore();
-        Log.Information("Secret stored at {Path}", SecretManager.GetSecretFilePath());
+        _secretFilePath = SecretManager.GetSecretFilePath();
+        Log.Warning("Could not resolve user home; secret stored at default path {Path}", _secretFilePath);
+        _expectedPeerUid = peerUid;
+    }
+
+    /// <summary>
+    /// Resolves the home directory for a given UID by reading /etc/passwd.
+    /// </summary>
+    private static string? ResolveUserHome(int uid)
+    {
+        try
+        {
+            foreach (var line in File.ReadLines("/etc/passwd"))
+            {
+                var parts = line.Split(':');
+                if (parts.Length >= 6 && int.TryParse(parts[2], out var entryUid) && entryUid == uid)
+                    return parts[5]; // Home directory field
+            }
+        }
+        catch (Exception ex)
+        {
+            Log.Warning(ex, "Failed to resolve home directory for UID {Uid}", uid);
+        }
+        return null;
+    }
+
+    /// <summary>
+    /// Changes file ownership to the specified UID via /usr/bin/chown.
+    /// </summary>
+    private static void ChownFile(string path, int uid)
+    {
+        try
+        {
+            var startInfo = new System.Diagnostics.ProcessStartInfo
+            {
+                FileName = "/usr/bin/chown",
+                UseShellExecute = false,
+                CreateNoWindow = true
+            };
+            startInfo.ArgumentList.Add(uid.ToString());
+            startInfo.ArgumentList.Add(path);
+            using var process = System.Diagnostics.Process.Start(startInfo);
+            process?.WaitForExit(5000);
+        }
+        catch (Exception ex)
+        {
+            Log.Warning(ex, "Failed to chown secret file to UID {Uid}", uid);
+        }
     }
 
     public async Task RunAsync(CancellationToken cancellationToken)
@@ -37,19 +110,31 @@ public sealed class ElevationServer : IDisposable
         if (!Directory.Exists(socketDir))
         {
             Directory.CreateDirectory(socketDir);
-            // Restrict directory: root-only access prevents socket path manipulation
+            // Directory: 0711 — root-only read/write, but traversable by all users
+            // (socket-level SO_PEERCRED UID validation provides actual access control)
             File.SetUnixFileMode(socketDir,
-                UnixFileMode.UserRead | UnixFileMode.UserWrite | UnixFileMode.UserExecute);
+                UnixFileMode.UserRead | UnixFileMode.UserWrite | UnixFileMode.UserExecute |
+                UnixFileMode.GroupExecute |
+                UnixFileMode.OtherExecute);
+        }
+
+        // Ensure single instance via lock file
+        var lockPath = "/run/wirebound/elevation.lock";
+        try
+        {
+            _lockFile = new FileStream(lockPath, FileMode.CreateNew, FileAccess.Write, FileShare.None);
+        }
+        catch (IOException)
+        {
+            Log.Error("Another instance of the elevation helper is already running (lock file exists: {Path})", lockPath);
+            throw new InvalidOperationException("Another instance is already running");
         }
 
         // Clean up stale socket
         if (File.Exists(IpcConstants.LinuxSocketPath))
             File.Delete(IpcConstants.LinuxSocketPath);
 
-        // Determine the expected client UID before binding.
-        // The elevation helper is launched by a regular user via pkexec/systemd,
-        // so SUDO_UID (or PKEXEC_UID) tells us which user should be allowed to connect.
-        _expectedPeerUid = ResolveExpectedPeerUid();
+        // Validate that we resolved the expected client UID in the constructor.
         if (_expectedPeerUid < 0)
         {
             Log.Error("Cannot determine expected peer UID — refusing to start without UID validation");
@@ -63,11 +148,14 @@ public sealed class ElevationServer : IDisposable
         using var listener = new Socket(AddressFamily.Unix, SocketType.Stream, ProtocolType.Unspecified);
         listener.Bind(endpoint);
 
-        // Set socket file permissions BEFORE listen() to eliminate the race window
-        // where an unauthorized client could connect between bind() and chmod.
-        // 0600: owner (root) read/write only — no group or other access.
+        // Set socket file permissions BEFORE listen() to eliminate the race window.
+        // Socket: 0600 (owner-only) — then chown to the expected client UID.
+        // This restricts connections to only the launching user at the filesystem level,
+        // with SO_PEERCRED as defense-in-depth.
         File.SetUnixFileMode(IpcConstants.LinuxSocketPath,
             UnixFileMode.UserRead | UnixFileMode.UserWrite);
+        if (_expectedPeerUid >= 0)
+            ChownFile(IpcConstants.LinuxSocketPath, _expectedPeerUid);
 
         listener.Listen(IpcConstants.MaxConcurrentSessions);
         Log.Information("Starting Unix socket server: {Path}", IpcConstants.LinuxSocketPath);
@@ -89,6 +177,12 @@ public sealed class ElevationServer : IDisposable
                 }
 
                 Log.Information("Client connected via Unix socket (PID: {Pid}, UID: {Uid})", clientPid, clientUid);
+                if (!_connectionSemaphore.Wait(0))
+                {
+                    Log.Warning("Too many concurrent connections, rejecting (PID: {Pid})", clientPid);
+                    client.Dispose();
+                    continue;
+                }
                 _ = HandleClientAsync(new NetworkStream(client, ownsSocket: true), clientPid, cancellationToken);
             }
             catch (OperationCanceledException)
@@ -153,9 +247,13 @@ public sealed class ElevationServer : IDisposable
                 var loginUidPath = "/proc/self/loginuid";
                 if (File.Exists(loginUidPath))
                 {
-                    var loginUid = File.ReadAllText(loginUidPath).Trim();
-                    if (int.TryParse(loginUid, out var loginUidValue) && loginUidValue >= 0)
-                        return loginUidValue;
+                    var loginUidRaw = File.ReadAllText(loginUidPath).Trim();
+                    if (uint.TryParse(loginUidRaw, out var loginUidUint)
+                        && loginUidUint != uint.MaxValue   // 0xFFFFFFFF = "no login UID set"
+                        && loginUidUint <= int.MaxValue)   // safe to cast to int
+                    {
+                        return (int)loginUidUint;
+                    }
                 }
             }
         }
@@ -171,7 +269,8 @@ public sealed class ElevationServer : IDisposable
     internal async Task HandleClientAsync(Stream stream, int peerPid, CancellationToken cancellationToken)
     {
         string? sessionId = null;
-        var clientId = stream.GetHashCode().ToString();
+        // Use verified peer PID as rate limiter identity (stable, OS-verified via SO_PEERCRED)
+        var clientId = peerPid > 0 ? $"pid-{peerPid}" : stream.GetHashCode().ToString();
         try
         {
             while (!cancellationToken.IsCancellationRequested)
@@ -179,8 +278,8 @@ public sealed class ElevationServer : IDisposable
                 var message = await IpcTransport.ReceiveAsync(stream, cancellationToken);
                 if (message is null) break;
 
-                // Pre-auth rate limiting for authentication attempts
-                if (sessionId is null && message.Type == MessageType.Authenticate)
+                // Rate-limit ALL messages from unauthenticated clients (not just Authenticate)
+                if (sessionId is null)
                 {
                     if (!_authRateLimiter.TryAcquire(clientId))
                     {
@@ -212,15 +311,24 @@ public sealed class ElevationServer : IDisposable
                     }
                 }
 
-                var response = message.Type switch
+                IpcMessage response;
+                if (message.Type == MessageType.Authenticate)
                 {
-                    MessageType.Authenticate => HandleAuthenticate(message, peerPid, out sessionId),
-                    MessageType.ConnectionStats => HandleConnectionStats(message, sessionId),
-                    MessageType.ProcessStats => HandleProcessStats(message, sessionId),
-                    MessageType.Heartbeat => HandleHeartbeat(),
-                    MessageType.Shutdown => HandleShutdown(message, sessionId),
-                    _ => CreateErrorResponse(message.RequestId, $"Unknown message type: {message.Type}")
-                };
+                    var (authResponse, newSessionId) = await HandleAuthenticateAsync(message, peerPid, cancellationToken);
+                    sessionId = newSessionId;
+                    response = authResponse;
+                }
+                else
+                {
+                    response = message.Type switch
+                    {
+                        MessageType.ConnectionStats => HandleConnectionStats(message, sessionId),
+                        MessageType.ProcessStats => HandleProcessStats(message, sessionId),
+                        MessageType.Heartbeat => HandleHeartbeat(),
+                        MessageType.Shutdown => HandleShutdown(message, sessionId),
+                        _ => CreateErrorResponse(message.RequestId, $"Unknown message type: {message.Type}")
+                    };
+                }
 
                 // Track auth failures and disconnect after too many consecutive failures
                 if (message.Type == MessageType.Authenticate)
@@ -254,6 +362,7 @@ public sealed class ElevationServer : IDisposable
         }
         finally
         {
+            _connectionSemaphore.Release();
             if (sessionId is not null)
             {
                 _sessionManager.RemoveSession(sessionId);
@@ -267,9 +376,9 @@ public sealed class ElevationServer : IDisposable
         }
     }
 
-    internal IpcMessage HandleAuthenticate(IpcMessage request, int peerPid, out string? sessionId)
+    internal async Task<(IpcMessage Response, string? SessionId)> HandleAuthenticateAsync(
+        IpcMessage request, int peerPid, CancellationToken cancellationToken)
     {
-        sessionId = null;
         AuthenticateRequest authRequest;
         try
         {
@@ -277,8 +386,8 @@ public sealed class ElevationServer : IDisposable
         }
         catch
         {
-            return CreateResponse(request.RequestId, MessageType.Authenticate,
-                new AuthenticateResponse { Success = false, ErrorMessage = "Invalid auth request" });
+            return (CreateResponse(request.RequestId, MessageType.Authenticate,
+                new AuthenticateResponse { Success = false, ErrorMessage = "Invalid auth request" }), null);
         }
 
         // Cross-verify: the PID in the auth request must match SO_PEERCRED PID
@@ -286,43 +395,53 @@ public sealed class ElevationServer : IDisposable
         {
             Log.Warning("PID mismatch: claimed {ClaimedPid}, actual {ActualPid}",
                 authRequest.ClientPid, peerPid);
-            return CreateResponse(request.RequestId, MessageType.Authenticate,
-                new AuthenticateResponse { Success = false, ErrorMessage = "PID verification failed" });
+            return (CreateResponse(request.RequestId, MessageType.Authenticate,
+                new AuthenticateResponse { Success = false, ErrorMessage = "PID verification failed" }), null);
         }
 
         if (!HmacAuthenticator.Validate(authRequest.ClientPid, authRequest.Timestamp, authRequest.Signature, _secret))
         {
             Log.Warning("Authentication failed for PID {Pid}", authRequest.ClientPid);
-            return CreateResponse(request.RequestId, MessageType.Authenticate,
-                new AuthenticateResponse { Success = false, ErrorMessage = "Authentication failed" });
+            return (CreateResponse(request.RequestId, MessageType.Authenticate,
+                new AuthenticateResponse { Success = false, ErrorMessage = "Authentication failed" }), null);
         }
 
-        if (!string.IsNullOrWhiteSpace(authRequest.ExecutablePath) &&
-            !ValidateExecutablePath(authRequest.ExecutablePath, authRequest.ClientPid))
+        if (string.IsNullOrWhiteSpace(authRequest.ExecutablePath))
+        {
+            Log.Warning("Auth request from PID {Pid} missing executable path", authRequest.ClientPid);
+            return (CreateResponse(request.RequestId, MessageType.Authenticate,
+                new AuthenticateResponse { Success = false, ErrorMessage = "Executable path required" }), null);
+        }
+
+        if (!ValidateExecutablePath(authRequest.ExecutablePath, authRequest.ClientPid))
         {
             Log.Warning("Executable path validation failed for PID {Pid}: {Path}",
                 authRequest.ClientPid, authRequest.ExecutablePath);
-            return CreateResponse(request.RequestId, MessageType.Authenticate,
-                new AuthenticateResponse { Success = false, ErrorMessage = "Executable validation failed" });
+            return (CreateResponse(request.RequestId, MessageType.Authenticate,
+                new AuthenticateResponse { Success = false, ErrorMessage = "Executable validation failed" }), null);
         }
 
-        var session = _sessionManager.CreateSession(authRequest.ClientPid, authRequest.ExecutablePath);
+        var session = await _sessionManager.CreateSessionAsync(
+            authRequest.ClientPid, authRequest.ExecutablePath, cancellationToken);
         if (session is null)
         {
-            return CreateResponse(request.RequestId, MessageType.Authenticate,
-                new AuthenticateResponse { Success = false, ErrorMessage = "Max sessions exceeded" });
+            return (CreateResponse(request.RequestId, MessageType.Authenticate,
+                new AuthenticateResponse { Success = false, ErrorMessage = "Max sessions exceeded" }), null);
         }
 
-        sessionId = session.SessionId;
-        Log.Information("Authenticated client PID {Pid}, session {SessionId}", authRequest.ClientPid, sessionId);
+        Log.Information("Authenticated client PID {Pid}, session {SessionId}", authRequest.ClientPid, session.SessionId);
 
-        return CreateResponse(request.RequestId, MessageType.Authenticate,
+        // Server proves it holds the secret (mutual auth)
+        var serverSig = HmacAuthenticator.Sign(Environment.ProcessId, session.ExpiresAtUtc.ToUnixTimeSeconds(), _secret);
+
+        return (CreateResponse(request.RequestId, MessageType.Authenticate,
             new AuthenticateResponse
             {
                 Success = true,
-                SessionId = sessionId,
-                ExpiresAtUtc = session.ExpiresAtUtc.ToUnixTimeSeconds()
-            });
+                SessionId = session.SessionId,
+                ExpiresAtUtc = session.ExpiresAtUtc.ToUnixTimeSeconds(),
+                ServerSignature = serverSig
+            }), session.SessionId);
     }
 
     internal IpcMessage HandleConnectionStats(IpcMessage request, string? sessionId)
@@ -369,7 +488,7 @@ public sealed class ElevationServer : IDisposable
 
         Log.Information("Shutdown requested by session {SessionId}", sessionId);
         return CreateResponse(request.RequestId, MessageType.Shutdown,
-            new HeartbeatResponse { Alive = false });
+            new ShutdownResponse { Acknowledged = true, Reason = "Client requested shutdown" });
     }
 
     internal bool ValidateSession(string? sessionId, out string error)
@@ -436,9 +555,30 @@ public sealed class ElevationServer : IDisposable
         if (_secret.Length > 0)
             Array.Clear(_secret, 0, _secret.Length);
 
-        SecretManager.Delete();
+        // Delete the actual secret file (may be at a custom user-home path, not the default)
+        if (_secretFilePath is not null && File.Exists(_secretFilePath))
+        {
+            try
+            {
+                var zeros = new byte[32];
+                File.WriteAllBytes(_secretFilePath, zeros);
+                File.Delete(_secretFilePath);
+            }
+            catch { /* best effort */ }
+        }
+        else
+        {
+            SecretManager.Delete();
+        }
 
         try { File.Delete(IpcConstants.LinuxSocketPath); }
+        catch { /* best effort */ }
+
+        try
+        {
+            _lockFile?.Dispose();
+            File.Delete("/run/wirebound/elevation.lock");
+        }
         catch { /* best effort */ }
     }
 }

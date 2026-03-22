@@ -46,6 +46,7 @@
             <controls:SystemHealthStrip Grid.Column="2"
                                         CpuPercent="{Binding CpuPercent}"
                                         MemoryPercent="{Binding MemoryPercent}"
+                                        MemoryPressureLevel="{Binding MemoryPressureLevel}"
                                         VerticalAlignment="Center"
                                         AutomationProperties.Name="System Health Strip"
                                         AutomationProperties.HelpText="Quick view of CPU and RAM usage" />

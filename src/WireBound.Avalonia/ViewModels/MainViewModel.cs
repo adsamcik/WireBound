@@ -3,6 +3,7 @@ using Avalonia.Threading;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using CommunityToolkit.Mvvm.Messaging;
+using WireBound.Avalonia.Messages;
 using WireBound.Avalonia.Services;
 using WireBound.Core;
 using WireBound.Core.Models;
@@ -13,11 +14,12 @@ namespace WireBound.Avalonia.ViewModels;
 /// <summary>
 /// Main view model handling navigation and app state
 /// </summary>
-public partial class MainViewModel : ObservableObject, IRecipient<UpdateAvailableMessage>, IDisposable
+public partial class MainViewModel : ObservableObject, IRecipient<UpdateAvailableMessage>, IRecipient<MemoryPressureMessage>, IDisposable
 {
     private readonly INavigationService _navigationService;
     private readonly IViewFactory _viewFactory;
     private readonly INetworkMonitorService _networkMonitor;
+    private readonly ITrayIconService _trayIconService;
     private bool _disposed;
 
     /// <summary>
@@ -44,11 +46,13 @@ public partial class MainViewModel : ObservableObject, IRecipient<UpdateAvailabl
     public MainViewModel(
         INavigationService navigationService,
         IViewFactory viewFactory,
-        INetworkMonitorService networkMonitor)
+        INetworkMonitorService networkMonitor,
+        ITrayIconService trayIconService)
     {
         _navigationService = navigationService;
         _viewFactory = viewFactory;
         _networkMonitor = networkMonitor;
+        _trayIconService = trayIconService;
 
         // Initialize navigation items
         NavigationItems =
@@ -69,8 +73,8 @@ public partial class MainViewModel : ObservableObject, IRecipient<UpdateAvailabl
         _networkMonitor.StatsUpdated += OnNetworkStatsUpdated;
         IsMonitoringActive = false;
 
-        // Register for update badge messages
-        WeakReferenceMessenger.Default.Register(this);
+        // Register for update badge messages and memory pressure messages
+        WeakReferenceMessenger.Default.RegisterAll(this);
     }
 
     /// <summary>
@@ -83,6 +87,14 @@ public partial class MainViewModel : ObservableObject, IRecipient<UpdateAvailabl
         {
             settingsItem.HasBadge = true;
         }
+    }
+
+    /// <summary>
+    /// Receives memory pressure messages and forwards them to the tray icon service.
+    /// </summary>
+    public void Receive(MemoryPressureMessage message)
+    {
+        _trayIconService.UpdateMemoryPressure(message.Level, message.UsagePercent, message.AvailableBytes, message.SwapUsedBytes);
     }
 
     public List<NavigationItem> NavigationItems { get; }
@@ -150,5 +162,6 @@ public partial class MainViewModel : ObservableObject, IRecipient<UpdateAvailabl
         _navigationService.NavigationChanged -= OnNavigationChanged;
         _networkMonitor.StatsUpdated -= OnNetworkStatsUpdated;
         WeakReferenceMessenger.Default.Unregister<UpdateAvailableMessage>(this);
+        WeakReferenceMessenger.Default.Unregister<MemoryPressureMessage>(this);
     }
 }

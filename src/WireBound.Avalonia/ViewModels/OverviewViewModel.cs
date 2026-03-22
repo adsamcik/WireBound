@@ -1,11 +1,13 @@
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
+using CommunityToolkit.Mvvm.Messaging;
 using LiveChartsCore;
 using LiveChartsCore.Defaults;
 using LiveChartsCore.SkiaSharpView;
 using Microsoft.Extensions.Logging;
 using System.Collections.ObjectModel;
 using WireBound.Avalonia.Helpers;
+using WireBound.Avalonia.Messages;
 using WireBound.Core;
 using WireBound.Core.Helpers;
 using WireBound.Core.Models;
@@ -28,13 +30,14 @@ public enum TimeRange
 /// Unified ViewModel combining network monitoring and system metrics
 /// for the overview dashboard experience.
 /// </summary>
-public sealed partial class OverviewViewModel : ObservableObject, IDisposable
+public sealed partial class OverviewViewModel : ObservableObject, IRecipient<MemoryPressureMessage>, IDisposable
 {
     private readonly IUiDispatcher _dispatcher;
     private readonly INetworkMonitorService _networkMonitor;
     private readonly ISystemMonitorService _systemMonitor;
     private readonly INavigationService _navigationService;
     private readonly IDataPersistenceService? _dataPersistence;
+    private readonly ISystemSnapshotRepository? _systemSnapshotRepository;
     private readonly ILogger<OverviewViewModel>? _logger;
     private bool _disposed;
     private bool _isViewActive;
@@ -180,6 +183,13 @@ public sealed partial class OverviewViewModel : ObservableObject, IDisposable
     [ObservableProperty]
     private string _memoryUsageFormatted = "0%";
 
+    /// <summary>
+    /// Current memory pressure level (0 = Normal, 1 = Warning, 2 = Critical).
+    /// Bound to SystemHealthStrip.MemoryPressureLevel to drive the pulse animation.
+    /// </summary>
+    [ObservableProperty]
+    private int _memoryPressureLevel;
+
     #endregion
 
     #region Chart Properties
@@ -235,6 +245,7 @@ public sealed partial class OverviewViewModel : ObservableObject, IDisposable
         ISystemMonitorService systemMonitor,
         INavigationService navigationService,
         IDataPersistenceService? dataPersistence = null,
+        ISystemSnapshotRepository? systemSnapshotRepository = null,
         ILogger<OverviewViewModel>? logger = null)
     {
         _dispatcher = dispatcher;
@@ -242,6 +253,7 @@ public sealed partial class OverviewViewModel : ObservableObject, IDisposable
         _systemMonitor = systemMonitor;
         _navigationService = navigationService;
         _dataPersistence = dataPersistence;
+        _systemSnapshotRepository = systemSnapshotRepository;
         _logger = logger;
         _isViewActive = navigationService.CurrentView == Routes.Overview;
 
@@ -278,6 +290,18 @@ public sealed partial class OverviewViewModel : ObservableObject, IDisposable
         // Get initial system stats
         var initialSystemStats = _systemMonitor.GetCurrentStats();
         UpdateSystemProperties(initialSystemStats);
+
+        // Subscribe to memory pressure messages
+        WeakReferenceMessenger.Default.Register<MemoryPressureMessage>(this);
+    }
+
+    /// <summary>
+    /// Receives memory pressure messages and updates MemoryPressureLevel on the UI thread.
+    /// </summary>
+    public void Receive(MemoryPressureMessage message)
+    {
+        var level = (int)message.Level;
+        _dispatcher.Post(() => MemoryPressureLevel = level);
     }
 
     #region Event Handlers
@@ -603,6 +627,7 @@ public sealed partial class OverviewViewModel : ObservableObject, IDisposable
         {
             if (!ChartSeries.Contains(_cpuOverlaySeries))
                 ChartSeries.Add(_cpuOverlaySeries);
+            _ = LoadOverlayHistoryAsync(_cpuOverlayPoints, s => s.CpuPercent);
         }
         else
         {
@@ -617,11 +642,41 @@ public sealed partial class OverviewViewModel : ObservableObject, IDisposable
         {
             if (!ChartSeries.Contains(_memoryOverlaySeries))
                 ChartSeries.Add(_memoryOverlaySeries);
+            _ = LoadOverlayHistoryAsync(_memoryOverlayPoints, s => s.MemoryPercent);
         }
         else
         {
             _memoryOverlayPoints.Clear();
             ChartSeries.Remove(_memoryOverlaySeries);
+        }
+    }
+
+    private async Task LoadOverlayHistoryAsync(
+        BatchObservableCollection<DateTimePoint> points,
+        Func<SystemSnapshot, double> valueSelector)
+    {
+        if (_systemSnapshotRepository == null) return;
+
+        try
+        {
+            var rangeSeconds = GetTimeRangeSeconds(SelectedTimeRange);
+            var since = DateTime.Now.AddSeconds(-rangeSeconds);
+            var history = await _systemSnapshotRepository.GetSystemHistoryAsync(since).ConfigureAwait(false);
+
+            if (history.Count == 0) return;
+
+            var historyPoints = history
+                .Select(s => new DateTimePoint(s.Timestamp, valueSelector(s)))
+                .ToList();
+
+            await _dispatcher.InvokeAsync(() =>
+            {
+                points.ReplaceAll(historyPoints);
+            });
+        }
+        catch (Exception ex)
+        {
+            _logger?.LogDebug(ex, "Failed to load overlay history");
         }
     }
 
@@ -903,6 +958,7 @@ public sealed partial class OverviewViewModel : ObservableObject, IDisposable
         _navigationService.NavigationChanged -= OnNavigationChanged;
         _notificationCts?.Cancel();
         _notificationCts?.Dispose();
+        WeakReferenceMessenger.Default.Unregister<MemoryPressureMessage>(this);
     }
 }
 

@@ -6,6 +6,7 @@ using Avalonia.Threading;
 using Serilog;
 using SkiaSharp;
 using WireBound.Core.Helpers;
+using WireBound.Core.Models;
 using WireBound.Core.Services;
 
 namespace WireBound.Avalonia.Services;
@@ -29,6 +30,10 @@ public sealed class TrayIconService : ITrayIconService
     private const int GraphHistorySize = 16;
     private readonly Queue<(float download, float upload)> _activityHistory = new();
     private long _autoScaleMaxSpeed = 1_000_000; // 1 MB/s default, auto-adjusts
+
+    // Memory pressure state (updated via UpdateMemoryPressure, consumed on UI thread)
+    private MemoryPressureLevel _memoryPressureLevel = MemoryPressureLevel.Normal;
+    private string _memoryTooltipLine = string.Empty;
 
     // Icon dimensions
     private const int IconSize = 16;
@@ -349,8 +354,13 @@ public sealed class TrayIconService : ITrayIconService
             using var surface = SKSurface.Create(new SKImageInfo(IconSize, IconSize, SKColorType.Rgba8888, SKAlphaType.Premul));
             var canvas = surface.Canvas;
 
-            // Dark background (similar to Task Manager's dark green)
-            canvas.Clear(new SKColor(20, 30, 35)); // Dark blue-gray
+            // Dark background tinted by memory pressure level
+            canvas.Clear(_memoryPressureLevel switch
+            {
+                MemoryPressureLevel.Warning => new SKColor(60, 50, 20),  // Amber tint
+                MemoryPressureLevel.Critical => new SKColor(60, 20, 20), // Coral tint
+                _ => new SKColor(20, 30, 35)                             // Default dark blue-gray
+            });
 
             // Draw border
             using var borderPaint = new SKPaint
@@ -457,7 +467,9 @@ public sealed class TrayIconService : ITrayIconService
         var downloadSpeed = ByteFormatter.FormatSpeed(downloadSpeedBps);
         var uploadSpeed = ByteFormatter.FormatSpeed(uploadSpeedBps);
 
-        _trayIcon.ToolTipText = $"WireBound\n↓ {downloadSpeed}  ↑ {uploadSpeed}";
+        _trayIcon.ToolTipText = string.IsNullOrEmpty(_memoryTooltipLine)
+            ? $"WireBound\n↓ {downloadSpeed}  ↑ {uploadSpeed}"
+            : $"WireBound\n↓ {downloadSpeed}  ↑ {uploadSpeed}\n{_memoryTooltipLine}";
     }
 
     /// <summary>
@@ -607,6 +619,23 @@ public sealed class TrayIconService : ITrayIconService
         {
             _trayIcon.IsVisible = false;
         }
+    }
+
+    /// <inheritdoc />
+    public void UpdateMemoryPressure(MemoryPressureLevel level, double usagePercent, long availableBytes, long swapUsedBytes)
+    {
+        if (_isDisposed) return;
+
+        if (!Dispatcher.UIThread.CheckAccess())
+        {
+            Dispatcher.UIThread.Post(() => UpdateMemoryPressure(level, usagePercent, availableBytes, swapUsedBytes));
+            return;
+        }
+
+        _memoryPressureLevel = level;
+        _memoryTooltipLine = level > MemoryPressureLevel.Normal
+            ? $"⚠ RAM: {usagePercent:F0}% ({ByteFormatter.FormatBytes(availableBytes)} free{(swapUsedBytes > 0 ? $", swap {ByteFormatter.FormatBytes(swapUsedBytes)}" : "")})"
+            : string.Empty;
     }
 
     /// <inheritdoc />

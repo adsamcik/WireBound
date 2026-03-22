@@ -1,7 +1,10 @@
+using System.Threading;
 using System.Windows.Input;
 using Avalonia;
+using Avalonia.Animation;
 using Avalonia.Controls;
 using Avalonia.Media;
+using Avalonia.Styling;
 
 namespace WireBound.Avalonia.Controls;
 
@@ -81,6 +84,13 @@ public partial class SystemHealthStrip : UserControl
             nameof(CommandParameter),
             defaultValue: null);
 
+    /// <summary>
+    /// Defines the <see cref="MemoryPressureLevel"/> property.
+    /// 0 = Normal, 1 = Warning (slow pulse), 2 = Critical (fast pulse).
+    /// </summary>
+    public static readonly StyledProperty<int> MemoryPressureLevelProperty =
+        AvaloniaProperty.Register<SystemHealthStrip, int>(nameof(MemoryPressureLevel), defaultValue: 0);
+
     #endregion
 
     #region Read-Only Properties (Computed)
@@ -152,6 +162,7 @@ public partial class SystemHealthStrip : UserControl
     private IBrush? _cpuGaugeColor;
     private IBrush? _memoryGaugeColor;
     private IBrush? _gpuGaugeColor;
+    private CancellationTokenSource? _pulseCts;
 
     #endregion
 
@@ -234,6 +245,16 @@ public partial class SystemHealthStrip : UserControl
     }
 
     /// <summary>
+    /// Gets or sets the memory pressure level driving the pulse animation.
+    /// 0 = Normal (no animation), 1 = Warning (slow pulse), 2 = Critical (fast pulse).
+    /// </summary>
+    public int MemoryPressureLevel
+    {
+        get => GetValue(MemoryPressureLevelProperty);
+        set => SetValue(MemoryPressureLevelProperty, value);
+    }
+
+    /// <summary>
     /// Gets the formatted CPU percentage text.
     /// </summary>
     public string CpuPercentText
@@ -310,6 +331,11 @@ public partial class SystemHealthStrip : UserControl
             change.Property == GpuPercentProperty)
         {
             UpdateComputedProperties();
+        }
+
+        if (change.Property == MemoryPressureLevelProperty)
+        {
+            UpdatePulseAnimation(change.GetNewValue<int>());
         }
     }
 
@@ -402,6 +428,40 @@ public partial class SystemHealthStrip : UserControl
         if (this.TryFindResource("ErrorBrush", out var brush) && brush is IBrush b)
             return b;
         return Brushes.Red;
+    }
+
+    /// <summary>
+    /// Starts or stops the memory pressure pulse animation based on the current level.
+    /// </summary>
+    private void UpdatePulseAnimation(int level)
+    {
+        _pulseCts?.Cancel();
+        _pulseCts?.Dispose();
+        _pulseCts = null;
+
+        if (level == 0)
+        {
+            Opacity = 1.0;
+            return;
+        }
+
+        var duration = level >= 2 ? TimeSpan.FromMilliseconds(800) : TimeSpan.FromSeconds(2);
+        var minOpacity = level >= 2 ? 0.5 : 0.7;
+
+        var animation = new Animation
+        {
+            Duration = duration,
+            IterationCount = IterationCount.Infinite,
+            PlaybackDirection = PlaybackDirection.Alternate,
+            Children =
+            {
+                new KeyFrame { Cue = new Cue(0), Setters = { new Setter(OpacityProperty, 1.0) } },
+                new KeyFrame { Cue = new Cue(1), Setters = { new Setter(OpacityProperty, minOpacity) } }
+            }
+        };
+
+        _pulseCts = new CancellationTokenSource();
+        _ = animation.RunAsync(this, _pulseCts.Token);
     }
 
     #endregion

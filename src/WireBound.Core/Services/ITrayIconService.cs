@@ -1,3 +1,5 @@
+using WireBound.Core.Models;
+
 namespace WireBound.Core.Services;
 
 /// <summary>
@@ -40,4 +42,10 @@ public interface ITrayIconService : IDisposable
     /// Pass null version to clear the update item.
     /// </summary>
     void SetUpdateAvailable(string? version, Action? onClicked);
+
+    /// <summary>
+    /// Updates the tray icon background tint and tooltip to reflect current memory pressure.
+    /// Safe to call from any thread.
+    /// </summary>
+    void UpdateMemoryPressure(MemoryPressureLevel level, double usagePercent, long availableBytes, long swapUsedBytes);
 }

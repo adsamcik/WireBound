@@ -14,6 +14,7 @@ public class MainViewModelTests : IAsyncDisposable
     private readonly INavigationService _navigationService;
     private readonly IViewFactory _viewFactory;
     private readonly INetworkMonitorService _networkMonitor;
+    private readonly ITrayIconService _trayIconService;
     private readonly List<MainViewModel> _createdViewModels = [];
 
     public MainViewModelTests()
@@ -21,6 +22,7 @@ public class MainViewModelTests : IAsyncDisposable
         _navigationService = Substitute.For<INavigationService>();
         _viewFactory = Substitute.For<IViewFactory>();
         _networkMonitor = Substitute.For<INetworkMonitorService>();
+        _trayIconService = Substitute.For<ITrayIconService>();
 
         SetupDefaultMocks();
     }
@@ -36,7 +38,8 @@ public class MainViewModelTests : IAsyncDisposable
         var vm = new MainViewModel(
             _navigationService,
             _viewFactory,
-            _networkMonitor);
+            _networkMonitor,
+            _trayIconService);
         _createdViewModels.Add(vm);
         return vm;
     }

@@ -161,7 +161,7 @@ public sealed partial class ElevationServer : IDisposable
             PipeDirection.InOut,
             NamedPipeServerStream.MaxAllowedServerInstances,
             PipeTransmissionMode.Byte,
-            PipeOptions.Asynchronous | (PipeOptions)0x8, // PIPE_REJECT_REMOTE_CLIENTS
+            PipeOptions.Asynchronous,
             inBufferSize: 0,
             outBufferSize: 0,
             security);
@@ -351,7 +351,7 @@ public sealed partial class ElevationServer : IDisposable
         Log.Information("Authenticated client PID {Pid}, session {SessionId}", authRequest.ClientPid, sessionId);
 
         // Server proves it holds the secret (mutual auth)
-        var serverSig = HmacAuthenticator.Sign(Environment.ProcessId, session.ExpiresAtUtc.ToUnixTimeSeconds(), _secret);
+        var serverSig = HmacAuthenticator.Sign(0, session.ExpiresAtUtc.ToUnixTimeSeconds(), _secret);
 
         return (CreateResponse(request.RequestId, MessageType.Authenticate,
             new AuthenticateResponse

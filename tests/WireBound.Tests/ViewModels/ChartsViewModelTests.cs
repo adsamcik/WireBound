@@ -83,7 +83,7 @@ public class ChartsViewModelTests : IAsyncDisposable
             _persistenceMock,
             _navigationServiceMock,
             _systemMonitorMock,
-            _loggerMock);
+            logger: _loggerMock);
         _createdViewModels.Add(viewModel);
         return viewModel;
     }
@@ -96,7 +96,7 @@ public class ChartsViewModelTests : IAsyncDisposable
             _persistenceMock,
             _navigationServiceMock,
             null,
-            _loggerMock);
+            logger: _loggerMock);
         _createdViewModels.Add(viewModel);
         return viewModel;
     }
@@ -284,7 +284,7 @@ public class ChartsViewModelTests : IAsyncDisposable
             _persistenceMock,
             _navigationServiceMock,
             _systemMonitorMock,
-            null);
+            logger: null);
 
         // Assert
         action.Should().NotThrow();

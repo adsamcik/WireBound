@@ -14,13 +14,15 @@ namespace WireBound.Core.Services;
 /// <item><see cref="IAppUsageRepository"/> for per-application tracking</item>
 /// <item><see cref="ISettingsRepository"/> for application settings</item>
 /// <item><see cref="ISpeedSnapshotRepository"/> for chart history data</item>
+/// <item><see cref="ISystemSnapshotRepository"/> for system stats chart history</item>
 /// </list>
 /// </remarks>
 public interface IDataPersistenceService :
     INetworkUsageRepository,
     IAppUsageRepository,
     ISettingsRepository,
-    ISpeedSnapshotRepository
+    ISpeedSnapshotRepository,
+    ISystemSnapshotRepository
 {
     // All members are inherited from the composed interfaces.
     // This interface exists for backward compatibility and as a convenience

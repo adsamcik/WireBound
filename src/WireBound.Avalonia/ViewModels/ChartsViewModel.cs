@@ -25,6 +25,7 @@ public sealed partial class ChartsViewModel : ObservableObject, IDisposable
     private readonly ISpeedSnapshotRepository _speedSnapshotRepository;
     private readonly INavigationService _navigationService;
     private readonly ISystemMonitorService? _systemMonitorService;
+    private readonly ISystemSnapshotRepository? _systemSnapshotRepository;
     private readonly ILogger<ChartsViewModel>? _logger;
     private readonly CancellationTokenSource _cts = new();
     private CancellationTokenSource? _timeRangeCts;
@@ -120,6 +121,7 @@ public sealed partial class ChartsViewModel : ObservableObject, IDisposable
         ISpeedSnapshotRepository speedSnapshotRepository,
         INavigationService navigationService,
         ISystemMonitorService? systemMonitorService = null,
+        ISystemSnapshotRepository? systemSnapshotRepository = null,
         ILogger<ChartsViewModel>? logger = null)
     {
         _dispatcher = dispatcher;
@@ -127,6 +129,7 @@ public sealed partial class ChartsViewModel : ObservableObject, IDisposable
         _speedSnapshotRepository = speedSnapshotRepository;
         _navigationService = navigationService;
         _systemMonitorService = systemMonitorService;
+        _systemSnapshotRepository = systemSnapshotRepository;
         _logger = logger;
         _isViewActive = navigationService.CurrentView == Routes.Charts;
         networkMonitor.StatsUpdated += OnStatsUpdated;
@@ -416,6 +419,7 @@ public sealed partial class ChartsViewModel : ObservableObject, IDisposable
         {
             if (!SpeedSeries.Contains(_cpuOverlaySeries))
                 SpeedSeries.Add(_cpuOverlaySeries);
+            _ = LoadOverlayHistoryAsync(_cpuHistoryPoints, s => s.CpuPercent);
         }
         else
         {
@@ -433,11 +437,41 @@ public sealed partial class ChartsViewModel : ObservableObject, IDisposable
         {
             if (!SpeedSeries.Contains(_memoryOverlaySeries))
                 SpeedSeries.Add(_memoryOverlaySeries);
+            _ = LoadOverlayHistoryAsync(_memoryHistoryPoints, s => s.MemoryPercent);
         }
         else
         {
             SpeedSeries.Remove(_memoryOverlaySeries);
             _memoryHistoryPoints.Clear();
+        }
+    }
+
+    private async Task LoadOverlayHistoryAsync(
+        BatchObservableCollection<DateTimePoint> points,
+        Func<SystemSnapshot, double> valueSelector)
+    {
+        if (_systemSnapshotRepository == null) return;
+
+        try
+        {
+            var rangeSeconds = SelectedTimeRange?.Seconds ?? 60;
+            var since = DateTime.Now.AddSeconds(-rangeSeconds);
+            var history = await _systemSnapshotRepository.GetSystemHistoryAsync(since).ConfigureAwait(false);
+
+            if (history.Count == 0) return;
+
+            var historyPoints = history
+                .Select(s => new DateTimePoint(s.Timestamp, valueSelector(s)))
+                .ToList();
+
+            await _dispatcher.InvokeAsync(() =>
+            {
+                points.ReplaceAll(historyPoints);
+            });
+        }
+        catch (Exception ex)
+        {
+            _logger?.LogDebug(ex, "Failed to load overlay history");
         }
     }
 

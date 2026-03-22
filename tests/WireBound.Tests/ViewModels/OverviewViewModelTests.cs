@@ -84,7 +84,7 @@ public class OverviewViewModelTests : IAsyncDisposable
             _systemMonitorMock,
             _navigationServiceMock,
             _persistenceMock,
-            _loggerMock);
+            logger: _loggerMock);
         _createdViewModels.Add(vm);
         return vm;
     }
@@ -628,7 +628,7 @@ public class OverviewViewModelTests : IAsyncDisposable
             _systemMonitorMock,
             _navigationServiceMock,
             null,
-            _loggerMock);
+            logger: _loggerMock);
 
         // Assert
         action.Should().NotThrow();
@@ -644,7 +644,7 @@ public class OverviewViewModelTests : IAsyncDisposable
             _systemMonitorMock,
             _navigationServiceMock,
             _persistenceMock,
-            null);
+            logger: null);
 
         // Assert
         action.Should().NotThrow();

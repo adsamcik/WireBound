@@ -577,4 +577,63 @@ public sealed class DataPersistenceService : IDataPersistenceService
             .ExecuteDeleteAsync()
             .ConfigureAwait(false);
     }
+
+    public async Task SaveSystemSnapshotBatchAsync(IEnumerable<(double cpuPercent, double memoryPercent, DateTime timestamp)> snapshots)
+    {
+        var snapshotList = snapshots.ToList();
+        if (snapshotList.Count == 0)
+            return;
+
+        using var scope = _serviceProvider.CreateScope();
+        var db = scope.ServiceProvider.GetRequiredService<WireBoundDbContext>();
+
+        var entities = snapshotList.Select(s => new SystemSnapshot
+        {
+            Timestamp = s.timestamp,
+            CpuPercent = s.cpuPercent,
+            MemoryPercent = s.memoryPercent
+        });
+
+        db.SystemSnapshots.AddRange(entities);
+        await db.SaveChangesAsync().ConfigureAwait(false);
+    }
+
+    public async Task<List<SystemSnapshot>> GetSystemHistoryAsync(DateTime since)
+    {
+        using var scope = _serviceProvider.CreateScope();
+        var db = scope.ServiceProvider.GetRequiredService<WireBoundDbContext>();
+
+        return await db.SystemSnapshots
+            .AsNoTracking()
+            .Where(s => s.Timestamp >= since)
+            .OrderByDescending(s => s.Timestamp)
+            .Take(MaxSpeedHistoryRows)
+            .OrderBy(s => s.Timestamp)
+            .ToListAsync()
+            .ConfigureAwait(false);
+    }
+
+    public async Task CleanupOldSystemSnapshotsAsync(TimeSpan maxAge)
+    {
+        using var scope = _serviceProvider.CreateScope();
+        var db = scope.ServiceProvider.GetRequiredService<WireBoundDbContext>();
+
+        var cutoff = DateTime.Now - maxAge;
+        await db.SystemSnapshots
+            .Where(s => s.Timestamp < cutoff)
+            .ExecuteDeleteAsync()
+            .ConfigureAwait(false);
+    }
+
+    /// <summary>
+    /// Persists a memory pressure event for historical analysis.
+    /// </summary>
+    public async Task SaveMemoryPressureEventAsync(MemoryPressureEvent pressureEvent)
+    {
+        using var scope = _serviceProvider.CreateScope();
+        var db = scope.ServiceProvider.GetRequiredService<WireBoundDbContext>();
+
+        db.MemoryPressureEvents.Add(pressureEvent);
+        await db.SaveChangesAsync().ConfigureAwait(false);
+    }
 }

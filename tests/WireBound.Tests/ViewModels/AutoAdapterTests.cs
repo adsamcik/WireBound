@@ -66,7 +66,7 @@ public class AutoAdapterTests : IAsyncDisposable
 
     private OverviewViewModel CreateViewModel()
     {
-        var vm = new OverviewViewModel(_dispatcher, _networkMonitor, _systemMonitor, _navigationService, _persistence, _logger);
+        var vm = new OverviewViewModel(_dispatcher, _networkMonitor, _systemMonitor, _navigationService, _persistence, logger: _logger);
         _createdViewModels.Add(vm);
         return vm;
     }

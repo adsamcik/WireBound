@@ -22,6 +22,7 @@ public sealed partial class SystemViewModel : ObservableObject, IDisposable
     private readonly IUiDispatcher _dispatcher;
     private readonly ISystemMonitorService _systemMonitorService;
     private readonly INavigationService _navigationService;
+    private readonly ISystemSnapshotRepository _systemSnapshotRepository;
     private readonly ILogger<SystemViewModel>? _logger;
     private bool _disposed;
     private bool _isViewActive;
@@ -116,11 +117,13 @@ public sealed partial class SystemViewModel : ObservableObject, IDisposable
         IUiDispatcher dispatcher,
         ISystemMonitorService systemMonitorService,
         INavigationService navigationService,
+        ISystemSnapshotRepository systemSnapshotRepository,
         ILogger<SystemViewModel>? logger = null)
     {
         _dispatcher = dispatcher;
         _systemMonitorService = systemMonitorService;
         _navigationService = navigationService;
+        _systemSnapshotRepository = systemSnapshotRepository;
         _logger = logger;
         _isViewActive = navigationService.CurrentView == Routes.System;
 
@@ -146,7 +149,15 @@ public sealed partial class SystemViewModel : ObservableObject, IDisposable
         {
             _statsBuffer.Add((initialStats.Timestamp, initialStats.Cpu.UsagePercent, initialStats.Memory.UsagePercent));
         }
+
+        // Load historical data from database
+        InitializationTask = LoadSystemHistoryAsync();
     }
+
+    /// <summary>
+    /// Task that completes when historical data has been loaded.
+    /// </summary>
+    internal Task InitializationTask { get; }
 
     private void OnNavigationChanged(string route)
     {
@@ -156,6 +167,33 @@ public sealed partial class SystemViewModel : ObservableObject, IDisposable
         if (_isViewActive && !wasActive)
         {
             _dispatcher.Post(RefreshChartsFromBuffer);
+        }
+    }
+
+    private async Task LoadSystemHistoryAsync()
+    {
+        try
+        {
+            var since = DateTime.Now.AddHours(-1);
+            var history = await _systemSnapshotRepository.GetSystemHistoryAsync(since).ConfigureAwait(false);
+
+            if (history.Count == 0)
+                return;
+
+            // Populate the in-memory buffer with historical data
+            foreach (var snapshot in history)
+            {
+                _statsBuffer.Add((snapshot.Timestamp, snapshot.CpuPercent, snapshot.MemoryPercent));
+            }
+
+            // Render chart from buffer on UI thread
+            _dispatcher.Post(RefreshChartsFromBuffer);
+
+            _logger?.LogDebug("Loaded {Count} system history snapshots", history.Count);
+        }
+        catch (Exception ex)
+        {
+            _logger?.LogWarning(ex, "Failed to load system history");
         }
     }
 

@@ -16,12 +16,14 @@ public class SystemViewModelTests : IAsyncDisposable
     private readonly IUiDispatcher _dispatcherMock;
     private readonly ISystemMonitorService _systemMonitorMock;
     private readonly INavigationService _navigationServiceMock;
+    private readonly ISystemSnapshotRepository _systemSnapshotRepositoryMock;
 
     public SystemViewModelTests()
     {
         _dispatcherMock = Substitute.For<IUiDispatcher>();
         _systemMonitorMock = Substitute.For<ISystemMonitorService>();
         _navigationServiceMock = Substitute.For<INavigationService>();
+        _systemSnapshotRepositoryMock = Substitute.For<ISystemSnapshotRepository>();
         SetupDefaultMocks();
     }
 
@@ -59,7 +61,7 @@ public class SystemViewModelTests : IAsyncDisposable
 
     private SystemViewModel CreateViewModel()
     {
-        var viewModel = new SystemViewModel(_dispatcherMock, _systemMonitorMock, _navigationServiceMock);
+        var viewModel = new SystemViewModel(_dispatcherMock, _systemMonitorMock, _navigationServiceMock, _systemSnapshotRepositoryMock);
         _createdViewModels.Add(viewModel);
         return viewModel;
     }

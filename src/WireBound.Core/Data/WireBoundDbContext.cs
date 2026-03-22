@@ -25,6 +25,7 @@ public sealed class WireBoundDbContext : DbContext
     public DbSet<AddressUsageRecord> AddressUsageRecords { get; set; } = null!;
     public DbSet<ResourceInsightSnapshot> ResourceInsightSnapshots { get; set; } = null!;
     public DbSet<AppCategoryMapping> AppCategoryMappings { get; set; } = null!;
+    public DbSet<MemoryPressureEvent> MemoryPressureEvents { get; set; } = null!;
 
     /// <summary>
     /// Creates a new instance of WireBoundDbContext with default options.
@@ -165,6 +166,10 @@ public sealed class WireBoundDbContext : DbContext
             .HasIndex(m => m.ExecutableName)
             .IsUnique();
 
+        // MemoryPressureEvent indexes
+        modelBuilder.Entity<MemoryPressureEvent>()
+            .HasIndex(e => e.Timestamp);
+
         // Seed default settings
         modelBuilder.Entity<AppSettings>().HasData(new AppSettings { Id = 1 });
     }
@@ -277,6 +282,36 @@ public sealed class WireBoundDbContext : DbContext
                 )
                 """);
 
+            CreateTableIfNotExists(connection, "SpeedSnapshots", """
+                CREATE TABLE IF NOT EXISTS SpeedSnapshots (
+                    Id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    Timestamp TEXT NOT NULL DEFAULT '0001-01-01',
+                    DownloadSpeedBps INTEGER NOT NULL DEFAULT 0,
+                    UploadSpeedBps INTEGER NOT NULL DEFAULT 0
+                )
+                """);
+
+            CreateTableIfNotExists(connection, "SystemSnapshots", """
+                CREATE TABLE IF NOT EXISTS SystemSnapshots (
+                    Id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    Timestamp TEXT NOT NULL DEFAULT '0001-01-01',
+                    CpuPercent REAL NOT NULL DEFAULT 0,
+                    MemoryPercent REAL NOT NULL DEFAULT 0
+                )
+                """);
+
+            CreateTableIfNotExists(connection, "MemoryPressureEvents", """
+                CREATE TABLE IF NOT EXISTS MemoryPressureEvents (
+                    Id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    Timestamp TEXT NOT NULL DEFAULT '0001-01-01',
+                    Level INTEGER NOT NULL DEFAULT 0,
+                    UsagePercent REAL NOT NULL DEFAULT 0,
+                    AvailableBytes INTEGER NOT NULL DEFAULT 0,
+                    SwapUsedBytes INTEGER NOT NULL DEFAULT 0,
+                    TopProcesses TEXT NOT NULL DEFAULT ''
+                )
+                """);
+
             // Phase 2: Ensure all columns exist on all tables.
             // Uses batch checks (one PRAGMA per table) for efficiency.
             // All calls are no-ops when the column already exists.
@@ -305,7 +340,13 @@ public sealed class WireBoundDbContext : DbContext
                 ("ShowCorrelationInsights", "INTEGER NOT NULL DEFAULT 1"),
                 ("CheckForUpdates", "INTEGER NOT NULL DEFAULT 1"),
                 ("AutoDownloadUpdates", "INTEGER NOT NULL DEFAULT 1"),
-                ("StartHelperWithSystem", "INTEGER NOT NULL DEFAULT 0"));
+                ("StartHelperWithSystem", "INTEGER NOT NULL DEFAULT 0"),
+                ("MemoryAlertsEnabled", "INTEGER NOT NULL DEFAULT 0"),
+                ("MemoryWarningThresholdPercent", "INTEGER NOT NULL DEFAULT 85"),
+                ("MemoryCriticalThresholdPercent", "INTEGER NOT NULL DEFAULT 95"),
+                ("MemoryFreeFloorMb", "INTEGER NOT NULL DEFAULT 2048"),
+                ("MemoryAlertCooldownSeconds", "INTEGER NOT NULL DEFAULT 300"),
+                ("MemoryAlertSustainedSeconds", "INTEGER NOT NULL DEFAULT 30"));
 
             EnsureColumnsExist(connection, "HourlyUsages",
                 ("Hour", "TEXT NOT NULL DEFAULT '0001-01-01'"),
@@ -334,6 +375,14 @@ public sealed class WireBoundDbContext : DbContext
                 ("Timestamp", "TEXT NOT NULL DEFAULT '0001-01-01'"),
                 ("CpuPercent", "REAL NOT NULL DEFAULT 0"),
                 ("MemoryPercent", "REAL NOT NULL DEFAULT 0"));
+
+            EnsureColumnsExist(connection, "MemoryPressureEvents",
+                ("Timestamp", "TEXT NOT NULL DEFAULT '0001-01-01'"),
+                ("Level", "INTEGER NOT NULL DEFAULT 0"),
+                ("UsagePercent", "REAL NOT NULL DEFAULT 0"),
+                ("AvailableBytes", "INTEGER NOT NULL DEFAULT 0"),
+                ("SwapUsedBytes", "INTEGER NOT NULL DEFAULT 0"),
+                ("TopProcesses", "TEXT NOT NULL DEFAULT ''"));
 
             EnsureColumnsExist(connection, "AppUsageRecords",
                 ("AppIdentifier", "TEXT NOT NULL DEFAULT ''"),

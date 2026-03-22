@@ -30,4 +30,10 @@ public interface INetworkPollingBackgroundService
     /// May differ from the configured interval when adaptive polling is active.
     /// </summary>
     int CurrentPollingIntervalMs { get; }
+
+    /// <summary>
+    /// Updates memory alert configuration at runtime without requiring app restart.
+    /// </summary>
+    void UpdateMemoryAlertSettings(bool enabled, int warningThresholdPercent, int criticalThresholdPercent,
+        int freeFloorMb, int cooldownSeconds, int sustainedSeconds);
 }

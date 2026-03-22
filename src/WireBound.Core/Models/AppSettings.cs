@@ -139,6 +139,43 @@ public class AppSettings
     /// </summary>
     public bool ShowCorrelationInsights { get; set; } = true;
 
+    // === Memory Alerts ===
+
+    /// <summary>
+    /// Whether memory pressure alerts are enabled.
+    /// When disabled, only ambient indicators (tray color, health strip pulse) are active.
+    /// </summary>
+    public bool MemoryAlertsEnabled { get; set; } = false;
+
+    /// <summary>
+    /// Memory usage percentage threshold for warning state (0-100).
+    /// Alert fires when usage exceeds this AND available memory is below the free floor.
+    /// </summary>
+    public int MemoryWarningThresholdPercent { get; set; } = 85;
+
+    /// <summary>
+    /// Memory usage percentage threshold for critical state (0-100).
+    /// </summary>
+    public int MemoryCriticalThresholdPercent { get; set; } = 95;
+
+    /// <summary>
+    /// Minimum free RAM in megabytes below which alerts can fire.
+    /// Prevents false alarms on large-memory machines (e.g., 128 GB workstations).
+    /// </summary>
+    public int MemoryFreeFloorMb { get; set; } = 2048;
+
+    /// <summary>
+    /// Cooldown in seconds between consecutive memory alerts.
+    /// Prevents alert fatigue from repeated notifications.
+    /// </summary>
+    public int MemoryAlertCooldownSeconds { get; set; } = 300;
+
+    /// <summary>
+    /// Number of consecutive seconds memory must exceed a threshold before alerting.
+    /// Prevents false alarms from brief spikes (e.g., compilation bursts).
+    /// </summary>
+    public int MemoryAlertSustainedSeconds { get; set; } = 30;
+
     // === Updates ===
 
     /// <summary>

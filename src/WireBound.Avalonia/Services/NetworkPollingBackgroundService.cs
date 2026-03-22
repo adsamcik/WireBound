@@ -1,7 +1,12 @@
+using CommunityToolkit.Mvvm.Messaging;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using System.Diagnostics;
+using WireBound.Avalonia.Messages;
+using WireBound.Core.Helpers;
+using WireBound.Core.Models;
 using WireBound.Core.Services;
+using WireBound.Platform.Abstract.Services;
 
 namespace WireBound.Avalonia.Services;
 
@@ -41,6 +46,22 @@ public sealed class NetworkPollingBackgroundService : BackgroundService, INetwor
     private volatile bool _adaptivePollingEnabled;
     private volatile int _basePollingIntervalMs = DefaultPollIntervalMs;
     private volatile int _consecutiveLowCpuTicks;
+
+    // Memory pressure detection state
+    private readonly IProcessResourceProvider? _processResourceProvider;
+    private MemoryPressureLevel _currentPressureLevel = MemoryPressureLevel.Normal;
+    private readonly Stopwatch _pressureSustainedStopwatch = new();
+    private readonly Stopwatch _swapActiveStopwatch = new();
+    private long _previousSwapUsedBytes = -1;
+    private DateTime _lastMemoryAlertTime = DateTime.MinValue;
+
+    // Memory alert settings (loaded from AppSettings on startup, updatable at runtime)
+    private volatile bool _memoryAlertsEnabled;
+    private volatile int _memoryWarningThreshold = 85;
+    private volatile int _memoryCriticalThreshold = 95;
+    private long _memoryFreeFloorBytes = 2048L * 1024 * 1024;
+    private volatile int _memoryAlertCooldownSeconds = 300;
+    private volatile int _memoryAlertSustainedSeconds = 30;
 
     #region Constants
 
@@ -132,7 +153,8 @@ public sealed class NetworkPollingBackgroundService : BackgroundService, INetwor
         ITrayIconService trayIcon,
         ILogger<NetworkPollingBackgroundService> logger,
         IProcessNetworkService? processNetworkService = null,
-        IResourceInsightsService? resourceInsights = null)
+        IResourceInsightsService? resourceInsights = null,
+        IProcessResourceProvider? processResourceProvider = null)
     {
         _networkMonitor = networkMonitor;
         _systemMonitor = systemMonitor;
@@ -142,6 +164,7 @@ public sealed class NetworkPollingBackgroundService : BackgroundService, INetwor
         _trayIcon = trayIcon;
         _logger = logger;
         _resourceInsights = resourceInsights;
+        _processResourceProvider = processResourceProvider;
     }
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
@@ -153,6 +176,13 @@ public sealed class NetworkPollingBackgroundService : BackgroundService, INetwor
         _pollIntervalMs = settings.PollingIntervalMs;
         _saveIntervalSeconds = settings.SaveIntervalSeconds;
         _networkMonitor.SetUseIpHelperApi(settings.UseIpHelperApi);
+
+        _memoryAlertsEnabled = settings.MemoryAlertsEnabled;
+        _memoryWarningThreshold = settings.MemoryWarningThresholdPercent;
+        _memoryCriticalThreshold = settings.MemoryCriticalThresholdPercent;
+        _memoryFreeFloorBytes = (long)settings.MemoryFreeFloorMb * 1024 * 1024;
+        _memoryAlertCooldownSeconds = settings.MemoryAlertCooldownSeconds;
+        _memoryAlertSustainedSeconds = settings.MemoryAlertSustainedSeconds;
 
         _logger.LogInformation("Polling interval: {PollIntervalMs}ms, Save interval: {SaveIntervalSeconds}s",
             _pollIntervalMs, _saveIntervalSeconds);
@@ -212,6 +242,9 @@ public sealed class NetworkPollingBackgroundService : BackgroundService, INetwor
                     // Record system stats sample for historical tracking
                     var systemStats = _systemMonitor.GetCurrentStats();
                     await _systemHistory.RecordSampleAsync(systemStats).ConfigureAwait(false);
+
+                    // Check for memory pressure and send alerts if thresholds exceeded
+                    await CheckMemoryPressureAsync(systemStats, stoppingToken).ConfigureAwait(false);
 
                     // Adaptive polling: adjust interval based on CPU load
                     if (_adaptivePollingEnabled)
@@ -407,6 +440,20 @@ public sealed class NetworkPollingBackgroundService : BackgroundService, INetwor
     /// <inheritdoc />
     public int CurrentPollingIntervalMs => _pollIntervalMs;
 
+    /// <inheritdoc />
+    public void UpdateMemoryAlertSettings(bool enabled, int warningThresholdPercent, int criticalThresholdPercent,
+        int freeFloorMb, int cooldownSeconds, int sustainedSeconds)
+    {
+        _memoryAlertsEnabled = enabled;
+        _memoryWarningThreshold = warningThresholdPercent;
+        _memoryCriticalThreshold = criticalThresholdPercent;
+        _memoryFreeFloorBytes = (long)freeFloorMb * 1024 * 1024;
+        _memoryAlertCooldownSeconds = cooldownSeconds;
+        _memoryAlertSustainedSeconds = sustainedSeconds;
+        _logger.LogInformation("Memory alert settings updated: enabled={Enabled}, warning={Warning}%, critical={Critical}%",
+            enabled, warningThresholdPercent, criticalThresholdPercent);
+    }
+
     /// <summary>
     /// Adjusts the polling interval based on current CPU usage.
     /// Steps up immediately on high CPU, steps down with hysteresis to avoid oscillation.
@@ -507,5 +554,191 @@ public sealed class NetworkPollingBackgroundService : BackgroundService, INetwor
         {
             _logger.LogWarning(ex, "Failed to save per-app network stats");
         }
+    }
+
+    /// <summary>
+    /// Checks current memory stats against configured thresholds and sends a
+    /// <see cref="MemoryPressureMessage"/> via <see cref="WeakReferenceMessenger"/> when the
+    /// pressure level changes. Ambient state (tray tinting, strip pulse) is always published
+    /// regardless of the alerts-enabled toggle. Only alert persistence and logging are gated.
+    /// Uses wall-clock time (not poll counts) for sustained-duration and swap-velocity tracking.
+    /// </summary>
+    private async Task CheckMemoryPressureAsync(SystemStats systemStats, CancellationToken cancellationToken)
+    {
+        var memory = systemStats.Memory;
+        long swapUsedBytes = Math.Max(0L, memory.UsedVirtualBytes - memory.UsedBytes);
+
+        // Track swap velocity using wall-clock time — active when swap grows > 10 MB/s sustained
+        const long SwapVelocityThresholdBytesPerSecond = 10L * 1024 * 1024;
+        bool swapActive = false;
+        if (_previousSwapUsedBytes >= 0 && _swapActiveStopwatch.IsRunning)
+        {
+            double elapsedSeconds = _swapActiveStopwatch.Elapsed.TotalSeconds;
+            if (elapsedSeconds > 0)
+            {
+                long swapDelta = swapUsedBytes - _previousSwapUsedBytes;
+                double swapBytesPerSecond = swapDelta / elapsedSeconds;
+
+                if (swapBytesPerSecond > SwapVelocityThresholdBytesPerSecond)
+                {
+                    swapActive = true;
+                }
+                else
+                {
+                    _swapActiveStopwatch.Restart();
+                }
+            }
+        }
+        else
+        {
+            _swapActiveStopwatch.Restart();
+        }
+
+        // Only count swap as "active" after 10+ real seconds of sustained growth
+        if (swapActive && _swapActiveStopwatch.Elapsed.TotalSeconds < 10)
+            swapActive = false;
+
+        _previousSwapUsedBytes = swapUsedBytes;
+
+        // Determine candidate pressure level from current thresholds
+        bool belowFreeFloor = memory.AvailableBytes < _memoryFreeFloorBytes;
+        MemoryPressureLevel candidateLevel;
+        if (memory.UsagePercent > _memoryCriticalThreshold && belowFreeFloor)
+            candidateLevel = MemoryPressureLevel.Critical;
+        else if (memory.UsagePercent > _memoryWarningThreshold && belowFreeFloor)
+            candidateLevel = MemoryPressureLevel.Warning;
+        else
+            candidateLevel = MemoryPressureLevel.Normal;
+
+        // Track sustained pressure using wall-clock elapsed time (not poll count)
+        if (candidateLevel != MemoryPressureLevel.Normal)
+        {
+            if (!_pressureSustainedStopwatch.IsRunning)
+                _pressureSustainedStopwatch.Start();
+        }
+        else
+        {
+            _pressureSustainedStopwatch.Reset();
+        }
+
+        double sustainedSeconds = _pressureSustainedStopwatch.Elapsed.TotalSeconds;
+
+        // Require sustained pressure before escalating; instant recovery always passes through
+        if (candidateLevel != MemoryPressureLevel.Normal && sustainedSeconds < _memoryAlertSustainedSeconds)
+        {
+            // Still publish ambient state for tray/strip even before sustained threshold is met
+            if (candidateLevel != _currentPressureLevel)
+            {
+                _currentPressureLevel = candidateLevel;
+                var ambientExplanation = BuildMemoryExplanation(memory.UsagePercent, memory.AvailableBytes, swapUsedBytes, swapActive, sustainedSeconds);
+                WeakReferenceMessenger.Default.Send(new MemoryPressureMessage(
+                    candidateLevel, memory.UsagePercent, memory.AvailableBytes, swapUsedBytes,
+                    ambientExplanation, null));
+            }
+            return;
+        }
+
+        // Nothing to do when pressure level hasn't changed
+        if (candidateLevel == _currentPressureLevel)
+            return;
+
+        bool transitioningUp = candidateLevel > _currentPressureLevel;
+
+        // Cooldown gate prevents alert fatigue on repeated upward transitions (only when alerts enabled)
+        if (_memoryAlertsEnabled && transitioningUp &&
+            (DateTime.Now - _lastMemoryAlertTime).TotalSeconds < _memoryAlertCooldownSeconds)
+        {
+            // Still publish ambient state update even during cooldown
+            _currentPressureLevel = candidateLevel;
+            var cooldownExplanation = BuildMemoryExplanation(memory.UsagePercent, memory.AvailableBytes, swapUsedBytes, swapActive, sustainedSeconds);
+            WeakReferenceMessenger.Default.Send(new MemoryPressureMessage(
+                candidateLevel, memory.UsagePercent, memory.AvailableBytes, swapUsedBytes,
+                cooldownExplanation, null));
+            return;
+        }
+
+        // Re-verify on upward transitions to guard against stale readings from a spike that already recovered
+        if (transitioningUp)
+        {
+            var freshStats = _systemMonitor.GetCurrentStats();
+            bool stillPressured = candidateLevel == MemoryPressureLevel.Critical
+                ? freshStats.Memory.UsagePercent > _memoryCriticalThreshold && freshStats.Memory.AvailableBytes < _memoryFreeFloorBytes
+                : freshStats.Memory.UsagePercent > _memoryWarningThreshold && freshStats.Memory.AvailableBytes < _memoryFreeFloorBytes;
+            if (!stillPressured)
+                return;
+        }
+
+        // Collect top memory consumers for blame attribution on upward transitions
+        IReadOnlyList<ProcessMemoryInfo>? topProcesses = null;
+        if (transitioningUp && _processResourceProvider != null)
+        {
+            try
+            {
+                var processes = await _processResourceProvider.GetProcessResourceDataAsync(cancellationToken).ConfigureAwait(false);
+                topProcesses = processes
+                    .GroupBy(p => p.ProcessName, StringComparer.OrdinalIgnoreCase)
+                    .Select(g => new ProcessMemoryInfo(g.Key, g.Sum(p => p.WorkingSetBytes), g.Count()))
+                    .OrderByDescending(p => p.MemoryBytes)
+                    .Take(5)
+                    .ToArray();
+            }
+            catch (Exception ex)
+            {
+                _logger.LogDebug(ex, "Failed to collect process memory data for blame attribution");
+            }
+        }
+
+        _currentPressureLevel = candidateLevel;
+        if (transitioningUp)
+            _lastMemoryAlertTime = DateTime.Now;
+
+        var explanation = BuildMemoryExplanation(memory.UsagePercent, memory.AvailableBytes, swapUsedBytes, swapActive, sustainedSeconds);
+
+        // Always publish ambient state (tray tinting, strip pulse) regardless of alerts toggle
+        WeakReferenceMessenger.Default.Send(new MemoryPressureMessage(
+            candidateLevel,
+            memory.UsagePercent,
+            memory.AvailableBytes,
+            swapUsedBytes,
+            explanation,
+            topProcesses));
+
+        // Only persist events and log when alerts are explicitly enabled
+        if (!_memoryAlertsEnabled)
+            return;
+
+        _logger.LogInformation("Memory pressure changed to {Level}: {Explanation}", candidateLevel, explanation);
+
+        // Persist event for historical analysis
+        try
+        {
+            var topProcessesSummary = topProcesses != null
+                ? string.Join(";", topProcesses.Select(p => $"{p.ProcessName}:{ByteFormatter.FormatBytes(p.MemoryBytes)}"))
+                : string.Empty;
+
+            await _persistence.SaveMemoryPressureEventAsync(new MemoryPressureEvent
+            {
+                Timestamp = DateTime.Now,
+                Level = candidateLevel,
+                UsagePercent = memory.UsagePercent,
+                AvailableBytes = memory.AvailableBytes,
+                SwapUsedBytes = swapUsedBytes,
+                TopProcesses = topProcessesSummary,
+            }).ConfigureAwait(false);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogDebug(ex, "Failed to persist memory pressure event");
+        }
+    }
+
+    private string BuildMemoryExplanation(double usagePercent, long availableBytes, long swapUsedBytes, bool swapActive, double sustainedSeconds)
+    {
+        var sb = new System.Text.StringBuilder();
+        sb.Append($"RAM {usagePercent:F0}% for {sustainedSeconds:F0}s ({ByteFormatter.FormatBytes(availableBytes)} free");
+        if (swapActive)
+            sb.Append($", swap active {ByteFormatter.FormatBytes(swapUsedBytes)}");
+        sb.Append(')');
+        return sb.ToString();
     }
 }

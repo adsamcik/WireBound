@@ -501,6 +501,114 @@
                 </StackPanel>
             </Border>
 
+            <!-- Memory Alerts -->
+            <Border Classes="ElevatedCard">
+                <StackPanel Spacing="24">
+                    <StackPanel Orientation="Horizontal" Spacing="12">
+                        <Border Background="{StaticResource MemoryBgTintBrush}" CornerRadius="8" Width="40" Height="40">
+                            <TextBlock Text="🧠" FontSize="20" HorizontalAlignment="Center" VerticalAlignment="Center" />
+                        </Border>
+                        <StackPanel VerticalAlignment="Center">
+                            <TextBlock Text="Memory Alerts" Classes="SectionHeader" />
+                            <TextBlock Text="Get notified when RAM usage is critically high" Classes="Caption" />
+                        </StackPanel>
+                    </StackPanel>
+
+                    <!-- Enable toggle -->
+                    <Border Background="{StaticResource BorderSubtleBrush}" CornerRadius="12" Padding="16">
+                        <Grid ColumnDefinitions="*, Auto">
+                            <StackPanel Spacing="4">
+                                <TextBlock Text="Enable Memory Alerts" Classes="CardTitle" />
+                                <TextBlock Text="Show notifications when memory pressure is sustained" Classes="Caption" />
+                            </StackPanel>
+                            <ToggleSwitch Grid.Column="1" IsChecked="{Binding MemoryAlertsEnabled}" VerticalAlignment="Center"
+                                          AutomationProperties.Name="Enable Memory Alerts"
+                                          AutomationProperties.HelpText="When enabled, alerts fire after sustained high memory usage" />
+                        </Grid>
+                    </Border>
+
+                    <!-- Warning Threshold -->
+                    <Border Background="{StaticResource BorderSubtleBrush}" CornerRadius="12" Padding="16"
+                            IsEnabled="{Binding MemoryAlertsEnabled}">
+                        <Grid ColumnDefinitions="*, Auto">
+                            <StackPanel Spacing="4">
+                                <TextBlock Text="Warning Threshold" Classes="CardTitle" />
+                                <TextBlock Text="RAM usage percentage to trigger warning state" Classes="Caption" />
+                            </StackPanel>
+                            <NumericUpDown Grid.Column="1" Value="{Binding MemoryWarningThresholdPercent}"
+                                           Minimum="50" Maximum="99" Increment="5" FormatString="0'%'"
+                                           Width="120" VerticalAlignment="Center"
+                                           AutomationProperties.Name="Warning Threshold"
+                                           AutomationProperties.HelpText="Memory usage percentage that triggers a warning" />
+                        </Grid>
+                    </Border>
+
+                    <!-- Critical Threshold -->
+                    <Border Background="{StaticResource BorderSubtleBrush}" CornerRadius="12" Padding="16"
+                            IsEnabled="{Binding MemoryAlertsEnabled}">
+                        <Grid ColumnDefinitions="*, Auto">
+                            <StackPanel Spacing="4">
+                                <TextBlock Text="Critical Threshold" Classes="CardTitle" />
+                                <TextBlock Text="RAM usage percentage to trigger critical state" Classes="Caption" />
+                            </StackPanel>
+                            <NumericUpDown Grid.Column="1" Value="{Binding MemoryCriticalThresholdPercent}"
+                                           Minimum="60" Maximum="99" Increment="5" FormatString="0'%'"
+                                           Width="120" VerticalAlignment="Center"
+                                           AutomationProperties.Name="Critical Threshold"
+                                           AutomationProperties.HelpText="Memory usage percentage that triggers a critical alert" />
+                        </Grid>
+                    </Border>
+
+                    <!-- Free RAM Floor -->
+                    <Border Background="{StaticResource BorderSubtleBrush}" CornerRadius="12" Padding="16"
+                            IsEnabled="{Binding MemoryAlertsEnabled}">
+                        <Grid ColumnDefinitions="*, Auto">
+                            <StackPanel Spacing="4">
+                                <TextBlock Text="Free RAM Floor" Classes="CardTitle" />
+                                <TextBlock Text="Alerts only fire when free RAM is also below this amount" Classes="Caption" />
+                            </StackPanel>
+                            <NumericUpDown Grid.Column="1" Value="{Binding MemoryFreeFloorMb}"
+                                           Minimum="512" Maximum="16384" Increment="512" FormatString="0' MB'"
+                                           Width="140" VerticalAlignment="Center"
+                                           AutomationProperties.Name="Free RAM Floor"
+                                           AutomationProperties.HelpText="Minimum free RAM threshold in megabytes to prevent false alarms on large machines" />
+                        </Grid>
+                    </Border>
+
+                    <!-- Sustained Duration -->
+                    <Border Background="{StaticResource BorderSubtleBrush}" CornerRadius="12" Padding="16"
+                            IsEnabled="{Binding MemoryAlertsEnabled}">
+                        <Grid ColumnDefinitions="*, Auto">
+                            <StackPanel Spacing="4">
+                                <TextBlock Text="Sustained Duration" Classes="CardTitle" />
+                                <TextBlock Text="Seconds RAM must stay above threshold before alerting" Classes="Caption" />
+                            </StackPanel>
+                            <NumericUpDown Grid.Column="1" Value="{Binding MemoryAlertSustainedSeconds}"
+                                           Minimum="5" Maximum="120" Increment="5" FormatString="0's'"
+                                           Width="120" VerticalAlignment="Center"
+                                           AutomationProperties.Name="Sustained Duration"
+                                           AutomationProperties.HelpText="Number of consecutive seconds memory must be high before an alert fires" />
+                        </Grid>
+                    </Border>
+
+                    <!-- Cooldown -->
+                    <Border Background="{StaticResource BorderSubtleBrush}" CornerRadius="12" Padding="16"
+                            IsEnabled="{Binding MemoryAlertsEnabled}">
+                        <Grid ColumnDefinitions="*, Auto">
+                            <StackPanel Spacing="4">
+                                <TextBlock Text="Alert Cooldown" Classes="CardTitle" />
+                                <TextBlock Text="Minimum seconds between consecutive alerts" Classes="Caption" />
+                            </StackPanel>
+                            <NumericUpDown Grid.Column="1" Value="{Binding MemoryAlertCooldownSeconds}"
+                                           Minimum="60" Maximum="3600" Increment="60" FormatString="0's'"
+                                           Width="120" VerticalAlignment="Center"
+                                           AutomationProperties.Name="Alert Cooldown"
+                                           AutomationProperties.HelpText="Minimum time between repeated memory alerts" />
+                        </Grid>
+                    </Border>
+                </StackPanel>
+            </Border>
+
             <!-- Elevation Status -->
             <Border Classes="ElevatedCard">
                 <StackPanel Spacing="24">

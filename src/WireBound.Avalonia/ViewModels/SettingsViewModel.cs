@@ -100,6 +100,25 @@ public sealed partial class SettingsViewModel : ObservableObject, IDisposable
     [ObservableProperty]
     private bool _showCorrelationInsights = true;
 
+    // Memory Alerts
+    [ObservableProperty]
+    private bool _memoryAlertsEnabled;
+
+    [ObservableProperty]
+    private int _memoryWarningThresholdPercent = 85;
+
+    [ObservableProperty]
+    private int _memoryCriticalThresholdPercent = 95;
+
+    [ObservableProperty]
+    private int _memoryFreeFloorMb = 2048;
+
+    [ObservableProperty]
+    private int _memoryAlertCooldownSeconds = 300;
+
+    [ObservableProperty]
+    private int _memoryAlertSustainedSeconds = 30;
+
     // Update Check
     [ObservableProperty]
     private bool _checkForUpdates = true;
@@ -226,6 +245,70 @@ public sealed partial class SettingsViewModel : ObservableObject, IDisposable
     partial void OnCheckForUpdatesChanged(bool value) => ScheduleAutoSave();
     partial void OnAutoDownloadUpdatesChanged(bool value) => ScheduleAutoSave();
 
+    partial void OnMemoryAlertsEnabledChanged(bool value) { ScheduleAutoSave(); PushMemoryAlertSettings(); }
+    partial void OnMemoryWarningThresholdPercentChanged(int value)
+    {
+        if (value is < 50 or > 99)
+        {
+            MemoryWarningThresholdPercent = Math.Clamp(value, 50, 99);
+            return;
+        }
+        ScheduleAutoSave();
+        PushMemoryAlertSettings();
+    }
+    partial void OnMemoryCriticalThresholdPercentChanged(int value)
+    {
+        if (value is < 60 or > 99)
+        {
+            MemoryCriticalThresholdPercent = Math.Clamp(value, 60, 99);
+            return;
+        }
+        ScheduleAutoSave();
+        PushMemoryAlertSettings();
+    }
+    partial void OnMemoryFreeFloorMbChanged(int value)
+    {
+        if (value is < 512 or > 16384)
+        {
+            MemoryFreeFloorMb = Math.Clamp(value, 512, 16384);
+            return;
+        }
+        ScheduleAutoSave();
+        PushMemoryAlertSettings();
+    }
+    partial void OnMemoryAlertCooldownSecondsChanged(int value)
+    {
+        if (value is < 60 or > 3600)
+        {
+            MemoryAlertCooldownSeconds = Math.Clamp(value, 60, 3600);
+            return;
+        }
+        ScheduleAutoSave();
+        PushMemoryAlertSettings();
+    }
+    partial void OnMemoryAlertSustainedSecondsChanged(int value)
+    {
+        if (value is < 5 or > 120)
+        {
+            MemoryAlertSustainedSeconds = Math.Clamp(value, 5, 120);
+            return;
+        }
+        ScheduleAutoSave();
+        PushMemoryAlertSettings();
+    }
+
+    private void PushMemoryAlertSettings()
+    {
+        if (_isLoading) return;
+        _pollingService.UpdateMemoryAlertSettings(
+            MemoryAlertsEnabled,
+            MemoryWarningThresholdPercent,
+            MemoryCriticalThresholdPercent,
+            MemoryFreeFloorMb,
+            MemoryAlertCooldownSeconds,
+            MemoryAlertSustainedSeconds);
+    }
+
     partial void OnSelectedThemeChanged(string value)
     {
         ScheduleAutoSave();
@@ -350,6 +433,14 @@ public sealed partial class SettingsViewModel : ObservableObject, IDisposable
             AutoDownloadUpdates = settings.AutoDownloadUpdates;
             IsUpdateSupported = _updateService.IsUpdateSupported;
 
+            // Memory Alerts
+            MemoryAlertsEnabled = settings.MemoryAlertsEnabled;
+            MemoryWarningThresholdPercent = settings.MemoryWarningThresholdPercent;
+            MemoryCriticalThresholdPercent = settings.MemoryCriticalThresholdPercent;
+            MemoryFreeFloorMb = settings.MemoryFreeFloorMb;
+            MemoryAlertCooldownSeconds = settings.MemoryAlertCooldownSeconds;
+            MemoryAlertSustainedSeconds = settings.MemoryAlertSustainedSeconds;
+
             // Load startup state from OS (not from saved settings)
             await LoadStartupStateAsync();
 
@@ -448,7 +539,15 @@ public sealed partial class SettingsViewModel : ObservableObject, IDisposable
 
             // Updates
             CheckForUpdates = CheckForUpdates,
-            AutoDownloadUpdates = AutoDownloadUpdates
+            AutoDownloadUpdates = AutoDownloadUpdates,
+
+            // Memory Alerts
+            MemoryAlertsEnabled = MemoryAlertsEnabled,
+            MemoryWarningThresholdPercent = MemoryWarningThresholdPercent,
+            MemoryCriticalThresholdPercent = MemoryCriticalThresholdPercent,
+            MemoryFreeFloorMb = MemoryFreeFloorMb,
+            MemoryAlertCooldownSeconds = MemoryAlertCooldownSeconds,
+            MemoryAlertSustainedSeconds = MemoryAlertSustainedSeconds
         };
 
         // Apply speed unit setting globally

@@ -22,6 +22,13 @@ public sealed class EtwConnectionTracker : IDisposable
     private const int TcpDataTransferReceive = 1201;
     private const int TcpDataTransferSend = 1202;
 
+    // ETW event IDs for TCP connection lifecycle (used to map Tcb → connection key)
+    private const int TcpRequestConnect = 1010;
+    private const int TcpAcceptConnection = 1003;
+    private const int TcpConnectionComplete = 1011;
+    private const int TcpCloseConnection = 1013;
+    private const int TcpDisconnect = 1015;
+
     private TraceEventSession? _etwSession;
     private Thread? _processingThread;
     private volatile bool _running;
@@ -29,6 +36,10 @@ public sealed class EtwConnectionTracker : IDisposable
     // Connection key: "localIP:localPort-remoteIP:remotePort"
     private readonly ConcurrentDictionary<string, ConnectionBytes> _connectionBytes = new();
     private const int MaxTrackedConnections = 10_000;
+    private const int MaxTcbMappings = 50_000;
+
+    // Tcb (kernel pointer) → connection key mapping, populated from connection lifecycle events
+    private readonly ConcurrentDictionary<string, TcbMapping> _tcbToConnection = new();
 
     // PID to connection mapping, refreshed periodically
     private readonly ConcurrentDictionary<string, int> _connectionToPid = new();
@@ -88,8 +99,8 @@ public sealed class EtwConnectionTracker : IDisposable
             _etwSession = session;
 
             // Subscribe to Microsoft-Windows-TCPIP provider
-            // Keywords 0x40 = TCPIP data transfer events
-            session.EnableProvider("Microsoft-Windows-TCPIP", TraceEventLevel.Informational, 0x40);
+            // Keywords: 0x40 = data transfer events, 0x01 = connection lifecycle events
+            session.EnableProvider("Microsoft-Windows-TCPIP", TraceEventLevel.Informational, 0x41);
 
             session.Source.AllEvents += OnEtwEvent;
 
@@ -112,12 +123,27 @@ public sealed class EtwConnectionTracker : IDisposable
         {
             var eventId = (int)data.ID;
 
+            // Handle TCP connection lifecycle events to build Tcb → connection key mapping
+            if (eventId is TcpRequestConnect or TcpAcceptConnection or TcpConnectionComplete)
+            {
+                HandleConnectionEvent(data);
+                return;
+            }
+
+            // Handle TCP disconnect/close events to clean up Tcb mapping
+            if (eventId is TcpCloseConnection or TcpDisconnect)
+            {
+                var tcb = data.PayloadByName("Tcb")?.ToString();
+                if (!string.IsNullOrEmpty(tcb))
+                    _tcbToConnection.TryRemove(tcb, out _);
+                return;
+            }
+
             if (eventId is not (TcpDataTransferReceive or TcpDataTransferSend))
                 return;
 
-            // Extract connection info from event payload
-            var connId = data.PayloadByName("Tcb")?.ToString();
-            if (string.IsNullOrEmpty(connId)) return;
+            var connTcb = data.PayloadByName("Tcb")?.ToString();
+            if (string.IsNullOrEmpty(connTcb)) return;
 
             var size = 0;
             var sizeObj = data.PayloadByName("NumBytes");
@@ -128,13 +154,21 @@ public sealed class EtwConnectionTracker : IDisposable
 
             if (size <= 0) return;
 
-            var entry = _connectionBytes.GetOrAdd(connId, static _ => new ConnectionBytes());
-
-            // Evict stale entries when dictionary grows too large
-            if (_connectionBytes.Count > MaxTrackedConnections)
+            // Resolve Tcb to connection key, falling back to Tcb if no mapping yet
+            var connectionKey = connTcb;
+            if (_tcbToConnection.TryGetValue(connTcb, out var mapping))
             {
-                EvictStaleConnections();
+                connectionKey = mapping.ConnectionKey;
+
+                // Also record the PID from when the connection was established
+                if (mapping.ProcessId > 0)
+                    _connectionToPid.TryAdd(connectionKey, mapping.ProcessId);
             }
+
+            var entry = _connectionBytes.GetOrAdd(connectionKey, static _ => new ConnectionBytes());
+
+            if (_connectionBytes.Count > MaxTrackedConnections)
+                EvictStaleConnections();
 
             if (eventId == TcpDataTransferReceive)
                 Interlocked.Add(ref entry.BytesReceived, size);
@@ -145,6 +179,55 @@ public sealed class EtwConnectionTracker : IDisposable
         {
             Log.Debug(ex, "Error processing ETW event {EventId}", data.ID);
         }
+    }
+
+    /// <summary>
+    /// Extracts endpoint information from TCP connection lifecycle events
+    /// and records the Tcb → connection key mapping.
+    /// </summary>
+    private void HandleConnectionEvent(TraceEvent data)
+    {
+        var tcb = data.PayloadByName("Tcb")?.ToString();
+        if (string.IsNullOrEmpty(tcb)) return;
+
+        // Try common payload field name variants across Windows versions
+        var localAddr = (data.PayloadByName("LocalAddress") ?? data.PayloadByName("LocalAddr"))?.ToString();
+        var remoteAddr = (data.PayloadByName("RemoteAddress") ?? data.PayloadByName("RemoteAddr"))?.ToString();
+
+        // Port fields may be int or ushort
+        var localPort = ParsePort(data.PayloadByName("LocalPort"));
+        var remotePort = ParsePort(data.PayloadByName("RemotePort"));
+
+        if (string.IsNullOrEmpty(localAddr) || string.IsNullOrEmpty(remoteAddr))
+            return;
+
+        // Clean up IPv4-mapped IPv6 addresses (e.g., "::ffff:192.168.1.5" → "192.168.1.5")
+        localAddr = NormalizeAddress(localAddr);
+        remoteAddr = NormalizeAddress(remoteAddr);
+
+        var connectionKey = MakeConnectionKey(localAddr, localPort, remoteAddr, remotePort);
+
+        // Evict stale entries to prevent unbounded growth
+        if (_tcbToConnection.Count > MaxTcbMappings)
+            EvictStaleTcbMappings();
+
+        _tcbToConnection[tcb] = new TcbMapping(connectionKey, data.ProcessID);
+    }
+
+    private static int ParsePort(object? value) => value switch
+    {
+        int i => i,
+        uint u => (int)u,
+        ushort us => us,
+        _ => 0
+    };
+
+    private static string NormalizeAddress(string address)
+    {
+        const string v4MappedPrefix = "::ffff:";
+        if (address.StartsWith(v4MappedPrefix, StringComparison.OrdinalIgnoreCase))
+            return address[v4MappedPrefix.Length..];
+        return address;
     }
 
     /// <summary>
@@ -415,6 +498,21 @@ public sealed class EtwConnectionTracker : IDisposable
         }
     }
 
+    /// <summary>
+    /// Evicts oldest Tcb mappings to prevent unbounded growth.
+    /// </summary>
+    private void EvictStaleTcbMappings()
+    {
+        // Remove mappings for Tcbs that no longer have active byte counters
+        foreach (var kvp in _tcbToConnection)
+        {
+            if (!_connectionBytes.ContainsKey(kvp.Value.ConnectionKey))
+            {
+                _tcbToConnection.TryRemove(kvp.Key, out _);
+            }
+        }
+    }
+
     public void Dispose()
     {
         Stop();
@@ -432,4 +530,6 @@ public sealed class EtwConnectionTracker : IDisposable
         public long BytesSent;
         public long BytesReceived;
     }
+
+    private sealed record TcbMapping(string ConnectionKey, int ProcessId);
 }

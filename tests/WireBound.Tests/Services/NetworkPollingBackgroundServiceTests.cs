@@ -2,6 +2,7 @@ using Microsoft.Extensions.Logging;
 using WireBound.Avalonia.Services;
 using WireBound.Core.Models;
 using WireBound.Core.Services;
+using WireBound.Platform.Abstract.Models;
 
 namespace WireBound.Tests.Services;
 
@@ -225,5 +226,93 @@ public class NetworkPollingBackgroundServiceTests : IAsyncDisposable
             _service.SetAdaptivePolling(false, 1000);
         };
         action.Should().NotThrow();
+    }
+
+    // ═══════════════════════════════════════════════════════════════════════
+    // Per-App Stats Persistence Tests
+    // ═══════════════════════════════════════════════════════════════════════
+
+    [Test]
+    public async Task ExecuteAsync_WithPerAppTrackingRunning_SavesAppStats(CancellationToken cancellationToken)
+    {
+        // Arrange — create a service with per-app tracking enabled
+        var processNetworkService = Substitute.For<IProcessNetworkService>();
+        processNetworkService.IsRunning.Returns(true);
+        var appStats = new List<ProcessNetworkStats>
+        {
+            new()
+            {
+                ProcessId = 1234,
+                ProcessName = "chrome",
+                AppIdentifier = "abc123",
+                SessionBytesReceived = 5000,
+                SessionBytesSent = 1000
+            }
+        };
+        processNetworkService.GetCurrentStats().Returns(appStats);
+
+        var settings = new AppSettings
+        {
+            PollingIntervalMs = 100,
+            SaveIntervalSeconds = 1,
+            IsPerAppTrackingEnabled = true
+        };
+        _persistence.GetSettingsAsync().Returns(settings);
+
+        var serviceWithAppTracking = new NetworkPollingBackgroundService(
+            _networkMonitor, _systemMonitor, _systemHistory,
+            _persistence, _trayIcon, _logger,
+            processNetworkService: processNetworkService);
+
+        // Act — run for enough time for at least one save cycle
+        using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(3));
+        try
+        {
+            await serviceWithAppTracking.StartAsync(cts.Token);
+            if (serviceWithAppTracking.PollingStartedTask is not null)
+                await serviceWithAppTracking.PollingStartedTask;
+            await Task.Delay(2000, cancellationToken);
+        }
+        catch (OperationCanceledException) { }
+        finally
+        {
+            await serviceWithAppTracking.StopAsync(CancellationToken.None);
+            serviceWithAppTracking.Dispose();
+        }
+
+        // Assert — SaveAppStatsAsync should have been called at least once
+        await _persistence.Received().SaveAppStatsAsync(
+            Arg.Is<IEnumerable<ProcessNetworkStats>>(s => s.Any()));
+    }
+
+    [Test]
+    public async Task ExecuteAsync_WithoutPerAppTracking_DoesNotSaveAppStats(CancellationToken cancellationToken)
+    {
+        // Arrange — no process network service injected (default constructor)
+        var settings = new AppSettings
+        {
+            PollingIntervalMs = 100,
+            SaveIntervalSeconds = 1
+        };
+        _persistence.GetSettingsAsync().Returns(settings);
+
+        // Act — run briefly
+        using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(3));
+        try
+        {
+            await _service.StartAsync(cts.Token);
+            if (_service.PollingStartedTask is not null)
+                await _service.PollingStartedTask;
+            await Task.Delay(2000, cancellationToken);
+        }
+        catch (OperationCanceledException) { }
+        finally
+        {
+            await _service.StopAsync(CancellationToken.None);
+        }
+
+        // Assert — SaveAppStatsAsync should NOT have been called
+        await _persistence.DidNotReceive().SaveAppStatsAsync(
+            Arg.Any<IEnumerable<ProcessNetworkStats>>());
     }
 }

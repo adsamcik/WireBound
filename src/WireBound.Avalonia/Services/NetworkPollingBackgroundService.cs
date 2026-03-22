@@ -14,6 +14,7 @@ public sealed class NetworkPollingBackgroundService : BackgroundService, INetwor
     private readonly ISystemMonitorService _systemMonitor;
     private readonly ISystemHistoryService _systemHistory;
     private readonly IDataPersistenceService _persistence;
+    private readonly IProcessNetworkService? _processNetworkService;
     private readonly IResourceInsightsService? _resourceInsights;
     private readonly ITrayIconService _trayIcon;
     private readonly ILogger<NetworkPollingBackgroundService> _logger;
@@ -25,6 +26,7 @@ public sealed class NetworkPollingBackgroundService : BackgroundService, INetwor
     private readonly Stopwatch _systemStatsAggregationStopwatch = new();
     private readonly Stopwatch _retentionCleanupStopwatch = new();
     private readonly List<(long download, long upload, DateTime time)> _snapshotBuffer = new(SnapshotBufferCapacity);
+    private readonly List<(double cpu, double memory, DateTime time)> _systemSnapshotBuffer = new(SnapshotBufferCapacity);
     private readonly object _snapshotBufferLock = new();
     private PeriodicTimer? _timer;
     private readonly object _timerLock = new();
@@ -129,12 +131,14 @@ public sealed class NetworkPollingBackgroundService : BackgroundService, INetwor
         IDataPersistenceService persistence,
         ITrayIconService trayIcon,
         ILogger<NetworkPollingBackgroundService> logger,
+        IProcessNetworkService? processNetworkService = null,
         IResourceInsightsService? resourceInsights = null)
     {
         _networkMonitor = networkMonitor;
         _systemMonitor = systemMonitor;
         _systemHistory = systemHistory;
         _persistence = persistence;
+        _processNetworkService = processNetworkService;
         _trayIcon = trayIcon;
         _logger = logger;
         _resourceInsights = resourceInsights;
@@ -223,6 +227,7 @@ public sealed class NetworkPollingBackgroundService : BackgroundService, INetwor
                     lock (_snapshotBufferLock)
                     {
                         _snapshotBuffer.Add((currentStats.DownloadSpeedBps, currentStats.UploadSpeedBps, DateTime.Now));
+                        _systemSnapshotBuffer.Add((systemStats.Cpu.UsagePercent, systemStats.Memory.UsagePercent, DateTime.Now));
                     }
 
                     // Flush snapshot buffer periodically (every 30 seconds)
@@ -251,13 +256,23 @@ public sealed class NetworkPollingBackgroundService : BackgroundService, INetwor
                     if (_retentionCleanupStopwatch.Elapsed.TotalMinutes >= RetentionCleanupIntervalMinutes)
                     {
                         await _persistence.CleanupOldDataAsync(settings.DataRetentionDays).ConfigureAwait(false);
+
+                        // Per-app data maintenance: aggregate hourly→daily and clean up old records
+                        if (settings.IsPerAppTrackingEnabled)
+                        {
+                            await _persistence.AggregateAppDataAsync(settings.AppDataAggregateAfterDays).ConfigureAwait(false);
+                            if (settings.AppDataRetentionDays > 0)
+                                await _persistence.CleanupOldAppDataAsync(settings.AppDataRetentionDays).ConfigureAwait(false);
+                        }
+
                         _retentionCleanupStopwatch.Restart();
                     }
 
-                    // Periodic cleanup of old speed snapshots
+                    // Periodic cleanup of old speed and system snapshots
                     if (_cleanupStopwatch.Elapsed.TotalMinutes >= CleanupIntervalMinutes)
                     {
                         await _persistence.CleanupOldSpeedSnapshotsAsync(SpeedSnapshotRetention).ConfigureAwait(false);
+                        await _persistence.CleanupOldSystemSnapshotsAsync(SpeedSnapshotRetention).ConfigureAwait(false);
                         _cleanupStopwatch.Restart();
                     }
 
@@ -266,6 +281,7 @@ public sealed class NetworkPollingBackgroundService : BackgroundService, INetwor
                     {
                         var stats = _networkMonitor.GetCurrentStats();
                         await _persistence.SaveStatsAsync(stats).ConfigureAwait(false);
+                        await SaveAppStatsIfRunningAsync().ConfigureAwait(false);
                         _saveStopwatch.Restart();
                         initialSaveDone = true;
                         _logger.LogInformation("Initial stats saved");
@@ -275,6 +291,7 @@ public sealed class NetworkPollingBackgroundService : BackgroundService, INetwor
                     {
                         var stats = _networkMonitor.GetCurrentStats();
                         await _persistence.SaveStatsAsync(stats).ConfigureAwait(false);
+                        await SaveAppStatsIfRunningAsync().ConfigureAwait(false);
                         _saveStopwatch.Restart();
                     }
                 }
@@ -320,6 +337,7 @@ public sealed class NetworkPollingBackgroundService : BackgroundService, INetwor
         {
             var finalStats = _networkMonitor.GetCurrentStats();
             await _persistence.SaveStatsAsync(finalStats).ConfigureAwait(false);
+            await SaveAppStatsIfRunningAsync().ConfigureAwait(false);
             _logger.LogInformation("Final stats saved successfully");
         }
         catch (Exception ex)
@@ -439,21 +457,55 @@ public sealed class NetworkPollingBackgroundService : BackgroundService, INetwor
     }
 
     /// <summary>
-    /// Flushes the buffered speed snapshots to the database.
+    /// Flushes the buffered speed and system snapshots to the database.
     /// </summary>
     private async Task FlushSnapshotBufferAsync()
     {
         List<(long download, long upload, DateTime time)> snapshots;
+        List<(double cpu, double memory, DateTime time)> systemSnapshots;
         lock (_snapshotBufferLock)
         {
-            if (_snapshotBuffer.Count == 0)
+            if (_snapshotBuffer.Count == 0 && _systemSnapshotBuffer.Count == 0)
                 return;
 
             snapshots = _snapshotBuffer.ToList();
             _snapshotBuffer.Clear();
+            systemSnapshots = _systemSnapshotBuffer.ToList();
+            _systemSnapshotBuffer.Clear();
         }
 
-        await _persistence.SaveSpeedSnapshotBatchAsync(snapshots).ConfigureAwait(false);
-        _logger.LogDebug("Flushed {Count} speed snapshots to database", snapshots.Count);
+        if (snapshots.Count > 0)
+        {
+            await _persistence.SaveSpeedSnapshotBatchAsync(snapshots).ConfigureAwait(false);
+        }
+
+        if (systemSnapshots.Count > 0)
+        {
+            await _persistence.SaveSystemSnapshotBatchAsync(systemSnapshots).ConfigureAwait(false);
+        }
+
+        _logger.LogDebug("Flushed {SpeedCount} speed and {SystemCount} system snapshots to database", snapshots.Count, systemSnapshots.Count);
+    }
+
+    /// <summary>
+    /// Persists per-app network stats if the process network service is running.
+    /// </summary>
+    private async Task SaveAppStatsIfRunningAsync()
+    {
+        if (_processNetworkService is not { IsRunning: true })
+            return;
+
+        try
+        {
+            var appStats = _processNetworkService.GetCurrentStats();
+            if (appStats.Count > 0)
+            {
+                await _persistence.SaveAppStatsAsync(appStats).ConfigureAwait(false);
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Failed to save per-app network stats");
+        }
     }
 }

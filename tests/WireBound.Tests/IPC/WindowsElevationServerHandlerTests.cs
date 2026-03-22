@@ -277,7 +277,7 @@ public class WindowsElevationServerHandlerTests : IDisposable
     }
 
     [Test]
-    public async Task HandleProcessStats_MalformedPayload_FallsBackToDefault()
+    public async Task HandleProcessStats_MalformedPayload_ReturnsError()
     {
         Skip.Unless(_available, "ElevationServer not available (wrong platform or secret file locked)");
 
@@ -292,9 +292,8 @@ public class WindowsElevationServerHandlerTests : IDisposable
         };
 
         var response = _server!.HandleProcessStats(request, sessionId);
-        // Should fallback to empty ProcessStatsRequest, not crash
-        var statsResp = IpcTransport.DeserializePayload<ProcessStatsResponse>(response.Payload);
-        statsResp.Success.Should().BeTrue();
+        // Should fail closed on malformed input, not fall back to default
+        response.Type.Should().Be(MessageType.Error);
     }
 
     // ═══════════════════════════════════════════════════════════════════════

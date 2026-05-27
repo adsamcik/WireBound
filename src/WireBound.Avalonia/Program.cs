@@ -1,5 +1,6 @@
 using Avalonia;
 using Serilog;
+using Serilog.Events;
 using System;
 using System.Threading;
 using Velopack;
@@ -46,10 +47,19 @@ class Program
 #else
             .MinimumLevel.Information()
 #endif
+            // EF Core's Debug/Information channel emits one entry per query (including
+            // the full SQL text). With our daily 10MB file cap that easily fills the log
+            // within an hour, causing the file sink to silently drop later writes —
+            // including the shutdown markers we rely on for diagnostics. Suppressing
+            // anything below Warning keeps the noise out while preserving real issues.
+            .MinimumLevel.Override("Microsoft.EntityFrameworkCore", LogEventLevel.Warning)
             .WriteTo.File(logPath,
                 rollingInterval: RollingInterval.Day,
                 retainedFileCountLimit: 14,
-                fileSizeLimitBytes: 10_485_760)
+                fileSizeLimitBytes: 10_485_760,
+                // Roll to a new file when the size cap is hit instead of silently
+                // dropping every subsequent log event for the rest of the day.
+                rollOnFileSizeLimit: true)
             .CreateLogger();
 
         Log.Information("WireBound Avalonia application starting...");

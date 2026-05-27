@@ -23,6 +23,7 @@ namespace WireBound.Avalonia;
 public partial class App : Application
 {
     private ServiceProvider? _serviceProvider;
+    private volatile bool _shutdownInProgress;
 
     public override void Initialize()
     {
@@ -463,35 +464,82 @@ public partial class App : Application
         }
     }
 
-    private void OnShutdownRequested(object? sender, ShutdownRequestedEventArgs e)
+    private async void OnShutdownRequested(object? sender, ShutdownRequestedEventArgs e)
     {
+        // Avalonia raises ShutdownRequested on the UI thread with a sync handler
+        // signature, but our cleanup is genuinely async (some services — e.g.
+        // WindowsElevationService — implement only IAsyncDisposable).
+        //
+        // Use the cancel-then-shutdown pattern:
+        //   1. First invocation: cancel the shutdown, run async cleanup, then
+        //      re-trigger shutdown via desktop.Shutdown().
+        //   2. Second invocation (raised by that desktop.Shutdown() call): the
+        //      _shutdownInProgress guard lets it pass through so Avalonia tears
+        //      down the application loop.
+        if (_shutdownInProgress)
+        {
+            return;
+        }
+
+        e.Cancel = true;
+        _shutdownInProgress = true;
+
         Log.Information("Application shutting down...");
 
         try
         {
-            // Dispose tray icon service
-            _serviceProvider?.GetService<ITrayIconService>()?.Dispose();
-
-            // Stop background services before disposing dependencies
-            var pollingService = _serviceProvider?.GetService<NetworkPollingBackgroundService>();
-            if (pollingService is not null)
-            {
-                StopBackgroundServicesAsync(pollingService).GetAwaiter().GetResult();
-            }
+            await ShutdownAsync().ConfigureAwait(true);
         }
         catch (Exception ex)
         {
-            Log.Error(ex, "Error stopping background services");
+            Log.Error(ex, "Unexpected error during application shutdown");
         }
-
-        // Dispose ViewModels that implement IDisposable
-        DisposeViewModels();
-
-        _serviceProvider?.Dispose();
+        finally
+        {
+            if (ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop)
+            {
+                desktop.Shutdown();
+            }
+        }
     }
 
-    private static async Task StopBackgroundServicesAsync(NetworkPollingBackgroundService pollingService)
+    /// <summary>
+    /// Orchestrates graceful application shutdown.
+    /// </summary>
+    /// <remarks>
+    /// <para>Stage 1 — Stop background services so in-flight work (e.g. the polling
+    /// loop writing speed snapshots) completes before the persistence layer is
+    /// disposed.</para>
+    /// <para>Stage 2 — Dispose the DI container asynchronously. The container
+    /// disposes every singleton it created (ViewModels, TrayIconService,
+    /// ElevationService, ...) in reverse-registration order, calling
+    /// <see cref="IAsyncDisposable.DisposeAsync"/> when implemented.
+    /// Async disposal is mandatory: services like WindowsElevationService only
+    /// implement IAsyncDisposable, and <c>ServiceProvider.Dispose()</c> throws
+    /// <see cref="InvalidOperationException"/> when it encounters one.</para>
+    /// </remarks>
+    private async Task ShutdownAsync()
     {
+        var provider = Interlocked.Exchange(ref _serviceProvider, null);
+        if (provider is null)
+        {
+            return;
+        }
+
+        await StopBackgroundServicesAsync(provider).ConfigureAwait(false);
+        await DisposeServiceProviderAsync(provider).ConfigureAwait(false);
+
+        Log.Information("Application shutdown complete");
+    }
+
+    private static async Task StopBackgroundServicesAsync(IServiceProvider provider)
+    {
+        var pollingService = provider.GetService<NetworkPollingBackgroundService>();
+        if (pollingService is null)
+        {
+            return;
+        }
+
         try
         {
             using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
@@ -503,30 +551,19 @@ public partial class App : Application
         }
         catch (Exception ex)
         {
-            Log.Error(ex, "Error stopping background services during shutdown");
+            Log.Error(ex, "Error stopping background service during shutdown");
         }
     }
 
-    private void DisposeViewModels()
+    private static async Task DisposeServiceProviderAsync(ServiceProvider provider)
     {
         try
         {
-            // Dispose all ViewModels that implement IDisposable
-            // This ensures event handlers are unsubscribed and resources are released
-            _serviceProvider?.GetService<MainViewModel>()?.Dispose();
-            _serviceProvider?.GetService<OverviewViewModel>()?.Dispose();
-            _serviceProvider?.GetService<ChartsViewModel>()?.Dispose();
-            _serviceProvider?.GetService<InsightsViewModel>()?.Dispose();
-            _serviceProvider?.GetService<SystemViewModel>()?.Dispose();
-            _serviceProvider?.GetService<ConnectionsViewModel>()?.Dispose();
-            _serviceProvider?.GetService<SettingsViewModel>()?.Dispose();
-            _serviceProvider?.GetService<ApplicationsViewModel>()?.Dispose();
-
-            Log.Information("ViewModels disposed successfully");
+            await provider.DisposeAsync().ConfigureAwait(false);
         }
         catch (Exception ex)
         {
-            Log.Error(ex, "Error disposing ViewModels");
+            Log.Error(ex, "Error disposing service provider during shutdown");
         }
     }
 }

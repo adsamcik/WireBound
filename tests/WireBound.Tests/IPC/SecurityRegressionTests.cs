@@ -219,8 +219,8 @@ public class SecurityRegressionTests
         ms.Write(lengthBytes);
         ms.Position = 0;
 
-        var result = IpcTransport.ReceiveAsync(ms).GetAwaiter().GetResult();
-        result.Should().BeNull("oversized message should be rejected");
+        var act = () => IpcTransport.ReceiveAsync(ms).GetAwaiter().GetResult();
+        act.Should().Throw<IpcFramingException>("oversized message should be rejected");
     }
 
     [Test]
@@ -233,8 +233,8 @@ public class SecurityRegressionTests
         ms.Write(lengthBytes);
         ms.Position = 0;
 
-        var result = IpcTransport.ReceiveAsync(ms).GetAwaiter().GetResult();
-        result.Should().BeNull("negative length should be rejected");
+        var act = () => IpcTransport.ReceiveAsync(ms).GetAwaiter().GetResult();
+        act.Should().Throw<IpcFramingException>("negative length should be rejected");
     }
 
     // ═══════════════════════════════════════════════════════════════════════

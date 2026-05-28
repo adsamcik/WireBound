@@ -7,7 +7,7 @@ namespace WireBound.Tests.IPC;
 public class IpcTransportSecurityTests
 {
     [Test]
-    public async Task ReceiveAsync_OversizedLength_ReturnsNull()
+    public async Task ReceiveAsync_OversizedLength_ThrowsIpcFramingException()
     {
         using var stream = new MemoryStream();
 
@@ -22,12 +22,13 @@ public class IpcTransportSecurityTests
         await stream.WriteAsync(dummy);
 
         stream.Position = 0;
-        var result = await IpcTransport.ReceiveAsync(stream);
-        result.Should().BeNull("oversized messages must be rejected");
+        Func<Task> act = async () => await IpcTransport.ReceiveAsync(stream);
+
+        await act.Should().ThrowAsync<IpcFramingException>("oversized messages must be rejected");
     }
 
     [Test]
-    public async Task ReceiveAsync_NegativeLength_ReturnsNull()
+    public async Task ReceiveAsync_NegativeLength_ThrowsIpcFramingException()
     {
         using var stream = new MemoryStream();
 
@@ -37,12 +38,13 @@ public class IpcTransportSecurityTests
         await stream.WriteAsync(negativeLength);
 
         stream.Position = 0;
-        var result = await IpcTransport.ReceiveAsync(stream);
-        result.Should().BeNull("negative lengths must be rejected");
+        Func<Task> act = async () => await IpcTransport.ReceiveAsync(stream);
+
+        await act.Should().ThrowAsync<IpcFramingException>("negative lengths must be rejected");
     }
 
     [Test]
-    public async Task ReceiveAsync_ZeroLength_ReturnsNull()
+    public async Task ReceiveAsync_ZeroLength_ThrowsIpcFramingException()
     {
         using var stream = new MemoryStream();
 
@@ -51,17 +53,19 @@ public class IpcTransportSecurityTests
         await stream.WriteAsync(zeroLength);
 
         stream.Position = 0;
-        var result = await IpcTransport.ReceiveAsync(stream);
-        result.Should().BeNull("zero-length messages must be rejected");
+        Func<Task> act = async () => await IpcTransport.ReceiveAsync(stream);
+
+        await act.Should().ThrowAsync<IpcFramingException>("zero-length messages must be rejected");
     }
 
     [Test]
-    public async Task ReceiveAsync_Timeout_ReturnsNull()
+    public async Task ReceiveAsync_Timeout_ThrowsIpcFramingException()
     {
         // A stream that blocks forever (never returns data)
         using var stream = new BlockingStream();
-        var result = await IpcTransport.ReceiveAsync(stream, timeout: TimeSpan.FromMilliseconds(100));
-        result.Should().BeNull("should return null on timeout, not hang");
+        Func<Task> act = async () => await IpcTransport.ReceiveAsync(stream, timeout: TimeSpan.FromMilliseconds(100));
+
+        await act.Should().ThrowAsync<IpcFramingException>("framing timeouts require reconnecting the stream");
     }
 
     [Test]

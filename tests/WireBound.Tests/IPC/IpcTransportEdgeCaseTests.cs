@@ -32,7 +32,7 @@ public class IpcTransportEdgeCaseTests
     }
 
     [Test]
-    public void ReceiveAsync_NegativeLength_ReturnsNull()
+    public void ReceiveAsync_NegativeLength_ThrowsIpcFramingException()
     {
         using var ms = new MemoryStream();
         // Write a negative length in big-endian
@@ -42,12 +42,12 @@ public class IpcTransportEdgeCaseTests
         ms.Write(lengthBytes);
         ms.Position = 0;
 
-        var result = IpcTransport.ReceiveAsync(ms).GetAwaiter().GetResult();
-        result.Should().BeNull();
+        var act = () => IpcTransport.ReceiveAsync(ms).GetAwaiter().GetResult();
+        act.Should().Throw<IpcFramingException>();
     }
 
     [Test]
-    public void ReceiveAsync_ZeroLength_ReturnsNull()
+    public void ReceiveAsync_ZeroLength_ThrowsIpcFramingException()
     {
         using var ms = new MemoryStream();
         var lengthBytes = BitConverter.GetBytes(0);
@@ -56,12 +56,12 @@ public class IpcTransportEdgeCaseTests
         ms.Write(lengthBytes);
         ms.Position = 0;
 
-        var result = IpcTransport.ReceiveAsync(ms).GetAwaiter().GetResult();
-        result.Should().BeNull();
+        var act = () => IpcTransport.ReceiveAsync(ms).GetAwaiter().GetResult();
+        act.Should().Throw<IpcFramingException>();
     }
 
     [Test]
-    public void ReceiveAsync_LengthExceedsMax_ReturnsNull()
+    public void ReceiveAsync_LengthExceedsMax_ThrowsIpcFramingException()
     {
         using var ms = new MemoryStream();
         var length = IpcConstants.MaxMessageSize + 1;
@@ -71,8 +71,8 @@ public class IpcTransportEdgeCaseTests
         ms.Write(lengthBytes);
         ms.Position = 0;
 
-        var result = IpcTransport.ReceiveAsync(ms).GetAwaiter().GetResult();
-        result.Should().BeNull();
+        var act = () => IpcTransport.ReceiveAsync(ms).GetAwaiter().GetResult();
+        act.Should().Throw<IpcFramingException>();
     }
 
     // ═══════════════════════════════════════════════════════════════════════
@@ -80,15 +80,16 @@ public class IpcTransportEdgeCaseTests
     // ═══════════════════════════════════════════════════════════════════════
 
     [Test]
-    public void ReceiveAsync_StreamClosedBeforeLength_ReturnsNull()
+    public void ReceiveAsync_StreamClosedBeforeLength_ThrowsIpcFramingException()
     {
         using var ms = new MemoryStream([0x00, 0x00]); // Only 2 bytes, need 4
-        var result = IpcTransport.ReceiveAsync(ms).GetAwaiter().GetResult();
-        result.Should().BeNull();
+        var act = () => IpcTransport.ReceiveAsync(ms).GetAwaiter().GetResult();
+
+        act.Should().Throw<IpcFramingException>();
     }
 
     [Test]
-    public void ReceiveAsync_StreamClosedDuringPayload_ReturnsNull()
+    public void ReceiveAsync_StreamClosedDuringPayload_ThrowsIpcFramingException()
     {
         using var ms = new MemoryStream();
         // Write a length header claiming 100 bytes
@@ -100,16 +101,17 @@ public class IpcTransportEdgeCaseTests
         ms.Write(new byte[10]);
         ms.Position = 0;
 
-        var result = IpcTransport.ReceiveAsync(ms).GetAwaiter().GetResult();
-        result.Should().BeNull();
+        var act = () => IpcTransport.ReceiveAsync(ms).GetAwaiter().GetResult();
+        act.Should().Throw<IpcFramingException>();
     }
 
     [Test]
-    public void ReceiveAsync_EmptyStream_ReturnsNull()
+    public void ReceiveAsync_EmptyStream_ThrowsIpcFramingException()
     {
         using var ms = new MemoryStream();
-        var result = IpcTransport.ReceiveAsync(ms).GetAwaiter().GetResult();
-        result.Should().BeNull();
+        var act = () => IpcTransport.ReceiveAsync(ms).GetAwaiter().GetResult();
+
+        act.Should().Throw<IpcFramingException>();
     }
 
     // ═══════════════════════════════════════════════════════════════════════
@@ -117,7 +119,7 @@ public class IpcTransportEdgeCaseTests
     // ═══════════════════════════════════════════════════════════════════════
 
     [Test]
-    public void ReceiveAsync_CorruptedMsgPack_ThrowsOrReturnsNull()
+    public void ReceiveAsync_CorruptedMsgPack_ThrowsIpcFramingException()
     {
         using var ms = new MemoryStream();
         var garbage = new byte[] { 0xFF, 0xFE, 0xFD, 0xFC, 0xFB };
@@ -130,7 +132,7 @@ public class IpcTransportEdgeCaseTests
 
         // MessagePack should throw on corrupted data
         var act = () => IpcTransport.ReceiveAsync(ms).GetAwaiter().GetResult();
-        act.Should().Throw<Exception>();
+        act.Should().Throw<IpcFramingException>();
     }
 
     // ═══════════════════════════════════════════════════════════════════════
@@ -165,7 +167,7 @@ public class IpcTransportEdgeCaseTests
     }
 
     [Test]
-    public void ReceiveAsync_AfterAllMessagesRead_ReturnsNull()
+    public void ReceiveAsync_AfterAllMessagesRead_ThrowsIpcFramingException()
     {
         using var ms = new MemoryStream();
         var msg = new IpcMessage { Type = MessageType.Heartbeat, RequestId = "only" };
@@ -175,8 +177,8 @@ public class IpcTransportEdgeCaseTests
         var r1 = IpcTransport.ReceiveAsync(ms).GetAwaiter().GetResult();
         r1.Should().NotBeNull();
 
-        var r2 = IpcTransport.ReceiveAsync(ms).GetAwaiter().GetResult();
-        r2.Should().BeNull("stream exhausted");
+        var act = () => IpcTransport.ReceiveAsync(ms).GetAwaiter().GetResult();
+        act.Should().Throw<IpcFramingException>("stream exhaustion leaves no complete frame to read");
     }
 
     // ═══════════════════════════════════════════════════════════════════════
@@ -184,12 +186,13 @@ public class IpcTransportEdgeCaseTests
     // ═══════════════════════════════════════════════════════════════════════
 
     [Test]
-    public void ReceiveAsync_WithCustomTimeout_TimesOutOnSlowStream()
+    public void ReceiveAsync_WithCustomTimeout_ThrowsIpcFramingException()
     {
         // Use a stream that never produces data
         var slowStream = new NeverEndingStream();
-        var result = IpcTransport.ReceiveAsync(slowStream, timeout: TimeSpan.FromMilliseconds(100)).GetAwaiter().GetResult();
-        result.Should().BeNull("should timeout on a stream that never sends data");
+        var act = () => IpcTransport.ReceiveAsync(slowStream, timeout: TimeSpan.FromMilliseconds(100)).GetAwaiter().GetResult();
+
+        act.Should().Throw<IpcFramingException>("a framing timeout requires reconnecting the stream");
     }
 
     [Test]

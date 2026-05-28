@@ -202,8 +202,10 @@ public sealed partial class ElevationServer : IDisposable
         {
             while (!cancellationToken.IsCancellationRequested)
             {
-                var message = await IpcTransport.ReceiveAsync(stream, cancellationToken);
-                if (message is null) break;
+                var message = await IpcTransport.ReceiveAsync(
+                    stream,
+                    cancellationToken,
+                    timeout: Timeout.InfiniteTimeSpan);
 
                 // Pre-auth rate limiting for ALL messages from unauthenticated clients
                 if (sessionId is null)
@@ -289,6 +291,21 @@ public sealed partial class ElevationServer : IDisposable
             }
         }
         catch (OperationCanceledException) { }
+        catch (IpcFramingException ex)
+        {
+            Log.Error(ex, "IPC framing error from PID {Pid} — closing connection", peerPid);
+            return;
+        }
+        catch (System.IO.EndOfStreamException)
+        {
+            Log.Debug("Client disconnected (EOF) PID {Pid}", peerPid);
+            return;
+        }
+        catch (System.IO.IOException ex) when (ex.InnerException is null or System.Net.Sockets.SocketException)
+        {
+            Log.Debug("Client connection dropped PID {Pid}: {Message}", peerPid, ex.Message);
+            return;
+        }
         catch (Exception ex)
         {
             Log.Error(ex, "Error handling client");

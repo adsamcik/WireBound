@@ -144,19 +144,21 @@ public class IpcTransportTests
     }
 
     [Test]
-    public async Task ReceiveAsync_EmptyStream_ReturnsNull()
+    public async Task ReceiveAsync_EmptyStream_ThrowsIpcFramingException()
     {
         using var stream = new MemoryStream();
-        var result = await IpcTransport.ReceiveAsync(stream);
-        result.Should().BeNull();
+        Func<Task> act = async () => await IpcTransport.ReceiveAsync(stream);
+
+        await act.Should().ThrowAsync<IpcFramingException>();
     }
 
     [Test]
-    public async Task ReceiveAsync_TruncatedLength_ReturnsNull()
+    public async Task ReceiveAsync_TruncatedLength_ThrowsIpcFramingException()
     {
         using var stream = new MemoryStream([0x01, 0x02]); // Only 2 bytes, need 4
-        var result = await IpcTransport.ReceiveAsync(stream);
-        result.Should().BeNull();
+        Func<Task> act = async () => await IpcTransport.ReceiveAsync(stream);
+
+        await act.Should().ThrowAsync<IpcFramingException>();
     }
 
     [Test]

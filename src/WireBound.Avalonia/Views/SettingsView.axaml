@@ -652,11 +652,20 @@
                                     Content="🛡️ Start Helper"
                                     Command="{Binding RequestElevationCommand}"
                                     IsEnabled="{Binding !IsRequestingElevation}"
-                                    IsVisible="{Binding RequiresElevation}"
+                                    IsVisible="{Binding !IsElevated}"
                                     Classes="Warning"
                                     VerticalAlignment="Center"
                                     AutomationProperties.Name="Start Elevated Helper"
                                     AutomationProperties.HelpText="Start a minimal elevated helper process for advanced features" />
+                            <Button Grid.Column="1"
+                                    Content="⏹ Stop Helper"
+                                    Command="{Binding StopElevationCommand}"
+                                    IsEnabled="{Binding !IsRequestingElevation}"
+                                    IsVisible="{Binding IsElevated}"
+                                    Classes="Secondary"
+                                    VerticalAlignment="Center"
+                                    AutomationProperties.Name="Stop Elevated Helper"
+                                    AutomationProperties.HelpText="Stop the running elevated helper process. Per-app byte tracking will pause until it is started again." />
                         </Grid>
                     </Border>
                     

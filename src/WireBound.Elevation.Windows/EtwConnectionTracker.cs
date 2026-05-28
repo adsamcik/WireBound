@@ -144,9 +144,16 @@ public sealed class EtwConnectionTracker : IDisposable
                 TraceEventLevel.Verbose,
                 matchAnyKeywords: unchecked((ulong)-1));
 
-            session.Source.AllEvents += OnEtwEvent;
+            // Subscribe via the dynamic parser, NOT session.Source.AllEvents.
+            // Source.AllEvents delivers raw events whose PayloadByName/PayloadNames
+            // return nothing because TraceEvent has no manifest cached — that's
+            // why the previous "30k data events matched, 0 bytes captured"
+            // diagnostic stalled. session.Source.Dynamic auto-loads the WMI/EventLog
+            // manifest for any user-mode provider and decodes payloads, giving
+            // us real Tcb (HexInt64) and NumBytes (UInt32) fields.
+            session.Source.Dynamic.All += OnEtwEvent;
 
-            Log.Information("ETW session started, processing TCP events (Verbose, all keywords)");
+            Log.Information("ETW session started, processing TCP events (Verbose, all keywords, dynamic parser)");
             session.Source.Process(); // Blocks until session stops
         }
         catch (UnauthorizedAccessException ex)

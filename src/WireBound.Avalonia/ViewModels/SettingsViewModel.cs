@@ -629,6 +629,41 @@ public sealed partial class SettingsViewModel : ObservableObject, IDisposable
         }
     }
 
+    /// <summary>
+    /// Stops the elevated helper process. The helper exits gracefully on pipe
+    /// disconnect, so this is a normal user-initiated shutdown — no UAC prompt
+    /// required to stop something the user already authorized.
+    /// </summary>
+    [RelayCommand]
+    private async Task StopElevationAsync()
+    {
+        if (!_elevationService.IsHelperConnected)
+        {
+            _logger?.LogDebug("Stop helper requested but no helper is currently connected");
+            return;
+        }
+
+        IsRequestingElevation = true;
+        try
+        {
+            _logger?.LogInformation("User requested to stop elevated helper from Settings");
+            await _elevationService.StopHelperAsync();
+
+            IsElevated = _elevationService.IsHelperConnected;
+            RequiresElevation = _elevationService.RequiresElevation;
+
+            _logger?.LogInformation("Helper process stopped");
+        }
+        catch (Exception ex)
+        {
+            _logger?.LogError(ex, "Unexpected error during helper stop request");
+        }
+        finally
+        {
+            IsRequestingElevation = false;
+        }
+    }
+
     [ObservableProperty]
     private string? _exportStatus;
 

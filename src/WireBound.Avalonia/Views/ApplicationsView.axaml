@@ -9,9 +9,13 @@
 
     <Grid RowDefinitions="Auto, *">
         
-        <!-- Loading Overlay -->
+        <!-- Loading Overlay — only on first navigation to this view, not on Refresh.
+             Refresh completes in milliseconds against the local SQLite DB; toggling
+             the modal overlay would flash the full-screen card and feel like a "blink"
+             on top of already-rendered content. The refresh button itself surfaces
+             progress via its disabled state while the command is in-flight. -->
         <Border Grid.RowSpan="2"
-                IsVisible="{Binding IsLoading}"
+                IsVisible="{Binding IsInitialLoading}"
                 Background="{StaticResource OverlayColor}"
                 ZIndex="100">
             <Border Background="{StaticResource CardBrush}"
@@ -21,7 +25,7 @@
                     VerticalAlignment="Center">
                 <StackPanel Spacing="16">
                     <ProgressBar IsIndeterminate="True"
-                                 IsVisible="{Binding IsLoading}"
+                                 IsVisible="{Binding IsInitialLoading}"
                                  Width="48" Height="8"
                                  HorizontalAlignment="Center" />
                     <TextBlock Text="Loading applications..."

@@ -32,6 +32,14 @@ public class ProcessConnectionStats
 
     [Key(4)]
     public List<ConnectionByteStats> Connections { get; set; } = [];
+
+    /// <summary>
+    /// Fully qualified executable path for the process when the helper can
+    /// resolve it. Empty for protected/exited processes. Consumers derive
+    /// stable application identity (<c>AppIdentifier</c>) from this value.
+    /// </summary>
+    [Key(5)]
+    public string ExecutablePath { get; set; } = string.Empty;
 }
 
 [MessagePackObject]

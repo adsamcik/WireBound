@@ -667,6 +667,97 @@ public class DataPersistenceServiceTests : DatabaseTestBase
         records[0].AppIdentifier.Should().Be("valid-hash");
     }
 
+    [Test, Timeout(30000)]
+    public async Task SaveAppStatsAsync_MultiplePidsOfSameApp_AggregatedIntoSingleRecord(CancellationToken cancellationToken)
+    {
+        // Regression test for the SQLite UNIQUE-constraint failure that used
+        // to crash every save once the elevated helper started reporting
+        // per-PID byte counts: 20 chrome.exe PIDs all share the same
+        // AppIdentifier, and the unique index on
+        // (Timestamp, AppIdentifier, Granularity) rejected the second insert
+        // — taking the entire batch down with it and leaving the Applications
+        // tab permanently empty.
+        var chromePath = @"C:\Program Files\Google\Chrome\chrome.exe";
+        var chromeId = "chrome-hash";
+        var stats = new List<ProcessNetworkStats>
+        {
+            new()
+            {
+                ProcessId = 1234,
+                AppIdentifier = chromeId,
+                DisplayName = "chrome",
+                ProcessName = "chrome",
+                ExecutablePath = chromePath,
+                SessionBytesReceived = 5_000,
+                SessionBytesSent = 2_000,
+                DownloadSpeedBps = 100_000,
+                UploadSpeedBps = 50_000
+            },
+            new()
+            {
+                ProcessId = 5678,
+                AppIdentifier = chromeId,
+                DisplayName = "chrome",
+                ProcessName = "chrome",
+                ExecutablePath = chromePath,
+                SessionBytesReceived = 3_000,
+                SessionBytesSent = 1_000,
+                DownloadSpeedBps = 80_000,
+                UploadSpeedBps = 40_000
+            },
+            new()
+            {
+                ProcessId = 9012,
+                AppIdentifier = chromeId,
+                DisplayName = "chrome",
+                ProcessName = "chrome",
+                ExecutablePath = chromePath,
+                SessionBytesReceived = 2_000,
+                SessionBytesSent = 500,
+                DownloadSpeedBps = 20_000,
+                UploadSpeedBps = 10_000
+            }
+        };
+
+        // Act — must not throw DbUpdateException / SqliteException
+        var act = async () => await _service.SaveAppStatsAsync(stats);
+        await act.Should().NotThrowAsync();
+
+        // Assert — exactly one row per AppIdentifier, with bytes summed
+        using var scope = CreateScope();
+        var db = scope.ServiceProvider.GetRequiredService<WireBoundDbContext>();
+        var records = await db.AppUsageRecords.Where(r => r.AppIdentifier == chromeId).ToListAsync();
+
+        records.Should().HaveCount(1, because: "the three PIDs belong to one app and must collapse to one row");
+        records[0].BytesReceived.Should().Be(10_000);
+        records[0].BytesSent.Should().Be(3_500);
+        records[0].PeakDownloadSpeed.Should().Be(200_000);
+        records[0].PeakUploadSpeed.Should().Be(100_000);
+    }
+
+    [Test, Timeout(30000)]
+    public async Task SaveAppStatsAsync_AggregatesDisplayNameFromFirstNonEmpty(CancellationToken cancellationToken)
+    {
+        // PIDs of the same app sometimes lose their MainModule access partway
+        // through their lifetime, producing an empty DisplayName. The aggregator
+        // must still surface a usable name as long as *any* sibling PID has one.
+        var stats = new List<ProcessNetworkStats>
+        {
+            new() { AppIdentifier = "x", DisplayName = "", ProcessName = "x", ExecutablePath = "", SessionBytesReceived = 100 },
+            new() { AppIdentifier = "x", DisplayName = "ExampleApp", ProcessName = "x", ExecutablePath = @"C:\x.exe", SessionBytesReceived = 200 }
+        };
+
+        await _service.SaveAppStatsAsync(stats);
+
+        using var scope = CreateScope();
+        var db = scope.ServiceProvider.GetRequiredService<WireBoundDbContext>();
+        var record = await db.AppUsageRecords.SingleAsync(r => r.AppIdentifier == "x");
+
+        record.AppName.Should().Be("ExampleApp");
+        record.ExecutablePath.Should().Be(@"C:\x.exe");
+        record.BytesReceived.Should().Be(300);
+    }
+
     // ═══════════════════════════════════════════════════════════════════════
     // GetTodayUsageByAdapterAsync Tests
     // ═══════════════════════════════════════════════════════════════════════

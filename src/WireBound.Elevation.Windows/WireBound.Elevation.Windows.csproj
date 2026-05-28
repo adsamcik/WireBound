@@ -1,6 +1,12 @@
 <Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
-    <OutputType>Exe</OutputType>
+    <!--
+      WinExe (PE subsystem = Windows) prevents Windows from allocating a
+      console window when the helper is launched via UAC elevation.
+      Console.* output is no-op'd by the runtime but Serilog still writes
+      to %LocalAppData%\WireBound\elevation*.log for diagnostics.
+    -->
+    <OutputType>WinExe</OutputType>
     <TargetFramework>net10.0</TargetFramework>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>

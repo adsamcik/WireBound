@@ -50,6 +50,16 @@ public sealed partial class ApplicationsViewModel : ObservableObject, IDisposabl
     [ObservableProperty]
     private bool _isLoading;
 
+    /// <summary>
+    /// True only during the first <see cref="LoadDataAsync"/> after construction.
+    /// The modal "Loading applications..." overlay binds to this, not to
+    /// <see cref="IsLoading"/>, so subsequent <c>Refresh</c> clicks don't flash a
+    /// full-screen overlay on top of already-rendered content for the few
+    /// milliseconds the SQLite query takes.
+    /// </summary>
+    [ObservableProperty]
+    private bool _isInitialLoading = true;
+
     [ObservableProperty]
     private bool _isPlatformSupported = true;
 
@@ -280,6 +290,9 @@ public sealed partial class ApplicationsViewModel : ObservableObject, IDisposabl
         finally
         {
             IsLoading = false;
+            // Clear the initial-load flag after the first successful or failed load
+            // so subsequent Refresh clicks don't re-show the modal overlay.
+            IsInitialLoading = false;
         }
     }
 

@@ -1,4 +1,5 @@
 using System.Runtime.Versioning;
+using Serilog;
 using WireBound.Platform.Abstract.Services;
 
 namespace WireBound.Platform.Windows.Services;
@@ -16,13 +17,19 @@ namespace WireBound.Platform.Windows.Services;
 /// When the helper is connected, the factory can provide an elevated provider
 /// that communicates with the helper via named pipes.
 /// </para>
+/// <para>
+/// Threading: all writes to <c>_elevatedProvider</c> happen under <c>_swapGate</c>.
+/// Reads use <c>volatile</c>. <see cref="ProviderChanged"/> is raised outside the
+/// lock to avoid reentrancy from handlers.
+/// </para>
 /// </remarks>
 [SupportedOSPlatform("windows")]
 public sealed class WindowsProcessNetworkProviderFactory : IProcessNetworkProviderFactory
 {
     private readonly WindowsProcessNetworkProvider _basicProvider = new();
     private readonly IElevationService? _elevationService;
-    private IProcessNetworkProvider? _elevatedProvider;
+    private readonly object _swapGate = new();
+    private volatile IProcessNetworkProvider? _elevatedProvider;
 
     public WindowsProcessNetworkProviderFactory(IElevationService? elevationService = null)
     {
@@ -33,35 +40,69 @@ public sealed class WindowsProcessNetworkProviderFactory : IProcessNetworkProvid
         }
     }
 
-    public bool HasElevatedProvider => _elevationService?.IsHelperConnected == true;
+    public bool HasElevatedProvider => _elevatedProvider is not null || _elevationService?.IsHelperConnected == true;
 
     public event EventHandler<ProviderChangedEventArgs>? ProviderChanged;
 
     public IProcessNetworkProvider GetProvider()
     {
-        // Return elevated provider if helper is connected, otherwise basic provider
-        var elevated = Volatile.Read(ref _elevatedProvider);
-        if (HasElevatedProvider && elevated != null)
-        {
-            return elevated;
-        }
-        return _basicProvider;
+        var elevated = _elevatedProvider;
+        return elevated ?? _basicProvider;
     }
 
     private void OnHelperConnectionStateChanged(object? sender, HelperConnectionStateChangedEventArgs e)
     {
-        if (e.IsConnected)
+        IProcessNetworkProvider? providerToDispose = null;
+        IProcessNetworkProvider providerSnapshot;
+
+        lock (_swapGate)
         {
-            var helperConnection = _elevationService!.GetHelperConnection();
-            if (helperConnection is not null)
-                Volatile.Write(ref _elevatedProvider, new WindowsElevatedProcessNetworkProvider(helperConnection));
+            if (e.IsConnected)
+            {
+                providerToDispose = _elevatedProvider;
+                if (providerToDispose is not null)
+                {
+                    Log.Warning("Received duplicate helper connected event; disposing existing elevated process-network provider");
+                }
+
+                var helperConnection = _elevationService!.GetHelperConnection();
+                _elevatedProvider = helperConnection is null
+                    ? null
+                    : new WindowsElevatedProcessNetworkProvider(helperConnection);
+            }
+            else
+            {
+                providerToDispose = _elevatedProvider;
+                _elevatedProvider = null;
+            }
+
+            providerSnapshot = _elevatedProvider ?? _basicProvider;
         }
-        else
+
+        if (providerToDispose is not null)
         {
-            var old = Volatile.Read(ref _elevatedProvider);
-            Volatile.Write(ref _elevatedProvider, null);
-            old?.Dispose();
+            _ = DisposeProviderAsync(providerToDispose);
         }
-        ProviderChanged?.Invoke(this, new ProviderChangedEventArgs(GetProvider()));
+
+        ProviderChanged?.Invoke(this, new ProviderChangedEventArgs(providerSnapshot));
+    }
+
+    private static async Task DisposeProviderAsync(IProcessNetworkProvider provider)
+    {
+        try
+        {
+            if (provider is IAsyncDisposable asyncDisposable)
+            {
+                await asyncDisposable.DisposeAsync().ConfigureAwait(false);
+            }
+            else
+            {
+                provider.Dispose();
+            }
+        }
+        catch (Exception ex)
+        {
+            Log.Warning(ex, "Error disposing replaced process-network provider");
+        }
     }
 }

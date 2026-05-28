@@ -3,8 +3,7 @@ using System.Diagnostics;
 using System.Net;
 using System.Runtime.InteropServices;
 using System.Runtime.Versioning;
-using System.Security.Cryptography;
-using System.Text;
+using WireBound.Platform.Abstract.Helpers;
 using WireBound.Platform.Abstract.Models;
 using WireBound.Platform.Abstract.Services;
 using AbstractConnectionInfo = WireBound.Platform.Abstract.Models.ConnectionInfo;
@@ -113,7 +112,7 @@ public sealed class WindowsProcessNetworkProvider : IProcessNetworkProvider
                         ProcessName = processInfo.Name,
                         DisplayName = processInfo.DisplayName,
                         ExecutablePath = processInfo.Path,
-                        AppIdentifier = ComputeAppIdentifier(processInfo.Path),
+                        AppIdentifier = AppIdentity.ComputeAppIdentifier(processInfo.Path),
                         FirstSeen = DateTime.Now
                     };
                     _processStats[pid] = stats;
@@ -406,15 +405,6 @@ public sealed class WindowsProcessNetworkProvider : IProcessNetworkProvider
 
         foreach (var key in keysToRemove)
             _processCache.TryRemove(key, out _);
-    }
-
-    private static string ComputeAppIdentifier(string path)
-    {
-        if (string.IsNullOrEmpty(path))
-            return "unknown";
-
-        var bytes = SHA256.HashData(Encoding.UTF8.GetBytes(path.ToLowerInvariant()));
-        return Convert.ToHexString(bytes)[..16].ToLowerInvariant();
     }
 
     public async Task StopMonitoringAsync()

@@ -32,4 +32,14 @@ public class ProcessByteStats
 
     [Key(4)]
     public int ActiveConnectionCount { get; set; }
+
+    /// <summary>
+    /// Fully qualified executable path for the process, when the helper can
+    /// resolve it. Required by the app-side consumer to derive a stable
+    /// <c>AppIdentifier</c> and to surface a friendly display name.
+    /// Empty when the helper failed to query the process (e.g. PID has
+    /// exited or is a protected system process).
+    /// </summary>
+    [Key(5)]
+    public string ExecutablePath { get; set; } = string.Empty;
 }

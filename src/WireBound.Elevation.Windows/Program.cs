@@ -22,19 +22,17 @@ try
     var callerSid = CliParser.ParseCallerSid(args);
     if (callerSid is null)
     {
-        Log.Fatal("Missing required argument: --caller-sid <SID>");
-        Console.Error.WriteLine("Usage: WireBound.Elevation --caller-sid <SID>");
+        Log.Fatal("Missing required argument --caller-sid <SID>. " +
+                  "Usage: WireBound.Elevation --caller-sid <SID>");
         Environment.ExitCode = 1;
         return;
     }
 
+    // Helper is built as WinExe so Windows does not allocate a console when the
+    // process is launched via UAC. That makes Console.CancelKeyPress (Ctrl+C)
+    // moot; instead rely on AppDomain.ProcessExit and the ElevationServer's own
+    // IPC-disconnect detection to trigger graceful shutdown.
     using var cts = new CancellationTokenSource();
-    Console.CancelKeyPress += (_, e) =>
-    {
-        e.Cancel = true;
-        cts.Cancel();
-    };
-
     AppDomain.CurrentDomain.ProcessExit += (_, _) =>
     {
         try { cts.Cancel(); }
@@ -47,7 +45,6 @@ try
 catch (ArgumentException ex)
 {
     Log.Fatal(ex, "Invalid caller SID argument");
-    Console.Error.WriteLine($"Error: {ex.Message}");
     Environment.ExitCode = 1;
 }
 catch (OperationCanceledException)

@@ -1,9 +1,8 @@
 using System.Collections.Concurrent;
 using System.Net;
 using System.Runtime.Versioning;
-using System.Security.Cryptography;
-using System.Text;
 using System.Text.RegularExpressions;
+using WireBound.Platform.Abstract.Helpers;
 using WireBound.Platform.Abstract.Models;
 using WireBound.Platform.Abstract.Services;
 
@@ -118,7 +117,7 @@ public sealed partial class LinuxProcessNetworkProvider : IProcessNetworkProvide
                         ProcessName = processInfo.Name,
                         DisplayName = processInfo.DisplayName,
                         ExecutablePath = processInfo.Path,
-                        AppIdentifier = ComputeAppIdentifier(processInfo.Path),
+                        AppIdentifier = AppIdentity.ComputeAppIdentifier(processInfo.Path),
                         FirstSeen = DateTime.Now
                     };
                     _processStats[pid] = stats;
@@ -427,15 +426,6 @@ public sealed partial class LinuxProcessNetworkProvider : IProcessNetworkProvide
 
         foreach (var key in keysToRemove)
             _processCache.TryRemove(key, out _);
-    }
-
-    private static string ComputeAppIdentifier(string path)
-    {
-        if (string.IsNullOrEmpty(path))
-            return "unknown";
-
-        var bytes = SHA256.HashData(Encoding.UTF8.GetBytes(path.ToLowerInvariant()));
-        return Convert.ToHexString(bytes)[..16].ToLowerInvariant();
     }
 
     public async Task StopMonitoringAsync()

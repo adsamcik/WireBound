@@ -18,20 +18,53 @@ public sealed class EtwConnectionTracker : IDisposable
     private const string SessionName = $"WireBound-TCPIP-{nameof(EtwConnectionTracker)}";
     private static string ProcessSessionName => $"{SessionName}-{Environment.ProcessId}";
 
-    // ETW event IDs for TCP data transfer
-    private const int TcpDataTransferReceive = 1201;
-    private const int TcpDataTransferSend = 1202;
+    // ETW event IDs for the Microsoft-Windows-TCPIP user-mode manifest provider
+    // on Windows 10/11 (provider GUID 2f07e2ee-15db-40f1-90ef-9d7ba282188a).
+    // Discovered from the runtime manifest via Get-WinEvent -ListProvider; the
+    // numbers used to be 1201/1202/1010/1011/1003/1013/1015 in pre-Win10 builds
+    // but the modern provider uses these IDs and the prior constants matched
+    // nothing at all on Windows 11 (the diagnostic counter showed millions of
+    // raw events with only ~9/sec matching the old IDs).
+    //
+    // Data-transfer events — payload: { Tcb (HexInt64 pointer), NumBytes (UInt32), ... }
+    private const int TcpDataTransferSend = 1073;
+    private const int TcpDataTransferReceive = 1074;
 
-    // ETW event IDs for TCP connection lifecycle (used to map Tcb → connection key)
-    private const int TcpRequestConnect = 1010;
-    private const int TcpAcceptConnection = 1003;
-    private const int TcpConnectionComplete = 1011;
-    private const int TcpCloseConnection = 1013;
-    private const int TcpDisconnect = 1015;
+    // Connection lifecycle events — payload: { LocalAddress, RemoteAddress, Status,
+    // ProcessId (UInt32), Compartment, Tcb (HexInt64 pointer) }.
+    // We use the Tcb itself as the connection identity key (it is unique for
+    // the lifetime of the connection); the LocalAddress / RemoteAddress fields
+    // are SocketAddress binary blobs and not worth parsing here.
+    private const int TcpAcceptComplete = 1017;
+    private const int TcpConnectComplete = 1033;
+    private const int TcpCloseIssued = 1038;
+    private const int TcpAbortIssued = 1039;
+    private const int TcpAbortCompleted = 1040;
+    private const int TcpDisconnectCompleted = 1043;
 
     private TraceEventSession? _etwSession;
     private Thread? _processingThread;
     private volatile bool _running;
+
+    // Diagnostic counters — surfaced periodically through RefreshConnectionPidMapping
+    // so we can see whether ETW is producing events at all, how many of them match
+    // our data-transfer handler, and whether they translate into accumulated bytes.
+    // Critical for diagnosing "0 B everywhere" symptoms where the session reports
+    // started but the keyword mask or event IDs don't match the running OS build.
+    private long _etwEventsReceived;
+    private long _etwDataEventsMatched;
+    private long _etwLifecycleEventsMatched;
+    private long _etwBytesCaptured;
+    private int _diagnosticTickCount;
+    private const int DiagnosticsLogEveryNTicks = 5; // refresh runs every 2s → log every ~10s
+
+    // Discovery mode: captures the first N unique event IDs the TCPIP provider
+    // emits along with their canonical name + payload field names. Lets us see
+    // exactly which constants to use when 1201/1202 etc. don't match the running
+    // Windows build — without attaching a debugger or PerfView. Logged once per
+    // unique ID then suppressed; the dictionary doubles as the "seen" set.
+    private readonly ConcurrentDictionary<int, byte> _discoveredEventIds = new();
+    private const int MaxDiscoveredEventTypes = 100;
 
     // Connection key: "localIP:localPort-remoteIP:remotePort"
     private readonly ConcurrentDictionary<string, ConnectionBytes> _connectionBytes = new();
@@ -43,7 +76,7 @@ public sealed class EtwConnectionTracker : IDisposable
 
     // PID to connection mapping, refreshed periodically
     private readonly ConcurrentDictionary<string, int> _connectionToPid = new();
-    private readonly ConcurrentDictionary<int, string> _pidToProcessName = new();
+    private readonly ConcurrentDictionary<int, ProcessIdentity> _pidToIdentity = new();
     private readonly Timer _refreshTimer;
 
     public EtwConnectionTracker()
@@ -98,13 +131,22 @@ public sealed class EtwConnectionTracker : IDisposable
             using var session = new TraceEventSession(ProcessSessionName);
             _etwSession = session;
 
-            // Subscribe to Microsoft-Windows-TCPIP provider
-            // Keywords: 0x40 = data transfer events, 0x01 = connection lifecycle events
-            session.EnableProvider("Microsoft-Windows-TCPIP", TraceEventLevel.Informational, 0x41);
+            // Enable Microsoft-Windows-TCPIP at Verbose with ALL keywords.
+            // Earlier the mask was 0x41 (intended: data-transfer + connection
+            // lifecycle), but the meaning of TCPIP provider keywords differs
+            // by Windows build and that mask captured nothing on Windows 11 —
+            // every per-process byte counter ended up zero. Enabling all
+            // keywords adds modest overhead but guarantees the events we care
+            // about (data-transfer 1201/1202, lifecycle 1003/1010/1011/1013/1015)
+            // are delivered.
+            session.EnableProvider(
+                "Microsoft-Windows-TCPIP",
+                TraceEventLevel.Verbose,
+                matchAnyKeywords: unchecked((ulong)-1));
 
             session.Source.AllEvents += OnEtwEvent;
 
-            Log.Information("ETW session started, processing TCP events");
+            Log.Information("ETW session started, processing TCP events (Verbose, all keywords)");
             session.Source.Process(); // Blocks until session stops
         }
         catch (UnauthorizedAccessException ex)
@@ -119,28 +161,35 @@ public sealed class EtwConnectionTracker : IDisposable
 
     private void OnEtwEvent(TraceEvent data)
     {
+        Interlocked.Increment(ref _etwEventsReceived);
+        MaybeLogDiscoveredEventType(data);
         try
         {
             var eventId = (int)data.ID;
 
-            // Handle TCP connection lifecycle events to build Tcb → connection key mapping
-            if (eventId is TcpRequestConnect or TcpAcceptConnection or TcpConnectionComplete)
+            // Lifecycle events expose Tcb + ProcessId — populate the Tcb→PID map
+            // so subsequent data-transfer events on the same Tcb can be attributed.
+            if (eventId is TcpAcceptComplete or TcpConnectComplete)
             {
+                Interlocked.Increment(ref _etwLifecycleEventsMatched);
                 HandleConnectionEvent(data);
                 return;
             }
 
-            // Handle TCP disconnect/close events to clean up Tcb mapping
-            if (eventId is TcpCloseConnection or TcpDisconnect)
+            // Close/abort/disconnect — drop the Tcb mapping so memory doesn't grow.
+            if (eventId is TcpCloseIssued or TcpAbortIssued or TcpAbortCompleted or TcpDisconnectCompleted)
             {
-                var tcb = data.PayloadByName("Tcb")?.ToString();
-                if (!string.IsNullOrEmpty(tcb))
-                    _tcbToConnection.TryRemove(tcb, out _);
+                Interlocked.Increment(ref _etwLifecycleEventsMatched);
+                var closingTcb = data.PayloadByName("Tcb")?.ToString();
+                if (!string.IsNullOrEmpty(closingTcb))
+                    _tcbToConnection.TryRemove(closingTcb, out _);
                 return;
             }
 
             if (eventId is not (TcpDataTransferReceive or TcpDataTransferSend))
                 return;
+
+            Interlocked.Increment(ref _etwDataEventsMatched);
 
             var connTcb = data.PayloadByName("Tcb")?.ToString();
             if (string.IsNullOrEmpty(connTcb)) return;
@@ -154,18 +203,18 @@ public sealed class EtwConnectionTracker : IDisposable
 
             if (size <= 0) return;
 
-            // Resolve Tcb to connection key, falling back to Tcb if no mapping yet
-            var connectionKey = connTcb;
-            if (_tcbToConnection.TryGetValue(connTcb, out var mapping))
+            // The Tcb pointer is the connection's stable identity for ETW's
+            // entire lifetime. Use it directly as the key — no need to
+            // resolve to a "local:port-remote:port" string (the prior design
+            // required parsing SocketAddress binary blobs from lifecycle events
+            // that don't always fire before the first data event).
+            if (_tcbToConnection.TryGetValue(connTcb, out var mapping) && mapping.ProcessId > 0)
             {
-                connectionKey = mapping.ConnectionKey;
-
-                // Also record the PID from when the connection was established
-                if (mapping.ProcessId > 0)
-                    _connectionToPid.TryAdd(connectionKey, mapping.ProcessId);
+                // Cache PID under the same key so GetConnectionStats can look it up.
+                _connectionToPid.TryAdd(connTcb, mapping.ProcessId);
             }
 
-            var entry = _connectionBytes.GetOrAdd(connectionKey, static _ => new ConnectionBytes());
+            var entry = _connectionBytes.GetOrAdd(connTcb, static _ => new ConnectionBytes());
 
             if (_connectionBytes.Count > MaxTrackedConnections)
                 EvictStaleConnections();
@@ -174,6 +223,8 @@ public sealed class EtwConnectionTracker : IDisposable
                 Interlocked.Add(ref entry.BytesReceived, size);
             else
                 Interlocked.Add(ref entry.BytesSent, size);
+
+            Interlocked.Add(ref _etwBytesCaptured, size);
         }
         catch (Exception ex)
         {
@@ -182,52 +233,32 @@ public sealed class EtwConnectionTracker : IDisposable
     }
 
     /// <summary>
-    /// Extracts endpoint information from TCP connection lifecycle events
-    /// and records the Tcb → connection key mapping.
+    /// Records the Tcb → ProcessId association from a connection lifecycle event.
+    /// The Tcb pointer is used directly as the connection's identity key for
+    /// subsequent <c>TcpDataTransferSend</c>/<c>TcpDataTransferReceive</c>
+    /// attribution; there is no need to parse the SocketAddress binary blobs
+    /// for LocalAddress/RemoteAddress.
     /// </summary>
     private void HandleConnectionEvent(TraceEvent data)
     {
         var tcb = data.PayloadByName("Tcb")?.ToString();
         if (string.IsNullOrEmpty(tcb)) return;
 
-        // Try common payload field name variants across Windows versions
-        var localAddr = (data.PayloadByName("LocalAddress") ?? data.PayloadByName("LocalAddr"))?.ToString();
-        var remoteAddr = (data.PayloadByName("RemoteAddress") ?? data.PayloadByName("RemoteAddr"))?.ToString();
+        var pidObj = data.PayloadByName("ProcessId");
+        int pid = pidObj switch
+        {
+            int i => i,
+            uint u => (int)u,
+            _ => 0
+        };
 
-        // Port fields may be int or ushort
-        var localPort = ParsePort(data.PayloadByName("LocalPort"));
-        var remotePort = ParsePort(data.PayloadByName("RemotePort"));
-
-        if (string.IsNullOrEmpty(localAddr) || string.IsNullOrEmpty(remoteAddr))
-            return;
-
-        // Clean up IPv4-mapped IPv6 addresses (e.g., "::ffff:192.168.1.5" → "192.168.1.5")
-        localAddr = NormalizeAddress(localAddr);
-        remoteAddr = NormalizeAddress(remoteAddr);
-
-        var connectionKey = MakeConnectionKey(localAddr, localPort, remoteAddr, remotePort);
-
-        // Evict stale entries to prevent unbounded growth
+        // Evict stale Tcb mappings before adding new ones to bound memory.
         if (_tcbToConnection.Count > MaxTcbMappings)
             EvictStaleTcbMappings();
 
-        _tcbToConnection[tcb] = new TcbMapping(connectionKey, data.ProcessID);
-    }
-
-    private static int ParsePort(object? value) => value switch
-    {
-        int i => i,
-        uint u => (int)u,
-        ushort us => us,
-        _ => 0
-    };
-
-    private static string NormalizeAddress(string address)
-    {
-        const string v4MappedPrefix = "::ffff:";
-        if (address.StartsWith(v4MappedPrefix, StringComparison.OrdinalIgnoreCase))
-            return address[v4MappedPrefix.Length..];
-        return address;
+        _tcbToConnection[tcb] = new TcbMapping(tcb, pid);
+        if (pid > 0)
+            _connectionToPid[tcb] = pid;
     }
 
     /// <summary>
@@ -237,6 +268,8 @@ public sealed class EtwConnectionTracker : IDisposable
     /// </summary>
     private void RefreshConnectionPidMapping()
     {
+        LogEtwDiagnosticsIfDue();
+
         try
         {
             var size = 0;
@@ -294,17 +327,9 @@ public sealed class EtwConnectionTracker : IDisposable
                         var key = MakeConnectionKey(localAddr, localPort, remoteAddr, remotePort);
                         _connectionToPid[key] = row.OwningPid;
 
-                        if (row.OwningPid != 0 && !_pidToProcessName.ContainsKey(row.OwningPid))
+                        if (row.OwningPid != 0 && !_pidToIdentity.ContainsKey(row.OwningPid))
                         {
-                            try
-                            {
-                                using var proc = System.Diagnostics.Process.GetProcessById(row.OwningPid);
-                                _pidToProcessName[row.OwningPid] = proc.ProcessName;
-                            }
-                            catch
-                            {
-                                _pidToProcessName[row.OwningPid] = "Unknown";
-                            }
+                            _pidToIdentity[row.OwningPid] = ResolveProcessIdentity(row.OwningPid);
                         }
                     }
 
@@ -374,10 +399,12 @@ public sealed class EtwConnectionTracker : IDisposable
                 var pid = _connectionToPid.GetValueOrDefault(entry.Key, 0);
                 if (!processes.TryGetValue(pid, out var processStats))
                 {
+                    var identity = _pidToIdentity.GetValueOrDefault(pid, ProcessIdentity.Unknown);
                     processStats = new ProcessConnectionStats
                     {
                         ProcessId = pid,
-                        ProcessName = _pidToProcessName.GetValueOrDefault(pid, "Unknown")
+                        ProcessName = identity.Name,
+                        ExecutablePath = identity.Path
                     };
                     processes[pid] = processStats;
                 }
@@ -400,10 +427,12 @@ public sealed class EtwConnectionTracker : IDisposable
 
                 if (!processes.TryGetValue(pid, out var processStats))
                 {
+                    var identity = _pidToIdentity.GetValueOrDefault(pid, ProcessIdentity.Unknown);
                     processStats = new ProcessConnectionStats
                     {
                         ProcessId = pid,
-                        ProcessName = _pidToProcessName.GetValueOrDefault(pid, "Unknown")
+                        ProcessName = identity.Name,
+                        ExecutablePath = identity.Path
                     };
                     processes[pid] = processStats;
                 }
@@ -457,6 +486,7 @@ public sealed class EtwConnectionTracker : IDisposable
                 {
                     ProcessId = p.ProcessId,
                     ProcessName = p.ProcessName,
+                    ExecutablePath = p.ExecutablePath,
                     TotalBytesSent = p.BytesSent,
                     TotalBytesReceived = p.BytesReceived,
                     ActiveConnectionCount = p.Connections.Count
@@ -525,6 +555,98 @@ public sealed class EtwConnectionTracker : IDisposable
         _etwSession?.Dispose();
     }
 
+    /// <summary>
+    /// On first sighting of each unique event ID, logs the ID, canonical event
+    /// name, opcode/task names, and payload field names. Lets us discover which
+    /// constants Microsoft-Windows-TCPIP actually uses on the running Windows
+    /// build without running PerfView — when 1201/1202 don't match (Windows 11
+    /// renamed/renumbered many TCPIP events), we'll see the correct IDs in the
+    /// elevation log within seconds of the helper starting.
+    /// </summary>
+    private void MaybeLogDiscoveredEventType(TraceEvent data)
+    {
+        if (_discoveredEventIds.Count >= MaxDiscoveredEventTypes)
+            return;
+
+        var id = (int)data.ID;
+        if (!_discoveredEventIds.TryAdd(id, 0))
+            return;
+
+        string payloadFieldNames;
+        try
+        {
+            payloadFieldNames = data.PayloadNames is { Length: > 0 } names
+                ? string.Join(", ", names)
+                : "<none>";
+        }
+        catch
+        {
+            payloadFieldNames = "<error>";
+        }
+
+        Log.Information(
+            "ETW discovery: id={EventId} name={EventName} task={TaskName} opcode={OpcodeName} payload=[{Fields}]",
+            id,
+            data.EventName ?? "<null>",
+            data.TaskName ?? "<null>",
+            data.OpcodeName ?? "<null>",
+            payloadFieldNames);
+    }
+
+    /// <summary>
+    /// Periodically dumps ETW capture statistics to the helper log. Lets us
+    /// distinguish "session never produced an event" (provider/keyword problem)
+    /// from "events received but none matched our data-transfer IDs"
+    /// (OS-version event-ID mismatch) from "events matched but bytes still
+    /// zero" (payload parsing problem) — without attaching a debugger.
+    /// </summary>
+    private void LogEtwDiagnosticsIfDue()
+    {
+        if (Interlocked.Increment(ref _diagnosticTickCount) % DiagnosticsLogEveryNTicks != 0)
+            return;
+
+        Log.Information(
+            "ETW diagnostics: events={Events} (data={Data}, lifecycle={Lifecycle}), " +
+            "tracked connections={Connections}, captured bytes={Bytes}, " +
+            "tcb→key mappings={TcbMappings}, conn→pid mappings={ConnPidMappings}",
+            Interlocked.Read(ref _etwEventsReceived),
+            Interlocked.Read(ref _etwDataEventsMatched),
+            Interlocked.Read(ref _etwLifecycleEventsMatched),
+            _connectionBytes.Count,
+            Interlocked.Read(ref _etwBytesCaptured),
+            _tcbToConnection.Count,
+            _connectionToPid.Count);
+    }
+
+    /// <summary>
+    /// Resolves the process name and full executable path for a PID using the
+    /// helper's elevated access. Falls back to <see cref="ProcessIdentity.Unknown"/>
+    /// when the process has exited or path resolution is denied (e.g. protected
+    /// system processes such as csrss.exe).
+    /// </summary>
+    private static ProcessIdentity ResolveProcessIdentity(int pid)
+    {
+        try
+        {
+            using var proc = System.Diagnostics.Process.GetProcessById(pid);
+            var name = proc.ProcessName;
+            string path = string.Empty;
+            try
+            {
+                path = proc.MainModule?.FileName ?? string.Empty;
+            }
+            catch
+            {
+                // Access denied (protected process) — keep name, leave path empty
+            }
+            return new ProcessIdentity(name, path);
+        }
+        catch
+        {
+            return ProcessIdentity.Unknown;
+        }
+    }
+
     private class ConnectionBytes
     {
         public long BytesSent;
@@ -532,4 +654,14 @@ public sealed class EtwConnectionTracker : IDisposable
     }
 
     private sealed record TcbMapping(string ConnectionKey, int ProcessId);
+
+    /// <summary>
+    /// Cached process identity used to enrich per-process stats with a stable
+    /// executable path so app-side consumers can derive a persistent
+    /// <c>AppIdentifier</c>.
+    /// </summary>
+    private sealed record ProcessIdentity(string Name, string Path)
+    {
+        public static ProcessIdentity Unknown { get; } = new("Unknown", string.Empty);
+    }
 }

@@ -261,12 +261,35 @@ public sealed class DataPersistenceService : IDataPersistenceService
         var now = DateTime.Now;
         var currentHour = new DateTime(now.Year, now.Month, now.Day, now.Hour, 0, 0);
 
-        var statsList = stats.Where(s => !string.IsNullOrEmpty(s.AppIdentifier)).ToList();
-        if (statsList.Count == 0)
+        // Roll multiple PIDs of the same application up to a single per-app
+        // entry. The unique index on (Timestamp, AppIdentifier, Granularity)
+        // requires exactly one row per AppIdentifier per hour, but the elevated
+        // helper reports one entry per PID — so 20 chrome.exe processes would
+        // otherwise produce 20 inserts and SQLite would throw a UNIQUE
+        // constraint violation, dropping the whole batch.
+        var aggregated = stats
+            .Where(s => !string.IsNullOrEmpty(s.AppIdentifier))
+            .GroupBy(s => s.AppIdentifier)
+            .Select(g => new ProcessNetworkStats
+            {
+                AppIdentifier = g.Key,
+                ProcessName = g.First().ProcessName,
+                DisplayName = g.Select(s => s.DisplayName).FirstOrDefault(n => !string.IsNullOrEmpty(n))
+                              ?? g.First().ProcessName,
+                ExecutablePath = g.Select(s => s.ExecutablePath).FirstOrDefault(p => !string.IsNullOrEmpty(p))
+                                 ?? string.Empty,
+                SessionBytesReceived = g.Sum(s => s.SessionBytesReceived),
+                SessionBytesSent = g.Sum(s => s.SessionBytesSent),
+                DownloadSpeedBps = g.Sum(s => s.DownloadSpeedBps),
+                UploadSpeedBps = g.Sum(s => s.UploadSpeedBps)
+            })
+            .ToList();
+
+        if (aggregated.Count == 0)
             return;
 
         // Batch-load all existing hourly records for these apps to avoid N+1 queries
-        var appIds = statsList.Select(s => s.AppIdentifier).Distinct().ToList();
+        var appIds = aggregated.Select(s => s.AppIdentifier).ToList();
         var existingRecords = await db.AppUsageRecords
             .Where(a =>
                 a.Timestamp == currentHour &&
@@ -275,7 +298,7 @@ public sealed class DataPersistenceService : IDataPersistenceService
             .ToDictionaryAsync(a => a.AppIdentifier)
             .ConfigureAwait(false);
 
-        foreach (var stat in statsList)
+        foreach (var stat in aggregated)
         {
             existingRecords.TryGetValue(stat.AppIdentifier, out var record);
 

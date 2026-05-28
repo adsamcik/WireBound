@@ -3,12 +3,14 @@
         xmlns:lvc="using:LiveChartsCore.SkiaSharpView.Avalonia"
         xmlns:helpers="using:WireBound.Avalonia.Helpers">
 
-    <!-- Block mouse wheel scroll propagation on all chart controls -->
+    <!-- Forward mouse-wheel events from chart controls to the ancestor ScrollViewer.
+         Without this the chart consumes the wheel event for zoom and the page becomes
+         unscrollable while the cursor is over a chart. -->
     <Style Selector="lvc|CartesianChart">
-        <Setter Property="helpers:ScrollBlockBehavior.BlockScroll" Value="True" />
+        <Setter Property="helpers:WheelScrollForwarder.ForwardToScrollViewer" Value="True" />
     </Style>
     <Style Selector="lvc|PieChart">
-        <Setter Property="helpers:ScrollBlockBehavior.BlockScroll" Value="True" />
+        <Setter Property="helpers:WheelScrollForwarder.ForwardToScrollViewer" Value="True" />
     </Style>
 
     <!-- 

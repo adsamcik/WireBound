@@ -191,8 +191,29 @@
         <Setter Property="CornerRadius" Value="8" />
         <Setter Property="Padding" Value="12,8" />
         <Setter Property="FontSize" Value="14" />
+        <Setter Property="SelectionBrush" Value="{StaticResource PrimaryBrush}" />
+        <Setter Property="CaretBrush" Value="{StaticResource PrimaryBrush}" />
     </Style>
-    
+
+    <!-- Override the Fluent template's pointer-over / focused backgrounds + borders.
+         Without these the inner PART_BorderElement shows the system accent (orange
+         on Windows light/contrast themes) regardless of our outer BorderBrush. -->
+    <Style Selector="TextBox /template/ Border#PART_BorderElement">
+        <Setter Property="Background" Value="{StaticResource SurfaceBrush}" />
+        <Setter Property="BorderBrush" Value="{StaticResource BorderBrush}" />
+        <Setter Property="BorderThickness" Value="1" />
+        <Setter Property="CornerRadius" Value="8" />
+    </Style>
+    <Style Selector="TextBox:pointerover /template/ Border#PART_BorderElement">
+        <Setter Property="Background" Value="{StaticResource SurfaceBrush}" />
+        <Setter Property="BorderBrush" Value="{StaticResource BorderBrush}" />
+    </Style>
+    <Style Selector="TextBox:focus /template/ Border#PART_BorderElement">
+        <Setter Property="Background" Value="{StaticResource SurfaceBrush}" />
+        <Setter Property="BorderBrush" Value="{StaticResource PrimaryBrush}" />
+        <Setter Property="BorderThickness" Value="1" />
+    </Style>
+
     <Style Selector="TextBox:focus">
         <Setter Property="BorderBrush" Value="{StaticResource PrimaryBrush}" />
     </Style>

@@ -132,10 +132,16 @@ public sealed partial class AppsViewModel : ObservableObject, IDisposable
     public bool ShowStatusBanner => !IsPlatformSupported || RequiresElevation || IsByteTrackingLimited;
     public string SelectedAppDisplayName => SelectedApp is null ? "—" : GetDisplayName(SelectedApp);
     public string SelectedAppExecutablePath => SelectedApp?.ExecutablePath ?? "";
+    public string SelectedAppProcessName => SelectedApp?.ProcessName ?? "";
     public string SelectedAppCategoryName => string.IsNullOrWhiteSpace(SelectedApp?.CategoryName) ? "Uncategorized" : SelectedApp.CategoryName;
     public string SelectedAppAvgCpuPercent => SelectedApp is null ? "0.0%" : $"{SelectedApp.AvgCpuPercent:F1}%";
     public string SelectedAppAvgRam => SelectedApp?.FormattedAvgPrivateBytes ?? "0 B";
     public string SelectedAppTotalBytes => SelectedApp?.FormattedTotalBytes ?? "0 B";
+    public string SelectedAppBytesReceived => SelectedApp?.FormattedBytesReceived ?? "0 B";
+    public string SelectedAppBytesSent => SelectedApp?.FormattedBytesSent ?? "0 B";
+    public string? SelectedAppIconPath => SelectedApp?.IconPath;
+    public bool SelectedAppHasIcon => SelectedApp?.HasIcon == true;
+    public int SelectedAppHoursActive => SelectedApp?.HoursActive ?? 0;
     public string NameSortGlyph => GetSortGlyph(AppsSortColumn.Name);
     public string CategorySortGlyph => GetSortGlyph(AppsSortColumn.Category);
     public string BytesReceivedSortGlyph => GetSortGlyph(AppsSortColumn.BytesReceived);
@@ -618,10 +624,16 @@ public sealed partial class AppsViewModel : ObservableObject, IDisposable
     {
         OnPropertyChanged(nameof(SelectedAppDisplayName));
         OnPropertyChanged(nameof(SelectedAppExecutablePath));
+        OnPropertyChanged(nameof(SelectedAppProcessName));
         OnPropertyChanged(nameof(SelectedAppCategoryName));
         OnPropertyChanged(nameof(SelectedAppAvgCpuPercent));
         OnPropertyChanged(nameof(SelectedAppAvgRam));
         OnPropertyChanged(nameof(SelectedAppTotalBytes));
+        OnPropertyChanged(nameof(SelectedAppBytesReceived));
+        OnPropertyChanged(nameof(SelectedAppBytesSent));
+        OnPropertyChanged(nameof(SelectedAppIconPath));
+        OnPropertyChanged(nameof(SelectedAppHasIcon));
+        OnPropertyChanged(nameof(SelectedAppHoursActive));
     }
 
     private static ISeries[] CreateNetworkSeries(IReadOnlyList<AppNetworkHistoryPoint> points)

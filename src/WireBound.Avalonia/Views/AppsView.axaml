@@ -9,15 +9,18 @@
              Background="{StaticResource BackgroundBrush}"
              AutomationProperties.Name="Apps View">
 
-    <Grid ColumnDefinitions="*, Auto">
-        <ScrollViewer Grid.Column="0" Margin="28">
-            <StackPanel Spacing="24">
-                <Border Classes="Card">
-                    <StackPanel Spacing="4">
-                        <TextBlock Text="Apps" Classes="PageTitle" />
-                        <TextBlock Text="Unified application network and resource activity" Classes="Subtitle" />
-                    </StackPanel>
-                </Border>
+    <Grid>
+        <!-- MASTER VIEW: visible when no app is selected. Full page width so the
+             list and toolbar have room to breathe; previous design split the page
+             with a 520px detail drawer which squashed the master columns into
+             unusable slivers on standard 1440px screens. -->
+        <ScrollViewer Margin="28"
+                      IsVisible="{Binding !IsDetailOpen}">
+            <StackPanel Spacing="20">
+                <StackPanel Spacing="4">
+                    <TextBlock Text="Apps" Classes="PageTitle" />
+                    <TextBlock Text="Unified application network and resource activity" Classes="Subtitle" />
+                </StackPanel>
 
                 <Border Classes="Card"
                         Background="{StaticResource InfoBannerColor}"
@@ -404,144 +407,201 @@
             </StackPanel>
         </ScrollViewer>
 
-        <Border Grid.Column="1"
-                Width="520"
-                MaxWidth="520"
-                Margin="0,28,28,28"
-                Classes="ElevatedCard"
-                IsVisible="{Binding IsDetailOpen}">
-            <ScrollViewer>
-                <StackPanel Spacing="18">
-                    <Grid ColumnDefinitions="*, Auto" ColumnSpacing="12">
-                        <StackPanel Spacing="6">
+        <!-- DETAIL VIEW: visible when an app is selected. Full page width;
+             charts and tables can finally breathe at sizes that make the data
+             readable. Back button mirrors a standard master-detail flow. -->
+        <ScrollViewer Margin="28"
+                      IsVisible="{Binding IsDetailOpen}">
+            <StackPanel Spacing="20">
+                <Button Content="← Back to apps"
+                        Classes="Ghost"
+                        Padding="0,4"
+                        HorizontalAlignment="Left"
+                        Command="{Binding CloseDetailCommand}"
+                        AutomationProperties.Name="Back to applications list" />
+
+                <!-- App identity header: icon + name + path + category badge. -->
+                <Border Classes="Card">
+                    <Grid ColumnDefinitions="Auto, *" ColumnSpacing="20">
+                        <Border Width="64" Height="64"
+                                Background="{StaticResource AccentBgTintBrush}"
+                                CornerRadius="14"
+                                ClipToBounds="True">
+                            <Grid>
+                                <TextBlock Text="📦" FontSize="32"
+                                           HorizontalAlignment="Center"
+                                           VerticalAlignment="Center"
+                                           IsVisible="{Binding !SelectedAppHasIcon}" />
+                                <Image Source="{Binding SelectedAppIconPath, Converter={x:Static converters:IconPathToBitmapConverter.Instance}}"
+                                       Width="44" Height="44"
+                                       HorizontalAlignment="Center"
+                                       VerticalAlignment="Center"
+                                       Stretch="Uniform"
+                                       IsVisible="{Binding SelectedAppHasIcon}" />
+                            </Grid>
+                        </Border>
+                        <StackPanel Grid.Column="1" Spacing="6" VerticalAlignment="Center">
                             <TextBlock Text="{Binding SelectedAppDisplayName}"
-                                       FontSize="22" FontWeight="Bold"
+                                       FontSize="26" FontWeight="Bold"
                                        TextTrimming="CharacterEllipsis" />
                             <TextBlock Text="{Binding SelectedAppExecutablePath}"
                                        Classes="Caption"
                                        TextTrimming="CharacterEllipsis"
                                        ToolTip.Tip="{Binding SelectedAppExecutablePath}" />
-                            <Border Background="{StaticResource AccentBgTintBrush}"
-                                    CornerRadius="6"
-                                    Padding="8,3"
-                                    HorizontalAlignment="Left">
-                                <TextBlock Text="{Binding SelectedAppCategoryName}"
-                                           FontSize="11" FontWeight="Bold"
-                                           Foreground="{StaticResource PrimaryBrush}" />
-                            </Border>
+                            <StackPanel Orientation="Horizontal" Spacing="10">
+                                <Border Background="{StaticResource AccentBgTintBrush}"
+                                        CornerRadius="6"
+                                        Padding="10,3">
+                                    <TextBlock Text="{Binding SelectedAppCategoryName}"
+                                               FontSize="11" FontWeight="Bold"
+                                               Foreground="{StaticResource PrimaryBrush}" />
+                                </Border>
+                                <TextBlock Text="{Binding SelectedAppProcessName}"
+                                           Classes="Caption"
+                                           VerticalAlignment="Center"
+                                           TextTrimming="CharacterEllipsis" />
+                            </StackPanel>
                         </StackPanel>
-                        <Button Grid.Column="1"
-                                Content="✕"
-                                Classes="Ghost"
-                                Command="{Binding CloseDetailCommand}"
-                                AutomationProperties.Name="Close App Details"
-                                AutomationProperties.HelpText="Close the application detail drawer" />
                     </Grid>
+                </Border>
 
-                    <Grid ColumnDefinitions="*, *, *" ColumnSpacing="10">
-                        <Border Grid.Column="0" Classes="CompactCard" Padding="12">
-                            <StackPanel Spacing="6" HorizontalAlignment="Center">
-                                <TextBlock Text="AVG CPU%" Classes="MetricLabel" />
-                                <TextBlock Text="{Binding SelectedAppAvgCpuPercent}" FontSize="20" FontWeight="Bold" />
-                            </StackPanel>
-                        </Border>
-                        <Border Grid.Column="1" Classes="CompactCard" Padding="12">
-                            <StackPanel Spacing="6" HorizontalAlignment="Center">
-                                <TextBlock Text="AVG RAM" Classes="MetricLabel" />
-                                <TextBlock Text="{Binding SelectedAppAvgRam}" FontSize="20" FontWeight="Bold" />
-                            </StackPanel>
-                        </Border>
-                        <Border Grid.Column="2" Classes="CompactCard" Padding="12">
-                            <StackPanel Spacing="6" HorizontalAlignment="Center">
-                                <TextBlock Text="TOTAL BYTES" Classes="MetricLabel" />
-                                <TextBlock Text="{Binding SelectedAppTotalBytes}" FontSize="20" FontWeight="Bold" />
-                            </StackPanel>
-                        </Border>
-                    </Grid>
-
-                    <Border Classes="Card" Padding="16">
-                        <StackPanel Spacing="10">
-                            <TextBlock Text="Network History" Classes="SectionHeader" />
-                            <lvc:CartesianChart Series="{Binding NetworkHistorySeries}"
-                                                XAxes="{Binding NetworkHistoryXAxes}"
-                                                YAxes="{Binding NetworkHistoryYAxes}"
-                                                Height="200"
-                                                LegendPosition="Top"
-                                                LegendTextPaint="#A0A8B8"
-                                                LegendTextSize="12"
-                                                Background="{StaticResource CardBrush}"
-                                                ZoomMode="None"
-                                                AutomationProperties.Name="Selected app network history chart"
-                                                AutomationProperties.HelpText="Line chart showing selected app download and upload history" />
+                <!-- Five compact stat cards side by side — the detail view has the
+                     full page width so we can afford this density. -->
+                <Grid ColumnDefinitions="*, *, *, *, *" ColumnSpacing="14">
+                    <Border Grid.Column="0" Classes="CompactCard">
+                        <StackPanel Spacing="6">
+                            <TextBlock Text="DOWNLOAD" Classes="MetricLabel" />
+                            <TextBlock Text="{Binding SelectedAppBytesReceived}"
+                                       FontSize="18" FontWeight="Bold"
+                                       Foreground="{StaticResource DownloadBrush}"
+                                       TextTrimming="CharacterEllipsis" />
                         </StackPanel>
                     </Border>
+                    <Border Grid.Column="1" Classes="CompactCard">
+                        <StackPanel Spacing="6">
+                            <TextBlock Text="UPLOAD" Classes="MetricLabel" />
+                            <TextBlock Text="{Binding SelectedAppBytesSent}"
+                                       FontSize="18" FontWeight="Bold"
+                                       Foreground="{StaticResource UploadBrush}"
+                                       TextTrimming="CharacterEllipsis" />
+                        </StackPanel>
+                    </Border>
+                    <Border Grid.Column="2" Classes="CompactCard">
+                        <StackPanel Spacing="6">
+                            <TextBlock Text="TOTAL" Classes="MetricLabel" />
+                            <TextBlock Text="{Binding SelectedAppTotalBytes}"
+                                       FontSize="18" FontWeight="Bold"
+                                       TextTrimming="CharacterEllipsis" />
+                        </StackPanel>
+                    </Border>
+                    <Border Grid.Column="3" Classes="CompactCard">
+                        <StackPanel Spacing="6">
+                            <TextBlock Text="AVG CPU%" Classes="MetricLabel" />
+                            <TextBlock Text="{Binding SelectedAppAvgCpuPercent}"
+                                       FontSize="18" FontWeight="Bold"
+                                       TextTrimming="CharacterEllipsis" />
+                        </StackPanel>
+                    </Border>
+                    <Border Grid.Column="4" Classes="CompactCard">
+                        <StackPanel Spacing="6">
+                            <TextBlock Text="AVG RAM" Classes="MetricLabel" />
+                            <TextBlock Text="{Binding SelectedAppAvgRam}"
+                                       FontSize="18" FontWeight="Bold"
+                                       TextTrimming="CharacterEllipsis" />
+                        </StackPanel>
+                    </Border>
+                </Grid>
 
-                    <Border Classes="Card" Padding="16">
-                        <StackPanel Spacing="10">
-                            <TextBlock Text="CPU History" Classes="SectionHeader" />
+                <!-- Network history — full width, taller since it's the
+                     most-information-dense chart. -->
+                <Border Classes="Card" Padding="20">
+                    <StackPanel Spacing="12">
+                        <TextBlock Text="Network history" Classes="SectionHeader" />
+                        <lvc:CartesianChart Series="{Binding NetworkHistorySeries}"
+                                            XAxes="{Binding NetworkHistoryXAxes}"
+                                            YAxes="{Binding NetworkHistoryYAxes}"
+                                            Height="260"
+                                            LegendPosition="Top"
+                                            LegendTextPaint="#A0A8B8"
+                                            LegendTextSize="12"
+                                            Background="{StaticResource CardBrush}"
+                                            ZoomMode="X"
+                                            AutomationProperties.Name="Selected app network history chart"
+                                            AutomationProperties.HelpText="Line chart showing selected app download and upload history" />
+                    </StackPanel>
+                </Border>
+
+                <!-- CPU and RAM side by side — they share a y-axis pattern
+                     (time on x) so equal widths read as a comparison. -->
+                <Grid ColumnDefinitions="*, *" ColumnSpacing="16">
+                    <Border Grid.Column="0" Classes="Card" Padding="20">
+                        <StackPanel Spacing="12">
+                            <TextBlock Text="CPU history" Classes="SectionHeader" />
                             <lvc:CartesianChart Series="{Binding CpuHistorySeries}"
                                                 XAxes="{Binding CpuHistoryXAxes}"
                                                 YAxes="{Binding CpuHistoryYAxes}"
-                                                Height="200"
+                                                Height="220"
                                                 LegendPosition="Hidden"
                                                 Background="{StaticResource CardBrush}"
-                                                ZoomMode="None"
+                                                ZoomMode="X"
                                                 AutomationProperties.Name="Selected app CPU history chart"
                                                 AutomationProperties.HelpText="Line chart showing selected app CPU history" />
                         </StackPanel>
                     </Border>
-
-                    <Border Classes="Card" Padding="16">
-                        <StackPanel Spacing="10">
-                            <TextBlock Text="RAM History" Classes="SectionHeader" />
+                    <Border Grid.Column="1" Classes="Card" Padding="20">
+                        <StackPanel Spacing="12">
+                            <TextBlock Text="Memory history" Classes="SectionHeader" />
                             <lvc:CartesianChart Series="{Binding RamHistorySeries}"
                                                 XAxes="{Binding RamHistoryXAxes}"
                                                 YAxes="{Binding RamHistoryYAxes}"
-                                                Height="200"
+                                                Height="220"
                                                 LegendPosition="Hidden"
                                                 Background="{StaticResource CardBrush}"
-                                                ZoomMode="None"
+                                                ZoomMode="X"
                                                 AutomationProperties.Name="Selected app RAM history chart"
                                                 AutomationProperties.HelpText="Line chart showing selected app RAM history" />
                         </StackPanel>
                     </Border>
+                </Grid>
 
-                    <Border Classes="Card" Padding="16">
-                        <StackPanel Spacing="12">
-                            <TextBlock Text="Top Destinations" Classes="SectionHeader" />
-                            <ItemsControl ItemsSource="{Binding TopDestinationDisplayItems}">
-                                <ItemsControl.ItemTemplate>
-                                    <DataTemplate x:DataType="vm:TopDestinationDisplayEntry">
-                                        <Border Padding="10" Margin="0,0,0,6"
-                                                CornerRadius="8"
-                                                Background="{StaticResource BorderSubtleBrush}">
-                                            <Grid ColumnDefinitions="*, Auto" ColumnSpacing="12">
-                                                <StackPanel Spacing="2">
-                                                    <TextBlock Text="{Binding Endpoint}"
-                                                               FontSize="13" FontWeight="SemiBold"
-                                                               TextTrimming="CharacterEllipsis" />
-                                                    <TextBlock Text="{Binding Details}"
-                                                               Classes="Caption"
-                                                               TextTrimming="CharacterEllipsis" />
-                                                </StackPanel>
-                                                <TextBlock Grid.Column="1"
-                                                           Text="{Binding FormattedTotalBytes}"
-                                                           FontWeight="Bold"
-                                                           VerticalAlignment="Center"
-                                                           HorizontalAlignment="Right" />
-                                            </Grid>
-                                        </Border>
-                                    </DataTemplate>
-                                </ItemsControl.ItemTemplate>
-                            </ItemsControl>
-                        </StackPanel>
-                    </Border>
-                </StackPanel>
-            </ScrollViewer>
-        </Border>
+                <Border Classes="Card" Padding="20">
+                    <StackPanel Spacing="12">
+                        <TextBlock Text="Top destinations" Classes="SectionHeader" />
+                        <TextBlock Text="Most-active remote endpoints during the selected period (not filtered by this app — destination records are global)."
+                                   Classes="Caption"
+                                   TextWrapping="Wrap" />
+                        <ItemsControl ItemsSource="{Binding TopDestinationDisplayItems}">
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate x:DataType="vm:TopDestinationDisplayEntry">
+                                    <Border Padding="12,10" Margin="0,0,0,6"
+                                            CornerRadius="8"
+                                            Background="{StaticResource BorderSubtleBrush}">
+                                        <Grid ColumnDefinitions="*, Auto" ColumnSpacing="12">
+                                            <StackPanel Spacing="2">
+                                                <TextBlock Text="{Binding Endpoint}"
+                                                           FontSize="13" FontWeight="SemiBold"
+                                                           TextTrimming="CharacterEllipsis" />
+                                                <TextBlock Text="{Binding Details}"
+                                                           Classes="Caption"
+                                                           TextTrimming="CharacterEllipsis" />
+                                            </StackPanel>
+                                            <TextBlock Grid.Column="1"
+                                                       Text="{Binding FormattedTotalBytes}"
+                                                       FontWeight="Bold"
+                                                       VerticalAlignment="Center"
+                                                       HorizontalAlignment="Right" />
+                                        </Grid>
+                                    </Border>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+                    </StackPanel>
+                </Border>
+            </StackPanel>
+        </ScrollViewer>
 
-        <Border Grid.ColumnSpan="2"
-                IsVisible="{Binding IsInitialLoading}"
+        <!-- Initial loading overlay; covers BOTH master and detail views. -->
+        <Border IsVisible="{Binding IsInitialLoading}"
                 Background="{StaticResource OverlayColor}"
                 ZIndex="100">
             <Border Background="{StaticResource CardBrush}"

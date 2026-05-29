@@ -7,6 +7,7 @@ using Microsoft.Extensions.Logging;
 using WireBound.Core.Data;
 using WireBound.Core.Models;
 using WireBound.Core.Services;
+using WireBound.Platform.Abstract.Helpers;
 using WireBound.Platform.Abstract.Services;
 
 namespace WireBound.Avalonia.Services;
@@ -398,9 +399,22 @@ public sealed class ResourceInsightsService : IResourceInsightsService
 
     private static string ComputeAppIdentifier(string exePath, string processName)
     {
-        var source = !string.IsNullOrEmpty(exePath) ? exePath : processName;
-        var hash = SHA256.HashData(Encoding.UTF8.GetBytes(source.ToLowerInvariant()));
-        return Convert.ToHexString(hash)[..16];
+        // Delegate to the shared canonical implementation so this table's
+        // identifiers join cleanly with AppUsageRecords (which uses
+        // AppIdentity.ComputeAppIdentifier directly via the network providers).
+        // Previously this returned an uppercase hex string while AppIdentity
+        // returned lowercase, so per-app overviews showed every app as two
+        // phantom rows — one network-only with the name, one resource-only
+        // with the category — because the case-sensitive AppIdentifier join
+        // never matched.
+        if (!string.IsNullOrEmpty(exePath))
+            return AppIdentity.ComputeAppIdentifier(exePath);
+
+        // No path available — fall back to the process name. AppIdentity treats
+        // null/empty as the "unknown" sentinel, but for resource attribution we
+        // prefer per-process bucketing over collapsing everything to one row.
+        var hash = SHA256.HashData(Encoding.UTF8.GetBytes(processName.ToLowerInvariant()));
+        return Convert.ToHexString(hash)[..16].ToLowerInvariant();
     }
 
     private static string GetDisplayName(string processName, string exePath)

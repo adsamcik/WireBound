@@ -60,7 +60,9 @@
                                 <TextBlock Text="📦" FontSize="16" />
                                 <TextBlock Text="APPS COUNT" Classes="MetricLabel" />
                             </StackPanel>
-                            <TextBlock Text="{Binding AppCount}" FontSize="30" FontWeight="Bold" />
+                            <TextBlock Text="{Binding AppCount}"
+                                       FontSize="26" FontWeight="Bold"
+                                       TextTrimming="CharacterEllipsis" />
                         </StackPanel>
                     </Border>
                     <Border Grid.Column="1" Classes="ElevatedCard">
@@ -70,7 +72,9 @@
                                 <TextBlock Text="TOTAL DOWNLOAD" Classes="MetricLabel" />
                             </StackPanel>
                             <TextBlock Text="{Binding TotalDownload}"
-                                       FontSize="30" FontWeight="Bold"
+                                       FontSize="22" FontWeight="Bold"
+                                       TextTrimming="CharacterEllipsis"
+                                       ToolTip.Tip="{Binding TotalDownload}"
                                        Foreground="{StaticResource DownloadBrush}" />
                         </StackPanel>
                     </Border>
@@ -81,7 +85,9 @@
                                 <TextBlock Text="TOTAL UPLOAD" Classes="MetricLabel" />
                             </StackPanel>
                             <TextBlock Text="{Binding TotalUpload}"
-                                       FontSize="30" FontWeight="Bold"
+                                       FontSize="22" FontWeight="Bold"
+                                       TextTrimming="CharacterEllipsis"
+                                       ToolTip.Tip="{Binding TotalUpload}"
                                        Foreground="{StaticResource UploadBrush}" />
                         </StackPanel>
                     </Border>

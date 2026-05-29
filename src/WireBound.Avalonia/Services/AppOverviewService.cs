@@ -74,8 +74,20 @@ public sealed class AppOverviewService : IAppOverviewService
             .ToListAsync(ct)
             .ConfigureAwait(false);
 
-        var networkByApp = networkRows.GroupBy(r => r.AppIdentifier).ToDictionary(g => g.Key, g => g.ToList());
-        var resourceByApp = resourceRows.GroupBy(r => r.AppIdentifier).ToDictionary(g => g.Key, g => g.ToList());
+        // Normalize identifiers to lowercase before the in-memory join.
+        // Legacy ResourceInsightSnapshots rows store uppercase hex (the
+        // service used to call its own ComputeAppIdentifier without the
+        // final ToLowerInvariant) while AppUsageRecords always stores
+        // lowercase. A case-sensitive join would leave every app as two
+        // phantom rows — one network-only with the AppName, one
+        // resource-only with the CategoryName. Defensive lowercasing here
+        // joins both legacy and current rows correctly.
+        var networkByApp = networkRows
+            .GroupBy(r => r.AppIdentifier.ToLowerInvariant())
+            .ToDictionary(g => g.Key, g => g.ToList(), StringComparer.Ordinal);
+        var resourceByApp = resourceRows
+            .GroupBy(r => r.AppIdentifier.ToLowerInvariant())
+            .ToDictionary(g => g.Key, g => g.ToList(), StringComparer.Ordinal);
         var appIdentifiers = networkByApp.Keys.Concat(resourceByApp.Keys).Distinct(StringComparer.Ordinal);
 
         var overview = new List<AppOverview>();
@@ -160,10 +172,16 @@ public sealed class AppOverviewService : IAppOverviewService
         using var scope = _serviceProvider.CreateScope();
         var db = scope.ServiceProvider.GetRequiredService<WireBoundDbContext>();
 
+        // Compare case-insensitively because legacy ResourceInsightSnapshots
+        // rows store the identifier in uppercase hex (see ResourceInsightsService
+        // history). EF Core translates EF.Functions.Like over a column to a
+        // SQLite COLLATE NOCASE comparison, which catches both cases without
+        // requiring a one-off data migration.
+        var loweredId = appIdentifier.ToLowerInvariant();
         return await db.ResourceInsightSnapshots
             .AsNoTracking()
             .Where(r =>
-                r.AppIdentifier == appIdentifier &&
+                r.AppIdentifier.ToLower() == loweredId &&
                 r.Granularity == UsageGranularity.Hourly &&
                 r.Timestamp >= startDate &&
                 r.Timestamp <= endDate)

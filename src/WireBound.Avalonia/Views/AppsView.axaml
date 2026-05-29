@@ -57,113 +57,196 @@
                     </Grid>
                 </Border>
 
-                <Grid ColumnDefinitions="*, *, *, *, *" ColumnSpacing="16">
-                    <Border Grid.Column="0" Classes="ElevatedCard">
-                        <StackPanel Spacing="8">
+                <!-- Summary cards: WrapPanel so they reflow on narrow widths instead
+                     of clipping their values when 5 fixed columns don't fit. -->
+                <ItemsControl>
+                    <ItemsControl.ItemsPanel>
+                        <ItemsPanelTemplate>
+                            <WrapPanel ItemWidth="240" ItemHeight="86" />
+                        </ItemsPanelTemplate>
+                    </ItemsControl.ItemsPanel>
+                    <Border Classes="ElevatedCard" Margin="0,0,12,12" Padding="16,12">
+                        <StackPanel Spacing="6">
                             <StackPanel Orientation="Horizontal" Spacing="8">
-                                <TextBlock Text="📦" FontSize="16" />
-                                <TextBlock Text="APPS COUNT" Classes="MetricLabel" />
+                                <TextBlock Text="📦" FontSize="14" />
+                                <TextBlock Text="APPS SHOWN" Classes="MetricLabel" />
                             </StackPanel>
-                            <TextBlock Text="{Binding AppCount}"
-                                       FontSize="26" FontWeight="Bold"
+                            <TextBlock Text="{Binding ShownAppCount}"
+                                       FontSize="24" FontWeight="Bold"
                                        TextTrimming="CharacterEllipsis" />
                         </StackPanel>
                     </Border>
-                    <Border Grid.Column="1" Classes="ElevatedCard">
-                        <StackPanel Spacing="8">
+                    <Border Classes="ElevatedCard" Margin="0,0,12,12" Padding="16,12">
+                        <StackPanel Spacing="6">
                             <StackPanel Orientation="Horizontal" Spacing="8">
-                                <TextBlock Text="⬇️" FontSize="16" />
+                                <TextBlock Text="⬇️" FontSize="14" />
                                 <TextBlock Text="TOTAL DOWNLOAD" Classes="MetricLabel" />
                             </StackPanel>
                             <TextBlock Text="{Binding TotalDownload}"
-                                       FontSize="22" FontWeight="Bold"
+                                       FontSize="20" FontWeight="Bold"
                                        TextTrimming="CharacterEllipsis"
                                        ToolTip.Tip="{Binding TotalDownload}"
                                        Foreground="{StaticResource DownloadBrush}" />
                         </StackPanel>
                     </Border>
-                    <Border Grid.Column="2" Classes="ElevatedCard">
-                        <StackPanel Spacing="8">
+                    <Border Classes="ElevatedCard" Margin="0,0,12,12" Padding="16,12">
+                        <StackPanel Spacing="6">
                             <StackPanel Orientation="Horizontal" Spacing="8">
-                                <TextBlock Text="⬆️" FontSize="16" />
+                                <TextBlock Text="⬆️" FontSize="14" />
                                 <TextBlock Text="TOTAL UPLOAD" Classes="MetricLabel" />
                             </StackPanel>
                             <TextBlock Text="{Binding TotalUpload}"
-                                       FontSize="22" FontWeight="Bold"
+                                       FontSize="20" FontWeight="Bold"
                                        TextTrimming="CharacterEllipsis"
                                        ToolTip.Tip="{Binding TotalUpload}"
                                        Foreground="{StaticResource UploadBrush}" />
                         </StackPanel>
                     </Border>
-                    <Border Grid.Column="3" Classes="ElevatedCard">
-                        <StackPanel Spacing="8">
+                    <Border Classes="ElevatedCard" Margin="0,0,12,12" Padding="16,12">
+                        <StackPanel Spacing="6">
                             <StackPanel Orientation="Horizontal" Spacing="8">
-                                <TextBlock Text="🔥" FontSize="16" />
+                                <TextBlock Text="🔥" FontSize="14" />
                                 <TextBlock Text="TOP CPU APP" Classes="MetricLabel" />
                             </StackPanel>
                             <TextBlock Text="{Binding TopCpuApp}"
-                                       FontSize="18" FontWeight="Bold"
+                                       FontSize="16" FontWeight="Bold"
                                        TextTrimming="CharacterEllipsis"
                                        ToolTip.Tip="{Binding TopCpuApp}" />
                         </StackPanel>
                     </Border>
-                    <Border Grid.Column="4" Classes="ElevatedCard">
-                        <StackPanel Spacing="8">
+                    <Border Classes="ElevatedCard" Margin="0,0,12,12" Padding="16,12">
+                        <StackPanel Spacing="6">
                             <StackPanel Orientation="Horizontal" Spacing="8">
-                                <TextBlock Text="🧠" FontSize="16" />
+                                <TextBlock Text="🧠" FontSize="14" />
                                 <TextBlock Text="TOP RAM APP" Classes="MetricLabel" />
                             </StackPanel>
                             <TextBlock Text="{Binding TopMemoryApp}"
-                                       FontSize="18" FontWeight="Bold"
+                                       FontSize="16" FontWeight="Bold"
                                        TextTrimming="CharacterEllipsis"
                                        ToolTip.Tip="{Binding TopMemoryApp}" />
                         </StackPanel>
                     </Border>
-                </Grid>
+                </ItemsControl>
 
-                <Border Classes="Card" Padding="20">
-                    <Grid ColumnDefinitions="*, Auto, Auto, Auto, Auto, Auto" ColumnSpacing="16">
-                        <Border Grid.Column="0"
-                                Background="{StaticResource SurfaceBrush}"
-                                CornerRadius="10"
-                                BorderBrush="{StaticResource GlassBorderBrush}"
-                                BorderThickness="1"
-                                Padding="12,0">
-                            <TextBox Watermark="Search apps…"
-                                     Text="{Binding SearchText}"
-                                     Background="Transparent"
-                                     BorderThickness="0"
-                                     MinWidth="220"
-                                     AutomationProperties.Name="Search Apps"
-                                     AutomationProperties.HelpText="Filter applications by name, process, path, or category"
-                                     AutomationProperties.IsRequiredForForm="False" />
-                        </Border>
-                        <ComboBox Grid.Column="1"
-                                  ItemsSource="{Binding AvailableCategories}"
-                                  SelectedItem="{Binding SelectedCategory}"
-                                  MinWidth="150"
-                                  AutomationProperties.Name="App Category Filter"
-                                  AutomationProperties.HelpText="Filter applications by category"
-                                  AutomationProperties.IsRequiredForForm="False" />
-                        <CalendarDatePicker Grid.Column="2"
-                                            SelectedDate="{Binding StartDate}"
-                                            AutomationProperties.Name="Apps Start Date"
-                                            AutomationProperties.HelpText="Select the start date for application data"
-                                            AutomationProperties.IsRequiredForForm="False" />
-                        <TextBlock Grid.Column="3" Text="→" VerticalAlignment="Center" Foreground="{StaticResource MutedTextBrush}" />
-                        <CalendarDatePicker Grid.Column="4"
-                                            SelectedDate="{Binding EndDate}"
-                                            AutomationProperties.Name="Apps End Date"
-                                            AutomationProperties.HelpText="Select the end date for application data"
-                                            AutomationProperties.IsRequiredForForm="False" />
-                        <Button Grid.Column="5"
-                                Content="🔄 Refresh"
-                                Classes="Primary"
-                                Command="{Binding RefreshCommand}"
-                                IsEnabled="{Binding !IsLoading}"
-                                AutomationProperties.Name="Refresh Apps Data"
-                                AutomationProperties.HelpText="Reload application data for the selected date range" />
-                    </Grid>
+                <!-- Toolbar row 1: search + date scoping + Refresh.
+                     Row 2 (chips) lives in its own card below. -->
+                <Border Classes="Card" Padding="20,16">
+                    <StackPanel Spacing="14">
+                        <Grid ColumnDefinitions="*, Auto, Auto, Auto, Auto, Auto" ColumnSpacing="14">
+                            <Border Grid.Column="0"
+                                    Background="{StaticResource SurfaceBrush}"
+                                    CornerRadius="10"
+                                    BorderBrush="{StaticResource GlassBorderBrush}"
+                                    BorderThickness="1"
+                                    Padding="12,0">
+                                <TextBox Watermark="Search apps…"
+                                         Text="{Binding SearchText}"
+                                         Background="Transparent"
+                                         BorderThickness="0"
+                                         MinWidth="220"
+                                         AutomationProperties.Name="Search Apps"
+                                         AutomationProperties.HelpText="Filter applications by name, process, path, or category"
+                                         AutomationProperties.IsRequiredForForm="False" />
+                            </Border>
+                            <ComboBox Grid.Column="1"
+                                      ItemsSource="{Binding AvailableCategories}"
+                                      SelectedItem="{Binding SelectedCategory}"
+                                      MinWidth="150"
+                                      AutomationProperties.Name="App Category Filter"
+                                      AutomationProperties.HelpText="Filter applications by category" />
+                            <CalendarDatePicker Grid.Column="2"
+                                                SelectedDate="{Binding StartDate}"
+                                                AutomationProperties.Name="Apps Start Date" />
+                            <TextBlock Grid.Column="3" Text="→" VerticalAlignment="Center" Foreground="{StaticResource MutedTextBrush}" />
+                            <CalendarDatePicker Grid.Column="4"
+                                                SelectedDate="{Binding EndDate}"
+                                                AutomationProperties.Name="Apps End Date" />
+                            <Button Grid.Column="5"
+                                    Content="🔄 Refresh"
+                                    Classes="Primary"
+                                    Command="{Binding RefreshCommand}"
+                                    IsEnabled="{Binding !IsLoading}"
+                                    AutomationProperties.Name="Refresh Apps Data" />
+                        </Grid>
+
+                        <!-- Date presets: shortcut for the common scoping decisions. -->
+                        <StackPanel Orientation="Horizontal" Spacing="8">
+                            <TextBlock Text="QUICK RANGE" Classes="MetricLabel" VerticalAlignment="Center" />
+                            <Button Content="Today" Classes="Ghost"
+                                    Command="{Binding ApplyDatePresetCommand}" CommandParameter="today" />
+                            <Button Content="24h" Classes="Ghost"
+                                    Command="{Binding ApplyDatePresetCommand}" CommandParameter="24h" />
+                            <Button Content="7d" Classes="Ghost"
+                                    Command="{Binding ApplyDatePresetCommand}" CommandParameter="7d" />
+                            <Button Content="30d" Classes="Ghost"
+                                    Command="{Binding ApplyDatePresetCommand}" CommandParameter="30d" />
+                        </StackPanel>
+                    </StackPanel>
+                </Border>
+
+                <!-- Toolbar row 2: filter dimensions + sort presets + Clear All.
+                     Separate card so the dense filter strip doesn't crowd the
+                     primary search/date toolbar above. -->
+                <Border Classes="Card" Padding="20,14">
+                    <StackPanel Spacing="14">
+                        <Grid ColumnDefinitions="Auto, Auto, Auto, Auto, *, Auto" ColumnSpacing="14" RowDefinitions="Auto">
+                            <StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Center" Grid.Column="0">
+                                <TextBlock Text="MIN TRAFFIC" Classes="MetricLabel" VerticalAlignment="Center" />
+                                <ComboBox SelectedIndex="0"
+                                          SelectionChanged="OnMinTrafficSelectionChanged"
+                                          MinWidth="110"
+                                          AutomationProperties.Name="Minimum traffic filter">
+                                    <ComboBoxItem Content="Any" Tag="0" />
+                                    <ComboBoxItem Content="≥ 100 KB" Tag="102400" />
+                                    <ComboBoxItem Content="≥ 1 MB" Tag="1048576" />
+                                    <ComboBoxItem Content="≥ 10 MB" Tag="10485760" />
+                                    <ComboBoxItem Content="≥ 100 MB" Tag="104857600" />
+                                </ComboBox>
+                            </StackPanel>
+                            <StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Center" Grid.Column="1">
+                                <TextBlock Text="ACTIVE" Classes="MetricLabel" VerticalAlignment="Center" />
+                                <ComboBox SelectedItem="{Binding ActivityWindow}"
+                                          MinWidth="120"
+                                          AutomationProperties.Name="Recent activity filter">
+                                    <vm:AppsActivityWindow>Any</vm:AppsActivityWindow>
+                                    <vm:AppsActivityWindow>LastHour</vm:AppsActivityWindow>
+                                    <vm:AppsActivityWindow>Last24Hours</vm:AppsActivityWindow>
+                                    <vm:AppsActivityWindow>Last7Days</vm:AppsActivityWindow>
+                                </ComboBox>
+                            </StackPanel>
+                            <StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Center" Grid.Column="2">
+                                <TextBlock Text="MODE" Classes="MetricLabel" VerticalAlignment="Center" />
+                                <ComboBox SelectedItem="{Binding ActivityMode}"
+                                          MinWidth="160"
+                                          AutomationProperties.Name="Activity mode filter">
+                                    <vm:AppsActivityMode>All</vm:AppsActivityMode>
+                                    <vm:AppsActivityMode>HasNetworkActivity</vm:AppsActivityMode>
+                                    <vm:AppsActivityMode>ResourceOnly</vm:AppsActivityMode>
+                                </ComboBox>
+                            </StackPanel>
+                            <Button Grid.Column="3" Content="Clear filters" Classes="Ghost"
+                                    Command="{Binding ClearFiltersCommand}"
+                                    IsVisible="{Binding HasActiveFilters}"
+                                    AutomationProperties.Name="Clear all filters" />
+                        </Grid>
+                        <StackPanel Orientation="Horizontal" Spacing="8">
+                            <TextBlock Text="QUICK SORT" Classes="MetricLabel" VerticalAlignment="Center" />
+                            <Button Content="Most traffic" Classes="Ghost"
+                                    Command="{Binding ApplySortPresetCommand}" CommandParameter="traffic" />
+                            <Button Content="Download" Classes="Ghost"
+                                    Command="{Binding ApplySortPresetCommand}" CommandParameter="download" />
+                            <Button Content="Upload" Classes="Ghost"
+                                    Command="{Binding ApplySortPresetCommand}" CommandParameter="upload" />
+                            <Button Content="CPU" Classes="Ghost"
+                                    Command="{Binding ApplySortPresetCommand}" CommandParameter="cpu" />
+                            <Button Content="RAM" Classes="Ghost"
+                                    Command="{Binding ApplySortPresetCommand}" CommandParameter="ram" />
+                            <Button Content="Recent" Classes="Ghost"
+                                    Command="{Binding ApplySortPresetCommand}" CommandParameter="recent" />
+                            <Button Content="Name" Classes="Ghost"
+                                    Command="{Binding ApplySortPresetCommand}" CommandParameter="name" />
+                        </StackPanel>
+                    </StackPanel>
                 </Border>
 
                 <Grid RowDefinitions="Auto, *" RowSpacing="16">
@@ -567,8 +650,8 @@
 
                 <Border Classes="Card" Padding="20">
                     <StackPanel Spacing="12">
-                        <TextBlock Text="Top destinations" Classes="SectionHeader" />
-                        <TextBlock Text="Most-active remote endpoints during the selected period (not filtered by this app — destination records are global)."
+                        <TextBlock Text="Top destinations across all apps" Classes="SectionHeader" />
+                        <TextBlock Text="The helper records remote-endpoint stats globally rather than per app, so this list is the busiest destinations across every process during the selected period — not just this one."
                                    Classes="Caption"
                                    TextWrapping="Wrap" />
                         <ItemsControl ItemsSource="{Binding TopDestinationDisplayItems}">

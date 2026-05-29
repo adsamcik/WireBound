@@ -573,6 +573,11 @@
           "Microsoft.Testing.Platform": "2.0.2"
         }
       },
+      "Microsoft.Win32.SystemEvents": {
+        "type": "Transitive",
+        "resolved": "10.0.2",
+        "contentHash": "1G4BdeFwc8E95MpwtR7pO4rEh2YCG/o5gqcOszdQRGrWX1ayHTZtho3xPuYZTbBxKb/3kQHjL3b4nQeNGvbM9g=="
+      },
       "NuGet.Versioning": {
         "type": "Transitive",
         "resolved": "6.14.0",
@@ -715,7 +720,6 @@
           "Avalonia.Themes.Fluent": "[11.3.11, )",
           "CommunityToolkit.Mvvm": "[8.4.0, )",
           "LiveChartsCore.SkiaSharpView.Avalonia": "[2.0.0-rc6.1, )",
-          "ManagedNativeWifi": "[3.0.2, )",
           "Microsoft.EntityFrameworkCore.Sqlite": "[10.0.2, )",
           "Microsoft.Extensions.Hosting": "[10.0.2, )",
           "Microsoft.Extensions.Logging.Debug": "[10.0.2, )",
@@ -790,6 +794,7 @@
           "Microsoft.Extensions.Logging.Abstractions": "[10.0.2, )",
           "Serilog": "[4.3.0, )",
           "System.Diagnostics.PerformanceCounter": "[10.0.2, )",
+          "System.Drawing.Common": "[10.0.2, )",
           "WireBound.IPC": "[1.0.0, )",
           "WireBound.Platform.Abstract": "[1.0.0, )"
         }
@@ -991,6 +996,15 @@
         "contentHash": "aUW7WlSpuagd0rea9LSgMJ9c73aZ2FlzS3Mk4Aqfjz43sWBu0xcVfaBNoV0KOEWhrpk6tv1PV3xqSq82vsDfRA==",
         "dependencies": {
           "System.Configuration.ConfigurationManager": "10.0.2"
+        }
+      },
+      "System.Drawing.Common": {
+        "type": "CentralTransitive",
+        "requested": "[10.0.2, )",
+        "resolved": "10.0.2",
+        "contentHash": "nCq8jeGD4vWaUjX3nGaDMKYqfFPposw2f4KCFnuY5Rt3NhK6zMZ/c0a52a3TZK/nnkCJfyQMwb+POKwAnZexZw==",
+        "dependencies": {
+          "Microsoft.Win32.SystemEvents": "10.0.2"
         }
       },
       "Velopack": {

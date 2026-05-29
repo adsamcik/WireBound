@@ -123,4 +123,80 @@ public static class ByteFormatter
             _ => $"{bytes} B"
         };
     }
+
+    /// <summary>
+    /// Formats bytes into a compact human-readable string, stripping unnecessary trailing zeros.
+    /// Ideal for chart axis labels where "2 GB" is preferred over "2.00 GB".
+    /// </summary>
+    /// <param name="bytes">Size in bytes</param>
+    /// <returns>Formatted string like "2 GB", "1.5 GB", or "14.85 GB"</returns>
+    public static string FormatBytesCompact(long bytes)
+    {
+        var (value, unit) = bytes switch
+        {
+            >= 1_099_511_627_776 => (bytes / 1_099_511_627_776.0, "TB"),
+            >= 1_073_741_824 => (bytes / 1_073_741_824.0, "GB"),
+            >= 1_048_576 => (bytes / 1_048_576.0, "MB"),
+            >= 1024 => (bytes / 1024.0, "KB"),
+            _ => ((double)bytes, "B")
+        };
+
+        if (unit == "B")
+        {
+            return $"{bytes} B";
+        }
+
+        var formatted = value.ToString("F2").TrimEnd('0').TrimEnd('.');
+        return $"{formatted} {unit}";
+    }
+
+    /// <summary>
+    /// Calculates a step value for chart axes that produces round byte labels
+    /// (e.g., 2 GB, 500 MB) instead of arbitrary values like 1.86 GB.
+    /// </summary>
+    /// <param name="maxValue">The maximum value on the axis, in bytes</param>
+    /// <param name="targetLabels">Desired number of axis labels (default 8)</param>
+    /// <returns>A step value in bytes that produces round, human-readable labels</returns>
+    public static double CalculateNiceByteStep(double maxValue, int targetLabels = 8)
+    {
+        if (maxValue <= 0)
+        {
+            return 1024;
+        }
+
+        var rawStep = maxValue / targetLabels;
+
+        ReadOnlySpan<double> magnitudes =
+        [
+            1_099_511_627_776, // 1 TB
+            1_073_741_824,     // 1 GB
+            1_048_576,         // 1 MB
+            1024,              // 1 KB
+            1                  // 1 B
+        ];
+
+        var magnitude = 1.0;
+        foreach (var mag in magnitudes)
+        {
+            if (rawStep >= mag)
+            {
+                magnitude = mag;
+                break;
+            }
+        }
+
+        var normalized = rawStep / magnitude;
+
+        ReadOnlySpan<double> niceMultipliers = [1, 2, 5, 10, 20, 50, 100, 200, 500];
+
+        foreach (var multiplier in niceMultipliers)
+        {
+            if (multiplier >= normalized)
+            {
+                return multiplier * magnitude;
+            }
+        }
+
+        return Math.Ceiling(normalized) * magnitude;
+    }
 }

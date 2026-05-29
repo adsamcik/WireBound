@@ -52,4 +52,20 @@ public partial class AppsView : UserControl
             }
         }, DispatcherPriority.Background);
     }
+
+    /// <summary>
+    /// Translates the min-traffic ComboBox selection (whose items carry a
+    /// numeric byte threshold in their <c>Tag</c>) into the VM property
+    /// without a value converter. The VM exposes MinTotalBytes as a long and
+    /// reacts via a partial OnChanged hook.
+    /// </summary>
+    private void OnMinTrafficSelectionChanged(object? sender, SelectionChangedEventArgs e)
+    {
+        if (DataContext is not AppsViewModel vm) return;
+        if (sender is not ComboBox combo) return;
+        if (combo.SelectedItem is ComboBoxItem item && item.Tag is string tag && long.TryParse(tag, out var bytes))
+        {
+            vm.MinTotalBytes = bytes;
+        }
+    }
 }

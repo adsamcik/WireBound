@@ -80,6 +80,40 @@ public sealed partial class AppsViewModel : ObservableObject, IDisposable
     [ObservableProperty]
     private string _topMemoryApp = "—";
 
+    /// <summary>
+    /// Count of apps in the filtered + sorted view (drives the APPS COUNT card).
+    /// Distinct from the total returned by the data layer — set by RecomputeView,
+    /// not LoadOverviewAsync.
+    /// </summary>
+    [ObservableProperty]
+    private int _shownAppCount;
+
+    /// <summary>True when at least one active filter is narrowing the visible set.</summary>
+    [ObservableProperty]
+    private bool _hasActiveFilters;
+
+    /// <summary>
+    /// Minimum total bytes (down + up) an app must exceed to appear in the list.
+    /// 0 disables the filter. Bound to a ComboBox of bucketed values.
+    /// </summary>
+    [ObservableProperty]
+    private long _minTotalBytes;
+
+    /// <summary>
+    /// Time window an app's <see cref="AppOverview.LastSeen"/> must fall into
+    /// for it to appear. <see cref="AppsActivityWindow.Any"/> disables the filter.
+    /// </summary>
+    [ObservableProperty]
+    private AppsActivityWindow _activityWindow = AppsActivityWindow.Any;
+
+    /// <summary>
+    /// Coarse activity mode filter. All / HasNetworkActivity / ResourceOnly.
+    /// Lets users isolate apps that actually moved bytes vs background services
+    /// only showing up in resource snapshots.
+    /// </summary>
+    [ObservableProperty]
+    private AppsActivityMode _activityMode = AppsActivityMode.All;
+
     [ObservableProperty]
     private bool _isLoading;
 
@@ -246,6 +280,96 @@ public sealed partial class AppsViewModel : ObservableObject, IDisposable
         }
 
         NotifySortGlyphsChanged();
+        RecomputeView();
+        ResetListScrollRequested?.Invoke();
+    }
+
+    /// <summary>
+    /// One-click sort preset for the chip strip above the master list. Each
+    /// preset sets both the sort column and direction in one batched update
+    /// so observers (UI, ResetListScrollRequested) fire exactly once.
+    /// </summary>
+    [RelayCommand]
+    private void ApplySortPreset(string preset)
+    {
+        var (column, descending) = preset switch
+        {
+            "traffic" => (AppsSortColumn.TotalBytes, true),
+            "download" => (AppsSortColumn.BytesReceived, true),
+            "upload" => (AppsSortColumn.BytesSent, true),
+            "cpu" => (AppsSortColumn.AvgCpuPercent, true),
+            "ram" => (AppsSortColumn.AvgPrivateBytes, true),
+            "recent" => (AppsSortColumn.LastSeen, true),
+            "name" => (AppsSortColumn.Name, false),
+            _ => (SortColumn, SortDescending)
+        };
+
+        _suppressRecompute = true;
+        try
+        {
+            SortColumn = column;
+            SortDescending = descending;
+        }
+        finally
+        {
+            _suppressRecompute = false;
+        }
+
+        NotifySortGlyphsChanged();
+        RecomputeView();
+        ResetListScrollRequested?.Invoke();
+    }
+
+    /// <summary>
+    /// Snaps the date range to a common preset (today / 24h / 7d / 30d) and
+    /// reloads. Saves users from clicking through two date pickers for the
+    /// vast majority of scoping decisions.
+    /// </summary>
+    [RelayCommand]
+    private async Task ApplyDatePresetAsync(string preset)
+    {
+        var now = DateTime.Now;
+        (DateTime start, DateTime end) = preset switch
+        {
+            "today" => (now.Date, now),
+            "24h" => (now.AddHours(-24), now),
+            "7d" => (now.AddDays(-7), now),
+            "30d" => (now.AddDays(-30), now),
+            _ => (StartDate ?? now.Date, EndDate ?? now)
+        };
+
+        _suppressRecompute = true;
+        try
+        {
+            StartDate = start;
+            EndDate = end;
+        }
+        finally
+        {
+            _suppressRecompute = false;
+        }
+
+        await LoadOverviewAsync();
+    }
+
+    /// <summary>Resets every filter (but not sort / date range) back to its default.</summary>
+    [RelayCommand]
+    private void ClearFilters()
+    {
+        _suppressRecompute = true;
+        try
+        {
+            SearchText = string.Empty;
+            SelectedCategory = AllCategories;
+            MinTotalBytes = 0;
+            ActivityWindow = AppsActivityWindow.Any;
+            ActivityMode = AppsActivityMode.All;
+        }
+        finally
+        {
+            _suppressRecompute = false;
+        }
+
         RecomputeView();
     }
 
@@ -416,6 +540,30 @@ public sealed partial class AppsViewModel : ObservableObject, IDisposable
         }
     }
 
+    partial void OnMinTotalBytesChanged(long value)
+    {
+        if (!_suppressRecompute)
+        {
+            RecomputeView();
+        }
+    }
+
+    partial void OnActivityWindowChanged(AppsActivityWindow value)
+    {
+        if (!_suppressRecompute)
+        {
+            RecomputeView();
+        }
+    }
+
+    partial void OnActivityModeChanged(AppsActivityMode value)
+    {
+        if (!_suppressRecompute)
+        {
+            RecomputeView();
+        }
+    }
+
     partial void OnSortColumnChanged(AppsSortColumn value)
     {
         NotifySortGlyphsChanged();
@@ -475,7 +623,9 @@ public sealed partial class AppsViewModel : ObservableObject, IDisposable
             {
                 _loadedApps = apps;
                 UpdateAvailableCategories(apps);
-                UpdateSummary(apps);
+                // Don't UpdateSummary(apps) directly — RecomputeView reapplies
+                // filters and calls UpdateSummary with the filtered result, so
+                // the cards stay in sync with the visible list.
                 RecomputeView();
 
                 if (SelectedApp is not null && apps.All(a => a.AppIdentifier != SelectedApp.AppIdentifier))
@@ -516,29 +666,28 @@ public sealed partial class AppsViewModel : ObservableObject, IDisposable
     {
         if (_disposed) return;
 
-        IEnumerable<AppOverview> query = _loadedApps;
+        // Materialize the filtered + sorted result FIRST so the summary cards
+        // can reflect the visible subset, not the whole dataset. This way the
+        // user's TOTAL DOWNLOAD / UPLOAD cards stay honest under any filter
+        // combination.
+        var filtered = _loadedApps.Where(MatchesActiveFilters).ToList();
 
-        if (!string.IsNullOrWhiteSpace(SearchText))
-        {
-            var search = SearchText.Trim();
-            query = query.Where(app =>
-                Contains(app.AppName, search) ||
-                Contains(app.ProcessName, search) ||
-                Contains(app.ExecutablePath, search) ||
-                Contains(app.CategoryName, search));
-        }
+        IEnumerable<AppOverview> ordered = SortDescending
+            ? filtered.OrderByDescending(GetSortKey).ThenBy(app => GetDisplayName(app), StringComparer.OrdinalIgnoreCase)
+            : filtered.OrderBy(GetSortKey).ThenBy(app => GetDisplayName(app), StringComparer.OrdinalIgnoreCase);
 
-        if (!string.Equals(SelectedCategory, AllCategories, StringComparison.OrdinalIgnoreCase))
-        {
-            query = query.Where(app => string.Equals(app.CategoryName, SelectedCategory, StringComparison.OrdinalIgnoreCase));
-        }
-
-        query = SortDescending
-            ? query.OrderByDescending(GetSortKey).ThenBy(app => GetDisplayName(app), StringComparer.OrdinalIgnoreCase)
-            : query.OrderBy(GetSortKey).ThenBy(app => GetDisplayName(app), StringComparer.OrdinalIgnoreCase);
-
-        Apps.ReplaceAll(query);
+        var materialized = ordered.ToList();
+        Apps.ReplaceAll(materialized);
+        UpdateSummary(materialized);
+        HasActiveFilters = ComputeHasActiveFilters();
     }
+
+    private bool ComputeHasActiveFilters()
+        => !string.IsNullOrWhiteSpace(SearchText)
+           || !string.Equals(SelectedCategory, AllCategories, StringComparison.OrdinalIgnoreCase)
+           || MinTotalBytes > 0
+           || ActivityWindow != AppsActivityWindow.Any
+           || ActivityMode != AppsActivityMode.All;
 
     private object GetSortKey(AppOverview app)
     {
@@ -552,8 +701,66 @@ public sealed partial class AppsViewModel : ObservableObject, IDisposable
             AppsSortColumn.AvgCpuPercent => app.AvgCpuPercent,
             AppsSortColumn.AvgPrivateBytes => app.AvgPrivateBytes,
             AppsSortColumn.HoursActive => app.HoursActive,
+            AppsSortColumn.LastSeen => app.LastSeen.Ticks,
             _ => app.TotalBytes
         };
+    }
+
+    /// <summary>
+    /// Returns true when the given app passes the currently-active filter
+    /// constraints (search, category, min bytes, activity window, activity
+    /// mode). Centralized so RecomputeView and HasActiveFilters stay in sync.
+    /// </summary>
+    private bool MatchesActiveFilters(AppOverview app)
+    {
+        if (!string.IsNullOrWhiteSpace(SearchText))
+        {
+            var search = SearchText.Trim();
+            if (!Contains(app.AppName, search) &&
+                !Contains(app.ProcessName, search) &&
+                !Contains(app.ExecutablePath, search) &&
+                !Contains(app.CategoryName, search))
+            {
+                return false;
+            }
+        }
+
+        if (!string.Equals(SelectedCategory, AllCategories, StringComparison.OrdinalIgnoreCase) &&
+            !string.Equals(app.CategoryName, SelectedCategory, StringComparison.OrdinalIgnoreCase))
+        {
+            return false;
+        }
+
+        if (MinTotalBytes > 0 && app.TotalBytes < MinTotalBytes)
+        {
+            return false;
+        }
+
+        if (ActivityWindow != AppsActivityWindow.Any)
+        {
+            var cutoff = DateTime.Now - ActivityWindow switch
+            {
+                AppsActivityWindow.LastHour => TimeSpan.FromHours(1),
+                AppsActivityWindow.Last24Hours => TimeSpan.FromHours(24),
+                AppsActivityWindow.Last7Days => TimeSpan.FromDays(7),
+                _ => TimeSpan.Zero
+            };
+            if (app.LastSeen < cutoff)
+            {
+                return false;
+            }
+        }
+
+        if (ActivityMode == AppsActivityMode.HasNetworkActivity && app.TotalBytes <= 0)
+        {
+            return false;
+        }
+        if (ActivityMode == AppsActivityMode.ResourceOnly && app.TotalBytes > 0)
+        {
+            return false;
+        }
+
+        return true;
     }
 
     private void UpdateAvailableCategories(IReadOnlyList<AppOverview> apps)
@@ -577,6 +784,7 @@ public sealed partial class AppsViewModel : ObservableObject, IDisposable
     private void UpdateSummary(IReadOnlyList<AppOverview> apps)
     {
         AppCount = apps.Count;
+        ShownAppCount = apps.Count;
         TotalDownload = ByteFormatter.FormatBytes(apps.Sum(a => a.BytesReceived));
         TotalUpload = ByteFormatter.FormatBytes(apps.Sum(a => a.BytesSent));
         TopCpuApp = apps.Count == 0 ? "—" : GetDisplayName(apps.MaxBy(a => a.AvgCpuPercent)!);
@@ -804,7 +1012,33 @@ public enum AppsSortColumn
     TotalBytes,
     AvgCpuPercent,
     AvgPrivateBytes,
-    HoursActive
+    HoursActive,
+    LastSeen
+}
+
+/// <summary>
+/// Recent-activity buckets for the Apps tab's filter strip. Maps to a TimeSpan
+/// used against <see cref="AppOverview.LastSeen"/>; <c>Any</c> disables the
+/// filter so apps active anywhere in the selected date range pass through.
+/// </summary>
+public enum AppsActivityWindow
+{
+    Any,
+    LastHour,
+    Last24Hours,
+    Last7Days
+}
+
+/// <summary>
+/// Coarse split between apps that produced network traffic and apps that only
+/// appear in resource snapshots. <c>HasNetworkActivity</c> hides background
+/// services that never moved bytes; <c>ResourceOnly</c> isolates the opposite.
+/// </summary>
+public enum AppsActivityMode
+{
+    All,
+    HasNetworkActivity,
+    ResourceOnly
 }
 
 public sealed record TopDestinationDisplayEntry(string Endpoint, string Details, string FormattedTotalBytes);

@@ -5,11 +5,13 @@ using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Diagnostics;
 using Microsoft.Extensions.DependencyInjection;
+using NSubstitute;
 using WireBound.Avalonia.Services;
 using WireBound.Core.Data;
 using WireBound.Core.Models;
 using WireBound.Core.Services;
 using WireBound.Platform.Abstract.Helpers;
+using WireBound.Platform.Abstract.Services;
 using WireBound.Tests.Fixtures;
 
 namespace WireBound.Tests.Services;
@@ -17,10 +19,17 @@ namespace WireBound.Tests.Services;
 public class AppOverviewServiceTests : DatabaseTestBase
 {
     private readonly AppOverviewService _service;
+    private readonly IAppIconService _iconService;
 
     public AppOverviewServiceTests()
     {
-        _service = new AppOverviewService(ServiceProvider);
+        // IAppIconService is a best-effort UI-polish dependency; tests focus
+        // on the data-join semantics so a null-returning stub is the right
+        // default and verifies the service tolerates the no-icon path.
+        _iconService = Substitute.For<IAppIconService>();
+        _iconService.GetIconPathAsync(Arg.Any<string>(), Arg.Any<string>(), Arg.Any<CancellationToken>())
+            .Returns(Task.FromResult<string?>(null));
+        _service = new AppOverviewService(ServiceProvider, _iconService);
     }
 
     [Test, Timeout(30000)]
@@ -309,7 +318,10 @@ public class AppOverviewServiceTests : DatabaseTestBase
             await db.SaveChangesAsync(cancellationToken);
         }
 
-        var service = new AppOverviewService(serviceProvider);
+        var iconService = Substitute.For<IAppIconService>();
+        iconService.GetIconPathAsync(Arg.Any<string>(), Arg.Any<string>(), Arg.Any<CancellationToken>())
+            .Returns(Task.FromResult<string?>(null));
+        var service = new AppOverviewService(serviceProvider, iconService);
         interceptor.Reset();
         var start = Stopwatch.GetTimestamp();
         var range = DateOnly.FromDateTime(DateTime.Now);

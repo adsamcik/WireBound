@@ -3,6 +3,7 @@
              xmlns:lvc="using:LiveChartsCore.SkiaSharpView.Avalonia"
              xmlns:vm="using:WireBound.Avalonia.ViewModels"
              xmlns:services="using:WireBound.Core.Services"
+             xmlns:converters="using:WireBound.Avalonia.Converters"
              x:Class="WireBound.Avalonia.Views.AppsView"
              x:DataType="vm:AppsViewModel"
              Background="{StaticResource BackgroundBrush}"
@@ -308,10 +309,26 @@
                                                     CornerRadius="12"
                                                     ToolTip.Tip="{Binding ExecutablePath}">
                                                 <Grid ColumnDefinitions="Auto, *, 130, 130, 130, 130, 130, 130, 130" ColumnSpacing="20">
+                                                    <!-- Icon: real PNG when extracted, generic placeholder otherwise. Both
+                                                         occupy the same 44×44 slot inside a tinted rounded square so the
+                                                         visual alignment is identical whether or not the helper resolved
+                                                         the executable's icon. -->
                                                     <Border Width="44" Height="44"
                                                             Background="{StaticResource AccentBgTintBrush}"
-                                                            CornerRadius="10">
-                                                        <TextBlock Text="📦" FontSize="20" HorizontalAlignment="Center" VerticalAlignment="Center" />
+                                                            CornerRadius="10"
+                                                            ClipToBounds="True">
+                                                        <Grid>
+                                                            <TextBlock Text="📦" FontSize="20"
+                                                                       HorizontalAlignment="Center"
+                                                                       VerticalAlignment="Center"
+                                                                       IsVisible="{Binding !HasIcon}" />
+                                                            <Image Source="{Binding IconPath, Converter={x:Static converters:IconPathToBitmapConverter.Instance}}"
+                                                                   Width="28" Height="28"
+                                                                   HorizontalAlignment="Center"
+                                                                   VerticalAlignment="Center"
+                                                                   Stretch="Uniform"
+                                                                   IsVisible="{Binding HasIcon}" />
+                                                        </Grid>
                                                     </Border>
 
                                                     <StackPanel Grid.Column="1" VerticalAlignment="Center" Spacing="3">

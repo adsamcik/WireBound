@@ -4,6 +4,7 @@ using WireBound.Core.Data;
 using WireBound.Core.Models;
 using WireBound.Core.Services;
 using WireBound.Platform.Abstract.Helpers;
+using WireBound.Platform.Abstract.Services;
 
 namespace WireBound.Avalonia.Services;
 
@@ -14,10 +15,12 @@ namespace WireBound.Avalonia.Services;
 public sealed class AppOverviewService : IAppOverviewService
 {
     private readonly IServiceProvider _serviceProvider;
+    private readonly IAppIconService _iconService;
 
-    public AppOverviewService(IServiceProvider serviceProvider)
+    public AppOverviewService(IServiceProvider serviceProvider, IAppIconService iconService)
     {
         _serviceProvider = serviceProvider;
+        _iconService = iconService;
     }
 
     public async Task<IReadOnlyList<AppOverview>> GetOverviewAsync(
@@ -128,11 +131,40 @@ public sealed class AppOverviewService : IAppOverviewService
                 timestamps.Select(ToHourBucket).Distinct().Count()));
         }
 
-        return overview
+        var sorted = overview
             .OrderByDescending(r => r.TotalBytes)
             .ThenBy(r => r.AppName, StringComparer.OrdinalIgnoreCase)
             .ThenBy(r => r.AppIdentifier, StringComparer.Ordinal)
             .ToList();
+
+        // Resolve icons in parallel after the heavy aggregation finishes so
+        // we don't block the list render on disk I/O. Each call is cheap
+        // (cache hit after first extraction), and IAppIconService swallows
+        // failures internally — we treat null as "no icon, show placeholder".
+        var iconTasks = sorted
+            .Select(async (app, index) =>
+            {
+                if (string.IsNullOrEmpty(app.ExecutablePath))
+                {
+                    return (index, path: (string?)null);
+                }
+                var path = await _iconService
+                    .GetIconPathAsync(app.ExecutablePath, app.AppIdentifier, ct)
+                    .ConfigureAwait(false);
+                return (index, path);
+            })
+            .ToList();
+
+        var resolved = await Task.WhenAll(iconTasks).ConfigureAwait(false);
+        foreach (var (index, path) in resolved)
+        {
+            if (path is not null)
+            {
+                sorted[index] = sorted[index] with { IconPath = path };
+            }
+        }
+
+        return sorted;
     }
 
     public async Task<IReadOnlyList<AppNetworkHistoryPoint>> GetNetworkHistoryAsync(

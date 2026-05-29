@@ -73,6 +73,17 @@ public sealed record AppOverview(
     public string FormattedTotalBytes => Helpers.ByteFormatter.FormatBytes(TotalBytes);
     public string FormattedAvgPrivateBytes => Helpers.ByteFormatter.FormatBytes(AvgPrivateBytes);
     public string FormattedPeakPrivateBytes => Helpers.ByteFormatter.FormatBytes(PeakPrivateBytes);
+
+    /// <summary>
+    /// Local file path to a cached PNG of the executable's icon, or null when
+    /// no icon could be extracted (platform without support, missing binary,
+    /// or transient extraction failure). UI binds to this with a generic
+    /// placeholder rendered when null.
+    /// </summary>
+    public string? IconPath { get; init; }
+
+    /// <summary>True when an icon path has been resolved for this app.</summary>
+    public bool HasIcon => !string.IsNullOrEmpty(IconPath);
 }
 
 /// <summary>

@@ -46,6 +46,11 @@
     <!-- Platform-specific -->
     <PackageVersion Include="ManagedNativeWifi" Version="3.0.2" />
     <PackageVersion Include="System.Diagnostics.PerformanceCounter" Version="10.0.2" />
+    <!-- Used by WindowsAppIconService to extract executable icons via
+         Icon.ExtractAssociatedIcon. Note: System.Drawing.Common 6.0+ is
+         Windows-only at runtime; we reference it only from the Windows
+         platform project which already has SupportedOSPlatform=windows. -->
+    <PackageVersion Include="System.Drawing.Common" Version="10.0.2" />
 
     <!-- Testing -->
     <PackageVersion Include="Microsoft.Extensions.TimeProvider.Testing" Version="9.5.0" />

@@ -28,5 +28,6 @@ public sealed class StubPlatformServices : IPlatformServices
         services.AddSingleton<IProcessResourceProvider, StubProcessResourceProvider>();
         services.AddSingleton<IAppMetadataProvider, StubAppMetadataProvider>();
         services.AddSingleton<IGameDetectionProvider, StubGameDetectionProvider>();
+        services.AddSingleton<IAppIconService, StubAppIconService>();
     }
 }

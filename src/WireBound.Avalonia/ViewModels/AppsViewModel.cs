@@ -184,6 +184,26 @@ public sealed partial class AppsViewModel : ObservableObject, IDisposable
     public string? SelectedAppIconPath => SelectedApp?.IconPath;
     public bool SelectedAppHasIcon => SelectedApp?.HasIcon == true;
     public int SelectedAppHoursActive => SelectedApp?.HoursActive ?? 0;
+
+    // App-specific peak/timeline metrics. These come from per-app AppUsageRecords
+    // and ResourceInsightSnapshots, so unlike Top Destinations they're actually
+    // scoped to the selected app. Formatted strings keep the detail view free
+    // of binding-side string concatenation.
+    public string SelectedAppPeakDownloadSpeed =>
+        SelectedApp is null ? "—" : ByteFormatter.FormatSpeed(SelectedApp.PeakDownloadSpeed);
+    public string SelectedAppPeakUploadSpeed =>
+        SelectedApp is null ? "—" : ByteFormatter.FormatSpeed(SelectedApp.PeakUploadSpeed);
+    public string SelectedAppMaxCpuPercent =>
+        SelectedApp is null ? "—" : $"{SelectedApp.MaxCpuPercent:F1}%";
+    public string SelectedAppPeakRam =>
+        SelectedApp?.FormattedPeakPrivateBytes ?? "—";
+    public string SelectedAppFirstSeen =>
+        SelectedApp is null ? "—" : SelectedApp.FirstSeen.ToString("MMM d, yyyy HH:mm");
+    public string SelectedAppLastSeen =>
+        SelectedApp is null ? "—" : SelectedApp.LastSeen.ToString("MMM d, yyyy HH:mm");
+    public string SelectedAppHoursActiveLabel =>
+        SelectedApp is null ? "—" : $"{SelectedApp.HoursActive} h";
+
     public string NameSortGlyph => GetSortGlyph(AppsSortColumn.Name);
     public string CategorySortGlyph => GetSortGlyph(AppsSortColumn.Category);
     public string BytesReceivedSortGlyph => GetSortGlyph(AppsSortColumn.BytesReceived);
@@ -856,6 +876,13 @@ public sealed partial class AppsViewModel : ObservableObject, IDisposable
         OnPropertyChanged(nameof(SelectedAppIconPath));
         OnPropertyChanged(nameof(SelectedAppHasIcon));
         OnPropertyChanged(nameof(SelectedAppHoursActive));
+        OnPropertyChanged(nameof(SelectedAppPeakDownloadSpeed));
+        OnPropertyChanged(nameof(SelectedAppPeakUploadSpeed));
+        OnPropertyChanged(nameof(SelectedAppMaxCpuPercent));
+        OnPropertyChanged(nameof(SelectedAppPeakRam));
+        OnPropertyChanged(nameof(SelectedAppFirstSeen));
+        OnPropertyChanged(nameof(SelectedAppLastSeen));
+        OnPropertyChanged(nameof(SelectedAppHoursActiveLabel));
     }
 
     private static ISeries[] CreateNetworkSeries(IReadOnlyList<AppNetworkHistoryPoint> points)

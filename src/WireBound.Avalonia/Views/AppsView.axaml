@@ -636,6 +636,84 @@
                     </Border>
                 </Grid>
 
+                <!-- Per-app peak / timeline stats. Unlike Top destinations, these
+                     ARE scoped to the selected app — they come from the same
+                     AppOverview row used by the master list, so what you saw in
+                     the summary cards above gets the full peaks + first/last
+                     seen treatment here. -->
+                <Border Classes="Card" Padding="20">
+                    <StackPanel Spacing="12">
+                        <TextBlock Text="App-specific stats for this period" Classes="SectionHeader" />
+                        <ItemsControl>
+                            <ItemsControl.ItemsPanel>
+                                <ItemsPanelTemplate>
+                                    <WrapPanel ItemWidth="210" ItemHeight="68" />
+                                </ItemsPanelTemplate>
+                            </ItemsControl.ItemsPanel>
+                            <Border Classes="ElevatedCard" Margin="0,0,12,12" Padding="14,8">
+                                <StackPanel Spacing="3">
+                                    <TextBlock Text="PEAK DOWNLOAD" Classes="MetricLabel" FontSize="10" />
+                                    <TextBlock Text="{Binding SelectedAppPeakDownloadSpeed}"
+                                               FontSize="16" FontWeight="Bold"
+                                               Foreground="{StaticResource DownloadBrush}"
+                                               TextTrimming="CharacterEllipsis" />
+                                </StackPanel>
+                            </Border>
+                            <Border Classes="ElevatedCard" Margin="0,0,12,12" Padding="14,8">
+                                <StackPanel Spacing="3">
+                                    <TextBlock Text="PEAK UPLOAD" Classes="MetricLabel" FontSize="10" />
+                                    <TextBlock Text="{Binding SelectedAppPeakUploadSpeed}"
+                                               FontSize="16" FontWeight="Bold"
+                                               Foreground="{StaticResource UploadBrush}"
+                                               TextTrimming="CharacterEllipsis" />
+                                </StackPanel>
+                            </Border>
+                            <Border Classes="ElevatedCard" Margin="0,0,12,12" Padding="14,8">
+                                <StackPanel Spacing="3">
+                                    <TextBlock Text="MAX CPU" Classes="MetricLabel" FontSize="10" />
+                                    <TextBlock Text="{Binding SelectedAppMaxCpuPercent}"
+                                               FontSize="16" FontWeight="Bold"
+                                               TextTrimming="CharacterEllipsis" />
+                                </StackPanel>
+                            </Border>
+                            <Border Classes="ElevatedCard" Margin="0,0,12,12" Padding="14,8">
+                                <StackPanel Spacing="3">
+                                    <TextBlock Text="PEAK RAM" Classes="MetricLabel" FontSize="10" />
+                                    <TextBlock Text="{Binding SelectedAppPeakRam}"
+                                               FontSize="16" FontWeight="Bold"
+                                               TextTrimming="CharacterEllipsis" />
+                                </StackPanel>
+                            </Border>
+                            <Border Classes="ElevatedCard" Margin="0,0,12,12" Padding="14,8">
+                                <StackPanel Spacing="3">
+                                    <TextBlock Text="HOURS ACTIVE" Classes="MetricLabel" FontSize="10" />
+                                    <TextBlock Text="{Binding SelectedAppHoursActiveLabel}"
+                                               FontSize="16" FontWeight="Bold"
+                                               TextTrimming="CharacterEllipsis" />
+                                </StackPanel>
+                            </Border>
+                            <Border Classes="ElevatedCard" Margin="0,0,12,12" Padding="14,8">
+                                <StackPanel Spacing="3">
+                                    <TextBlock Text="FIRST SEEN" Classes="MetricLabel" FontSize="10" />
+                                    <TextBlock Text="{Binding SelectedAppFirstSeen}"
+                                               FontSize="13" FontWeight="SemiBold"
+                                               TextTrimming="CharacterEllipsis"
+                                               ToolTip.Tip="{Binding SelectedAppFirstSeen}" />
+                                </StackPanel>
+                            </Border>
+                            <Border Classes="ElevatedCard" Margin="0,0,12,12" Padding="14,8">
+                                <StackPanel Spacing="3">
+                                    <TextBlock Text="LAST SEEN" Classes="MetricLabel" FontSize="10" />
+                                    <TextBlock Text="{Binding SelectedAppLastSeen}"
+                                               FontSize="13" FontWeight="SemiBold"
+                                               TextTrimming="CharacterEllipsis"
+                                               ToolTip.Tip="{Binding SelectedAppLastSeen}" />
+                                </StackPanel>
+                            </Border>
+                        </ItemsControl>
+                    </StackPanel>
+                </Border>
+
                 <!-- Network history — full width, taller since it's the
                      most-information-dense chart. -->
                 <Border Classes="Card" Padding="20">

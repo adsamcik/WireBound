@@ -1,4 +1,5 @@
 using System.ComponentModel.DataAnnotations;
+using WireBound.Core.Helpers;
 
 namespace WireBound.Core.Models;
 
@@ -78,4 +79,21 @@ public class AppUsageRecord
     /// Total bytes transferred (received + sent)
     /// </summary>
     public long TotalBytes => BytesReceived + BytesSent;
+
+    /// <summary>
+    /// Human-friendly download display (e.g. "1.4 MB"). Computed at bind time
+    /// using <see cref="ByteFormatter"/> so the UI never has to wire a value
+    /// converter just to render bytes.
+    /// </summary>
+    public string FormattedBytesReceived => ByteFormatter.FormatBytes(BytesReceived);
+
+    /// <summary>
+    /// Human-friendly upload display (e.g. "532 KB").
+    /// </summary>
+    public string FormattedBytesSent => ByteFormatter.FormatBytes(BytesSent);
+
+    /// <summary>
+    /// Human-friendly total display (e.g. "1.9 MB").
+    /// </summary>
+    public string FormattedTotalBytes => ByteFormatter.FormatBytes(TotalBytes);
 }

@@ -230,21 +230,21 @@
                                                 </StackPanel>
                                                 <StackPanel Grid.Column="2" VerticalAlignment="Center" Spacing="2">
                                                     <TextBlock Text="Download" Classes="Caption" HorizontalAlignment="Right" />
-                                                    <TextBlock Text="{Binding BytesReceived, StringFormat='{}{0:N0} B'}"
+                                                    <TextBlock Text="{Binding FormattedBytesReceived}"
                                                                FontSize="14" FontWeight="Bold"
                                                                Foreground="{StaticResource DownloadBrush}"
                                                                HorizontalAlignment="Right" />
                                                 </StackPanel>
                                                 <StackPanel Grid.Column="3" VerticalAlignment="Center" Spacing="2">
                                                     <TextBlock Text="Upload" Classes="Caption" HorizontalAlignment="Right" />
-                                                    <TextBlock Text="{Binding BytesSent, StringFormat='{}{0:N0} B'}"
+                                                    <TextBlock Text="{Binding FormattedBytesSent}"
                                                                FontSize="14" FontWeight="Bold"
                                                                Foreground="{StaticResource UploadBrush}"
                                                                HorizontalAlignment="Right" />
                                                 </StackPanel>
                                                 <StackPanel Grid.Column="4" VerticalAlignment="Center" Spacing="2">
                                                     <TextBlock Text="Total" Classes="Caption" HorizontalAlignment="Right" />
-                                                    <TextBlock Text="{Binding TotalBytes, StringFormat='{}{0:N0} B'}"
+                                                    <TextBlock Text="{Binding FormattedTotalBytes}"
                                                                FontSize="14" FontWeight="Bold"
                                                                HorizontalAlignment="Right" />
                                                 </StackPanel>

@@ -20,17 +20,22 @@ public sealed class EtwConnectionTracker : IDisposable
 
     // ETW event IDs for the Microsoft-Windows-TCPIP user-mode manifest provider
     // on Windows 10/11 (provider GUID 2f07e2ee-15db-40f1-90ef-9d7ba282188a).
-    // Discovered from the runtime manifest via Get-WinEvent -ListProvider; the
-    // numbers used to be 1201/1202/1010/1011/1003/1013/1015 in pre-Win10 builds
-    // but the modern provider uses these IDs and the prior constants matched
-    // nothing at all on Windows 11 (the diagnostic counter showed millions of
-    // raw events with only ~9/sec matching the old IDs).
+    // Discovered from the runtime manifest via Get-WinEvent -ListProvider.
     //
     // Data-transfer events — payload: { Tcb (HexInt64 pointer), NumBytes (UInt32), ... }
-    private const int TcpDataTransferSend = 1073;
-    private const int TcpDataTransferReceive = 1074;
+    private const int TcpDataTransferSend = 1073;      // non-LSO sends; NumBytes=0 when LSO is used
+    private const int TcpDataTransferReceive = 1074;   // standard TCP recv
+    private const int TcpLso = 1111;                   // Large Send Offload — payload: BytesInSegment
+                                                       //   carries the bulk of sent bytes on modern
+                                                       //   Windows because the NIC fragments locally;
+                                                       //   without this, BytesSent stays at zero.
 
-    // Connection lifecycle events — payload: { LocalAddress, RemoteAddress, Status,
+    // UDP data events — payload includes the originating Pid directly, so we
+    // don't need a Tcb→PID mapping for UDP attribution.
+    private const int UdpSendMessages = 1169;
+    private const int UdpDeliver = 1170;
+
+    // TCP connection lifecycle events — payload: { LocalAddress, RemoteAddress, Status,
     // ProcessId (UInt32), Compartment, Tcb (HexInt64 pointer) }.
     // We use the Tcb itself as the connection identity key (it is unique for
     // the lifetime of the connection); the LocalAddress / RemoteAddress fields
@@ -193,7 +198,16 @@ public sealed class EtwConnectionTracker : IDisposable
                 return;
             }
 
-            if (eventId is not (TcpDataTransferReceive or TcpDataTransferSend))
+            // UDP traffic carries the originating Pid in the event payload, so
+            // we can attribute it directly without a Tcb→PID lookup.
+            if (eventId is UdpSendMessages or UdpDeliver)
+            {
+                HandleUdpDataEvent(data, isSend: eventId == UdpSendMessages);
+                return;
+            }
+
+            // TCP data — 1073 (non-LSO send), 1074 (recv), 1111 (LSO send).
+            if (eventId is not (TcpDataTransferReceive or TcpDataTransferSend or TcpLso))
                 return;
 
             Interlocked.Increment(ref _etwDataEventsMatched);
@@ -201,23 +215,15 @@ public sealed class EtwConnectionTracker : IDisposable
             var connTcb = data.PayloadByName("Tcb")?.ToString();
             if (string.IsNullOrEmpty(connTcb)) return;
 
-            var size = 0;
-            var sizeObj = data.PayloadByName("NumBytes");
-            if (sizeObj is int intSize)
-                size = intSize;
-            else if (sizeObj is uint uintSize)
-                size = (int)uintSize;
-
+            // 1073/1074 carry NumBytes; 1111 (TcpLso) carries BytesInSegment instead.
+            var sizeFieldName = eventId == TcpLso ? "BytesInSegment" : "NumBytes";
+            var size = ReadByteCount(data.PayloadByName(sizeFieldName));
             if (size <= 0) return;
 
             // The Tcb pointer is the connection's stable identity for ETW's
-            // entire lifetime. Use it directly as the key — no need to
-            // resolve to a "local:port-remote:port" string (the prior design
-            // required parsing SocketAddress binary blobs from lifecycle events
-            // that don't always fire before the first data event).
+            // entire lifetime. Use it directly as the key.
             if (_tcbToConnection.TryGetValue(connTcb, out var mapping) && mapping.ProcessId > 0)
             {
-                // Cache PID under the same key so GetConnectionStats can look it up.
                 _connectionToPid.TryAdd(connTcb, mapping.ProcessId);
             }
 
@@ -229,6 +235,7 @@ public sealed class EtwConnectionTracker : IDisposable
             if (eventId == TcpDataTransferReceive)
                 Interlocked.Add(ref entry.BytesReceived, size);
             else
+                // 1073 (non-LSO send) and 1111 (LSO send) both count as sent bytes.
                 Interlocked.Add(ref entry.BytesSent, size);
 
             Interlocked.Add(ref _etwBytesCaptured, size);
@@ -238,6 +245,51 @@ public sealed class EtwConnectionTracker : IDisposable
             Log.Debug(ex, "Error processing ETW event {EventId}", data.ID);
         }
     }
+
+    /// <summary>
+    /// UDP send/receive events carry both the byte count and the originating
+    /// Pid in the payload, so we bypass the Tcb mapping entirely and use a
+    /// per-PID synthetic key. The reader in <see cref="GetConnectionStats"/>
+    /// looks the PID up directly from <see cref="_connectionToPid"/>.
+    /// </summary>
+    private void HandleUdpDataEvent(TraceEvent data, bool isSend)
+    {
+        var pidObj = data.PayloadByName("Pid");
+        int pid = pidObj switch
+        {
+            int i => i,
+            uint u => (int)u,
+            _ => 0
+        };
+        if (pid <= 0) return;
+
+        var size = ReadByteCount(data.PayloadByName("NumBytes"));
+        if (size <= 0) return;
+
+        Interlocked.Increment(ref _etwDataEventsMatched);
+
+        // Synthetic key per (PID, direction) — UDP is connectionless, so we
+        // don't have a Tcb and don't need to track per-endpoint stats here.
+        var key = $"udp:{pid}";
+        _connectionToPid[key] = pid;
+
+        var entry = _connectionBytes.GetOrAdd(key, static _ => new ConnectionBytes());
+        if (isSend)
+            Interlocked.Add(ref entry.BytesSent, size);
+        else
+            Interlocked.Add(ref entry.BytesReceived, size);
+
+        Interlocked.Add(ref _etwBytesCaptured, size);
+    }
+
+    private static int ReadByteCount(object? value) => value switch
+    {
+        int i => i,
+        uint u => (int)u,
+        long l => (int)Math.Min(l, int.MaxValue),
+        ulong ul => (int)Math.Min(ul, int.MaxValue),
+        _ => 0
+    };
 
     /// <summary>
     /// Records the Tcb → ProcessId association from a connection lifecycle event.
@@ -669,6 +721,6 @@ public sealed class EtwConnectionTracker : IDisposable
     /// </summary>
     private sealed record ProcessIdentity(string Name, string Path)
     {
-        public static ProcessIdentity Unknown { get; } = new("Unknown", string.Empty);
+        public static ProcessIdentity Unknown { get; } = new("Unattributed (pre-existing connection)", string.Empty);
     }
 }

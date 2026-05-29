@@ -7,17 +7,157 @@
              Background="{StaticResource BackgroundBrush}"
              AutomationProperties.Name="System View">
 
+    <UserControl.Styles>
+        <Style Selector="ToggleButton.tab-toggle">
+            <Setter Property="Background" Value="Transparent" />
+            <Setter Property="Foreground" Value="{StaticResource SecondaryTextBrush}" />
+        </Style>
+        <Style Selector="ToggleButton.tab-toggle:checked">
+            <Setter Property="Background" Value="{StaticResource PrimaryBrush}" />
+            <Setter Property="Foreground" Value="White" />
+        </Style>
+        <Style Selector="ToggleButton.tab-toggle:pointerover">
+            <Setter Property="Background" Value="{StaticResource FlyoutItemHoverBrush}" />
+        </Style>
+        <Style Selector="ToggleButton.tab-toggle:checked:pointerover">
+            <Setter Property="Background" Value="{StaticResource PrimaryBrush}" />
+        </Style>
+        <Style Selector="RadioButton.segmented-option:checked">
+            <Setter Property="Background" Value="{StaticResource PrimaryBrush}" />
+            <Setter Property="Foreground" Value="White" />
+        </Style>
+    </UserControl.Styles>
+
     <ScrollViewer VerticalScrollBarVisibility="Auto">
         <Grid RowDefinitions="Auto, Auto, Auto" Margin="28">
-        
             <!-- PAGE HEADER -->
-            <StackPanel Spacing="4" Margin="0,0,0,24">
-                <TextBlock Text="System" Classes="PageTitle" />
-                <TextBlock Text="CPU and memory monitoring" Classes="Subtitle" />
-            </StackPanel>
+            <Grid ColumnDefinitions="*, Auto">
+                <StackPanel Spacing="4">
+                    <TextBlock Text="System" Classes="PageTitle" />
+                    <TextBlock Text="CPU and memory monitoring" Classes="Subtitle" />
+                </StackPanel>
 
+                <!-- Period Selector -->
+                <Border Grid.Column="1" Classes="CompactCard" Padding="14,10" VerticalAlignment="Center">
+                    <StackPanel Orientation="Horizontal" Spacing="12">
+                        <TextBlock Text="Period" Classes="Caption" VerticalAlignment="Center" />
+                        <StackPanel Orientation="Horizontal" Spacing="4">
+                            <RadioButton GroupName="SystemPeriod"
+                                         IsChecked="{Binding SelectedPeriod, Converter={x:Static ObjectConverters.Equal}, ConverterParameter={x:Static vm:InsightsPeriod.Today}}"
+                                         Command="{Binding SetPeriodCommand}"
+                                         CommandParameter="{x:Static vm:InsightsPeriod.Today}"
+                                         Classes="segmented-option"
+                                         Padding="12,8"
+                                         CornerRadius="8"
+                                         Background="{StaticResource SurfaceBrush}"
+                                         AutomationProperties.Name="Today system period">
+                                <TextBlock Text="Today" FontSize="12" />
+                            </RadioButton>
+                            <RadioButton GroupName="SystemPeriod"
+                                         IsChecked="{Binding SelectedPeriod, Converter={x:Static ObjectConverters.Equal}, ConverterParameter={x:Static vm:InsightsPeriod.ThisWeek}}"
+                                         Command="{Binding SetPeriodCommand}"
+                                         CommandParameter="{x:Static vm:InsightsPeriod.ThisWeek}"
+                                         Classes="segmented-option"
+                                         Padding="12,8"
+                                         CornerRadius="8"
+                                         Background="{StaticResource SurfaceBrush}"
+                                         AutomationProperties.Name="This week system period">
+                                <TextBlock Text="Week" FontSize="12" />
+                            </RadioButton>
+                            <RadioButton GroupName="SystemPeriod"
+                                         IsChecked="{Binding SelectedPeriod, Converter={x:Static ObjectConverters.Equal}, ConverterParameter={x:Static vm:InsightsPeriod.ThisMonth}}"
+                                         Command="{Binding SetPeriodCommand}"
+                                         CommandParameter="{x:Static vm:InsightsPeriod.ThisMonth}"
+                                         Classes="segmented-option"
+                                         Padding="12,8"
+                                         CornerRadius="8"
+                                         Background="{StaticResource SurfaceBrush}"
+                                         AutomationProperties.Name="This month system period">
+                                <TextBlock Text="Month" FontSize="12" />
+                            </RadioButton>
+                        </StackPanel>
+                    </StackPanel>
+                </Border>
+            </Grid>
+
+            <Border Grid.Row="1" Classes="CompactCard" Padding="6" Margin="0,20,0,0" HorizontalAlignment="Left">
+                <StackPanel Orientation="Horizontal" Spacing="4">
+                    <ToggleButton IsChecked="{Binding SelectedSystemTab, Converter={x:Static ObjectConverters.Equal}, ConverterParameter={x:Static vm:SystemTab.LiveMetrics}}"
+                                  Command="{Binding SelectLiveMetricsTabCommand}"
+                                  Classes="tab-toggle"
+                                  Padding="16,10"
+                                  CornerRadius="10"
+                                  Cursor="Hand"
+                                  AutomationProperties.Name="Live Metrics Tab">
+                        <StackPanel Orientation="Horizontal" Spacing="8">
+                            <TextBlock Text="⚡" FontSize="14" VerticalAlignment="Center" />
+                            <TextBlock Text="Live Metrics" FontSize="13" FontWeight="SemiBold" VerticalAlignment="Center" />
+                        </StackPanel>
+                    </ToggleButton>
+
+                    <ToggleButton IsChecked="{Binding SelectedSystemTab, Converter={x:Static ObjectConverters.Equal}, ConverterParameter={x:Static vm:SystemTab.SystemTrends}}"
+                                  Command="{Binding SelectSystemTrendsTabCommand}"
+                                  Classes="tab-toggle"
+                                  Padding="16,10"
+                                  CornerRadius="10"
+                                  Cursor="Hand"
+                                  AutomationProperties.Name="System Trends Tab">
+                        <StackPanel Orientation="Horizontal" Spacing="8">
+                            <TextBlock Text="💻" FontSize="14" VerticalAlignment="Center" />
+                            <TextBlock Text="System Trends" FontSize="13" FontWeight="SemiBold" VerticalAlignment="Center" />
+                        </StackPanel>
+                    </ToggleButton>
+
+                    <ToggleButton IsChecked="{Binding SelectedSystemTab, Converter={x:Static ObjectConverters.Equal}, ConverterParameter={x:Static vm:SystemTab.Correlations}}"
+                                  Command="{Binding SelectCorrelationsTabCommand}"
+                                  Classes="tab-toggle"
+                                  Padding="16,10"
+                                  CornerRadius="10"
+                                  Cursor="Hand"
+                                  AutomationProperties.Name="Correlations Tab">
+                        <StackPanel Orientation="Horizontal" Spacing="8">
+                            <TextBlock Text="🔗" FontSize="14" VerticalAlignment="Center" />
+                            <TextBlock Text="Correlations" FontSize="13" FontWeight="SemiBold" VerticalAlignment="Center" />
+                        </StackPanel>
+                    </ToggleButton>
+                </StackPanel>
+            </Border>
+
+            <Panel Grid.Row="2" Margin="0,20,0,0">
+                <!-- Loading Indicator -->
+                <Border Classes="Card" Padding="40"
+                        IsVisible="{Binding IsLoading}"
+                        ZIndex="10"
+                        HorizontalAlignment="Center"
+                        VerticalAlignment="Center">
+                    <StackPanel HorizontalAlignment="Center" Spacing="16">
+                        <ProgressBar IsIndeterminate="True" Width="200" />
+                        <TextBlock Text="Loading system history..."
+                                   Classes="Subtitle"
+                                   HorizontalAlignment="Center" />
+                    </StackPanel>
+                </Border>
+
+                <!-- Error State -->
+                <Border Classes="Card" Padding="40"
+                        IsVisible="{Binding HasError}"
+                        HorizontalAlignment="Center"
+                        VerticalAlignment="Center">
+                    <StackPanel HorizontalAlignment="Center" Spacing="12">
+                        <TextBlock Text="⚠️" FontSize="32" HorizontalAlignment="Center" />
+                        <TextBlock Text="Unable to load system history"
+                                   FontSize="18" FontWeight="Bold"
+                                   HorizontalAlignment="Center" />
+                        <TextBlock Text="{Binding ErrorMessage}"
+                                   Classes="Subtitle"
+                                   HorizontalAlignment="Center" />
+                    </StackPanel>
+                </Border>
+
+                <StackPanel Spacing="20"
+                            IsVisible="{Binding SelectedSystemTab, Converter={x:Static ObjectConverters.Equal}, ConverterParameter={x:Static vm:SystemTab.LiveMetrics}}">
             <!-- CPU SECTION -->
-            <Border Grid.Row="1" Classes="ElevatedCard" Margin="0,0,0,20">
+            <Border Classes="ElevatedCard" Margin="0,0,0,20">
                 <Grid RowDefinitions="Auto, Auto, Auto, Auto">
                     
                     <!-- Header -->
@@ -83,7 +223,7 @@
                     </Grid>
                     
                     <!-- Usage Display and Progress -->
-                    <Grid Grid.Row="1" ColumnDefinitions="Auto, *" Margin="0,24,0,0">
+                    <Grid ColumnDefinitions="Auto, *" Margin="0,24,0,0">
                         <!-- Large Percentage -->
                         <StackPanel VerticalAlignment="Center" Margin="0,0,32,0">
                             <TextBlock Text="{Binding CpuUsageFormatted}"
@@ -114,7 +254,7 @@
                     </Grid>
                     
                     <!-- Per-Core Usage (if available) -->
-                    <Border Grid.Row="2" 
+                    <Border 
                             Background="{StaticResource BorderSubtleBrush}" 
                             CornerRadius="12" 
                             Padding="16,12"
@@ -149,7 +289,7 @@
                     </Border>
                     
                     <!-- CPU Chart -->
-                    <Grid Grid.Row="3" RowDefinitions="Auto, 200" Margin="0,20,0,0">
+                    <Grid Grid.Row="3" RowDefinitions="Auto, 280" Margin="0,20,0,0">
                         <StackPanel Orientation="Horizontal" Spacing="10" Margin="0,0,0,8">
                             <Border Background="{StaticResource PrimaryBrush}"
                                     Width="20" Height="4"
@@ -159,7 +299,7 @@
                                        FontSize="12" FontWeight="SemiBold" 
                                        VerticalAlignment="Center" />
                         </StackPanel>
-                        <lvc:CartesianChart Grid.Row="1"
+                        <lvc:CartesianChart
                                             Series="{Binding CpuSeries}"
                                             XAxes="{Binding CpuXAxes}"
                                             YAxes="{Binding CpuYAxes}"
@@ -173,7 +313,7 @@
             </Border>
 
             <!-- MEMORY SECTION -->
-            <Border Grid.Row="2" Classes="ElevatedCard">
+            <Border Classes="ElevatedCard">
                 <Grid RowDefinitions="Auto, Auto, Auto, Auto">
                     
                     <!-- Header -->
@@ -198,7 +338,7 @@
                     </Grid>
                     
                     <!-- Usage Display and Progress -->
-                    <Grid Grid.Row="1" ColumnDefinitions="Auto, *" Margin="0,24,0,0">
+                    <Grid ColumnDefinitions="Auto, *" Margin="0,24,0,0">
                         <!-- Large Percentage -->
                         <StackPanel VerticalAlignment="Center" Margin="0,0,32,0">
                             <TextBlock Text="{Binding MemoryUsageFormatted}"
@@ -229,7 +369,7 @@
                     </Grid>
                     
                     <!-- Memory Stats -->
-                    <Grid Grid.Row="2" ColumnDefinitions="*, *, *" Margin="0,16,0,0">
+                    <Grid ColumnDefinitions="*, *, *" Margin="0,16,0,0">
                         <Border Background="{StaticResource BorderSubtleBrush}" 
                                 CornerRadius="12" 
                                 Padding="16,12"
@@ -271,7 +411,7 @@
                     </Grid>
                     
                     <!-- Memory Chart -->
-                    <Grid Grid.Row="3" RowDefinitions="Auto, 200" Margin="0,20,0,0">
+                    <Grid Grid.Row="3" RowDefinitions="Auto, 280" Margin="0,20,0,0">
                         <StackPanel Orientation="Horizontal" Spacing="10" Margin="0,0,0,8">
                             <Border Background="{StaticResource MemoryBrush}"
                                     Width="20" Height="4"
@@ -281,7 +421,7 @@
                                        FontSize="12" FontWeight="SemiBold" 
                                        VerticalAlignment="Center" />
                         </StackPanel>
-                        <lvc:CartesianChart Grid.Row="1"
+                        <lvc:CartesianChart
                                             Series="{Binding MemorySeries}"
                                             XAxes="{Binding MemoryXAxes}"
                                             YAxes="{Binding MemoryYAxes}"
@@ -293,6 +433,245 @@
                     </Grid>
                 </Grid>
             </Border>
+
+                </StackPanel>
+
+                <!-- SYSTEM TRENDS TAB CONTENT                                        -->
+                <!-- ═══════════════════════════════════════════════════════════════ -->
+                <StackPanel IsVisible="{Binding SelectedSystemTab, Converter={x:Static ObjectConverters.Equal}, ConverterParameter={x:Static vm:SystemTab.SystemTrends}}"
+                            Spacing="20">
+
+                    <!-- Summary Statistics Cards -->
+                    <Grid ColumnDefinitions="*, *, *" IsVisible="{Binding HasData}">
+                        <!-- Avg CPU -->
+                        <Border Classes="ElevatedCard" Margin="0,0,10,0">
+                            <StackPanel HorizontalAlignment="Center" Spacing="8">
+                                <StackPanel Orientation="Horizontal" Spacing="8" HorizontalAlignment="Center">
+                                    <TextBlock Text="🔲" FontSize="16" VerticalAlignment="Center" />
+                                    <TextBlock Text="AVG CPU" Classes="MetricLabel" VerticalAlignment="Center" />
+                                </StackPanel>
+                                <TextBlock Text="{Binding AvgCpuPercent, StringFormat={}{0:F1}%}"
+                                           FontSize="32" FontWeight="Bold"
+                                           Foreground="{StaticResource CpuBrush}"
+                                           HorizontalAlignment="Center" />
+                                <TextBlock Text="{Binding CpuTrendStatus}"
+                                           FontSize="12"
+                                           Classes="Subtitle"
+                                           HorizontalAlignment="Center" />
+                            </StackPanel>
+                        </Border>
+
+                        <!-- Avg Memory -->
+                        <Border Grid.Column="1" Classes="ElevatedCard" Margin="5,0">
+                            <StackPanel HorizontalAlignment="Center" Spacing="8">
+                                <StackPanel Orientation="Horizontal" Spacing="8" HorizontalAlignment="Center">
+                                    <TextBlock Text="💾" FontSize="16" VerticalAlignment="Center" />
+                                    <TextBlock Text="AVG MEMORY" Classes="MetricLabel" VerticalAlignment="Center" />
+                                </StackPanel>
+                                <TextBlock Text="{Binding AvgMemoryPercent, StringFormat={}{0:F1}%}"
+                                           FontSize="32" FontWeight="Bold"
+                                           Foreground="{StaticResource MemoryBrush}"
+                                           HorizontalAlignment="Center" />
+                                <TextBlock Text="{Binding MemoryTrendStatus}"
+                                           FontSize="12"
+                                           Classes="Subtitle"
+                                           HorizontalAlignment="Center" />
+                            </StackPanel>
+                        </Border>
+
+                        <!-- Peak Memory -->
+                        <Border Grid.Column="2" Classes="ElevatedCard" Margin="10,0,0,0">
+                            <StackPanel HorizontalAlignment="Center" Spacing="8">
+                                <StackPanel Orientation="Horizontal" Spacing="8" HorizontalAlignment="Center">
+                                    <TextBlock Text="📈" FontSize="16" VerticalAlignment="Center" />
+                                    <TextBlock Text="PEAK MEMORY" Classes="MetricLabel" VerticalAlignment="Center" />
+                                </StackPanel>
+                                <TextBlock Text="{Binding MaxMemoryPercent, StringFormat={}{0:F1}%}"
+                                           FontSize="32" FontWeight="Bold"
+                                           Foreground="{StaticResource WarningBrush}"
+                                           HorizontalAlignment="Center" />
+                            </StackPanel>
+                        </Border>
+                    </Grid>
+
+                    <!-- System Metrics Chart -->
+                    <Border Classes="ElevatedCard" Height="320" IsVisible="{Binding HasData}">
+                        <Grid RowDefinitions="Auto, *">
+                            <TextBlock Text="System Metrics Over Time" Classes="SectionHeader" />
+                            <lvc:CartesianChart Grid.Row="1"
+                                                Series="{Binding SystemTrendChart}"
+                                                XAxes="{Binding SystemTrendXAxes}"
+                                                YAxes="{Binding SystemTrendYAxes}"
+                                                TooltipPosition="Top"
+                                                LegendPosition="Top"
+                                                LegendTextPaint="#A0A8B8"
+                                                LegendTextSize="12"
+                                                ZoomMode="None"
+                                                Background="{StaticResource CardBrush}"
+                                                Margin="0,12,0,0"
+                                                AutomationProperties.Name="System Metrics Line Chart"
+                                                AutomationProperties.HelpText="Line chart showing CPU and Memory usage over time" />
+                        </Grid>
+                    </Border>
+
+                    <!-- Empty State -->
+                    <Border Classes="Card" Padding="60" IsVisible="{Binding !HasData}" HorizontalAlignment="Center">
+                        <StackPanel HorizontalAlignment="Center" Spacing="12">
+                            <TextBlock Text="💻" FontSize="48" HorizontalAlignment="Center" />
+                            <TextBlock Text="No system data yet"
+                                       FontSize="18" FontWeight="Bold"
+                                       HorizontalAlignment="Center" />
+                            <TextBlock Text="System metrics will appear after monitoring is active"
+                                       Classes="Subtitle"
+                                       HorizontalAlignment="Center" />
+                        </StackPanel>
+                    </Border>
+                </StackPanel>
+
+                <!-- ═══════════════════════════════════════════════════════════════ -->
+                <!-- CORRELATIONS TAB CONTENT                                         -->
+                <!-- ═══════════════════════════════════════════════════════════════ -->
+                <StackPanel IsVisible="{Binding SelectedSystemTab, Converter={x:Static ObjectConverters.Equal}, ConverterParameter={x:Static vm:SystemTab.Correlations}}"
+                            Spacing="20">
+
+                    <Grid ColumnDefinitions="*, *" IsVisible="{Binding HasData}">
+                        <!-- Correlation Coefficients -->
+                        <Border Classes="ElevatedCard" Margin="0,0,10,0">
+                            <StackPanel Spacing="16">
+                                <TextBlock Text="Correlation Coefficients" Classes="SectionHeader" />
+
+                                <!-- Network ↔ CPU -->
+                                <Border Background="{StaticResource BorderSubtleBrush}" CornerRadius="10" Padding="16,12">
+                                    <Grid ColumnDefinitions="*, Auto">
+                                        <StackPanel Orientation="Horizontal" Spacing="8">
+                                            <TextBlock Text="🌐" FontSize="16" VerticalAlignment="Center" />
+                                            <TextBlock Text="Network ↔ CPU" 
+                                                       FontSize="14" FontWeight="SemiBold"
+                                                       VerticalAlignment="Center" />
+                                        </StackPanel>
+                                        <TextBlock Grid.Column="1"
+                                                   Text="{Binding NetworkCpuCorrelation, StringFormat={}{0:F2}}"
+                                                   FontSize="20" FontWeight="Bold"
+                                                   Foreground="{StaticResource PrimaryBrush}"
+                                                   VerticalAlignment="Center" />
+                                    </Grid>
+                                </Border>
+
+                                <!-- Network ↔ Memory -->
+                                <Border Background="{StaticResource BorderSubtleBrush}" CornerRadius="10" Padding="16,12">
+                                    <Grid ColumnDefinitions="*, Auto">
+                                        <StackPanel Orientation="Horizontal" Spacing="8">
+                                            <TextBlock Text="🌐" FontSize="16" VerticalAlignment="Center" />
+                                            <TextBlock Text="Network ↔ Memory" 
+                                                       FontSize="14" FontWeight="SemiBold"
+                                                       VerticalAlignment="Center" />
+                                        </StackPanel>
+                                        <TextBlock Grid.Column="1"
+                                                   Text="{Binding NetworkMemoryCorrelation, StringFormat={}{0:F2}}"
+                                                   FontSize="20" FontWeight="Bold"
+                                                   Foreground="{StaticResource AccentBrush}"
+                                                   VerticalAlignment="Center" />
+                                    </Grid>
+                                </Border>
+
+                                <!-- CPU ↔ Memory -->
+                                <Border Background="{StaticResource BorderSubtleBrush}" CornerRadius="10" Padding="16,12">
+                                    <Grid ColumnDefinitions="*, Auto">
+                                        <StackPanel Orientation="Horizontal" Spacing="8">
+                                            <TextBlock Text="🔲" FontSize="16" VerticalAlignment="Center" />
+                                            <TextBlock Text="CPU ↔ Memory" 
+                                                       FontSize="14" FontWeight="SemiBold"
+                                                       VerticalAlignment="Center" />
+                                        </StackPanel>
+                                        <TextBlock Grid.Column="1"
+                                                   Text="{Binding CpuMemoryCorrelation, StringFormat={}{0:F2}}"
+                                                   FontSize="20" FontWeight="Bold"
+                                                   Foreground="{StaticResource SuccessBrush}"
+                                                   VerticalAlignment="Center" />
+                                    </Grid>
+                                </Border>
+                            </StackPanel>
+                        </Border>
+
+                        <!-- Insights Panel -->
+                        <Border Grid.Column="1" Classes="ElevatedCard" Margin="10,0,0,0">
+                            <StackPanel Spacing="16">
+                                <TextBlock Text="Insights" Classes="SectionHeader" />
+
+                                <ItemsControl ItemsSource="{Binding CorrelationInsights}">
+                                    <ItemsControl.ItemTemplate>
+                                        <DataTemplate x:DataType="x:String">
+                                            <Border Background="{StaticResource BorderSubtleBrush}" 
+                                                    CornerRadius="8" 
+                                                    Padding="12,10"
+                                                    Margin="0,0,0,8">
+                                                <DockPanel>
+                                                    <TextBlock Text="•" 
+                                                               FontSize="16" 
+                                                               Foreground="{StaticResource PrimaryBrush}"
+                                                               VerticalAlignment="Top"
+                                                               Margin="0,0,10,0"
+                                                               DockPanel.Dock="Left" />
+                                                    <TextBlock Text="{Binding}"
+                                                               FontSize="13"
+                                                               TextWrapping="Wrap"
+                                                               VerticalAlignment="Center" />
+                                                </DockPanel>
+                                            </Border>
+                                        </DataTemplate>
+                                    </ItemsControl.ItemTemplate>
+                                </ItemsControl>
+
+                                <!-- Empty insights state -->
+                                <TextBlock Text="Not enough data to generate insights yet"
+                                           Classes="Subtitle"
+                                           IsVisible="{Binding !CorrelationInsights.Count}"
+                                           HorizontalAlignment="Center"
+                                           Margin="0,20" />
+                            </StackPanel>
+                        </Border>
+                    </Grid>
+
+                    <!-- Overlay Chart -->
+                    <Border Classes="ElevatedCard" Height="320" IsVisible="{Binding HasData}">
+                        <Grid RowDefinitions="Auto, *">
+                            <StackPanel>
+                                <TextBlock Text="Normalized Metrics Overlay" Classes="SectionHeader" />
+                                <TextBlock Text="Network, CPU, and Memory trends normalized for comparison"
+                                           Classes="Subtitle" Margin="0,4,0,0" />
+                            </StackPanel>
+                            <lvc:CartesianChart Grid.Row="1"
+                                                Series="{Binding CorrelationChart}"
+                                                XAxes="{Binding SystemTrendXAxes}"
+                                                YAxes="{Binding SystemTrendYAxes}"
+                                                TooltipPosition="Top"
+                                                LegendPosition="Top"
+                                                LegendTextPaint="#A0A8B8"
+                                                LegendTextSize="12"
+                                                ZoomMode="None"
+                                                Background="{StaticResource CardBrush}"
+                                                Margin="0,12,0,0"
+                                                AutomationProperties.Name="Correlation Overlay Chart"
+                                                AutomationProperties.HelpText="Overlay chart showing normalized Network, CPU, and Memory metrics" />
+                        </Grid>
+                    </Border>
+
+                    <!-- Empty State -->
+                    <Border Classes="Card" Padding="60" IsVisible="{Binding !HasData}" HorizontalAlignment="Center">
+                        <StackPanel HorizontalAlignment="Center" Spacing="12">
+                            <TextBlock Text="🔗" FontSize="48" HorizontalAlignment="Center" />
+                            <TextBlock Text="No correlation data yet"
+                                       FontSize="18" FontWeight="Bold"
+                                       HorizontalAlignment="Center" />
+                            <TextBlock Text="Correlations require both network and system data"
+                                       Classes="Subtitle"
+                                       HorizontalAlignment="Center" />
+                        </StackPanel>
+                    </Border>
+                </StackPanel>
+
+                <!-- ═══════════════════════════════════════════════════════════════ -->
+            </Panel>
         </Grid>
     </ScrollViewer>
 </UserControl>

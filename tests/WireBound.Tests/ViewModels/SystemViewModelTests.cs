@@ -17,6 +17,8 @@ public class SystemViewModelTests : IAsyncDisposable
     private readonly ISystemMonitorService _systemMonitorMock;
     private readonly INavigationService _navigationServiceMock;
     private readonly ISystemSnapshotRepository _systemSnapshotRepositoryMock;
+    private readonly ISystemHistoryService _systemHistoryMock;
+    private readonly IDataPersistenceService _persistenceMock;
 
     public SystemViewModelTests()
     {
@@ -24,6 +26,8 @@ public class SystemViewModelTests : IAsyncDisposable
         _systemMonitorMock = Substitute.For<ISystemMonitorService>();
         _navigationServiceMock = Substitute.For<INavigationService>();
         _systemSnapshotRepositoryMock = Substitute.For<ISystemSnapshotRepository>();
+        _systemHistoryMock = Substitute.For<ISystemHistoryService>();
+        _persistenceMock = Substitute.For<IDataPersistenceService>();
         SetupDefaultMocks();
     }
 
@@ -34,6 +38,17 @@ public class SystemViewModelTests : IAsyncDisposable
         _systemMonitorMock.GetProcessorCount().Returns(8);
         _systemMonitorMock.IsCpuTemperatureAvailable.Returns(false);
         _navigationServiceMock.CurrentView.Returns(Routes.System);
+        _systemSnapshotRepositoryMock.GetSystemHistoryAsync(Arg.Any<DateTime>()).Returns(new List<SystemSnapshot>());
+        _systemHistoryMock.GetHourlyStatsAsync(Arg.Any<DateTime>(), Arg.Any<DateTime>()).Returns(new List<HourlySystemStats>());
+        _persistenceMock.GetHourlyUsageAsync(Arg.Any<DateOnly>()).Returns(new List<HourlyUsage>());
+        _dispatcherMock.InvokeAsync(Arg.Any<Action>()).Returns(call =>
+        {
+            call.Arg<Action>()();
+            return Task.CompletedTask;
+        });
+        _dispatcherMock.When(x => x.Post(Arg.Any<Action>())).Do(call => call.Arg<Action>()());
+        _dispatcherMock.When(x => x.Post(Arg.Any<Action>(), Arg.Any<UiDispatcherPriority>()))
+            .Do(call => call.ArgAt<Action>(0)());
     }
 
     private static SystemStats CreateDefaultSystemStats()
@@ -61,7 +76,13 @@ public class SystemViewModelTests : IAsyncDisposable
 
     private SystemViewModel CreateViewModel()
     {
-        var viewModel = new SystemViewModel(_dispatcherMock, _systemMonitorMock, _navigationServiceMock, _systemSnapshotRepositoryMock);
+        var viewModel = new SystemViewModel(
+            _dispatcherMock,
+            _systemMonitorMock,
+            _navigationServiceMock,
+            _systemSnapshotRepositoryMock,
+            systemHistory: _systemHistoryMock,
+            persistence: _persistenceMock);
         _createdViewModels.Add(viewModel);
         return viewModel;
     }
@@ -188,6 +209,94 @@ public class SystemViewModelTests : IAsyncDisposable
 
         // Assert
         viewModel.CpuFrequencyMhz.Should().Be(3600.0);
+    }
+
+    #endregion
+
+    #region Historical System Analysis Tests
+
+    [Test]
+    public async Task SystemViewModel_LoadsSystemTrendsForSelectedPeriod()
+    {
+        // Arrange
+        var baseHour = DateTime.Today.AddHours(9);
+        var systemData = new List<HourlySystemStats>
+        {
+            new() { Hour = baseHour, AvgCpuPercent = 40, MaxCpuPercent = 60, AvgMemoryPercent = 50, MaxMemoryPercent = 70 },
+            new() { Hour = baseHour.AddHours(1), AvgCpuPercent = 60, MaxCpuPercent = 80, AvgMemoryPercent = 70, MaxMemoryPercent = 90 }
+        };
+        _systemHistoryMock.GetHourlyStatsAsync(Arg.Any<DateTime>(), Arg.Any<DateTime>()).Returns(systemData);
+
+        var viewModel = CreateViewModel();
+        await viewModel.InitializationTask;
+
+        // Act
+        viewModel.SelectSystemTrendsTabCommand.Execute(null);
+        await viewModel.PendingLoadTask!;
+
+        // Assert
+        viewModel.SelectedSystemTab.Should().Be(SystemTab.SystemTrends);
+        viewModel.AvgCpuPercent.Should().Be(50);
+        viewModel.MaxCpuPercent.Should().Be(80);
+        viewModel.AvgMemoryPercent.Should().Be(60);
+        viewModel.MaxMemoryPercent.Should().Be(90);
+        viewModel.SystemTrendChart.Should().NotBeEmpty();
+        viewModel.HasData.Should().BeTrue();
+    }
+
+    [Test]
+    public async Task SystemViewModel_LoadsCorrelationsForSelectedPeriod()
+    {
+        // Arrange
+        var baseHour = DateTime.Today.AddHours(9);
+        var systemData = new List<HourlySystemStats>
+        {
+            new() { Hour = baseHour, AvgCpuPercent = 20, AvgMemoryPercent = 30 },
+            new() { Hour = baseHour.AddHours(1), AvgCpuPercent = 40, AvgMemoryPercent = 50 },
+            new() { Hour = baseHour.AddHours(2), AvgCpuPercent = 60, AvgMemoryPercent = 70 }
+        };
+        var networkData = new List<HourlyUsage>
+        {
+            new() { Hour = baseHour, BytesReceived = 100, BytesSent = 20 },
+            new() { Hour = baseHour.AddHours(1), BytesReceived = 200, BytesSent = 40 },
+            new() { Hour = baseHour.AddHours(2), BytesReceived = 300, BytesSent = 60 }
+        };
+        _systemHistoryMock.GetHourlyStatsAsync(Arg.Any<DateTime>(), Arg.Any<DateTime>()).Returns(systemData);
+        _persistenceMock.GetHourlyUsageAsync(Arg.Any<DateOnly>()).Returns(networkData);
+
+        var viewModel = CreateViewModel();
+        await viewModel.InitializationTask;
+
+        // Act
+        viewModel.SelectCorrelationsTabCommand.Execute(null);
+        await viewModel.PendingLoadTask!;
+
+        // Assert
+        viewModel.SelectedSystemTab.Should().Be(SystemTab.Correlations);
+        viewModel.NetworkCpuCorrelation.Should().BeApproximately(1, 0.0001);
+        viewModel.NetworkMemoryCorrelation.Should().BeApproximately(1, 0.0001);
+        viewModel.CpuMemoryCorrelation.Should().BeApproximately(1, 0.0001);
+        viewModel.CorrelationInsights.Should().NotBeEmpty();
+        viewModel.CorrelationChart.Should().NotBeEmpty();
+        viewModel.HasData.Should().BeTrue();
+    }
+
+    [Test]
+    public async Task SystemViewModel_PeriodChange_RefreshesData()
+    {
+        // Arrange
+        var viewModel = CreateViewModel();
+        await viewModel.InitializationTask;
+        viewModel.SelectSystemTrendsTabCommand.Execute(null);
+        await viewModel.PendingLoadTask!;
+        _systemHistoryMock.ClearReceivedCalls();
+
+        // Act
+        viewModel.SetPeriodCommand.Execute(InsightsPeriod.ThisMonth);
+        await viewModel.PendingLoadTask!;
+
+        // Assert
+        await _systemHistoryMock.Received().GetHourlyStatsAsync(Arg.Any<DateTime>(), Arg.Any<DateTime>());
     }
 
     #endregion

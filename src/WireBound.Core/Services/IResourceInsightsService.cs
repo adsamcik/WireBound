@@ -43,8 +43,11 @@ public interface IResourceInsightsService
         DateOnly start, DateOnly end, CancellationToken cancellationToken = default);
 
     /// <summary>
-    /// Record a snapshot of current resource usage to the database.
-    /// Called periodically by the background polling service.
+    /// Records the current per-app resource snapshot to <see cref="ResourceInsightSnapshot"/>.
+    /// Apps whose average CPU% is below 0.1 AND working set is below 50 MB
+    /// are skipped so the table doesn't accumulate millions of rows for
+    /// idle background services — they can still be seen live in the current
+    /// snapshot endpoints, just not in historical aggregates.
     /// </summary>
     Task RecordSnapshotAsync(CancellationToken cancellationToken = default);
 }

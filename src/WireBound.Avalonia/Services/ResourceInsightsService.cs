@@ -39,6 +39,19 @@ public sealed class ResourceInsightsService : IResourceInsightsService
     private const double CpuAlphaUp = 0.4;
     private const double CpuAlphaDown = 0.15;
 
+    /// <summary>
+    /// CPU% threshold below which an app's hourly snapshot is considered
+    /// "low-activity" and skipped to keep ResourceInsightSnapshots bounded.
+    /// An app must exceed this CPU bar OR the RAM bar to be persisted.
+    /// </summary>
+    internal const double LowActivityCpuPercentThreshold = 0.1;
+
+    /// <summary>
+    /// Working-set threshold below which an app's hourly snapshot is
+    /// considered "low-activity" alongside <see cref="LowActivityCpuPercentThreshold"/>.
+    /// </summary>
+    internal const long LowActivityWorkingSetBytesThreshold = 50L * 1024 * 1024; // 50 MB
+
     public ResourceInsightsService(
         IProcessResourceProvider provider,
         IAppCategoryService categoryService,
@@ -55,6 +68,25 @@ public sealed class ResourceInsightsService : IResourceInsightsService
     }
 
     public async Task<IReadOnlyList<AppResourceUsage>> GetCurrentByAppAsync(
+        CancellationToken cancellationToken = default)
+    {
+        var smoothed = await GetCurrentSnapshotByAppAsync(cancellationToken);
+
+        return smoothed
+            .Select(a => new AppResourceUsage
+            {
+                AppIdentifier = a.AppIdentifier,
+                AppName = a.AppName,
+                ExecutablePath = a.ExecutablePath,
+                CategoryName = a.CategoryName,
+                PrivateBytes = a.PrivateBytes,
+                CpuPercent = a.CpuPercent,
+                ProcessCount = a.ProcessCount
+            })
+            .ToList();
+    }
+
+    private async Task<IReadOnlyList<AppResourceSnapshotUsage>> GetCurrentSnapshotByAppAsync(
         CancellationToken cancellationToken = default)
     {
         var rawData = await _provider.GetProcessResourceDataAsync(cancellationToken);
@@ -132,8 +164,19 @@ public sealed class ResourceInsightsService : IResourceInsightsService
     {
         try
         {
-            var apps = await GetCurrentByAppAsync(cancellationToken);
+            var apps = await GetCurrentSnapshotByAppAsync(cancellationToken);
             if (apps.Count == 0) return;
+
+            var appsToPersist = apps
+                .Where(a => !IsLowActivity(a.CpuPercent, a.WorkingSetBytes))
+                .ToList();
+            var skipped = apps.Count - appsToPersist.Count;
+            _logger?.LogDebug(
+                "ResourceInsights snapshot: persisted {Kept} apps, skipped {Skipped} low-activity apps",
+                appsToPersist.Count,
+                skipped);
+
+            if (appsToPersist.Count == 0) return;
 
             var now = _timeProvider.GetLocalNow().DateTime;
             var hourTimestamp = new DateTime(now.Year, now.Month, now.Day, now.Hour, 0, 0);
@@ -142,7 +185,7 @@ public sealed class ResourceInsightsService : IResourceInsightsService
             var context = scope.ServiceProvider.GetRequiredService<WireBoundDbContext>();
 
             // Batch-load all existing snapshots for this hour to avoid N+1 queries
-            var appIds = apps
+            var appIds = appsToPersist
                 .Where(a => !string.IsNullOrEmpty(a.AppIdentifier))
                 .Select(a => a.AppIdentifier)
                 .Distinct()
@@ -155,7 +198,7 @@ public sealed class ResourceInsightsService : IResourceInsightsService
                 .ToDictionaryAsync(s => s.AppIdentifier, cancellationToken)
                 .ConfigureAwait(false);
 
-            foreach (var app in apps)
+            foreach (var app in appsToPersist)
             {
                 if (string.IsNullOrEmpty(app.AppIdentifier)) continue;
 
@@ -165,6 +208,7 @@ public sealed class ResourceInsightsService : IResourceInsightsService
                 {
                     // Update running averages using incremental mean
                     existing.PrivateBytes = (existing.PrivateBytes + app.PrivateBytes) / 2;
+                    existing.WorkingSetBytes = (existing.WorkingSetBytes + app.WorkingSetBytes) / 2;
                     existing.CpuPercent = (existing.CpuPercent + app.CpuPercent) / 2;
                     existing.PeakPrivateBytes = Math.Max(existing.PeakPrivateBytes, app.PrivateBytes);
                     existing.PeakCpuPercent = Math.Max(existing.PeakCpuPercent, app.CpuPercent);
@@ -179,7 +223,7 @@ public sealed class ResourceInsightsService : IResourceInsightsService
                         AppName = app.AppName,
                         CategoryName = app.CategoryName,
                         PrivateBytes = app.PrivateBytes,
-                        WorkingSetBytes = 0,
+                        WorkingSetBytes = app.WorkingSetBytes,
                         CpuPercent = app.CpuPercent,
                         PeakPrivateBytes = app.PrivateBytes,
                         PeakCpuPercent = app.CpuPercent,
@@ -222,6 +266,7 @@ public sealed class ResourceInsightsService : IResourceInsightsService
                     ExecutablePath = exePath,
                     ProcessName = first.ProcessName,
                     TotalPrivateBytes = g.Sum(p => p.PrivateBytes),
+                    TotalWorkingSetBytes = g.Sum(p => p.WorkingSetBytes),
                     TotalCpuTimeTicks = g.Sum(p => p.CpuTimeTicks),
                     ProcessCount = g.Count()
                 };
@@ -256,6 +301,7 @@ public sealed class ResourceInsightsService : IResourceInsightsService
                 AppName = app.AppName,
                 ExecutablePath = app.ExecutablePath,
                 PrivateBytes = app.TotalPrivateBytes,
+                WorkingSetBytes = app.TotalWorkingSetBytes,
                 CpuPercent = cpuPercent,
                 ProcessCount = app.ProcessCount
             });
@@ -285,9 +331,9 @@ public sealed class ResourceInsightsService : IResourceInsightsService
         return lookup;
     }
 
-    private List<AppResourceUsage> ApplySmoothing(List<AppWithCpu> apps)
+    private List<AppResourceSnapshotUsage> ApplySmoothing(List<AppWithCpu> apps)
     {
-        var result = new List<AppResourceUsage>(apps.Count);
+        var result = new List<AppResourceSnapshotUsage>(apps.Count);
 
         foreach (var app in apps)
         {
@@ -296,7 +342,7 @@ public sealed class ResourceInsightsService : IResourceInsightsService
             var smoothedMemory = state.SmoothMemory(app.PrivateBytes);
             var smoothedCpu = state.SmoothCpu(app.CpuPercent);
 
-            result.Add(new AppResourceUsage
+            result.Add(new AppResourceSnapshotUsage
             {
                 AppIdentifier = app.AppIdentifier,
                 AppName = app.AppName,
@@ -307,6 +353,7 @@ public sealed class ResourceInsightsService : IResourceInsightsService
                         : app.AppName,
                     app.ExecutablePath),
                 PrivateBytes = smoothedMemory,
+                WorkingSetBytes = app.WorkingSetBytes,
                 CpuPercent = smoothedCpu,
                 ProcessCount = app.ProcessCount
             });
@@ -334,6 +381,12 @@ public sealed class ResourceInsightsService : IResourceInsightsService
     // ═══════════════════════════════════════════════════════════════════════════
     // HELPERS
     // ═══════════════════════════════════════════════════════════════════════════
+
+    private static bool IsLowActivity(double avgCpuPercent, long workingSetBytes)
+    {
+        return avgCpuPercent < LowActivityCpuPercentThreshold
+               && workingSetBytes < LowActivityWorkingSetBytesThreshold;
+    }
 
     private static string GetAppKey(string processName, string exePath)
     {
@@ -417,6 +470,7 @@ public sealed class ResourceInsightsService : IResourceInsightsService
         public string ExecutablePath { get; init; } = "";
         public string ProcessName { get; init; } = "";
         public long TotalPrivateBytes { get; init; }
+        public long TotalWorkingSetBytes { get; init; }
         public long TotalCpuTimeTicks { get; init; }
         public int ProcessCount { get; init; }
     }
@@ -427,6 +481,19 @@ public sealed class ResourceInsightsService : IResourceInsightsService
         public string AppName { get; init; } = "";
         public string ExecutablePath { get; init; } = "";
         public long PrivateBytes { get; init; }
+        public long WorkingSetBytes { get; init; }
+        public double CpuPercent { get; init; }
+        public int ProcessCount { get; init; }
+    }
+
+    private sealed class AppResourceSnapshotUsage
+    {
+        public string AppIdentifier { get; init; } = "";
+        public string AppName { get; init; } = "";
+        public string ExecutablePath { get; init; } = "";
+        public string CategoryName { get; init; } = "";
+        public long PrivateBytes { get; init; }
+        public long WorkingSetBytes { get; init; }
         public double CpuPercent { get; init; }
         public int ProcessCount { get; init; }
     }

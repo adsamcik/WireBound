@@ -1,3 +1,6 @@
+using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Time.Testing;
 using WireBound.Avalonia.Services;
 using WireBound.Core.Data;
@@ -5,15 +8,19 @@ using WireBound.Core.Models;
 using WireBound.Core.Services;
 using WireBound.Platform.Abstract.Models;
 using WireBound.Platform.Abstract.Services;
-using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.Logging;
+using WireBound.Tests.Fixtures;
 
 namespace WireBound.Tests.Services;
 
-public class ResourceInsightsServiceTests
+public class ResourceInsightsServiceTests : DatabaseTestBase
 {
-    private static (ResourceInsightsService service, IProcessResourceProvider provider, FakeTimeProvider fakeTime) CreateService()
+    private const long TenMb = 10L * 1024 * 1024;
+    private const long TwentyMb = 20L * 1024 * 1024;
+    private const long TwoHundredMb = 200L * 1024 * 1024;
+    private static readonly TimeSpan SnapshotInterval = TimeSpan.FromSeconds(1);
+
+    private (ResourceInsightsService service, IProcessResourceProvider provider, FakeTimeProvider fakeTime) CreateService(
+        ILogger<ResourceInsightsService>? logger = null)
     {
         var provider = Substitute.For<IProcessResourceProvider>();
         var categoryService = Substitute.For<IAppCategoryService>();
@@ -25,20 +32,8 @@ public class ResourceInsightsServiceTests
         categoryService.GetCategory("chrome", Arg.Any<string?>(), Arg.Any<int>()).Returns("Web Browsers");
         categoryService.GetCategory("code", Arg.Any<string?>(), Arg.Any<int>()).Returns("Development Tools");
 
-        var options = new DbContextOptionsBuilder<WireBoundDbContext>()
-            .UseInMemoryDatabase(databaseName: Guid.NewGuid().ToString())
-            .Options;
-
-        // Ensure DB is created
-        using (var ctx = new WireBoundDbContext(options))
-            ctx.Database.EnsureCreated();
-
-        var services = new ServiceCollection();
-        services.AddScoped(_ => new WireBoundDbContext(options));
-        var serviceProvider = services.BuildServiceProvider();
-
         var fakeTime = new FakeTimeProvider();
-        var service = new ResourceInsightsService(provider, categoryService, serviceProvider, fakeTime);
+        var service = new ResourceInsightsService(provider, categoryService, ServiceProvider, fakeTime, logger);
         return (service, provider, fakeTime);
     }
 
@@ -153,5 +148,182 @@ public class ResourceInsightsServiceTests
         var secondBytes = second.First().PrivateBytes;
         // With α_up=0.3: smoothed = 1_000_000_000 * 0.7 + 2_000_000_000 * 0.3 = 1_300_000_000
         secondBytes.Should().Be(1_300_000_000);
+    }
+
+    [Test]
+    public async Task RecordSnapshotAsync_AppBelowBothThresholds_IsSkipped()
+    {
+        var (service, provider, fakeTime) = CreateService();
+        SetProcessSnapshots(
+            provider,
+            [CreateProcess("idle", TwentyMb, TwentyMb, 0)],
+            [CreateProcess("idle", TwentyMb, TwentyMb, CpuTicksForPercent(0.05))]);
+
+        await service.RecordSnapshotAsync();
+        fakeTime.Advance(SnapshotInterval);
+        await service.RecordSnapshotAsync();
+
+        (await CountSnapshotsAsync()).Should().Be(0);
+    }
+
+    [Test]
+    public async Task RecordSnapshotAsync_AppAboveCpuThreshold_IsPersisted()
+    {
+        var (service, provider, fakeTime) = CreateService();
+        SetProcessSnapshots(
+            provider,
+            [CreateProcess("cpu-heavy", TenMb, TenMb, 0)],
+            [CreateProcess("cpu-heavy", TenMb, TenMb, CpuTicksForPercent(5))]);
+
+        await service.RecordSnapshotAsync();
+        fakeTime.Advance(SnapshotInterval);
+        await service.RecordSnapshotAsync();
+
+        var snapshots = await GetSnapshotsAsync();
+        snapshots.Should().ContainSingle();
+        snapshots.Single().WorkingSetBytes.Should().Be(TenMb);
+    }
+
+    [Test]
+    public async Task RecordSnapshotAsync_AppAboveRamThreshold_IsPersisted()
+    {
+        var (service, provider, _) = CreateService();
+        SetProcessSnapshots(provider, [CreateProcess("memory-heavy", TenMb, TwoHundredMb, 0)]);
+
+        await service.RecordSnapshotAsync();
+
+        var snapshots = await GetSnapshotsAsync();
+        snapshots.Should().ContainSingle();
+        snapshots.Single().WorkingSetBytes.Should().Be(TwoHundredMb);
+    }
+
+    [Test]
+    public async Task RecordSnapshotAsync_MixedBatch_OnlyHighActivityPersisted()
+    {
+        var (service, provider, fakeTime) = CreateService();
+        SetProcessSnapshots(
+            provider,
+            [
+                CreateProcess("idle", TwentyMb, TwentyMb, 0),
+                CreateProcess("cpu-heavy", TenMb, TenMb, 0),
+                CreateProcess("memory-heavy", TenMb, TwoHundredMb, 0)
+            ],
+            [
+                CreateProcess("idle", TwentyMb, TwentyMb, CpuTicksForPercent(0.05)),
+                CreateProcess("cpu-heavy", TenMb, TenMb, CpuTicksForPercent(5)),
+                CreateProcess("memory-heavy", TenMb, TwoHundredMb, CpuTicksForPercent(0.01))
+            ]);
+
+        await service.RecordSnapshotAsync();
+        fakeTime.Advance(SnapshotInterval);
+        await service.RecordSnapshotAsync();
+
+        var snapshots = await GetSnapshotsAsync();
+        snapshots.Should().HaveCount(2);
+        snapshots.Select(s => s.AppName).Should().BeEquivalentTo("cpu-heavy", "memory-heavy");
+    }
+
+    [Test]
+    public async Task RecordSnapshotAsync_LogsKeptAndSkippedCounts()
+    {
+        var logger = new ListLogger<ResourceInsightsService>();
+        var (service, provider, fakeTime) = CreateService(logger);
+        SetProcessSnapshots(
+            provider,
+            [
+                CreateProcess("idle", TwentyMb, TwentyMb, 0),
+                CreateProcess("cpu-heavy", TenMb, TenMb, 0),
+                CreateProcess("memory-heavy", TenMb, TwoHundredMb, 0)
+            ],
+            [
+                CreateProcess("idle", TwentyMb, TwentyMb, CpuTicksForPercent(0.05)),
+                CreateProcess("cpu-heavy", TenMb, TenMb, CpuTicksForPercent(5)),
+                CreateProcess("memory-heavy", TenMb, TwoHundredMb, CpuTicksForPercent(0.01))
+            ]);
+
+        await service.RecordSnapshotAsync();
+        logger.Entries.Clear();
+        fakeTime.Advance(SnapshotInterval);
+
+        await service.RecordSnapshotAsync();
+
+        logger.Entries.Should().ContainSingle(entry =>
+            entry.Level == LogLevel.Debug &&
+            entry.Message == "ResourceInsights snapshot: persisted 2 apps, skipped 1 low-activity apps");
+    }
+
+    private async Task<int> CountSnapshotsAsync()
+    {
+        using var scope = CreateScope();
+        var context = scope.ServiceProvider.GetRequiredService<WireBoundDbContext>();
+        return await context.ResourceInsightSnapshots.CountAsync();
+    }
+
+    private async Task<List<ResourceInsightSnapshot>> GetSnapshotsAsync()
+    {
+        using var scope = CreateScope();
+        var context = scope.ServiceProvider.GetRequiredService<WireBoundDbContext>();
+        return await context.ResourceInsightSnapshots.OrderBy(s => s.AppName).ToListAsync();
+    }
+
+    private static void SetProcessSnapshots(
+        IProcessResourceProvider provider,
+        params IReadOnlyList<ProcessResourceData>[] snapshots)
+    {
+        var queued = new Queue<IReadOnlyList<ProcessResourceData>>(snapshots);
+        provider.GetProcessResourceDataAsync(Arg.Any<CancellationToken>())
+            .Returns(_ => Task.FromResult(queued.Count > 1 ? queued.Dequeue() : queued.Peek()));
+    }
+
+    private static ProcessResourceData CreateProcess(
+        string processName,
+        long privateBytes,
+        long workingSetBytes,
+        long cpuTimeTicks)
+    {
+        return new ProcessResourceData
+        {
+            ProcessId = Math.Abs(processName.GetHashCode()),
+            ProcessName = processName,
+            ExecutablePath = $"{processName}.exe",
+            PrivateBytes = privateBytes,
+            WorkingSetBytes = workingSetBytes,
+            CpuTimeTicks = cpuTimeTicks
+        };
+    }
+
+    private static long CpuTicksForPercent(double cpuPercent)
+    {
+        return (long)(cpuPercent / 100 * SnapshotInterval.Ticks * Environment.ProcessorCount);
+    }
+
+    private sealed class ListLogger<T> : ILogger<T>
+    {
+        public List<LogEntry> Entries { get; } = [];
+
+        public IDisposable BeginScope<TState>(TState state) where TState : notnull => NullScope.Instance;
+
+        public bool IsEnabled(LogLevel logLevel) => true;
+
+        public void Log<TState>(
+            LogLevel logLevel,
+            EventId eventId,
+            TState state,
+            Exception? exception,
+            Func<TState, Exception?, string> formatter)
+        {
+            Entries.Add(new LogEntry(logLevel, formatter(state, exception)));
+        }
+    }
+
+    private sealed record LogEntry(LogLevel Level, string Message);
+
+    private sealed class NullScope : IDisposable
+    {
+        public static readonly NullScope Instance = new();
+
+        public void Dispose()
+        {
+        }
     }
 }

@@ -4,6 +4,7 @@ using Microsoft.Extensions.DependencyInjection;
 using WireBound.Avalonia.Services;
 using WireBound.Core.Data;
 using WireBound.Core.Models;
+using WireBound.Platform.Abstract.Helpers;
 using WireBound.Platform.Abstract.Models;
 using WireBound.Tests.Fixtures;
 
@@ -665,6 +666,46 @@ public class DataPersistenceServiceTests : DatabaseTestBase
         var records = await db.AppUsageRecords.ToListAsync();
         records.Should().HaveCount(1);
         records[0].AppIdentifier.Should().Be("valid-hash");
+    }
+
+    [Test, Timeout(30000)]
+    public async Task SaveAppStatsAsync_WithUnknownIdentifierSentinel_SkipsRow(CancellationToken cancellationToken)
+    {
+        // Regression: rows produced for connections that the helper couldn't
+        // attribute to a real process (TCB→PID mapping missed because the
+        // socket pre-existed the helper start) used to land in the database
+        // as a single fat "Unknown" / "Unattributed (pre-existing connection)"
+        // bucket that often dominated the Applications view. Skip them at
+        // persistence time — the user cannot act on unattributable bytes.
+        var stats = new List<ProcessNetworkStats>
+        {
+            new()
+            {
+                AppIdentifier = AppIdentity.UnknownIdentifier,
+                DisplayName = "Unattributed",
+                ProcessName = "unattributed",
+                SessionBytesReceived = 999_999,
+                SessionBytesSent = 999_999
+            },
+            new()
+            {
+                AppIdentifier = "real-hash",
+                DisplayName = "RealApp",
+                ProcessName = "real",
+                ExecutablePath = @"C:\real.exe",
+                SessionBytesReceived = 1234,
+                SessionBytesSent = 567
+            }
+        };
+
+        await _service.SaveAppStatsAsync(stats);
+
+        using var scope = CreateScope();
+        var db = scope.ServiceProvider.GetRequiredService<WireBoundDbContext>();
+        var records = await db.AppUsageRecords.ToListAsync();
+
+        records.Should().HaveCount(1, because: "the unattributed bucket must not be persisted");
+        records[0].AppIdentifier.Should().Be("real-hash");
     }
 
     [Test, Timeout(30000)]

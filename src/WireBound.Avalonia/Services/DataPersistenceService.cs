@@ -3,6 +3,7 @@ using Microsoft.Extensions.DependencyInjection;
 using WireBound.Core.Data;
 using WireBound.Core.Models;
 using WireBound.Core.Services;
+using WireBound.Platform.Abstract.Helpers;
 using WireBound.Platform.Abstract.Models;
 
 namespace WireBound.Avalonia.Services;
@@ -267,8 +268,17 @@ public sealed class DataPersistenceService : IDataPersistenceService
         // helper reports one entry per PID — so 20 chrome.exe processes would
         // otherwise produce 20 inserts and SQLite would throw a UNIQUE
         // constraint violation, dropping the whole batch.
+        //
+        // Also skip rows whose identifier resolves to the
+        // <see cref="AppIdentity.UnknownIdentifier"/> sentinel: those are
+        // connections established before the helper started its ETW capture
+        // (no Tcb→PID mapping was ever recorded). They cannot be acted on
+        // by the user and would otherwise dominate the "top apps" view since
+        // every unattributed byte from every protected process collapses to
+        // the same bucket.
         var aggregated = stats
-            .Where(s => !string.IsNullOrEmpty(s.AppIdentifier))
+            .Where(s => !string.IsNullOrEmpty(s.AppIdentifier)
+                        && !string.Equals(s.AppIdentifier, AppIdentity.UnknownIdentifier, StringComparison.Ordinal))
             .GroupBy(s => s.AppIdentifier)
             .Select(g => new ProcessNetworkStats
             {

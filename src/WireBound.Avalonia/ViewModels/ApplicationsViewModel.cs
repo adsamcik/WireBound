@@ -83,7 +83,7 @@ public sealed partial class ApplicationsViewModel : ObservableObject, IDisposabl
     private string _searchText = "";
 
     [ObservableProperty]
-    private DateTime? _startDate = DateTime.Now.AddDays(-7);
+    private DateTime? _startDate = DateTime.Now.Date;
 
     [ObservableProperty]
     private DateTime? _endDate = DateTime.Now;

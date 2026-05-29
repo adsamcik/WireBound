@@ -263,7 +263,37 @@ public sealed partial class ApplicationsViewModel : ObservableObject, IDisposabl
 
             if (_cts.Token.IsCancellationRequested) return;
 
-            var usageList = usages.ToList();
+            // GetAllAppUsageAsync returns one row per (AppIdentifier, hour) bucket.
+            // Collapse hourly buckets per app so users see one row per application
+            // across the selected range — otherwise an app active across 5 hours
+            // appears as 5 separate rows with the same AppIdentifier.
+            //
+            // For display name / executable path / process name we prefer the
+            // most-recently-updated record so the latest version-info-derived
+            // name wins over older entries (e.g. "GitHub Copilot CLI" beats the
+            // earlier "copilot" once Windows had time to resolve the manifest).
+            var usageList = usages
+                .GroupBy(u => u.AppIdentifier)
+                .Select(g =>
+                {
+                    var latest = g.OrderByDescending(u => u.LastUpdated).First();
+                    return new AppUsageRecord
+                    {
+                        AppIdentifier = g.Key,
+                        AppName = latest.AppName,
+                        ProcessName = latest.ProcessName,
+                        ExecutablePath = latest.ExecutablePath,
+                        Timestamp = g.Max(u => u.Timestamp),
+                        Granularity = latest.Granularity,
+                        BytesReceived = g.Sum(u => u.BytesReceived),
+                        BytesSent = g.Sum(u => u.BytesSent),
+                        PeakDownloadSpeed = g.Max(u => u.PeakDownloadSpeed),
+                        PeakUploadSpeed = g.Max(u => u.PeakUploadSpeed),
+                        LastUpdated = latest.LastUpdated
+                    };
+                })
+                .OrderByDescending(u => u.TotalBytes)
+                .ToList();
 
             // Apply search filter
             if (!string.IsNullOrWhiteSpace(SearchText))

@@ -259,7 +259,7 @@
                         <Border Classes="Card">
                             <Grid RowDefinitions="Auto, *">
                                 <Grid Grid.Row="0"
-                                      ColumnDefinitions="Auto, *, 130, 130, 130, 130, 130, 130, 130"
+                                      ColumnDefinitions="Auto, *, 110, 110, 110, 100, 110, 80, 130"
                                       ColumnSpacing="20"
                                       Margin="20,0,20,12">
                                     <Border Width="44" />
@@ -272,21 +272,21 @@
                                             AutomationProperties.Name="Sort by application"
                                             AutomationProperties.HelpText="Sort apps by application name">
                                         <StackPanel Orientation="Horizontal" Spacing="4">
-                                            <TextBlock Text="APPLICATION" Classes="MetricLabel" FontSize="10" />
-                                            <TextBlock Text="{Binding NameSortGlyph}" Classes="MetricLabel" FontSize="10" />
+                                            <TextBlock Text="APPLICATION" Classes="MetricLabel" FontSize="11" />
+                                            <TextBlock Text="{Binding NameSortGlyph}" Classes="MetricLabel" FontSize="11" />
                                         </StackPanel>
                                     </Button>
                                     <Button Grid.Column="2"
                                             Classes="Ghost"
                                             Padding="0"
-                                            HorizontalAlignment="Left"
+                                            HorizontalAlignment="Right"
                                             Command="{Binding ToggleSortCommand}"
-                                            CommandParameter="{x:Static vm:AppsSortColumn.Category}"
-                                            AutomationProperties.Name="Sort by category"
-                                            AutomationProperties.HelpText="Sort apps by category">
+                                            CommandParameter="{x:Static vm:AppsSortColumn.TotalBytes}"
+                                            AutomationProperties.Name="Sort by total bytes"
+                                            AutomationProperties.HelpText="Sort apps by total network bytes">
                                         <StackPanel Orientation="Horizontal" Spacing="4">
-                                            <TextBlock Text="CATEGORY" Classes="MetricLabel" FontSize="10" />
-                                            <TextBlock Text="{Binding CategorySortGlyph}" Classes="MetricLabel" FontSize="10" />
+                                            <TextBlock Text="TOTAL" Classes="MetricLabel" FontSize="11" />
+                                            <TextBlock Text="{Binding TotalBytesSortGlyph}" Classes="MetricLabel" FontSize="11" />
                                         </StackPanel>
                                     </Button>
                                     <Button Grid.Column="3"
@@ -298,8 +298,8 @@
                                             AutomationProperties.Name="Sort by download"
                                             AutomationProperties.HelpText="Sort apps by downloaded bytes">
                                         <StackPanel Orientation="Horizontal" Spacing="4">
-                                            <TextBlock Text="DOWNLOAD" Classes="MetricLabel" FontSize="10" />
-                                            <TextBlock Text="{Binding BytesReceivedSortGlyph}" Classes="MetricLabel" FontSize="10" />
+                                            <TextBlock Text="DOWNLOAD" Classes="MetricLabel" FontSize="11" />
+                                            <TextBlock Text="{Binding BytesReceivedSortGlyph}" Classes="MetricLabel" FontSize="11" />
                                         </StackPanel>
                                     </Button>
                                     <Button Grid.Column="4"
@@ -311,24 +311,11 @@
                                             AutomationProperties.Name="Sort by upload"
                                             AutomationProperties.HelpText="Sort apps by uploaded bytes">
                                         <StackPanel Orientation="Horizontal" Spacing="4">
-                                            <TextBlock Text="UPLOAD" Classes="MetricLabel" FontSize="10" />
-                                            <TextBlock Text="{Binding BytesSentSortGlyph}" Classes="MetricLabel" FontSize="10" />
+                                            <TextBlock Text="UPLOAD" Classes="MetricLabel" FontSize="11" />
+                                            <TextBlock Text="{Binding BytesSentSortGlyph}" Classes="MetricLabel" FontSize="11" />
                                         </StackPanel>
                                     </Button>
                                     <Button Grid.Column="5"
-                                            Classes="Ghost"
-                                            Padding="0"
-                                            HorizontalAlignment="Right"
-                                            Command="{Binding ToggleSortCommand}"
-                                            CommandParameter="{x:Static vm:AppsSortColumn.TotalBytes}"
-                                            AutomationProperties.Name="Sort by total bytes"
-                                            AutomationProperties.HelpText="Sort apps by total network bytes">
-                                        <StackPanel Orientation="Horizontal" Spacing="4">
-                                            <TextBlock Text="TOTAL" Classes="MetricLabel" FontSize="10" />
-                                            <TextBlock Text="{Binding TotalBytesSortGlyph}" Classes="MetricLabel" FontSize="10" />
-                                        </StackPanel>
-                                    </Button>
-                                    <Button Grid.Column="6"
                                             Classes="Ghost"
                                             Padding="0"
                                             HorizontalAlignment="Right"
@@ -337,11 +324,11 @@
                                             AutomationProperties.Name="Sort by average CPU"
                                             AutomationProperties.HelpText="Sort apps by average CPU percentage">
                                         <StackPanel Orientation="Horizontal" Spacing="4">
-                                            <TextBlock Text="AVG CPU%" Classes="MetricLabel" FontSize="10" />
-                                            <TextBlock Text="{Binding AvgCpuPercentSortGlyph}" Classes="MetricLabel" FontSize="10" />
+                                            <TextBlock Text="AVG CPU" Classes="MetricLabel" FontSize="11" />
+                                            <TextBlock Text="{Binding AvgCpuPercentSortGlyph}" Classes="MetricLabel" FontSize="11" />
                                         </StackPanel>
                                     </Button>
-                                    <Button Grid.Column="7"
+                                    <Button Grid.Column="6"
                                             Classes="Ghost"
                                             Padding="0"
                                             HorizontalAlignment="Right"
@@ -350,11 +337,11 @@
                                             AutomationProperties.Name="Sort by average RAM"
                                             AutomationProperties.HelpText="Sort apps by average RAM usage">
                                         <StackPanel Orientation="Horizontal" Spacing="4">
-                                            <TextBlock Text="AVG RAM" Classes="MetricLabel" FontSize="10" />
-                                            <TextBlock Text="{Binding AvgPrivateBytesSortGlyph}" Classes="MetricLabel" FontSize="10" />
+                                            <TextBlock Text="AVG RAM" Classes="MetricLabel" FontSize="11" />
+                                            <TextBlock Text="{Binding AvgPrivateBytesSortGlyph}" Classes="MetricLabel" FontSize="11" />
                                         </StackPanel>
                                     </Button>
-                                    <Button Grid.Column="8"
+                                    <Button Grid.Column="7"
                                             Classes="Ghost"
                                             Padding="0"
                                             HorizontalAlignment="Right"
@@ -363,8 +350,21 @@
                                             AutomationProperties.Name="Sort by active hours"
                                             AutomationProperties.HelpText="Sort apps by active hours">
                                         <StackPanel Orientation="Horizontal" Spacing="4">
-                                            <TextBlock Text="HOURS" Classes="MetricLabel" FontSize="10" />
-                                            <TextBlock Text="{Binding HoursActiveSortGlyph}" Classes="MetricLabel" FontSize="10" />
+                                            <TextBlock Text="HOURS" Classes="MetricLabel" FontSize="11" />
+                                            <TextBlock Text="{Binding HoursActiveSortGlyph}" Classes="MetricLabel" FontSize="11" />
+                                        </StackPanel>
+                                    </Button>
+                                    <Button Grid.Column="8"
+                                            Classes="Ghost"
+                                            Padding="0"
+                                            HorizontalAlignment="Left"
+                                            Command="{Binding ToggleSortCommand}"
+                                            CommandParameter="{x:Static vm:AppsSortColumn.Category}"
+                                            AutomationProperties.Name="Sort by category"
+                                            AutomationProperties.HelpText="Sort apps by category">
+                                        <StackPanel Orientation="Horizontal" Spacing="4">
+                                            <TextBlock Text="CATEGORY" Classes="MetricLabel" FontSize="11" />
+                                            <TextBlock Text="{Binding CategorySortGlyph}" Classes="MetricLabel" FontSize="11" />
                                         </StackPanel>
                                     </Button>
                                 </Grid>
@@ -391,11 +391,11 @@
                                     </ListBox.Styles>
                                     <ListBox.ItemTemplate>
                                         <DataTemplate x:DataType="services:AppOverview">
-                                            <Border Padding="20,14" Margin="0,0,0,8"
+                                            <Border Padding="16,10" Margin="0,0,0,6"
                                                     Background="{StaticResource BorderSubtleBrush}"
                                                     CornerRadius="12"
                                                     ToolTip.Tip="{Binding ExecutablePath}">
-                                                <Grid ColumnDefinitions="Auto, *, 130, 130, 130, 130, 130, 130, 130" ColumnSpacing="20">
+                                                <Grid ColumnDefinitions="Auto, *, 110, 110, 110, 100, 110, 80, 130" ColumnSpacing="20">
                                                     <!-- Icon: real PNG when extracted, generic placeholder otherwise. Both
                                                          occupy the same 44×44 slot inside a tinted rounded square so the
                                                          visual alignment is identical whether or not the helper resolved
@@ -428,10 +428,10 @@
                                                     </StackPanel>
 
                                                     <TextBlock Grid.Column="2"
-                                                               Text="{Binding CategoryName}"
-                                                               Classes="Caption"
-                                                               VerticalAlignment="Center"
-                                                               TextTrimming="CharacterEllipsis" />
+                                                               Text="{Binding FormattedTotalBytes}"
+                                                               FontSize="15" FontWeight="Bold"
+                                                               HorizontalAlignment="Right"
+                                                               VerticalAlignment="Center" />
                                                     <TextBlock Grid.Column="3"
                                                                Text="{Binding FormattedBytesReceived}"
                                                                FontSize="15" FontWeight="SemiBold"
@@ -445,25 +445,36 @@
                                                                HorizontalAlignment="Right"
                                                                VerticalAlignment="Center" />
                                                     <TextBlock Grid.Column="5"
-                                                               Text="{Binding FormattedTotalBytes}"
-                                                               FontSize="15" FontWeight="Bold"
-                                                               HorizontalAlignment="Right"
-                                                               VerticalAlignment="Center" />
-                                                    <TextBlock Grid.Column="6"
                                                                Text="{Binding AvgCpuPercent, StringFormat={}{0:F1}%}"
                                                                FontSize="15" FontWeight="SemiBold"
                                                                HorizontalAlignment="Right"
                                                                VerticalAlignment="Center" />
-                                                    <TextBlock Grid.Column="7"
+                                                    <TextBlock Grid.Column="6"
                                                                Text="{Binding FormattedAvgPrivateBytes}"
                                                                FontSize="15" FontWeight="SemiBold"
                                                                HorizontalAlignment="Right"
                                                                VerticalAlignment="Center" />
-                                                    <TextBlock Grid.Column="8"
+                                                    <TextBlock Grid.Column="7"
                                                                Text="{Binding HoursActive}"
                                                                FontSize="15" FontWeight="SemiBold"
                                                                HorizontalAlignment="Right"
                                                                VerticalAlignment="Center" />
+                                                    <!-- Category pill: subtle outline rather than a bare gray label so it
+                                                         reads as a "tag" rather than an afterthought. The outline color
+                                                         comes from the same neutral subtle border used elsewhere so it
+                                                         never competes with primary numeric cells. -->
+                                                    <Border Grid.Column="8"
+                                                            Padding="10,4"
+                                                            CornerRadius="999"
+                                                            BorderBrush="{StaticResource GlassBorderBrush}"
+                                                            BorderThickness="1"
+                                                            HorizontalAlignment="Left"
+                                                            VerticalAlignment="Center">
+                                                        <TextBlock Text="{Binding CategoryName}"
+                                                                   FontSize="12"
+                                                                   Foreground="{StaticResource MutedTextBrush}"
+                                                                   TextTrimming="CharacterEllipsis" />
+                                                    </Border>
                                                 </Grid>
                                             </Border>
                                         </DataTemplate>
@@ -472,19 +483,48 @@
                             </Grid>
                         </Border>
 
+                        <!-- Two empty states swap based on whether filters are
+                             actually narrowing the result set, so the message is
+                             always actionable rather than a generic "no data". -->
                         <Border Classes="Card"
                                 Padding="40"
                                 Margin="0,8"
                                 IsVisible="{Binding !Apps.Count}">
-                            <StackPanel HorizontalAlignment="Center" Spacing="12">
-                                <TextBlock Text="📦" FontSize="36" HorizontalAlignment="Center" />
-                                <TextBlock Text="No application data found"
-                                           FontSize="16" FontWeight="Bold"
-                                           HorizontalAlignment="Center" />
-                                <TextBlock Text="Try expanding the date range."
-                                           Classes="Subtitle"
-                                           HorizontalAlignment="Center" />
-                            </StackPanel>
+                            <Grid>
+                                <StackPanel HorizontalAlignment="Center"
+                                            Spacing="12"
+                                            IsVisible="{Binding !HasActiveFilters}">
+                                    <TextBlock Text="📦" FontSize="36" HorizontalAlignment="Center" />
+                                    <TextBlock Text="No application data yet"
+                                               FontSize="16" FontWeight="Bold"
+                                               HorizontalAlignment="Center" />
+                                    <TextBlock Text="The helper hasn't recorded any apps for this date range. Try expanding it or hit Refresh."
+                                               Classes="Subtitle"
+                                               HorizontalAlignment="Center"
+                                               TextAlignment="Center"
+                                               TextWrapping="Wrap"
+                                               MaxWidth="380" />
+                                </StackPanel>
+                                <StackPanel HorizontalAlignment="Center"
+                                            Spacing="12"
+                                            IsVisible="{Binding HasActiveFilters}">
+                                    <TextBlock Text="🔍" FontSize="36" HorizontalAlignment="Center" />
+                                    <TextBlock Text="No apps match your filters"
+                                               FontSize="16" FontWeight="Bold"
+                                               HorizontalAlignment="Center" />
+                                    <TextBlock Text="Loosen MIN TRAFFIC, ACTIVE, or MODE — or clear them all in one click."
+                                               Classes="Subtitle"
+                                               HorizontalAlignment="Center"
+                                               TextAlignment="Center"
+                                               TextWrapping="Wrap"
+                                               MaxWidth="380" />
+                                    <Button Content="Clear filters"
+                                            Classes="Primary"
+                                            HorizontalAlignment="Center"
+                                            Command="{Binding ClearFiltersCommand}"
+                                            AutomationProperties.Name="Clear all filters" />
+                                </StackPanel>
+                            </Grid>
                         </Border>
                     </Grid>
                 </Grid>

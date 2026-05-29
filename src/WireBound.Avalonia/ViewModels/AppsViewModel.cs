@@ -33,6 +33,14 @@ public sealed partial class AppsViewModel : ObservableObject, IDisposable
 
     public Task InitializationTask { get; }
 
+    /// <summary>
+    /// Raised after a sort change rearranges <see cref="Apps"/>. The view
+    /// subscribes to scroll the master ListBox back to the top so the user
+    /// always sees the top of the new ordering rather than whatever rows
+    /// happen to land at the previous pixel offset.
+    /// </summary>
+    public event Action? ResetListScrollRequested;
+
     [ObservableProperty]
     private DateTime? _startDate = DateTime.Now.Date;
 
@@ -414,6 +422,11 @@ public sealed partial class AppsViewModel : ObservableObject, IDisposable
         if (!_suppressRecompute)
         {
             RecomputeView();
+            // Re-sort changes which row is at any given scroll offset, so the
+            // viewport's content is essentially random after the rearrange.
+            // Resetting to the top of the new ordering is the user expectation
+            // for table-style headers.
+            ResetListScrollRequested?.Invoke();
         }
     }
 
@@ -423,6 +436,7 @@ public sealed partial class AppsViewModel : ObservableObject, IDisposable
         if (!_suppressRecompute)
         {
             RecomputeView();
+            ResetListScrollRequested?.Invoke();
         }
     }
 

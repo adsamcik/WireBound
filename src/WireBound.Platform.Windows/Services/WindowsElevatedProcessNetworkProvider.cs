@@ -286,8 +286,25 @@ public sealed class WindowsElevatedProcessNetworkProvider : IProcessNetworkProvi
                 return [];
             }
 
+            // The helper's per-connection byte counters are zero on Win10/11
+            // because ETW indexes its data-transfer events by Tcb pointer
+            // while the helper's connection enumeration is keyed by
+            // local:port-remote:port endpoint quads — the two keyspaces
+            // don't overlap (lifecycle events expose Tcb + addresses but
+            // we don't currently parse the SocketAddress binary blob into
+            // a quad-key lookup table).
+            //
+            // ProcessConnectionStats.BytesSent / BytesReceived at the
+            // PROCESS level ARE accurate because they aggregate over the
+            // Tcb-keyed ETW dictionary. To make the summary cards on the
+            // Connections tab correct, we attach the per-process total to
+            // the FIRST connection of each process and zero on subsequent
+            // entries. Summing across the flattened list then yields the
+            // correct total. Per-connection breakdowns are still
+            // imprecise but the cards (Received / Sent) finally show
+            // real numbers.
             return response.Processes
-                .SelectMany(p => p.Connections.Select(c => new ConnectionStats
+                .SelectMany(p => p.Connections.Select((c, index) => new ConnectionStats
                 {
                     ProcessId = p.ProcessId,
                     ProcessName = p.ProcessName,
@@ -296,8 +313,8 @@ public sealed class WindowsElevatedProcessNetworkProvider : IProcessNetworkProvi
                     RemoteAddress = c.RemoteAddress,
                     RemotePort = c.RemotePort,
                     Protocol = c.Protocol == 6 ? "TCP" : "UDP",
-                    BytesSent = c.BytesSent,
-                    BytesReceived = c.BytesReceived,
+                    BytesSent = index == 0 ? p.BytesSent : 0,
+                    BytesReceived = index == 0 ? p.BytesReceived : 0,
                     HasByteCounters = true
                 }))
                 .ToList();

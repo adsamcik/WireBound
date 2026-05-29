@@ -24,9 +24,8 @@ public sealed class ViewFactory : IViewFactory
         {
             Routes.Overview => CreateOverviewView(),
             Routes.Charts => CreateChartsView(),
-            Routes.Insights => CreateInsightsView(),
             Routes.Settings => CreateSettingsView(),
-            Routes.Applications => CreateApplicationsView(),
+            Routes.Apps => CreateAppsView(),
             Routes.Connections => CreateConnectionsView(),
             Routes.System => CreateSystemView(),
             _ => CreateOverviewView()
@@ -47,13 +46,6 @@ public sealed class ViewFactory : IViewFactory
         return view;
     }
 
-    private Control CreateInsightsView()
-    {
-        var view = _serviceProvider.GetRequiredService<InsightsView>();
-        view.DataContext = _serviceProvider.GetRequiredService<InsightsViewModel>();
-        return view;
-    }
-
     private Control CreateSettingsView()
     {
         var view = _serviceProvider.GetRequiredService<SettingsView>();
@@ -61,10 +53,10 @@ public sealed class ViewFactory : IViewFactory
         return view;
     }
 
-    private Control CreateApplicationsView()
+    private Control CreateAppsView()
     {
-        var view = _serviceProvider.GetRequiredService<ApplicationsView>();
-        view.DataContext = _serviceProvider.GetRequiredService<ApplicationsViewModel>();
+        var view = _serviceProvider.GetRequiredService<AppsView>();
+        view.DataContext = _serviceProvider.GetRequiredService<AppsViewModel>();
         return view;
     }
 

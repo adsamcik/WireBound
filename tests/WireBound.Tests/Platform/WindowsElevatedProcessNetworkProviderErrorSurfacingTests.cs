@@ -95,14 +95,17 @@ public class WindowsElevatedProcessNetworkProviderErrorSurfacingTests
             });
 
         await provider.StartMonitoringAsync();
-        await requestStarted.Task.WaitAsync(TimeSpan.FromSeconds(4));
+        // PollAsync's first iteration sleeps ~2s before issuing a request, so
+        // give the test deadline generous headroom — under heavy parallel test
+        // load the Task.Delay can be substantially longer than 2s.
+        await requestStarted.Task.WaitAsync(TimeSpan.FromSeconds(15));
 
         var disposeTask = provider.DisposeAsync().AsTask();
         await Task.Delay(100);
         disposeTask.IsCompleted.Should().BeFalse();
 
         releaseRequest.SetResult(new ProcessStatsResponse { Success = true });
-        await disposeTask.WaitAsync(TimeSpan.FromSeconds(2));
+        await disposeTask.WaitAsync(TimeSpan.FromSeconds(5));
     }
 
     private static (WindowsElevatedProcessNetworkProvider Provider, IHelperConnection Connection) CreateProvider()

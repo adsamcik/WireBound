@@ -8,16 +8,30 @@ namespace WireBound.Avalonia.Services;
 /// </summary>
 public sealed class NavigationService : INavigationService
 {
+    private const string LegacyApplicationsRoute = "Applications";
+    private const string LegacyInsightsRoute = "Insights";
+
     public string CurrentView { get; private set; } = Routes.Overview;
 
     public event Action<string>? NavigationChanged;
 
     public void NavigateTo(string viewName)
     {
-        if (CurrentView != viewName)
+        var route = NormalizeRoute(viewName);
+
+        if (CurrentView != route)
         {
-            CurrentView = viewName;
-            NavigationChanged?.Invoke(viewName);
+            CurrentView = route;
+            NavigationChanged?.Invoke(route);
         }
+    }
+
+    private static string NormalizeRoute(string route)
+    {
+        return route switch
+        {
+            LegacyApplicationsRoute or LegacyInsightsRoute => Routes.Apps,
+            _ => route
+        };
     }
 }

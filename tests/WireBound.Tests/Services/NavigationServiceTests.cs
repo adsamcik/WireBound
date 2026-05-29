@@ -80,14 +80,32 @@ public class NavigationServiceTests
         // Act
         service.NavigateTo(Routes.Charts);
         service.NavigateTo(Routes.Settings);
-        service.NavigateTo(Routes.Applications);
+        service.NavigateTo(Routes.Apps);
 
         // Assert
-        service.CurrentView.Should().Be(Routes.Applications);
+        service.CurrentView.Should().Be(Routes.Apps);
         navigated.Should().HaveCount(3);
         navigated[0].Should().Be(Routes.Charts);
         navigated[1].Should().Be(Routes.Settings);
-        navigated[2].Should().Be(Routes.Applications);
+        navigated[2].Should().Be(Routes.Apps);
+    }
+
+    [Test]
+    [Arguments("Applications")]
+    [Arguments("Insights")]
+    public void NavigateTo_LegacyAppsTabRoutes_MigratesToApps(string legacyRoute)
+    {
+        // Arrange
+        var service = new NavigationService();
+        string? navigatedTo = null;
+        service.NavigationChanged += view => navigatedTo = view;
+
+        // Act
+        service.NavigateTo(legacyRoute);
+
+        // Assert
+        service.CurrentView.Should().Be(Routes.Apps);
+        navigatedTo.Should().Be(Routes.Apps);
     }
 
     [Test]

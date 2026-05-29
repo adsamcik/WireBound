@@ -53,7 +53,7 @@ public class MainViewModelTests : IAsyncDisposable
         using var viewModel = CreateViewModel();
 
         // Assert
-        viewModel.NavigationItems.Should().HaveCount(7);
+        viewModel.NavigationItems.Should().HaveCount(6);
     }
 
     [Test]
@@ -64,13 +64,13 @@ public class MainViewModelTests : IAsyncDisposable
 
         // Assert
         var routes = viewModel.NavigationItems.Select(x => x.Route).ToList();
-        routes.Should().Contain(Routes.Overview);
-        routes.Should().Contain(Routes.Charts);
-        routes.Should().Contain(Routes.System);
-        routes.Should().Contain(Routes.Applications);
-        routes.Should().Contain(Routes.Connections);
-        routes.Should().Contain(Routes.Insights);
-        routes.Should().Contain(Routes.Settings);
+        routes.Should().Equal(
+            Routes.Overview,
+            Routes.Charts,
+            Routes.Apps,
+            Routes.Connections,
+            Routes.System,
+            Routes.Settings);
     }
 
     [Test]
@@ -217,10 +217,9 @@ public class MainViewModelTests : IAsyncDisposable
     [Test]
     [Arguments(Routes.Overview)]
     [Arguments(Routes.Charts)]
-    [Arguments(Routes.System)]
-    [Arguments(Routes.Applications)]
+    [Arguments(Routes.Apps)]
     [Arguments(Routes.Connections)]
-    [Arguments(Routes.Insights)]
+    [Arguments(Routes.System)]
     [Arguments(Routes.Settings)]
     public void NavigateToCommand_WorksForAllRoutes(string route)
     {

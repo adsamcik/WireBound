@@ -1,0 +1,540 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:lvc="using:LiveChartsCore.SkiaSharpView.Avalonia"
+             xmlns:vm="using:WireBound.Avalonia.ViewModels"
+             xmlns:services="using:WireBound.Core.Services"
+             x:Class="WireBound.Avalonia.Views.AppsView"
+             x:DataType="vm:AppsViewModel"
+             Background="{StaticResource BackgroundBrush}"
+             AutomationProperties.Name="Apps View">
+
+    <Grid ColumnDefinitions="*, Auto">
+        <ScrollViewer Grid.Column="0" Margin="28">
+            <StackPanel Spacing="24">
+                <Border Classes="Card">
+                    <StackPanel Spacing="4">
+                        <TextBlock Text="Apps" Classes="PageTitle" />
+                        <TextBlock Text="Unified application network and resource activity" Classes="Subtitle" />
+                    </StackPanel>
+                </Border>
+
+                <Border Classes="Card"
+                        Background="{StaticResource InfoBannerColor}"
+                        IsVisible="{Binding ShowStatusBanner}">
+                    <Grid ColumnDefinitions="Auto, *, Auto" ColumnSpacing="16">
+                        <Border Background="{StaticResource InfoBgTintBrush}" CornerRadius="10" Width="48" Height="48">
+                            <TextBlock Text="ℹ️" FontSize="24" HorizontalAlignment="Center" VerticalAlignment="Center" />
+                        </Border>
+                        <StackPanel Grid.Column="1" Spacing="8" VerticalAlignment="Center">
+                            <TextBlock Text="Apps tracking status"
+                                       FontSize="16" FontWeight="Bold"
+                                       Foreground="{StaticResource PrimaryBrush}" />
+                            <TextBlock Text="Per-app tracking is not available on this platform."
+                                       Classes="Subtitle"
+                                       IsVisible="{Binding !IsPlatformSupported}" />
+                            <TextBlock Text="Start the elevated helper to enable accurate per-app byte tracking."
+                                       Classes="Subtitle"
+                                       TextWrapping="Wrap"
+                                       IsVisible="{Binding RequiresElevation}" />
+                            <TextBlock Text="Per-app byte counts may be estimated until the elevated helper is connected."
+                                       Classes="Subtitle"
+                                       TextWrapping="Wrap"
+                                       IsVisible="{Binding IsByteTrackingLimited}" />
+                        </StackPanel>
+                        <Button Grid.Column="2"
+                                Content="Start Helper"
+                                Classes="Primary"
+                                Command="{Binding RequestElevationCommand}"
+                                IsVisible="{Binding RequiresElevation}"
+                                IsEnabled="{Binding !IsRequestingElevation}"
+                                VerticalAlignment="Center"
+                                AutomationProperties.Name="Start Elevated Helper"
+                                AutomationProperties.HelpText="Start the minimal elevated helper process for accurate per-app byte tracking" />
+                    </Grid>
+                </Border>
+
+                <Grid ColumnDefinitions="*, *, *, *, *" ColumnSpacing="16">
+                    <Border Grid.Column="0" Classes="ElevatedCard">
+                        <StackPanel Spacing="8">
+                            <StackPanel Orientation="Horizontal" Spacing="8">
+                                <TextBlock Text="📦" FontSize="16" />
+                                <TextBlock Text="APPS COUNT" Classes="MetricLabel" />
+                            </StackPanel>
+                            <TextBlock Text="{Binding AppCount}" FontSize="30" FontWeight="Bold" />
+                        </StackPanel>
+                    </Border>
+                    <Border Grid.Column="1" Classes="ElevatedCard">
+                        <StackPanel Spacing="8">
+                            <StackPanel Orientation="Horizontal" Spacing="8">
+                                <TextBlock Text="⬇️" FontSize="16" />
+                                <TextBlock Text="TOTAL DOWNLOAD" Classes="MetricLabel" />
+                            </StackPanel>
+                            <TextBlock Text="{Binding TotalDownload}"
+                                       FontSize="30" FontWeight="Bold"
+                                       Foreground="{StaticResource DownloadBrush}" />
+                        </StackPanel>
+                    </Border>
+                    <Border Grid.Column="2" Classes="ElevatedCard">
+                        <StackPanel Spacing="8">
+                            <StackPanel Orientation="Horizontal" Spacing="8">
+                                <TextBlock Text="⬆️" FontSize="16" />
+                                <TextBlock Text="TOTAL UPLOAD" Classes="MetricLabel" />
+                            </StackPanel>
+                            <TextBlock Text="{Binding TotalUpload}"
+                                       FontSize="30" FontWeight="Bold"
+                                       Foreground="{StaticResource UploadBrush}" />
+                        </StackPanel>
+                    </Border>
+                    <Border Grid.Column="3" Classes="ElevatedCard">
+                        <StackPanel Spacing="8">
+                            <StackPanel Orientation="Horizontal" Spacing="8">
+                                <TextBlock Text="🔥" FontSize="16" />
+                                <TextBlock Text="TOP CPU APP" Classes="MetricLabel" />
+                            </StackPanel>
+                            <TextBlock Text="{Binding TopCpuApp}"
+                                       FontSize="18" FontWeight="Bold"
+                                       TextTrimming="CharacterEllipsis"
+                                       ToolTip.Tip="{Binding TopCpuApp}" />
+                        </StackPanel>
+                    </Border>
+                    <Border Grid.Column="4" Classes="ElevatedCard">
+                        <StackPanel Spacing="8">
+                            <StackPanel Orientation="Horizontal" Spacing="8">
+                                <TextBlock Text="🧠" FontSize="16" />
+                                <TextBlock Text="TOP RAM APP" Classes="MetricLabel" />
+                            </StackPanel>
+                            <TextBlock Text="{Binding TopMemoryApp}"
+                                       FontSize="18" FontWeight="Bold"
+                                       TextTrimming="CharacterEllipsis"
+                                       ToolTip.Tip="{Binding TopMemoryApp}" />
+                        </StackPanel>
+                    </Border>
+                </Grid>
+
+                <Border Classes="Card" Padding="20">
+                    <Grid ColumnDefinitions="*, Auto, Auto, Auto, Auto, Auto" ColumnSpacing="16">
+                        <Border Grid.Column="0"
+                                Background="{StaticResource SurfaceBrush}"
+                                CornerRadius="10"
+                                BorderBrush="{StaticResource GlassBorderBrush}"
+                                BorderThickness="1"
+                                Padding="12,0">
+                            <TextBox Watermark="Search apps…"
+                                     Text="{Binding SearchText}"
+                                     Background="Transparent"
+                                     BorderThickness="0"
+                                     MinWidth="220"
+                                     AutomationProperties.Name="Search Apps"
+                                     AutomationProperties.HelpText="Filter applications by name, process, path, or category"
+                                     AutomationProperties.IsRequiredForForm="False" />
+                        </Border>
+                        <ComboBox Grid.Column="1"
+                                  ItemsSource="{Binding AvailableCategories}"
+                                  SelectedItem="{Binding SelectedCategory}"
+                                  MinWidth="150"
+                                  AutomationProperties.Name="App Category Filter"
+                                  AutomationProperties.HelpText="Filter applications by category"
+                                  AutomationProperties.IsRequiredForForm="False" />
+                        <CalendarDatePicker Grid.Column="2"
+                                            SelectedDate="{Binding StartDate}"
+                                            AutomationProperties.Name="Apps Start Date"
+                                            AutomationProperties.HelpText="Select the start date for application data"
+                                            AutomationProperties.IsRequiredForForm="False" />
+                        <TextBlock Grid.Column="3" Text="→" VerticalAlignment="Center" Foreground="{StaticResource MutedTextBrush}" />
+                        <CalendarDatePicker Grid.Column="4"
+                                            SelectedDate="{Binding EndDate}"
+                                            AutomationProperties.Name="Apps End Date"
+                                            AutomationProperties.HelpText="Select the end date for application data"
+                                            AutomationProperties.IsRequiredForForm="False" />
+                        <Button Grid.Column="5"
+                                Content="🔄 Refresh"
+                                Classes="Primary"
+                                Command="{Binding RefreshCommand}"
+                                IsEnabled="{Binding !IsLoading}"
+                                AutomationProperties.Name="Refresh Apps Data"
+                                AutomationProperties.HelpText="Reload application data for the selected date range" />
+                    </Grid>
+                </Border>
+
+                <Grid RowDefinitions="Auto, *" RowSpacing="16">
+                    <StackPanel Orientation="Horizontal" Spacing="12">
+                        <TextBlock Text="📊" FontSize="16" VerticalAlignment="Center" />
+                        <TextBlock Text="APPLICATIONS" Classes="MetricLabel" VerticalAlignment="Center" />
+                    </StackPanel>
+
+                    <Grid Grid.Row="1">
+                        <Border Classes="Card">
+                            <Grid RowDefinitions="Auto, *">
+                                <Grid Grid.Row="0"
+                                      ColumnDefinitions="Auto, *, 130, 130, 130, 130, 130, 130, 130"
+                                      ColumnSpacing="20"
+                                      Margin="20,0,20,12">
+                                    <Border Width="44" />
+                                    <Button Grid.Column="1"
+                                            Classes="Ghost"
+                                            Padding="0"
+                                            HorizontalAlignment="Left"
+                                            Command="{Binding ToggleSortCommand}"
+                                            CommandParameter="{x:Static vm:AppsSortColumn.Name}"
+                                            AutomationProperties.Name="Sort by application"
+                                            AutomationProperties.HelpText="Sort apps by application name">
+                                        <StackPanel Orientation="Horizontal" Spacing="4">
+                                            <TextBlock Text="APPLICATION" Classes="MetricLabel" FontSize="10" />
+                                            <TextBlock Text="{Binding NameSortGlyph}" Classes="MetricLabel" FontSize="10" />
+                                        </StackPanel>
+                                    </Button>
+                                    <Button Grid.Column="2"
+                                            Classes="Ghost"
+                                            Padding="0"
+                                            HorizontalAlignment="Left"
+                                            Command="{Binding ToggleSortCommand}"
+                                            CommandParameter="{x:Static vm:AppsSortColumn.Category}"
+                                            AutomationProperties.Name="Sort by category"
+                                            AutomationProperties.HelpText="Sort apps by category">
+                                        <StackPanel Orientation="Horizontal" Spacing="4">
+                                            <TextBlock Text="CATEGORY" Classes="MetricLabel" FontSize="10" />
+                                            <TextBlock Text="{Binding CategorySortGlyph}" Classes="MetricLabel" FontSize="10" />
+                                        </StackPanel>
+                                    </Button>
+                                    <Button Grid.Column="3"
+                                            Classes="Ghost"
+                                            Padding="0"
+                                            HorizontalAlignment="Right"
+                                            Command="{Binding ToggleSortCommand}"
+                                            CommandParameter="{x:Static vm:AppsSortColumn.BytesReceived}"
+                                            AutomationProperties.Name="Sort by download"
+                                            AutomationProperties.HelpText="Sort apps by downloaded bytes">
+                                        <StackPanel Orientation="Horizontal" Spacing="4">
+                                            <TextBlock Text="DOWNLOAD" Classes="MetricLabel" FontSize="10" />
+                                            <TextBlock Text="{Binding BytesReceivedSortGlyph}" Classes="MetricLabel" FontSize="10" />
+                                        </StackPanel>
+                                    </Button>
+                                    <Button Grid.Column="4"
+                                            Classes="Ghost"
+                                            Padding="0"
+                                            HorizontalAlignment="Right"
+                                            Command="{Binding ToggleSortCommand}"
+                                            CommandParameter="{x:Static vm:AppsSortColumn.BytesSent}"
+                                            AutomationProperties.Name="Sort by upload"
+                                            AutomationProperties.HelpText="Sort apps by uploaded bytes">
+                                        <StackPanel Orientation="Horizontal" Spacing="4">
+                                            <TextBlock Text="UPLOAD" Classes="MetricLabel" FontSize="10" />
+                                            <TextBlock Text="{Binding BytesSentSortGlyph}" Classes="MetricLabel" FontSize="10" />
+                                        </StackPanel>
+                                    </Button>
+                                    <Button Grid.Column="5"
+                                            Classes="Ghost"
+                                            Padding="0"
+                                            HorizontalAlignment="Right"
+                                            Command="{Binding ToggleSortCommand}"
+                                            CommandParameter="{x:Static vm:AppsSortColumn.TotalBytes}"
+                                            AutomationProperties.Name="Sort by total bytes"
+                                            AutomationProperties.HelpText="Sort apps by total network bytes">
+                                        <StackPanel Orientation="Horizontal" Spacing="4">
+                                            <TextBlock Text="TOTAL" Classes="MetricLabel" FontSize="10" />
+                                            <TextBlock Text="{Binding TotalBytesSortGlyph}" Classes="MetricLabel" FontSize="10" />
+                                        </StackPanel>
+                                    </Button>
+                                    <Button Grid.Column="6"
+                                            Classes="Ghost"
+                                            Padding="0"
+                                            HorizontalAlignment="Right"
+                                            Command="{Binding ToggleSortCommand}"
+                                            CommandParameter="{x:Static vm:AppsSortColumn.AvgCpuPercent}"
+                                            AutomationProperties.Name="Sort by average CPU"
+                                            AutomationProperties.HelpText="Sort apps by average CPU percentage">
+                                        <StackPanel Orientation="Horizontal" Spacing="4">
+                                            <TextBlock Text="AVG CPU%" Classes="MetricLabel" FontSize="10" />
+                                            <TextBlock Text="{Binding AvgCpuPercentSortGlyph}" Classes="MetricLabel" FontSize="10" />
+                                        </StackPanel>
+                                    </Button>
+                                    <Button Grid.Column="7"
+                                            Classes="Ghost"
+                                            Padding="0"
+                                            HorizontalAlignment="Right"
+                                            Command="{Binding ToggleSortCommand}"
+                                            CommandParameter="{x:Static vm:AppsSortColumn.AvgPrivateBytes}"
+                                            AutomationProperties.Name="Sort by average RAM"
+                                            AutomationProperties.HelpText="Sort apps by average RAM usage">
+                                        <StackPanel Orientation="Horizontal" Spacing="4">
+                                            <TextBlock Text="AVG RAM" Classes="MetricLabel" FontSize="10" />
+                                            <TextBlock Text="{Binding AvgPrivateBytesSortGlyph}" Classes="MetricLabel" FontSize="10" />
+                                        </StackPanel>
+                                    </Button>
+                                    <Button Grid.Column="8"
+                                            Classes="Ghost"
+                                            Padding="0"
+                                            HorizontalAlignment="Right"
+                                            Command="{Binding ToggleSortCommand}"
+                                            CommandParameter="{x:Static vm:AppsSortColumn.HoursActive}"
+                                            AutomationProperties.Name="Sort by active hours"
+                                            AutomationProperties.HelpText="Sort apps by active hours">
+                                        <StackPanel Orientation="Horizontal" Spacing="4">
+                                            <TextBlock Text="HOURS" Classes="MetricLabel" FontSize="10" />
+                                            <TextBlock Text="{Binding HoursActiveSortGlyph}" Classes="MetricLabel" FontSize="10" />
+                                        </StackPanel>
+                                    </Button>
+                                </Grid>
+
+                                <ListBox Grid.Row="1"
+                                         ItemsSource="{Binding Apps}"
+                                         SelectedItem="{Binding SelectedApp, Mode=TwoWay}"
+                                         SelectionMode="Single"
+                                         Background="Transparent"
+                                         BorderThickness="0"
+                                         AutomationProperties.Name="Apps List"
+                                         AutomationProperties.HelpText="List of applications with network and resource usage summaries">
+                                    <ListBox.Styles>
+                                        <Style Selector="ListBoxItem">
+                                            <Setter Property="Padding" Value="0" />
+                                            <Setter Property="Margin" Value="0" />
+                                            <Setter Property="Background" Value="Transparent" />
+                                            <Setter Property="Cursor" Value="Hand" />
+                                        </Style>
+                                        <Style Selector="ListBoxItem:selected /template/ ContentPresenter#PART_ContentPresenter">
+                                            <Setter Property="Background" Value="Transparent" />
+                                        </Style>
+                                    </ListBox.Styles>
+                                    <ListBox.ItemTemplate>
+                                        <DataTemplate x:DataType="services:AppOverview">
+                                            <Border Padding="20,14" Margin="0,0,0,8"
+                                                    Background="{StaticResource BorderSubtleBrush}"
+                                                    CornerRadius="12"
+                                                    ToolTip.Tip="{Binding ExecutablePath}">
+                                                <Grid ColumnDefinitions="Auto, *, 130, 130, 130, 130, 130, 130, 130" ColumnSpacing="20">
+                                                    <Border Width="44" Height="44"
+                                                            Background="{StaticResource AccentBgTintBrush}"
+                                                            CornerRadius="10">
+                                                        <TextBlock Text="📦" FontSize="20" HorizontalAlignment="Center" VerticalAlignment="Center" />
+                                                    </Border>
+
+                                                    <StackPanel Grid.Column="1" VerticalAlignment="Center" Spacing="3">
+                                                        <TextBlock Text="{Binding AppName}"
+                                                                   FontSize="15" FontWeight="SemiBold"
+                                                                   TextTrimming="CharacterEllipsis" />
+                                                        <TextBlock Text="{Binding ProcessName}"
+                                                                   Classes="Caption"
+                                                                   TextTrimming="CharacterEllipsis" />
+                                                    </StackPanel>
+
+                                                    <TextBlock Grid.Column="2"
+                                                               Text="{Binding CategoryName}"
+                                                               Classes="Caption"
+                                                               VerticalAlignment="Center"
+                                                               TextTrimming="CharacterEllipsis" />
+                                                    <TextBlock Grid.Column="3"
+                                                               Text="{Binding FormattedBytesReceived}"
+                                                               FontSize="15" FontWeight="SemiBold"
+                                                               Foreground="{StaticResource DownloadBrush}"
+                                                               HorizontalAlignment="Right"
+                                                               VerticalAlignment="Center" />
+                                                    <TextBlock Grid.Column="4"
+                                                               Text="{Binding FormattedBytesSent}"
+                                                               FontSize="15" FontWeight="SemiBold"
+                                                               Foreground="{StaticResource UploadBrush}"
+                                                               HorizontalAlignment="Right"
+                                                               VerticalAlignment="Center" />
+                                                    <TextBlock Grid.Column="5"
+                                                               Text="{Binding FormattedTotalBytes}"
+                                                               FontSize="15" FontWeight="Bold"
+                                                               HorizontalAlignment="Right"
+                                                               VerticalAlignment="Center" />
+                                                    <TextBlock Grid.Column="6"
+                                                               Text="{Binding AvgCpuPercent, StringFormat={}{0:F1}%}"
+                                                               FontSize="15" FontWeight="SemiBold"
+                                                               HorizontalAlignment="Right"
+                                                               VerticalAlignment="Center" />
+                                                    <TextBlock Grid.Column="7"
+                                                               Text="{Binding FormattedAvgPrivateBytes}"
+                                                               FontSize="15" FontWeight="SemiBold"
+                                                               HorizontalAlignment="Right"
+                                                               VerticalAlignment="Center" />
+                                                    <TextBlock Grid.Column="8"
+                                                               Text="{Binding HoursActive}"
+                                                               FontSize="15" FontWeight="SemiBold"
+                                                               HorizontalAlignment="Right"
+                                                               VerticalAlignment="Center" />
+                                                </Grid>
+                                            </Border>
+                                        </DataTemplate>
+                                    </ListBox.ItemTemplate>
+                                </ListBox>
+                            </Grid>
+                        </Border>
+
+                        <Border Classes="Card"
+                                Padding="40"
+                                Margin="0,8"
+                                IsVisible="{Binding !Apps.Count}">
+                            <StackPanel HorizontalAlignment="Center" Spacing="12">
+                                <TextBlock Text="📦" FontSize="36" HorizontalAlignment="Center" />
+                                <TextBlock Text="No application data found"
+                                           FontSize="16" FontWeight="Bold"
+                                           HorizontalAlignment="Center" />
+                                <TextBlock Text="Try expanding the date range."
+                                           Classes="Subtitle"
+                                           HorizontalAlignment="Center" />
+                            </StackPanel>
+                        </Border>
+                    </Grid>
+                </Grid>
+            </StackPanel>
+        </ScrollViewer>
+
+        <Border Grid.Column="1"
+                Width="520"
+                MaxWidth="520"
+                Margin="0,28,28,28"
+                Classes="ElevatedCard"
+                IsVisible="{Binding IsDetailOpen}">
+            <ScrollViewer>
+                <StackPanel Spacing="18">
+                    <Grid ColumnDefinitions="*, Auto" ColumnSpacing="12">
+                        <StackPanel Spacing="6">
+                            <TextBlock Text="{Binding SelectedAppDisplayName}"
+                                       FontSize="22" FontWeight="Bold"
+                                       TextTrimming="CharacterEllipsis" />
+                            <TextBlock Text="{Binding SelectedAppExecutablePath}"
+                                       Classes="Caption"
+                                       TextTrimming="CharacterEllipsis"
+                                       ToolTip.Tip="{Binding SelectedAppExecutablePath}" />
+                            <Border Background="{StaticResource AccentBgTintBrush}"
+                                    CornerRadius="6"
+                                    Padding="8,3"
+                                    HorizontalAlignment="Left">
+                                <TextBlock Text="{Binding SelectedAppCategoryName}"
+                                           FontSize="11" FontWeight="Bold"
+                                           Foreground="{StaticResource PrimaryBrush}" />
+                            </Border>
+                        </StackPanel>
+                        <Button Grid.Column="1"
+                                Content="✕"
+                                Classes="Ghost"
+                                Command="{Binding CloseDetailCommand}"
+                                AutomationProperties.Name="Close App Details"
+                                AutomationProperties.HelpText="Close the application detail drawer" />
+                    </Grid>
+
+                    <Grid ColumnDefinitions="*, *, *" ColumnSpacing="10">
+                        <Border Grid.Column="0" Classes="CompactCard" Padding="12">
+                            <StackPanel Spacing="6" HorizontalAlignment="Center">
+                                <TextBlock Text="AVG CPU%" Classes="MetricLabel" />
+                                <TextBlock Text="{Binding SelectedAppAvgCpuPercent}" FontSize="20" FontWeight="Bold" />
+                            </StackPanel>
+                        </Border>
+                        <Border Grid.Column="1" Classes="CompactCard" Padding="12">
+                            <StackPanel Spacing="6" HorizontalAlignment="Center">
+                                <TextBlock Text="AVG RAM" Classes="MetricLabel" />
+                                <TextBlock Text="{Binding SelectedAppAvgRam}" FontSize="20" FontWeight="Bold" />
+                            </StackPanel>
+                        </Border>
+                        <Border Grid.Column="2" Classes="CompactCard" Padding="12">
+                            <StackPanel Spacing="6" HorizontalAlignment="Center">
+                                <TextBlock Text="TOTAL BYTES" Classes="MetricLabel" />
+                                <TextBlock Text="{Binding SelectedAppTotalBytes}" FontSize="20" FontWeight="Bold" />
+                            </StackPanel>
+                        </Border>
+                    </Grid>
+
+                    <Border Classes="Card" Padding="16">
+                        <StackPanel Spacing="10">
+                            <TextBlock Text="Network History" Classes="SectionHeader" />
+                            <lvc:CartesianChart Series="{Binding NetworkHistorySeries}"
+                                                XAxes="{Binding NetworkHistoryXAxes}"
+                                                YAxes="{Binding NetworkHistoryYAxes}"
+                                                Height="200"
+                                                LegendPosition="Top"
+                                                LegendTextPaint="#A0A8B8"
+                                                LegendTextSize="12"
+                                                Background="{StaticResource CardBrush}"
+                                                ZoomMode="None"
+                                                AutomationProperties.Name="Selected app network history chart"
+                                                AutomationProperties.HelpText="Line chart showing selected app download and upload history" />
+                        </StackPanel>
+                    </Border>
+
+                    <Border Classes="Card" Padding="16">
+                        <StackPanel Spacing="10">
+                            <TextBlock Text="CPU History" Classes="SectionHeader" />
+                            <lvc:CartesianChart Series="{Binding CpuHistorySeries}"
+                                                XAxes="{Binding CpuHistoryXAxes}"
+                                                YAxes="{Binding CpuHistoryYAxes}"
+                                                Height="200"
+                                                LegendPosition="Hidden"
+                                                Background="{StaticResource CardBrush}"
+                                                ZoomMode="None"
+                                                AutomationProperties.Name="Selected app CPU history chart"
+                                                AutomationProperties.HelpText="Line chart showing selected app CPU history" />
+                        </StackPanel>
+                    </Border>
+
+                    <Border Classes="Card" Padding="16">
+                        <StackPanel Spacing="10">
+                            <TextBlock Text="RAM History" Classes="SectionHeader" />
+                            <lvc:CartesianChart Series="{Binding RamHistorySeries}"
+                                                XAxes="{Binding RamHistoryXAxes}"
+                                                YAxes="{Binding RamHistoryYAxes}"
+                                                Height="200"
+                                                LegendPosition="Hidden"
+                                                Background="{StaticResource CardBrush}"
+                                                ZoomMode="None"
+                                                AutomationProperties.Name="Selected app RAM history chart"
+                                                AutomationProperties.HelpText="Line chart showing selected app RAM history" />
+                        </StackPanel>
+                    </Border>
+
+                    <Border Classes="Card" Padding="16">
+                        <StackPanel Spacing="12">
+                            <TextBlock Text="Top Destinations" Classes="SectionHeader" />
+                            <ItemsControl ItemsSource="{Binding TopDestinationDisplayItems}">
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate x:DataType="vm:TopDestinationDisplayEntry">
+                                        <Border Padding="10" Margin="0,0,0,6"
+                                                CornerRadius="8"
+                                                Background="{StaticResource BorderSubtleBrush}">
+                                            <Grid ColumnDefinitions="*, Auto" ColumnSpacing="12">
+                                                <StackPanel Spacing="2">
+                                                    <TextBlock Text="{Binding Endpoint}"
+                                                               FontSize="13" FontWeight="SemiBold"
+                                                               TextTrimming="CharacterEllipsis" />
+                                                    <TextBlock Text="{Binding Details}"
+                                                               Classes="Caption"
+                                                               TextTrimming="CharacterEllipsis" />
+                                                </StackPanel>
+                                                <TextBlock Grid.Column="1"
+                                                           Text="{Binding FormattedTotalBytes}"
+                                                           FontWeight="Bold"
+                                                           VerticalAlignment="Center"
+                                                           HorizontalAlignment="Right" />
+                                            </Grid>
+                                        </Border>
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
+                        </StackPanel>
+                    </Border>
+                </StackPanel>
+            </ScrollViewer>
+        </Border>
+
+        <Border Grid.ColumnSpan="2"
+                IsVisible="{Binding IsInitialLoading}"
+                Background="{StaticResource OverlayColor}"
+                ZIndex="100">
+            <Border Background="{StaticResource CardBrush}"
+                    CornerRadius="16"
+                    Padding="32"
+                    HorizontalAlignment="Center"
+                    VerticalAlignment="Center">
+                <StackPanel Spacing="16">
+                    <ProgressBar IsIndeterminate="True"
+                                 Width="48" Height="8"
+                                 HorizontalAlignment="Center" />
+                    <TextBlock Text="Loading apps..."
+                               Classes="Subtitle"
+                               HorizontalAlignment="Center" />
+                </StackPanel>
+            </Border>
+        </Border>
+    </Grid>
+</UserControl>

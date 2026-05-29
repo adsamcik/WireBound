@@ -153,6 +153,7 @@ public partial class App : Application
         // Register resource insights services (per-app CPU + memory grouping & smoothing)
         services.AddSingleton<IAppCategoryService, AppCategoryService>();
         services.AddSingleton<IResourceInsightsService, ResourceInsightsService>();
+        services.AddSingleton<IAppOverviewService, AppOverviewService>();
 
         // Register DNS resolver service for reverse lookups
         services.AddSingleton<IDnsResolverService, DnsResolverService>();
@@ -185,18 +186,16 @@ public partial class App : Application
         services.AddSingleton<MainViewModel>();
         services.AddSingleton<OverviewViewModel>();
         services.AddSingleton<ChartsViewModel>();
-        services.AddSingleton<InsightsViewModel>();
         services.AddSingleton<SettingsViewModel>();
-        services.AddSingleton<ApplicationsViewModel>();
+        services.AddSingleton<AppsViewModel>();
         services.AddSingleton<ConnectionsViewModel>();
         services.AddSingleton<SystemViewModel>();
 
         // Register View factory for navigation
         services.AddTransient<OverviewView>();
         services.AddTransient<ChartsView>();
-        services.AddTransient<InsightsView>();
         services.AddTransient<SettingsView>();
-        services.AddTransient<ApplicationsView>();
+        services.AddTransient<AppsView>();
         services.AddTransient<ConnectionsView>();
         services.AddTransient<SystemView>();
     }

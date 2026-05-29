@@ -59,10 +59,9 @@ public partial class MainViewModel : ObservableObject, IRecipient<UpdateAvailabl
         [
             new NavigationItem { Title = "Overview", Icon = "📊", Route = Routes.Overview },
             new NavigationItem { Title = "Live Chart", Icon = "📈", Route = Routes.Charts },
-            new NavigationItem { Title = "System", Icon = "💻", Route = Routes.System },
-            new NavigationItem { Title = "Applications", Icon = "📱", Route = Routes.Applications },
+            new NavigationItem { Title = "Apps", Icon = "📦", Route = Routes.Apps },
             new NavigationItem { Title = "Connections", Icon = "🔗", Route = Routes.Connections },
-            new NavigationItem { Title = "Insights", Icon = "💡", Route = Routes.Insights },
+            new NavigationItem { Title = "System", Icon = "💻", Route = Routes.System },
             new NavigationItem { Title = "Settings", Icon = "⚙️", Route = Routes.Settings }
         ];
 

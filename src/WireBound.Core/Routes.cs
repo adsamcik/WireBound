@@ -7,8 +7,7 @@ public static class Routes
 {
     public const string Overview = "Overview";
     public const string Charts = "Charts";
-    public const string Insights = "Insights";
-    public const string Applications = "Applications";
+    public const string Apps = "Apps";
     public const string Connections = "Connections";
     public const string System = "System";
     public const string Settings = "Settings";
@@ -18,6 +17,6 @@ public static class Routes
     /// </summary>
     public static IReadOnlyList<string> All { get; } = new[]
     {
-        Overview, Charts, Insights, Applications, Connections, System, Settings
+        Overview, Charts, Apps, Connections, System, Settings
     };
 }

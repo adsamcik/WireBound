@@ -10,10 +10,21 @@ public interface IResourceInsightsService
 {
     /// <summary>
     /// Poll current process resources, compute smoothed CPU% and memory,
-    /// and return grouped-by-application results.
+    /// and return grouped-by-application results. Side effect: each call
+    /// appends to per-app rolling buffers feeding
+    /// <see cref="GetRollingCpuByApp(TimeSpan)"/>.
     /// </summary>
     Task<IReadOnlyList<AppResourceUsage>> GetCurrentByAppAsync(
         CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Returns the rolling-average CPU% per app over the requested window
+    /// (capped at the buffer's underlying retention, currently 2 min).
+    /// Samples are added by <see cref="GetCurrentByAppAsync"/>; callers do
+    /// NOT trigger a fresh poll here, so this is cheap. Missing keys mean
+    /// "no live samples in window" — fall back to historical averages.
+    /// </summary>
+    IReadOnlyDictionary<string, double> GetRollingCpuByApp(TimeSpan window);
 
     /// <summary>
     /// Group pre-fetched app data into category-level results without re-polling processes.

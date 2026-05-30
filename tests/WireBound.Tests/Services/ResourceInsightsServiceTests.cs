@@ -151,6 +151,85 @@ public class ResourceInsightsServiceTests : DatabaseTestBase
     }
 
     [Test]
+    public async Task GetRollingCpuByApp_NoCalls_ReturnsEmpty()
+    {
+        var (service, _, _) = CreateService();
+
+        var result = service.GetRollingCpuByApp(TimeSpan.FromSeconds(60));
+
+        result.Should().BeEmpty();
+    }
+
+    [Test]
+    public async Task GetRollingCpuByApp_RecordsSamplesAcrossMultiplePolls()
+    {
+        var (service, provider, fakeTime) = CreateService();
+
+        // First poll: baseline (CPU% = 0 since there's no delta yet).
+        SetProcessSnapshots(provider, [CreateProcess("worker", TenMb, TenMb, 0)]);
+        await service.GetCurrentByAppAsync();
+
+        // Subsequent polls: enough CPU work to register 4% per tick.
+        var ticks = CpuTicksForPercent(4);
+        for (int i = 1; i <= 4; i++)
+        {
+            SetProcessSnapshots(provider, [CreateProcess("worker", TenMb, TenMb, ticks * i)]);
+            fakeTime.Advance(SnapshotInterval);
+            await service.GetCurrentByAppAsync();
+        }
+
+        var rolling = service.GetRollingCpuByApp(TimeSpan.FromSeconds(60));
+        rolling.Should().ContainSingle();
+        var appId = rolling.Keys.Single();
+        // Smoothed CPU% over the recorded samples should be in single digits
+        // (started at 0, climbed via EMA toward 4%). We only assert > 0 to
+        // avoid pinning to specific EMA math.
+        rolling[appId].Should().BeGreaterThan(0);
+        rolling[appId].Should().BeLessThan(10);
+    }
+
+    [Test]
+    public async Task GetRollingCpuByApp_SamplesOutsideWindowAreExcluded()
+    {
+        var (service, provider, fakeTime) = CreateService();
+
+        // Poll 1 at t=0 (baseline, raw CPU=0, smoothed=0).
+        SetProcessSnapshots(provider, [CreateProcess("worker", TenMb, TenMb, 0)]);
+        await service.GetCurrentByAppAsync();
+        fakeTime.Advance(TimeSpan.FromSeconds(30));
+
+        // Poll 2 at t=30 — registers some CPU work, smoothed → ~3.2%.
+        SetProcessSnapshots(provider, [CreateProcess("worker", TenMb, TenMb, CpuTicksForPercent(8) * 30)]);
+        var poll2 = await service.GetCurrentByAppAsync();
+        var poll2Cpu = poll2.Single().CpuPercent;
+        poll2Cpu.Should().BeGreaterThan(0);
+
+        // Advance 120s so poll 2's sample (at t=30) leaves the 60s window
+        // when read at t=150 (window covers t=90..t=150).
+        fakeTime.Advance(TimeSpan.FromSeconds(120));
+
+        // Poll 3 at t=150 — no new CPU work, raw=0 but EMA decays slowly.
+        SetProcessSnapshots(provider, [CreateProcess("worker", TenMb, TenMb, CpuTicksForPercent(8) * 30)]);
+        var poll3 = await service.GetCurrentByAppAsync();
+        var poll3Cpu = poll3.Single().CpuPercent;
+
+        var rolling = service.GetRollingCpuByApp(TimeSpan.FromSeconds(60));
+        rolling.Should().ContainSingle();
+        // Only the t=150 sample is in window — its value should match poll 3
+        // exactly (no other samples to average with).
+        rolling.Values.Single().Should().BeApproximately(poll3Cpu, 0.001);
+    }
+
+    [Test]
+    public void GetRollingCpuByApp_NonPositiveWindow_Throws()
+    {
+        var (service, _, _) = CreateService();
+
+        var act = () => service.GetRollingCpuByApp(TimeSpan.Zero);
+        act.Should().Throw<ArgumentOutOfRangeException>();
+    }
+
+    [Test]
     public async Task RecordSnapshotAsync_AppBelowBothThresholds_IsSkipped()
     {
         var (service, provider, fakeTime) = CreateService();

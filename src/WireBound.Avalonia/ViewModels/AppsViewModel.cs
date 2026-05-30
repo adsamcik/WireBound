@@ -22,6 +22,7 @@ public sealed partial class AppsViewModel : ObservableObject, IDisposable
     private readonly IAppOverviewService _appOverviewService;
     private readonly IElevationService _elevationService;
     private readonly INavigationService _navigationService;
+    private readonly IResourceInsightsService? _resourceInsights;
     private readonly ILogger<AppsViewModel>? _logger;
     private readonly CancellationTokenSource _cts = new();
     private CancellationTokenSource? _searchDebounceCts;
@@ -30,6 +31,19 @@ public sealed partial class AppsViewModel : ObservableObject, IDisposable
     private bool _disposed;
     private bool _isUpdatingSelection;
     private bool _suppressRecompute;
+
+    // ─────────────────────────────────────────────────────────────────────
+    // LIVE CPU REFRESH
+    //
+    // The polling background service samples per-app CPU every 5s and
+    // accumulates it in a 60s rolling window inside ResourceInsightsService.
+    // We pull that window into the visible AppOverview rows every 2s while
+    // the Apps tab is the active route — there's no point ticking when the
+    // user is looking at a different tab.
+    // ─────────────────────────────────────────────────────────────────────
+    private System.Threading.Timer? _liveCpuTimer;
+    private static readonly TimeSpan LiveCpuRefreshInterval = TimeSpan.FromSeconds(2);
+    private static readonly TimeSpan LiveCpuRollingWindow = TimeSpan.FromSeconds(60);
 
     public Task InitializationTask { get; }
 
@@ -218,12 +232,14 @@ public sealed partial class AppsViewModel : ObservableObject, IDisposable
         IAppOverviewService appOverviewService,
         IElevationService elevationService,
         INavigationService navigationService,
-        ILogger<AppsViewModel>? logger = null)
+        ILogger<AppsViewModel>? logger = null,
+        IResourceInsightsService? resourceInsights = null)
     {
         _dispatcher = dispatcher;
         _appOverviewService = appOverviewService;
         _elevationService = elevationService;
         _navigationService = navigationService;
+        _resourceInsights = resourceInsights;
         _logger = logger;
 
         IsPlatformSupported = _elevationService.IsElevationSupported
@@ -253,12 +269,81 @@ public sealed partial class AppsViewModel : ObservableObject, IDisposable
 
     private void OnNavigationChanged(string route)
     {
-        if (route != Routes.Apps || IsInitialLoading || Apps.Count > 0)
+        var isAppsTab = route == Routes.Apps;
+
+        // Start/stop the live-CPU refresh based on whether the user is
+        // actually looking at the Apps tab. No point polling and dispatching
+        // updates to invisible rows.
+        if (isAppsTab)
+        {
+            StartLiveCpuRefresh();
+        }
+        else
+        {
+            StopLiveCpuRefresh();
+        }
+
+        if (!isAppsTab || IsInitialLoading || Apps.Count > 0)
         {
             return;
         }
 
         _ = RefreshAsync();
+    }
+
+    /// <summary>
+    /// Pulls the rolling-60s CPU averages from <see cref="IResourceInsightsService"/>
+    /// and writes them into each visible <see cref="AppOverview.LiveCpuPercent"/>.
+    /// AppOverview is INotifyPropertyChanged so the bound CPU cells update
+    /// in place without a list rebuild.
+    /// </summary>
+    private void RefreshLiveCpuValues()
+    {
+        if (_resourceInsights is null) return;
+
+        IReadOnlyDictionary<string, double> rolling;
+        try
+        {
+            rolling = _resourceInsights.GetRollingCpuByApp(LiveCpuRollingWindow);
+        }
+        catch (Exception ex)
+        {
+            _logger?.LogDebug(ex, "Failed to read rolling CPU samples");
+            return;
+        }
+
+        // Snapshot the collection on the calling thread to avoid touching it
+        // while the UI thread may be reshuffling Apps.ReplaceAll().
+        var snapshot = Apps.ToArray();
+
+        _dispatcher.Post(() =>
+        {
+            foreach (var app in snapshot)
+            {
+                app.LiveCpuPercent = rolling.TryGetValue(app.AppIdentifier, out var live)
+                    ? live
+                    : double.NaN;
+            }
+        }, UiDispatcherPriority.Background);
+    }
+
+    private void StartLiveCpuRefresh()
+    {
+        if (_resourceInsights is null || _liveCpuTimer is not null) return;
+
+        // System.Threading.Timer ticks on a thread-pool thread; the tick body
+        // dispatches updates back to the UI thread via _dispatcher.Post.
+        _liveCpuTimer = new System.Threading.Timer(
+            _ => RefreshLiveCpuValues(),
+            state: null,
+            dueTime: TimeSpan.Zero,
+            period: LiveCpuRefreshInterval);
+    }
+
+    private void StopLiveCpuRefresh()
+    {
+        _liveCpuTimer?.Dispose();
+        _liveCpuTimer = null;
     }
 
     private void OnHelperConnectionStateChanged(object? sender, HelperConnectionStateChangedEventArgs e)
@@ -718,7 +803,11 @@ public sealed partial class AppsViewModel : ObservableObject, IDisposable
             AppsSortColumn.BytesReceived => app.BytesReceived,
             AppsSortColumn.BytesSent => app.BytesSent,
             AppsSortColumn.TotalBytes => app.TotalBytes,
-            AppsSortColumn.AvgCpuPercent => app.AvgCpuPercent,
+            // CPU column displays the rolling-60s live value when available,
+            // so the sort should match what the user sees. Fall back to the
+            // historical avg only when no live sample exists — otherwise
+            // every freshly-launched process would race to the top with NaN.
+            AppsSortColumn.AvgCpuPercent => app.HasLiveCpu ? app.LiveCpuPercent : app.AvgCpuPercent,
             AppsSortColumn.AvgPrivateBytes => app.AvgPrivateBytes,
             AppsSortColumn.HoursActive => app.HoursActive,
             AppsSortColumn.LastSeen => app.LastSeen.Ticks,
@@ -1019,6 +1108,7 @@ public sealed partial class AppsViewModel : ObservableObject, IDisposable
         if (_disposed) return;
         _disposed = true;
 
+        StopLiveCpuRefresh();
         _cts.Cancel();
         _cts.Dispose();
         _searchDebounceCts?.Cancel();

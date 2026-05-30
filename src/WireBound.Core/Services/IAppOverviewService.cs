@@ -1,3 +1,5 @@
+using System.ComponentModel;
+using System.Runtime.CompilerServices;
 using Helpers = WireBound.Core.Helpers;
 
 namespace WireBound.Core.Services;
@@ -65,7 +67,7 @@ public sealed record AppOverview(
     long PeakPrivateBytes,
     DateTime FirstSeen,
     DateTime LastSeen,
-    int HoursActive)
+    int HoursActive) : INotifyPropertyChanged
 {
     public long TotalBytes => BytesReceived + BytesSent;
     public string FormattedBytesReceived => Helpers.ByteFormatter.FormatBytes(BytesReceived);
@@ -84,6 +86,52 @@ public sealed record AppOverview(
 
     /// <summary>True when an icon path has been resolved for this app.</summary>
     public bool HasIcon => !string.IsNullOrEmpty(IconPath);
+
+    // ─────────────────────────────────────────────────────────────────────
+    // LIVE CPU SAMPLING
+    //
+    // Updated in-place on a timer by AppsViewModel from
+    // IResourceInsightsService.GetRollingCpuByApp. Lives here (rather than
+    // on a sibling VM) so the UI can bind directly without an intermediate
+    // wrapper. NaN = "no live sample yet"; UI shows a placeholder.
+    // ─────────────────────────────────────────────────────────────────────
+
+    private double _liveCpuPercent = double.NaN;
+
+    /// <summary>
+    /// Rolling-60-second average CPU% for this app, or <c>NaN</c> when no
+    /// live sample has arrived yet. Mutated by the Apps tab's live timer;
+    /// raises INPC so existing rows update without rebuilding the list.
+    /// </summary>
+    public double LiveCpuPercent
+    {
+        get => _liveCpuPercent;
+        set
+        {
+            // Guard against pointless notifications when the value barely
+            // changed — saves a lot of repaint churn at the visual layer.
+            if (double.IsNaN(value) && double.IsNaN(_liveCpuPercent))
+                return;
+            if (!double.IsNaN(value) && !double.IsNaN(_liveCpuPercent) &&
+                Math.Abs(_liveCpuPercent - value) < 0.05)
+                return;
+            _liveCpuPercent = value;
+            OnPropertyChanged();
+            OnPropertyChanged(nameof(HasLiveCpu));
+            OnPropertyChanged(nameof(FormattedLiveCpu));
+        }
+    }
+
+    /// <summary>True when a live CPU sample is available; false = show placeholder.</summary>
+    public bool HasLiveCpu => !double.IsNaN(_liveCpuPercent);
+
+    /// <summary>"4.2%" when sample exists, "—" otherwise.</summary>
+    public string FormattedLiveCpu => HasLiveCpu ? $"{_liveCpuPercent:F1}%" : "—";
+
+    public event PropertyChangedEventHandler? PropertyChanged;
+
+    private void OnPropertyChanged([CallerMemberName] string? propertyName = null) =>
+        PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
 }
 
 /// <summary>

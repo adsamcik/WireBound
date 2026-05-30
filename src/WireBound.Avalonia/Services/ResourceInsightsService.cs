@@ -5,6 +5,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using WireBound.Core.Data;
+using WireBound.Core.Helpers;
 using WireBound.Core.Models;
 using WireBound.Core.Services;
 using WireBound.Platform.Abstract.Helpers;
@@ -29,6 +30,14 @@ public sealed class ResourceInsightsService : IResourceInsightsService
 
     // Per-app smoothing state (keyed by app identifier)
     private readonly ConcurrentDictionary<string, AppSmoothingState> _smoothingStates = new();
+
+    // Per-app rolling-60s CPU% history, populated on every GetCurrentByAppAsync
+    // call. Used by the Apps tab to show "what is this app doing RIGHT NOW"
+    // alongside the per-date-range historical averages from
+    // ResourceInsightSnapshots. Window is 60s by default but the accessor lets
+    // callers request a shorter window if they want a more reactive read.
+    private readonly ConcurrentDictionary<string, TimeWindowedAverage> _liveCpuWindows = new();
+    private static readonly TimeSpan LiveCpuMaxWindow = TimeSpan.FromMinutes(2);
 
     // Previous snapshot for CPU% delta calculation
     private IReadOnlyList<ProcessSnapshotEntry>? _previousSnapshot;
@@ -96,9 +105,51 @@ public sealed class ResourceInsightsService : IResourceInsightsService
         var withCpu = ComputeCpuPercent(grouped, now);
         var smoothed = ApplySmoothing(withCpu);
 
+        // Feed the rolling-window buffers so the Apps tab and any other live
+        // consumer can ask "what is each app's CPU% looking like over the last
+        // N seconds?" without having to hold their own poll loop. We do this
+        // here (not in ApplySmoothing) so the value we record matches what
+        // we hand to callers — same EMA-smoothed reading.
+        foreach (var entry in smoothed)
+        {
+            if (string.IsNullOrEmpty(entry.AppIdentifier)) continue;
+            var window = _liveCpuWindows.GetOrAdd(
+                entry.AppIdentifier,
+                _ => new TimeWindowedAverage(LiveCpuMaxWindow));
+            window.Add(entry.CpuPercent, now);
+        }
+
         return smoothed
             .OrderByDescending(a => a.PrivateBytes)
             .ToList();
+    }
+
+    /// <summary>
+    /// Returns the rolling-average CPU% per app over <paramref name="window"/>,
+    /// computed from samples accumulated by recent
+    /// <see cref="GetCurrentByAppAsync"/> calls. Apps with no samples in the
+    /// window are omitted — callers should fall back to historical averages
+    /// for missing keys. <paramref name="window"/> larger than the buffer's
+    /// underlying retention (2 min) is silently clamped to what's retained.
+    /// </summary>
+    public IReadOnlyDictionary<string, double> GetRollingCpuByApp(TimeSpan window)
+    {
+        if (window <= TimeSpan.Zero)
+        {
+            throw new ArgumentOutOfRangeException(nameof(window), "Window must be positive.");
+        }
+
+        var now = _timeProvider.GetLocalNow().DateTime;
+        var result = new Dictionary<string, double>(_liveCpuWindows.Count);
+        foreach (var (appId, buffer) in _liveCpuWindows)
+        {
+            var avg = buffer.GetAverage(window, now);
+            if (!double.IsNaN(avg))
+            {
+                result[appId] = avg;
+            }
+        }
+        return result;
     }
 
     public Task<IReadOnlyList<CategoryResourceUsage>> GetCurrentByCategoryAsync(

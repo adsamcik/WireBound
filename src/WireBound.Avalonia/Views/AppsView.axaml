@@ -321,10 +321,11 @@
                                             HorizontalAlignment="Right"
                                             Command="{Binding ToggleSortCommand}"
                                             CommandParameter="{x:Static vm:AppsSortColumn.AvgCpuPercent}"
-                                            AutomationProperties.Name="Sort by average CPU"
-                                            AutomationProperties.HelpText="Sort apps by average CPU percentage">
+                                            AutomationProperties.Name="Sort by recent CPU"
+                                            AutomationProperties.HelpText="Sort apps by rolling-60s CPU percentage (falls back to historical avg)">
                                         <StackPanel Orientation="Horizontal" Spacing="4">
-                                            <TextBlock Text="AVG CPU" Classes="MetricLabel" FontSize="11" />
+                                            <TextBlock Text="CPU (60s)" Classes="MetricLabel" FontSize="11"
+                                                       ToolTip.Tip="Rolling 60-second average CPU usage. Falls back to the historical average for the date range when no live sample is available." />
                                             <TextBlock Text="{Binding AvgCpuPercentSortGlyph}" Classes="MetricLabel" FontSize="11" />
                                         </StackPanel>
                                     </Button>
@@ -445,10 +446,11 @@
                                                                HorizontalAlignment="Right"
                                                                VerticalAlignment="Center" />
                                                     <TextBlock Grid.Column="5"
-                                                               Text="{Binding AvgCpuPercent, StringFormat={}{0:F1}%}"
+                                                               Text="{Binding FormattedLiveCpu}"
                                                                FontSize="15" FontWeight="SemiBold"
                                                                HorizontalAlignment="Right"
-                                                               VerticalAlignment="Center" />
+                                                               VerticalAlignment="Center"
+                                                               ToolTip.Tip="Rolling 60-second average. '—' means no live sample yet — the helper takes ~5 seconds to start producing values." />
                                                     <TextBlock Grid.Column="6"
                                                                Text="{Binding FormattedAvgPrivateBytes}"
                                                                FontSize="15" FontWeight="SemiBold"

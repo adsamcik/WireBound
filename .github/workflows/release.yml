@@ -200,11 +200,26 @@ jobs:
       - name: Install Velopack CLI
         run: dotnet tool install -g vpk
 
-      - name: Download Velopack artifacts
+      - name: Download Velopack artifact (win-x64)
+        # Downloaded by exact name (not `pattern`) into an explicit per-runtime
+        # directory, so the destination path is always known regardless of
+        # whether zero, one, or both runtime artifacts exist — download-artifact@v8
+        # only extracts directly into a matched `pattern`'s named subdirectory
+        # when 2+ artifacts match; with exactly 1 match it flattens into the
+        # shared root, which broke path lookups below when only one leg produced
+        # a Velopack package.
         uses: actions/download-artifact@v8
+        continue-on-error: true
         with:
-          path: ./velopack-artifacts
-          pattern: Velopack-*
+          name: Velopack-${{ steps.version.outputs.VERSION }}-win-x64
+          path: ./velopack-artifacts/win-x64
+
+      - name: Download Velopack artifact (linux-x64)
+        uses: actions/download-artifact@v8
+        continue-on-error: true
+        with:
+          name: Velopack-${{ steps.version.outputs.VERSION }}-linux-x64
+          path: ./velopack-artifacts/linux-x64
 
       - name: Upload Velopack packages to GitHub Release
         # Runs sequentially (one leg after the other, both within this single
@@ -214,7 +229,7 @@ jobs:
         if: always()
         run: |
           for runtime in win-x64 linux-x64; do
-            dir="./velopack-artifacts/Velopack-${{ steps.version.outputs.VERSION }}-$runtime"
+            dir="./velopack-artifacts/$runtime"
             if [ -d "$dir" ] && [ -n "$(ls -A "$dir" 2>/dev/null)" ]; then
               vpk upload github \
                 --repoUrl https://github.com/adsamcik/WireBound \

@@ -21,6 +21,7 @@ public class SettingsViewModelTests : IAsyncDisposable
     private readonly INetworkPollingBackgroundService _pollingService;
     private readonly IStartupService _startupService;
     private readonly IElevationService _elevationService;
+    private readonly IHelperProcessManager _helperProcessManager;
     private readonly IProcessNetworkService _processNetworkService;
     private readonly IDataExportService _dataExport;
     private readonly IUpdateService _updateService;
@@ -34,6 +35,7 @@ public class SettingsViewModelTests : IAsyncDisposable
         _pollingService = Substitute.For<INetworkPollingBackgroundService>();
         _startupService = Substitute.For<IStartupService>();
         _elevationService = Substitute.For<IElevationService>();
+        _helperProcessManager = Substitute.For<IHelperProcessManager>();
         _processNetworkService = Substitute.For<IProcessNetworkService>();
         _dataExport = Substitute.For<IDataExportService>();
         _updateService = Substitute.For<IUpdateService>();
@@ -62,6 +64,9 @@ public class SettingsViewModelTests : IAsyncDisposable
         _elevationService.IsHelperConnected.Returns(false);
         _elevationService.RequiresElevation.Returns(true);
         _elevationService.IsElevationSupported.Returns(true);
+
+        // Setup helper process manager (passwordless elevation setup)
+        _helperProcessManager.SupportsPasswordlessElevationSetup.Returns(false);
     }
 
     private static AppSettings CreateDefaultSettings()
@@ -94,6 +99,7 @@ public class SettingsViewModelTests : IAsyncDisposable
             _pollingService,
             _startupService,
             _elevationService,
+            _helperProcessManager,
             _processNetworkService,
             _dataExport,
             _updateService,

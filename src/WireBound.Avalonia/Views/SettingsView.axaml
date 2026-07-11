@@ -675,6 +675,50 @@
                                           AutomationProperties.HelpText="Register the elevated helper to start automatically at system login without a prompt" />
                         </Grid>
                     </Border>
+
+                    <!-- Passwordless Elevation Setup (Linux) -->
+                    <Border Background="{StaticResource BorderSubtleBrush}" CornerRadius="12" Padding="16"
+                            IsVisible="{Binding SupportsPasswordlessElevationSetup}">
+                        <StackPanel Spacing="8">
+                            <Grid ColumnDefinitions="*, Auto">
+                                <StackPanel Spacing="4">
+                                    <TextBlock Text="Passwordless Elevation" Classes="CardTitle" />
+                                    <TextBlock Text="One-time setup so on-demand helper starts don't prompt for a password each time"
+                                               Classes="Caption" />
+                                    <TextBlock Text="Installed"
+                                               Foreground="{StaticResource SuccessBrush}"
+                                               FontWeight="Bold"
+                                               IsVisible="{Binding IsPasswordlessElevationInstalled}" />
+                                    <TextBlock Text="Not installed"
+                                               Foreground="{StaticResource WarningBrush}"
+                                               FontWeight="Bold"
+                                               IsVisible="{Binding !IsPasswordlessElevationInstalled}" />
+                                </StackPanel>
+                                <Button Grid.Column="1"
+                                        Content="🔓 Install"
+                                        Command="{Binding InstallPasswordlessElevationCommand}"
+                                        IsEnabled="{Binding !IsTogglingPasswordlessElevation}"
+                                        IsVisible="{Binding !IsPasswordlessElevationInstalled}"
+                                        Classes="Warning"
+                                        VerticalAlignment="Center"
+                                        AutomationProperties.Name="Install Passwordless Elevation"
+                                        AutomationProperties.HelpText="Install the systemd service and polkit policy for passwordless elevation" />
+                                <Button Grid.Column="1"
+                                        Content="Uninstall"
+                                        Command="{Binding UninstallPasswordlessElevationCommand}"
+                                        IsEnabled="{Binding !IsTogglingPasswordlessElevation}"
+                                        IsVisible="{Binding IsPasswordlessElevationInstalled}"
+                                        VerticalAlignment="Center"
+                                        AutomationProperties.Name="Uninstall Passwordless Elevation"
+                                        AutomationProperties.HelpText="Remove the systemd service and polkit policy for passwordless elevation" />
+                            </Grid>
+                            <TextBlock Text="{Binding PasswordlessElevationError}"
+                                       Classes="Caption"
+                                       Foreground="{StaticResource WarningBrush}"
+                                       IsVisible="{Binding PasswordlessElevationError, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"
+                                       TextWrapping="Wrap" />
+                        </StackPanel>
+                    </Border>
                 </StackPanel>
             </Border>
 

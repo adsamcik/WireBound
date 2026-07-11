@@ -132,11 +132,15 @@ public sealed class LinuxHelperProcessManager : IHelperProcessManager
         return HelperValidationResult.Valid();
     }
 
+    public bool SupportsPasswordlessElevationSetup => true;
+
+    public Task<bool> IsPasswordlessElevationInstalledAsync() => Task.FromResult(IsServiceInstalled());
+
     /// <summary>
     /// Installs the systemd system service and polkit policy for passwordless startup.
     /// Requires a one-time password prompt via pkexec.
     /// </summary>
-    public async Task<bool> InstallService()
+    public async Task<bool> InstallPasswordlessElevationAsync()
     {
         try
         {
@@ -237,7 +241,7 @@ public sealed class LinuxHelperProcessManager : IHelperProcessManager
     /// <summary>
     /// Uninstalls the systemd service and polkit policy.
     /// </summary>
-    public async Task<bool> UninstallService()
+    public async Task<bool> UninstallPasswordlessElevationAsync()
     {
         try
         {

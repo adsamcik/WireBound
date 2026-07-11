@@ -21,6 +21,7 @@ public sealed partial class SettingsViewModel : ObservableObject, IDisposable
     private readonly INetworkPollingBackgroundService _pollingService;
     private readonly IStartupService _startupService;
     private readonly IElevationService _elevationService;
+    private readonly IHelperProcessManager _helperProcessManager;
     private readonly IProcessNetworkService _processNetworkService;
     private readonly IDataExportService _dataExport;
     private readonly IUpdateService _updateService;
@@ -175,6 +176,18 @@ public sealed partial class SettingsViewModel : ObservableObject, IDisposable
 
     [ObservableProperty]
     private bool _isHelperStartupSupported;
+
+    [ObservableProperty]
+    private bool _supportsPasswordlessElevationSetup;
+
+    [ObservableProperty]
+    private bool _isPasswordlessElevationInstalled;
+
+    [ObservableProperty]
+    private bool _isTogglingPasswordlessElevation;
+
+    [ObservableProperty]
+    private string? _passwordlessElevationError;
 
     /// <summary>Completes when async initialization finishes. Exposed for testability.</summary>
     public Task InitializationTask { get; }
@@ -357,6 +370,7 @@ public sealed partial class SettingsViewModel : ObservableObject, IDisposable
         INetworkPollingBackgroundService pollingService,
         IStartupService startupService,
         IElevationService elevationService,
+        IHelperProcessManager helperProcessManager,
         IProcessNetworkService processNetworkService,
         IDataExportService dataExport,
         IUpdateService updateService,
@@ -369,6 +383,7 @@ public sealed partial class SettingsViewModel : ObservableObject, IDisposable
         _pollingService = pollingService;
         _startupService = startupService;
         _elevationService = elevationService;
+        _helperProcessManager = helperProcessManager;
         _processNetworkService = processNetworkService;
         _dataExport = dataExport;
         _updateService = updateService;
@@ -443,6 +458,7 @@ public sealed partial class SettingsViewModel : ObservableObject, IDisposable
 
             // Load startup state from OS (not from saved settings)
             await LoadStartupStateAsync();
+            await LoadPasswordlessElevationStateAsync();
 
             // Apply speed unit setting globally
             WireBound.Core.Helpers.ByteFormatter.UseSpeedInBits = settings.SpeedUnit == SpeedUnit.BitsPerSecond;
@@ -503,6 +519,69 @@ public sealed partial class SettingsViewModel : ObservableObject, IDisposable
         if (IsHelperStartupSupported)
         {
             StartHelperWithSystem = await _startupService.IsHelperStartupEnabledAsync();
+        }
+    }
+
+    private async Task LoadPasswordlessElevationStateAsync()
+    {
+        SupportsPasswordlessElevationSetup = _helperProcessManager.SupportsPasswordlessElevationSetup;
+        if (SupportsPasswordlessElevationSetup)
+        {
+            IsPasswordlessElevationInstalled = await _helperProcessManager.IsPasswordlessElevationInstalledAsync();
+        }
+    }
+
+    [RelayCommand]
+    private async Task InstallPasswordlessElevationAsync()
+    {
+        if (!SupportsPasswordlessElevationSetup || IsTogglingPasswordlessElevation) return;
+
+        IsTogglingPasswordlessElevation = true;
+        PasswordlessElevationError = null;
+        try
+        {
+            var success = await _helperProcessManager.InstallPasswordlessElevationAsync();
+            IsPasswordlessElevationInstalled = success && await _helperProcessManager.IsPasswordlessElevationInstalledAsync();
+            if (!success)
+            {
+                PasswordlessElevationError = "Failed to install passwordless elevation. Check that pkexec/polkit is available.";
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger?.LogError(ex, "Failed to install passwordless elevation");
+            PasswordlessElevationError = "An unexpected error occurred while installing passwordless elevation.";
+        }
+        finally
+        {
+            IsTogglingPasswordlessElevation = false;
+        }
+    }
+
+    [RelayCommand]
+    private async Task UninstallPasswordlessElevationAsync()
+    {
+        if (!SupportsPasswordlessElevationSetup || IsTogglingPasswordlessElevation) return;
+
+        IsTogglingPasswordlessElevation = true;
+        PasswordlessElevationError = null;
+        try
+        {
+            var success = await _helperProcessManager.UninstallPasswordlessElevationAsync();
+            IsPasswordlessElevationInstalled = !success && await _helperProcessManager.IsPasswordlessElevationInstalledAsync();
+            if (!success)
+            {
+                PasswordlessElevationError = "Failed to uninstall passwordless elevation.";
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger?.LogError(ex, "Failed to uninstall passwordless elevation");
+            PasswordlessElevationError = "An unexpected error occurred while uninstalling passwordless elevation.";
+        }
+        finally
+        {
+            IsTogglingPasswordlessElevation = false;
         }
     }
 

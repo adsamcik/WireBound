@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **Uninstall Cleanup Hook (Windows)** - Registers a Velopack `OnBeforeUninstallFastCallback` that removes the Registry `Run` startup entry and the "WireBound Elevation Helper" Task Scheduler task before Add/Remove Programs uninstalls the app, so it no longer leaves stray autostart artifacts behind
+- **Passwordless Elevation Setup (Linux)** - New "Passwordless Elevation" card in Settings wires up the previously-unreachable system-level systemd service + polkit policy install/uninstall, so on-demand helper starts no longer require a `pkexec` password prompt every time once installed
+
 ### Fixed
 
 - **Velopack Packaging (CI)** - Four compounding bugs in `release.yml`/`publish.ps1` meant Velopack had never produced a real Windows Setup.exe / Linux AppImage since it was introduced; the v0.8.0 GitHub Release predates these fixes and only contains the zip/tar.gz archives:

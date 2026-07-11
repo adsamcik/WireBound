@@ -215,6 +215,18 @@ public sealed class WindowsHelperProcessManager : IHelperProcessManager
         }
     }
 
+    // Windows already achieves passwordless on-demand starts via the "Start Helper at Login"
+    // scheduled task (see WindowsStartupService.SetHelperStartupEnabledAsync), which is exposed
+    // through IStartupService and bound to the existing Settings toggle. Exposing a second,
+    // redundant control here would duplicate that UI, so this always reports unsupported.
+    public bool SupportsPasswordlessElevationSetup => false;
+
+    public Task<bool> IsPasswordlessElevationInstalledAsync() => Task.FromResult(false);
+
+    public Task<bool> InstallPasswordlessElevationAsync() => Task.FromResult(false);
+
+    public Task<bool> UninstallPasswordlessElevationAsync() => Task.FromResult(false);
+
     private async Task<HelperStartResult> StartViaTaskSchedulerAsync(CancellationToken cancellationToken)
     {
         try

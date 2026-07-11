@@ -24,5 +24,13 @@ public sealed class StubHelperProcessManager : IHelperProcessManager
     public HelperValidationResult ValidateHelper() =>
         HelperValidationResult.Invalid("Not supported on this platform");
 
+    public bool SupportsPasswordlessElevationSetup => false;
+
+    public Task<bool> IsPasswordlessElevationInstalledAsync() => Task.FromResult(false);
+
+    public Task<bool> InstallPasswordlessElevationAsync() => Task.FromResult(false);
+
+    public Task<bool> UninstallPasswordlessElevationAsync() => Task.FromResult(false);
+
     public ValueTask DisposeAsync() => ValueTask.CompletedTask;
 }

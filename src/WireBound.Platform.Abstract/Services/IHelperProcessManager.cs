@@ -102,6 +102,37 @@ public interface IHelperProcessManager : IAsyncDisposable
     /// Event raised when the helper process exits unexpectedly.
     /// </summary>
     event EventHandler<HelperExitedEventArgs>? HelperExited;
+
+    /// <summary>
+    /// Whether this platform exposes a dedicated one-time setup step to enable passwordless
+    /// elevation for on-demand helper starts (distinct from "start helper at login").
+    /// </summary>
+    /// <remarks>
+    /// On Windows, passwordless on-demand starts are already achieved via the "Start Helper at
+    /// Login" scheduled task, so this returns <see langword="false"/> there to avoid presenting a
+    /// duplicate control. On Linux, "Start Helper at Login" only registers a user-level autostart
+    /// entry and does not, by itself, avoid the <c>pkexec</c> password prompt on each start — this
+    /// flag exposes the separate system-level systemd + polkit setup that does.
+    /// </remarks>
+    bool SupportsPasswordlessElevationSetup { get; }
+
+    /// <summary>
+    /// Checks whether passwordless elevation has already been installed.
+    /// </summary>
+    Task<bool> IsPasswordlessElevationInstalledAsync();
+
+    /// <summary>
+    /// Installs the one-time system configuration required for passwordless elevation
+    /// (e.g. a systemd system service and polkit policy on Linux). Requires a one-time
+    /// elevation prompt. Returns <see langword="false"/> if not supported on this platform.
+    /// </summary>
+    Task<bool> InstallPasswordlessElevationAsync();
+
+    /// <summary>
+    /// Removes the system configuration installed by <see cref="InstallPasswordlessElevationAsync"/>.
+    /// Returns <see langword="false"/> if not supported on this platform.
+    /// </summary>
+    Task<bool> UninstallPasswordlessElevationAsync();
 }
 
 /// <summary>

@@ -41,6 +41,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **Velopack Packaging** - `release.yml` and `publish.ps1` referenced the stale executable name `WireBound.Avalonia(.exe)`; the app was renamed to `WireBound(.exe)` in a prior release, so Velopack `vpk pack` was silently failing to find the entry executable (masked by `|| true`), preventing installer/AppImage packages from being produced
 - **Elevation Helper Crash on .NET 10** - Removed an invalid `PipeOptions` flag (`PIPE_REJECT_REMOTE_CLIENTS`) that crashed the helper immediately on pipe creation
 - **Database Migrations** - Rewrote `ApplyMigrations` with comprehensive, idempotent schema coverage and fixed a connection-lifecycle bug that could destroy in-memory test databases
 - **Per-App Tracking** - Persist per-app network stats correctly and fix ETW byte counter accumulation across process restarts

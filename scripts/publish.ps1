@@ -229,11 +229,11 @@ Write-Host ""
 if ($targetIsWindows) {
     Write-Host "📋 To install (Windows):"
     Write-Host "   1. Extract the ZIP file"
-    Write-Host "   2. Run WireBound.Avalonia.exe"
+    Write-Host "   2. Run WireBound.exe"
 } elseif ($Runtime.StartsWith("linux")) {
     Write-Host "📋 To install (Linux):"
     Write-Host "   1. Extract: tar -xzf $($archive.Name)"
-    Write-Host "   2. Make executable: chmod +x WireBound.Avalonia"
-    Write-Host "   3. Run: ./WireBound.Avalonia"
+    Write-Host "   2. Make executable: chmod +x WireBound"
+    Write-Host "   3. Run: ./WireBound"
 }
 Write-Host ""

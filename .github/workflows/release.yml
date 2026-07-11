@@ -93,7 +93,7 @@ jobs:
           vpk pack -u WireBound -v ${{ steps.version.outputs.VERSION }} \
             -p ./publish/${{ matrix.runtime }} \
             -o ./velopack/${{ matrix.runtime }} \
-            -e WireBound.Avalonia.exe \
+            -e WireBound.exe \
             --channel ${{ matrix.runtime }} \
             --delta ./velopack-prev || true
 
@@ -103,7 +103,7 @@ jobs:
           vpk pack -u WireBound -v ${{ steps.version.outputs.VERSION }} \
             -p ./publish/${{ matrix.runtime }} \
             -o ./velopack/${{ matrix.runtime }} \
-            -e WireBound.Avalonia \
+            -e WireBound \
             --channel ${{ matrix.runtime }} \
             --delta ./velopack-prev || true
 
@@ -169,8 +169,8 @@ jobs:
           ## WireBound v$version
           
           ### Downloads
-          - **Linux (x64)**: \`WireBound-$version-linux-x64.tar.gz\` - Extract and run \`WireBound.Avalonia\`
-          - **Windows (x64)**: \`WireBound-$version-win-x64.zip\` - Extract and run \`WireBound.Avalonia.exe\`
+          - **Linux (x64)**: \`WireBound-$version-linux-x64.tar.gz\` - Extract and run \`WireBound\`
+          - **Windows (x64)**: \`WireBound-$version-win-x64.zip\` - Extract and run \`WireBound.exe\`
           
           ### System Requirements
           - Linux / Windows 10+

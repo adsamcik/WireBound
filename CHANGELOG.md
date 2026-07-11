@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **Uninstall Cleanup Hook (Windows)** - Registers a Velopack `OnBeforeUninstallFastCallback` that removes the Registry `Run` startup entry and the "WireBound Elevation Helper" Task Scheduler task before Add/Remove Programs uninstalls the app, so it no longer leaves stray autostart artifacts behind. Each cleanup step is bounded by an internal timeout to stay safely within Velopack's 30-second fast-exit budget.
+
 ### Fixed
 
 - **Velopack Packaging (CI)** - Four compounding bugs in `release.yml`/`publish.ps1` meant Velopack had never produced a real Windows Setup.exe / Linux AppImage since it was introduced; the v0.8.0 GitHub Release predates these fixes and only contains the zip/tar.gz archives:

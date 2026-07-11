@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.8.0] - 2026-07-11
+
+### Security
+
+- **Mutual IPC Authentication** - Server signs the session expiry with the shared secret (HMAC) and includes a `ServerSignature` in `AuthenticateResponse`; both client connections verify the signature before accepting the session, preventing pipe/socket squatting attacks
+- **Elevation Hardening** - Symlink/TOCTOU protections in `SecretManager` and `SessionManager`, systemd sandboxing and UID tracking for `LinuxHelperProcessManager`, ACL validation and reparse point checks for `WindowsHelperProcessManager`, graceful shutdown message type
+- **Path Traversal Protection** - CSV export paths are validated and constrained to the `.csv` extension; Linux helper binary path is validated to stay within the app directory before `pkexec` elevation
+- **Auth Failure Tracking** - `HelperServer` now tracks authentication failures for rate limiting
+
 ### Added
 
 - **Self-Updater (Velopack)** - In-app update download, apply, and restart for installed mode (Windows Setup.exe / Linux AppImage) with delta updates and automatic rollback
@@ -16,6 +25,39 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Tray Menu Update Item** - "Update available" item in system tray context menu, navigates to Settings
 - **Metered Network Detection** - Platform-native detection (Windows WinRT ConnectionCost, Linux nmcli) with Platform.Abstract interface and Stub fallback
 - **Portable Mode Fallback** - Non-installed builds show "View Release" link instead of download button; `IsUpdateSupported` distinguishes modes
+- **Memory Pressure Monitoring** - Sustained-threshold detection in the network polling background service, configurable threshold/cooldown/floor in Settings, system tray tint and tooltip, breathing pulse animation on the health strip, and messenger-based alerts across ViewModels
+- **System Snapshot Persistence** - New `SystemSnapshot` / `MemoryPressureEvent` history tables and repository for historical memory-pressure analysis, surfaced in Charts and System views
+- **Elevated Helper Auto-Start** - Register the elevation helper to start at OS login without a UAC/password prompt on every boot (Windows Task Scheduler "highest privileges"; Linux systemd user service), with a toggle in Settings
+- **Native AOT for Elevation & IPC** - Elevation helpers and the IPC library now publish as trimmed, Native AOT binaries backed by a source-generated MessagePack resolver (no reflection); Windows helper AOT publish is 6.96 MB
+- **Auto Network Adapter Detection** - Automatically selects the primary internet adapter via default gateway routing, with VPN/secondary adapter traffic overlaid as additional chart series and compact stats, plus an auto-switch notification banner
+- **Resource Insights Improvements** - Category-colored bars matching the donut palette, search/sort for Top Apps, adaptive summary cards per Memory/CPU toggle, cached merged app data for instant search without re-polling
+- **Process Resource Providers & INetworkCostProvider** - New platform abstractions for process-level resource stats and network cost/metering
+
+### Changed
+
+- Broad refactor across security, services, UI, and platform layers (`TimeProvider` injection, `IUiDispatcher` abstraction for testable UI-thread dispatch, `DynamicResource` → `StaticResource` migration, view-aware update coalescing, async chart downsampling)
+- Simplified system health strip indicators and improved chart usability
+- CI restore no longer hard-fails on lock-file/SDK-patch drift (`--locked-mode` dropped); added a Native AOT validation gate
+
+### Fixed
+
+- **Velopack Packaging** - `release.yml` and `publish.ps1` referenced the stale executable name `WireBound.Avalonia(.exe)`; the app was renamed to `WireBound(.exe)` in a prior release, so Velopack `vpk pack` was silently failing to find the entry executable (masked by `|| true`), preventing installer/AppImage packages from being produced
+- **Elevation Helper Crash on .NET 10** - Removed an invalid `PipeOptions` flag (`PIPE_REJECT_REMOTE_CLIENTS`) that crashed the helper immediately on pipe creation
+- **Database Migrations** - Rewrote `ApplyMigrations` with comprehensive, idempotent schema coverage and fixed a connection-lifecycle bug that could destroy in-memory test databases
+- **Per-App Tracking** - Persist per-app network stats correctly and fix ETW byte counter accumulation across process restarts
+- **DNS Resolver Cache** - Remove existing LRU entry before re-adding to prevent duplicate cache entries
+- **Deadlock Prevention** - Move `StatsUpdated` event invocation outside the lock in the network monitor
+- **Tray/Shutdown** - OS shutdown now closes the app instead of hiding it to tray
+- **Polling Interval** - `PeriodicTimer` is recreated on interval change so new intervals take effect immediately
+- Numerous smaller fixes: async locking in process tracking, disposed-state checks in `ConnectionsViewModel`, non-blocking `DnsResolverService` disposal, Serilog wired to DI `ILogger<T>`, hardened JSON parsing when fetching update release notes, Insights UI layout/chart-type fixes
+
+### Dependencies
+
+- Bump TUnit from 1.12.93 to 1.17.54
+- Bump AwesomeAssertions from 9.3.0 to 9.4.0
+- Bump Microsoft.Extensions.DependencyInjection.Abstractions from 10.0.2 to 10.0.3
+- Bump Microsoft.Diagnostics.Tracing.TraceEvent from 3.1.29 to 3.1.30
+- Bump GitHub Actions: actions/download-artifact (7→8), actions/upload-artifact (6→7), softprops/action-gh-release (2→3)
 
 ## [0.7.0] - 2026-02-08
 

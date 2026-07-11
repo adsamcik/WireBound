@@ -189,8 +189,13 @@ if ($Velopack) {
         New-Item -ItemType Directory -Path $velopackOutput -Force | Out-Null
 
         $exeName = if ($targetIsWindows) { "WireBound.exe" } else { "WireBound" }
+        # An explicit platform directive is required for vpk to package for a
+        # target OS other than the current host (e.g. building linux-x64
+        # packages from Windows), and is harmless when it matches the host.
+        $vpkDirective = if ($targetIsWindows) { "[win]" } else { "[linux]" }
 
         $vpkArgs = @(
+            $vpkDirective,
             "pack",
             "-u", "WireBound",
             "-v", $Version,

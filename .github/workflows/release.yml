@@ -92,8 +92,11 @@ jobs:
 
       - name: Package with Velopack (Windows)
         if: matrix.runtime == 'win-x64'
+        # The build job runs on ubuntu-latest for both matrix legs, so an explicit
+        # [win] directive is required to cross-compile a Windows package here;
+        # without it, `vpk pack` defaults to packaging for the host OS (Linux).
         run: |
-          vpk pack -u WireBound -v ${{ steps.version.outputs.VERSION }} \
+          vpk '[win]' pack -u WireBound -v ${{ steps.version.outputs.VERSION }} \
             -p ./publish/${{ matrix.runtime }} \
             -o ./velopack/${{ matrix.runtime }} \
             -e WireBound.exe \
@@ -102,7 +105,7 @@ jobs:
       - name: Package with Velopack (Linux)
         if: matrix.runtime == 'linux-x64'
         run: |
-          vpk pack -u WireBound -v ${{ steps.version.outputs.VERSION }} \
+          vpk '[linux]' pack -u WireBound -v ${{ steps.version.outputs.VERSION }} \
             -p ./publish/${{ matrix.runtime }} \
             -o ./velopack/${{ matrix.runtime }} \
             -e WireBound \
@@ -116,6 +119,7 @@ jobs:
             --tag v${{ steps.version.outputs.VERSION }} \
             --token ${{ secrets.GITHUB_TOKEN }} \
             --channel ${{ matrix.runtime }} \
+            --merge true \
             -o ./velopack/${{ matrix.runtime }} || echo "Velopack upload skipped"
         continue-on-error: true
 

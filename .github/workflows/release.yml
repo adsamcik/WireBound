@@ -111,17 +111,17 @@ jobs:
             -e WireBound \
             --channel ${{ matrix.runtime }} || true
 
-      - name: Upload Velopack to GitHub Release
+      - name: Upload Velopack artifact
+        # Uploading the Velopack package to GitHub Releases happens later, in the
+        # single sequential `release` job, to avoid both matrix legs racing to
+        # create/merge a release for the same tag at the same time.
         if: always()
-        run: |
-          vpk upload github \
-            --repoUrl https://github.com/adsamcik/WireBound \
-            --tag v${{ steps.version.outputs.VERSION }} \
-            --token ${{ secrets.GITHUB_TOKEN }} \
-            --channel ${{ matrix.runtime }} \
-            --merge true \
-            -o ./velopack/${{ matrix.runtime }} || echo "Velopack upload skipped"
-        continue-on-error: true
+        uses: actions/upload-artifact@v7
+        with:
+          name: Velopack-${{ steps.version.outputs.VERSION }}-${{ matrix.runtime }}
+          path: ./velopack/${{ matrix.runtime }}
+          retention-days: 30
+          if-no-files-found: ignore
 
       - name: Create archive (zip)
         if: matrix.archive == 'zip'
@@ -194,5 +194,38 @@ jobs:
           draft: false
           prerelease: ${{ inputs.prerelease || false }}
           files: ./artifacts/**/*
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Install Velopack CLI
+        run: dotnet tool install -g vpk
+
+      - name: Download Velopack artifacts
+        uses: actions/download-artifact@v8
+        with:
+          path: ./velopack-artifacts
+          pattern: Velopack-*
+
+      - name: Upload Velopack packages to GitHub Release
+        # Runs sequentially (one leg after the other, both within this single
+        # job) after the release above already exists, so `--merge true` always
+        # merges into a stable target instead of racing two parallel matrix
+        # legs to create/merge the same tag's release simultaneously.
+        if: always()
+        run: |
+          for runtime in win-x64 linux-x64; do
+            dir="./velopack-artifacts/Velopack-${{ steps.version.outputs.VERSION }}-$runtime"
+            if [ -d "$dir" ] && [ -n "$(ls -A "$dir" 2>/dev/null)" ]; then
+              vpk upload github \
+                --repoUrl https://github.com/adsamcik/WireBound \
+                --tag v${{ steps.version.outputs.VERSION }} \
+                --token ${{ secrets.GITHUB_TOKEN }} \
+                --channel "$runtime" \
+                --merge true \
+                -o "$dir" || echo "Velopack upload skipped ($runtime)"
+            else
+              echo "No Velopack package found for $runtime, skipping upload"
+            fi
+          done
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

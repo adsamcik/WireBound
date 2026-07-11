@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- **Velopack Delta Packaging (CI)** - `vpk pack --delta ./velopack-prev` used invalid syntax (`--delta` only accepts `None`/`BestSpeed`/`BestSize`, not a path), so `vpk pack` errored and the subsequent upload step found an empty output directory on every run. The previous release is now downloaded directly into the pack `--outputDir` so Velopack can auto-detect it and generate deltas, and the invalid `--delta` path argument was removed. Windows Setup.exe / Linux AppImage installer packages had never actually been produced by `release.yml` prior to this fix; the v0.8.0 GitHub Release predates this fix and only contains the zip/tar.gz archives.
+
 ## [0.8.0] - 2026-07-11
 
 ### Security

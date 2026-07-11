@@ -84,7 +84,10 @@ jobs:
         run: dotnet tool install -g vpk
 
       - name: Download previous Velopack release
-        run: vpk download github --repoUrl https://github.com/adsamcik/WireBound --channel ${{ matrix.runtime }} -o ./velopack-prev
+        # Velopack auto-generates a delta when a previous full release already
+        # exists in the pack's --outputDir, so download it there directly
+        # (there is no --previous flag on `vpk pack`; see docs.velopack.io/packaging/deltas).
+        run: vpk download github --repoUrl https://github.com/adsamcik/WireBound --channel ${{ matrix.runtime }} -o ./velopack/${{ matrix.runtime }}
         continue-on-error: true
 
       - name: Package with Velopack (Windows)
@@ -94,8 +97,7 @@ jobs:
             -p ./publish/${{ matrix.runtime }} \
             -o ./velopack/${{ matrix.runtime }} \
             -e WireBound.exe \
-            --channel ${{ matrix.runtime }} \
-            --delta ./velopack-prev || true
+            --channel ${{ matrix.runtime }} || true
 
       - name: Package with Velopack (Linux)
         if: matrix.runtime == 'linux-x64'
@@ -104,8 +106,7 @@ jobs:
             -p ./publish/${{ matrix.runtime }} \
             -o ./velopack/${{ matrix.runtime }} \
             -e WireBound \
-            --channel ${{ matrix.runtime }} \
-            --delta ./velopack-prev || true
+            --channel ${{ matrix.runtime }} || true
 
       - name: Upload Velopack to GitHub Release
         if: always()

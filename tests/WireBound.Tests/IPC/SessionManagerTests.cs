@@ -6,6 +6,7 @@ namespace WireBound.Tests.IPC;
 public class SessionManagerTests
 {
     [Test]
+    [Obsolete]
     public void CreateSession_ReturnsSessionInfo()
     {
         var manager = new SessionManager();
@@ -18,6 +19,7 @@ public class SessionManagerTests
     }
 
     [Test]
+    [Obsolete]
     public void CreateSession_MultipleCallsReturnDifferentIds()
     {
         var manager = new SessionManager();
@@ -28,6 +30,7 @@ public class SessionManagerTests
     }
 
     [Test]
+    [Obsolete]
     public void ValidateSession_ValidSession_ReturnsSessionInfo()
     {
         var manager = new SessionManager();
@@ -53,6 +56,7 @@ public class SessionManagerTests
     }
 
     [Test]
+    [Obsolete]
     public void RemoveSession_RemovesFromActive()
     {
         var manager = new SessionManager();
@@ -63,6 +67,7 @@ public class SessionManagerTests
     }
 
     [Test]
+    [Obsolete]
     public void ActiveCount_TracksCorrectly()
     {
         var manager = new SessionManager();
@@ -79,6 +84,7 @@ public class SessionManagerTests
     }
 
     [Test]
+    [Obsolete]
     public void ValidateSession_ExpiredSession_ReturnsNull()
     {
         // Arrange
@@ -99,6 +105,7 @@ public class SessionManagerTests
     }
 
     [Test]
+    [Obsolete]
     public void ValidateSession_ExpiredSession_IsRemovedFromActiveSessions()
     {
         // Arrange

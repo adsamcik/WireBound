@@ -104,7 +104,7 @@ public partial class MainViewModel : ObservableObject, IRecipient<UpdateAvailabl
 
     [ObservableProperty]
     private object? _currentView;
-    
+
     [ObservableProperty]
     private bool _isMonitoringActive;
 

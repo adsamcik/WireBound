@@ -5,6 +5,7 @@ namespace WireBound.Tests.IPC;
 public class SessionManagerSecurityTests
 {
     [Test]
+    [Obsolete]
     public void CreateSession_ExceedingMaxConcurrent_ReturnsNull()
     {
         var manager = new SessionManager();
@@ -22,6 +23,7 @@ public class SessionManagerSecurityTests
     }
 
     [Test]
+    [Obsolete]
     public void CreateSession_ConcurrentCalls_NeverExceedsMax()
     {
         var manager = new SessionManager();

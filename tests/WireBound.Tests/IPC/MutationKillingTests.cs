@@ -101,6 +101,7 @@ public class MutationKillingTests
     // ═══════════════════════════════════════════════════════════════════════
 
     [Test]
+    [Obsolete]
     public void Session_ExactlyAtMax_Allowed()
     {
         var manager = new SessionManager();
@@ -113,6 +114,7 @@ public class MutationKillingTests
     }
 
     [Test]
+    [Obsolete]
     public void Session_OneOverMax_Denied()
     {
         var manager = new SessionManager();
@@ -289,6 +291,7 @@ public class MutationKillingTests
     }
 
     [Test]
+    [Obsolete]
     public void SessionManager_ValidateAfterExpiry_ReturnsNull()
     {
         // We can't easily test real 8-hour expiry, but we can verify that
@@ -302,6 +305,7 @@ public class MutationKillingTests
     }
 
     [Test]
+    [Obsolete]
     public void SessionManager_RemoveSession_ReturnValues()
     {
         var manager = new SessionManager();

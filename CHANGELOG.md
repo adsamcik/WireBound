@@ -10,7 +10,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - **Uninstall Cleanup Hook (Windows)** - Registers a Velopack `OnBeforeUninstallFastCallback` that removes the Registry `Run` startup entry and the "WireBound Elevation Helper" Task Scheduler task before Add/Remove Programs uninstalls the app, so it no longer leaves stray autostart artifacts behind. Each cleanup step is bounded by an internal timeout to stay safely within Velopack's 30-second fast-exit budget.
-- **Passwordless Elevation Setup (Linux)** - New "Passwordless Elevation" card in Settings wires up the previously-unreachable system-level systemd service + polkit policy install/uninstall, so on-demand helper starts no longer require a `pkexec` password prompt every time once installed. Known limitations, tracked as follow-up work: the polkit policy authorizes `pkexec` launches of the helper binary but not `systemctl start` on the unit itself (so the systemd-start path may still prompt), and the installed unit/policy files bake in the helper's current install path, which could go stale across a future app relocation/update.
 
 ### Fixed
 

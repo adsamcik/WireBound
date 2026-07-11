@@ -21,10 +21,6 @@ public sealed class LinuxHelperProcessManager : IHelperProcessManager
     private const string ServiceFileName = "wirebound-elevation@.service";
     private const string PolkitPolicyId = "com.wirebound.elevation";
     private const string SystemdSystemDir = "/etc/systemd/system";
-    private const string PolkitActionsDir = "/usr/share/polkit-1/actions";
-
-    private static string ServicePath => $"{SystemdSystemDir}/{ServiceFileName}";
-    private static string PolkitPolicyPath => $"{PolkitActionsDir}/{PolkitPolicyId}.policy";
 
     public LinuxHelperProcessManager(ILogger<LinuxHelperProcessManager>? logger = null)
     {
@@ -136,27 +132,11 @@ public sealed class LinuxHelperProcessManager : IHelperProcessManager
         return HelperValidationResult.Valid();
     }
 
-    public bool SupportsPasswordlessElevationSetup => true;
-
-    public Task<bool> IsPasswordlessElevationInstalledAsync() => Task.FromResult(IsServiceInstalled());
-
     /// <summary>
     /// Installs the systemd system service and polkit policy for passwordless startup.
     /// Requires a one-time password prompt via pkexec.
     /// </summary>
-    /// <remarks>
-    /// Known limitations (tracked as follow-up work, not fixed here):
-    /// <list type="bullet">
-    /// <item>The polkit policy only authorizes <c>pkexec</c> launches of the helper binary itself
-    /// (<c>org.freedesktop.policykit.exec.path</c>). It does not grant passwordless
-    /// <c>systemctl start</c> on the unit, so <c>StartViaSystemdAsync</c> may still prompt.</item>
-    /// <item><see cref="HelperPath"/> (derived from <see cref="AppContext.BaseDirectory"/>) is baked
-    /// into the persisted unit file's <c>ExecStart=</c> and the polkit policy's <c>exec.path</c>.
-    /// If a future app update relocates the install directory, these persisted paths would go
-    /// stale until the user re-runs install.</item>
-    /// </list>
-    /// </remarks>
-    public async Task<bool> InstallPasswordlessElevationAsync()
+    public async Task<bool> InstallService()
     {
         try
         {
@@ -203,7 +183,8 @@ public sealed class LinuxHelperProcessManager : IHelperProcessManager
             // Write the service file to the system directory using pkexec tee
             // (piping via stdin avoids temp file TOCTOU where another same-user process
             //  could modify the temp file between write and elevated copy)
-            var serviceResult = await PipeToElevatedFileAsync(ServicePath, serviceContent);
+            var serviceResult = await PipeToElevatedFileAsync(
+                $"{SystemdSystemDir}/{ServiceFileName}", serviceContent);
             if (serviceResult != 0)
             {
                 _logger?.LogWarning("Failed to install system service file (exit code: {Code})", serviceResult);
@@ -232,7 +213,8 @@ public sealed class LinuxHelperProcessManager : IHelperProcessManager
                 </policyconfig>
                 """;
 
-            var polkitResult = await PipeToElevatedFileAsync(PolkitPolicyPath, polkitContent);
+            var polkitPath = $"/usr/share/polkit-1/actions/{PolkitPolicyId}.policy";
+            var polkitResult = await PipeToElevatedFileAsync(polkitPath, polkitContent);
             if (polkitResult != 0)
             {
                 _logger?.LogWarning("Failed to install polkit policy (exit code: {Code})", polkitResult);
@@ -253,40 +235,30 @@ public sealed class LinuxHelperProcessManager : IHelperProcessManager
     }
 
     /// <summary>
-    /// Uninstalls the systemd service and polkit policy. Returns <c>true</c> only if both the
-    /// service file and polkit policy were confirmed removed — a failed/cancelled pkexec prompt
-    /// on either step is reported as failure rather than silently leaving artifacts behind.
+    /// Uninstalls the systemd service and polkit policy.
     /// </summary>
-    public async Task<bool> UninstallPasswordlessElevationAsync()
+    public async Task<bool> UninstallService()
     {
         try
         {
             var instanceName = $"{ServiceName}@{GetCurrentUid()}";
 
-            // Stop and disable the per-user instance (best-effort — the unit may not be running)
+            // Stop and disable the per-user instance
             await RunCommandAsync("/usr/bin/systemctl", $"stop {instanceName}");
             await RunCommandAsync("/usr/bin/systemctl", $"disable {instanceName}");
 
             // Remove service template file (requires elevation)
-            var serviceRemoveResult = await RunCommandAsync("/usr/bin/pkexec", $"rm -f {ServicePath}");
+            var servicePath = $"{SystemdSystemDir}/{ServiceFileName}";
+            await RunCommandAsync("/usr/bin/pkexec", $"rm -f {servicePath}");
 
             // Remove polkit policy (requires elevation)
-            var polkitRemoveResult = await RunCommandAsync("/usr/bin/pkexec", $"rm -f {PolkitPolicyPath}");
+            var polkitPath = $"/usr/share/polkit-1/actions/{PolkitPolicyId}.policy";
+            await RunCommandAsync("/usr/bin/pkexec", $"rm -f {polkitPath}");
 
             await RunCommandAsync("/usr/bin/systemctl", "daemon-reload");
 
-            var success = serviceRemoveResult == 0 && polkitRemoveResult == 0 && !IsServiceInstalled();
-            if (success)
-            {
-                _logger?.LogInformation("Service uninstalled successfully");
-            }
-            else
-            {
-                _logger?.LogWarning(
-                    "Uninstall did not fully complete (service rm exit: {ServiceCode}, polkit rm exit: {PolkitCode})",
-                    serviceRemoveResult, polkitRemoveResult);
-            }
-            return success;
+            _logger?.LogInformation("Service uninstalled successfully");
+            return true;
         }
         catch (Exception ex)
         {
@@ -296,7 +268,7 @@ public sealed class LinuxHelperProcessManager : IHelperProcessManager
     }
 
     private bool IsServiceInstalled() =>
-        File.Exists(ServicePath) && File.Exists(PolkitPolicyPath);
+        File.Exists(Path.Combine(SystemdSystemDir, ServiceFileName));
 
     private async Task<bool> IsSystemdServiceActiveAsync()
     {

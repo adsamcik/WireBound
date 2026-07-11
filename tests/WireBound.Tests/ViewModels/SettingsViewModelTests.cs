@@ -21,7 +21,6 @@ public class SettingsViewModelTests : IAsyncDisposable
     private readonly INetworkPollingBackgroundService _pollingService;
     private readonly IStartupService _startupService;
     private readonly IElevationService _elevationService;
-    private readonly IHelperProcessManager _helperProcessManager;
     private readonly IProcessNetworkService _processNetworkService;
     private readonly IDataExportService _dataExport;
     private readonly IUpdateService _updateService;
@@ -35,7 +34,6 @@ public class SettingsViewModelTests : IAsyncDisposable
         _pollingService = Substitute.For<INetworkPollingBackgroundService>();
         _startupService = Substitute.For<IStartupService>();
         _elevationService = Substitute.For<IElevationService>();
-        _helperProcessManager = Substitute.For<IHelperProcessManager>();
         _processNetworkService = Substitute.For<IProcessNetworkService>();
         _dataExport = Substitute.For<IDataExportService>();
         _updateService = Substitute.For<IUpdateService>();
@@ -64,9 +62,6 @@ public class SettingsViewModelTests : IAsyncDisposable
         _elevationService.IsHelperConnected.Returns(false);
         _elevationService.RequiresElevation.Returns(true);
         _elevationService.IsElevationSupported.Returns(true);
-
-        // Setup helper process manager (passwordless elevation setup)
-        _helperProcessManager.SupportsPasswordlessElevationSetup.Returns(false);
     }
 
     private static AppSettings CreateDefaultSettings()
@@ -99,7 +94,6 @@ public class SettingsViewModelTests : IAsyncDisposable
             _pollingService,
             _startupService,
             _elevationService,
-            _helperProcessManager,
             _processNetworkService,
             _dataExport,
             _updateService,
@@ -488,119 +482,6 @@ public class SettingsViewModelTests : IAsyncDisposable
 
         // Assert
         await _elevationService.Received(1).StartHelperAsync(Arg.Any<CancellationToken>());
-    }
-
-    #endregion
-
-    #region Passwordless Elevation Tests
-
-    [Test]
-    public async Task InstallPasswordlessElevationCommand_WhenNotSupported_DoesNotAttemptInstall()
-    {
-        // Arrange
-        _helperProcessManager.SupportsPasswordlessElevationSetup.Returns(false);
-        var viewModel = CreateViewModel();
-        await viewModel.InitializationTask;
-
-        // Act
-        await viewModel.InstallPasswordlessElevationCommand.ExecuteAsync(null);
-
-        // Assert
-        await _helperProcessManager.DidNotReceive().InstallPasswordlessElevationAsync();
-    }
-
-    [Test]
-    public async Task InstallPasswordlessElevationCommand_WhenSuccessful_UpdatesInstalledState()
-    {
-        // Arrange
-        _helperProcessManager.SupportsPasswordlessElevationSetup.Returns(true);
-        _helperProcessManager.IsPasswordlessElevationInstalledAsync().Returns(false, true);
-        _helperProcessManager.InstallPasswordlessElevationAsync().Returns(true);
-        var viewModel = CreateViewModel();
-        await viewModel.InitializationTask;
-
-        // Act
-        await viewModel.InstallPasswordlessElevationCommand.ExecuteAsync(null);
-
-        // Assert
-        await _helperProcessManager.Received(1).InstallPasswordlessElevationAsync();
-        viewModel.IsPasswordlessElevationInstalled.Should().BeTrue();
-        viewModel.PasswordlessElevationError.Should().BeNull();
-        viewModel.IsTogglingPasswordlessElevation.Should().BeFalse();
-    }
-
-    [Test]
-    public async Task InstallPasswordlessElevationCommand_WhenReportedSuccessButNotActuallyInstalled_SetsError()
-    {
-        // Arrange — install call reports success, but re-verification shows it did not take effect
-        // (e.g. the pkexec prompt was dismissed partway through); actual on-disk state must win.
-        _helperProcessManager.SupportsPasswordlessElevationSetup.Returns(true);
-        _helperProcessManager.IsPasswordlessElevationInstalledAsync().Returns(false);
-        _helperProcessManager.InstallPasswordlessElevationAsync().Returns(true);
-        var viewModel = CreateViewModel();
-        await viewModel.InitializationTask;
-
-        // Act
-        await viewModel.InstallPasswordlessElevationCommand.ExecuteAsync(null);
-
-        // Assert
-        viewModel.IsPasswordlessElevationInstalled.Should().BeFalse();
-        viewModel.PasswordlessElevationError.Should().NotBeNullOrEmpty();
-    }
-
-    [Test]
-    public async Task InstallPasswordlessElevationCommand_WhenExceptionThrown_SetsErrorAndResetsToggling()
-    {
-        // Arrange
-        _helperProcessManager.SupportsPasswordlessElevationSetup.Returns(true);
-        _helperProcessManager.IsPasswordlessElevationInstalledAsync().Returns(false);
-        _helperProcessManager.InstallPasswordlessElevationAsync().Returns<Task<bool>>(_ => throw new InvalidOperationException("pkexec unavailable"));
-        var viewModel = CreateViewModel();
-        await viewModel.InitializationTask;
-
-        // Act
-        await viewModel.InstallPasswordlessElevationCommand.ExecuteAsync(null);
-
-        // Assert
-        viewModel.PasswordlessElevationError.Should().NotBeNullOrEmpty();
-        viewModel.IsTogglingPasswordlessElevation.Should().BeFalse();
-    }
-
-    [Test]
-    public async Task UninstallPasswordlessElevationCommand_WhenSuccessful_UpdatesInstalledState()
-    {
-        // Arrange
-        _helperProcessManager.SupportsPasswordlessElevationSetup.Returns(true);
-        _helperProcessManager.IsPasswordlessElevationInstalledAsync().Returns(true, false);
-        _helperProcessManager.UninstallPasswordlessElevationAsync().Returns(true);
-        var viewModel = CreateViewModel();
-        await viewModel.InitializationTask;
-
-        // Act
-        await viewModel.UninstallPasswordlessElevationCommand.ExecuteAsync(null);
-
-        // Assert
-        await _helperProcessManager.Received(1).UninstallPasswordlessElevationAsync();
-        viewModel.IsPasswordlessElevationInstalled.Should().BeFalse();
-        viewModel.PasswordlessElevationError.Should().BeNull();
-    }
-
-    [Test]
-    public async Task UninstallPasswordlessElevationCommand_WhenNotFullyRemoved_SetsError()
-    {
-        // Arrange — uninstall reports failure and the artifacts are confirmed still present
-        _helperProcessManager.SupportsPasswordlessElevationSetup.Returns(true);
-        _helperProcessManager.IsPasswordlessElevationInstalledAsync().Returns(true);
-        _helperProcessManager.UninstallPasswordlessElevationAsync().Returns(false);
-        var viewModel = CreateViewModel();
-        await viewModel.InitializationTask;
-
-        // Act
-        await viewModel.UninstallPasswordlessElevationCommand.ExecuteAsync(null);
-
-        // Assert
-        viewModel.IsPasswordlessElevationInstalled.Should().BeTrue();
-        viewModel.PasswordlessElevationError.Should().NotBeNullOrEmpty();
     }
 
     #endregion

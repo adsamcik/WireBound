@@ -749,7 +749,7 @@
       "WireBound.Elevation": {
         "type": "Project",
         "dependencies": {
-          "Microsoft.Diagnostics.Tracing.TraceEvent": "[3.1.29, )",
+          "Microsoft.Diagnostics.Tracing.TraceEvent": "[3.1.30, )",
           "Serilog": "[4.3.0, )",
           "Serilog.Sinks.File": "[7.0.0, )",
           "WireBound.IPC": "[1.0.0, )"
@@ -764,7 +764,7 @@
       "wirebound.platform.abstract": {
         "type": "Project",
         "dependencies": {
-          "Microsoft.Extensions.DependencyInjection.Abstractions": "[10.0.2, )"
+          "Microsoft.Extensions.DependencyInjection.Abstractions": "[10.0.3, )"
         }
       },
       "wirebound.platform.linux": {
@@ -882,9 +882,9 @@
       },
       "Microsoft.Diagnostics.Tracing.TraceEvent": {
         "type": "CentralTransitive",
-        "requested": "[3.1.29, )",
-        "resolved": "3.1.29",
-        "contentHash": "QYj2YorkI0e/qBMZ+EPed2QIhVH4Jkx1+KrT/PLTgnyzkx+xtqvKe44JjCR3z8J/sNFvpJn8ORmemOYx58kbRg==",
+        "requested": "[3.1.30, )",
+        "resolved": "3.1.30",
+        "contentHash": "87DUtWHbLA+IFiO6R/dixDrYZa55xmBkZZAK7RowXRvY64O3AJBYjMnAtamf+QhVJ9ZzKHrXCbZpS5Tw2iog6g==",
         "dependencies": {
           "Microsoft.Diagnostics.NETCore.Client": "0.2.510501",
           "System.Reflection.TypeExtensions": "4.7.0"
@@ -892,9 +892,9 @@
       },
       "Microsoft.Extensions.DependencyInjection.Abstractions": {
         "type": "CentralTransitive",
-        "requested": "[10.0.2, )",
-        "resolved": "10.0.2",
-        "contentHash": "zOIurr59+kUf9vNcsUkCvKWZv+fPosUZXURZesYkJCvl0EzTc9F7maAO4Cd2WEV7ZJJ0AZrFQvuH6Npph9wdBw=="
+        "requested": "[10.0.3, )",
+        "resolved": "10.0.3",
+        "contentHash": "bwGMrRcAMWx2s/RDgja97p27rxSz2pEQW0+rX5cWAUWVETVJ/eyxGfjAl8vuG5a+lckWmPIE+vcuaZNVB5YDdw=="
       },
       "Microsoft.Extensions.Hosting": {
         "type": "CentralTransitive",

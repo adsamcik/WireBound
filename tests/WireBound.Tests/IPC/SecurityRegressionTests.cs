@@ -180,6 +180,7 @@ public class SecurityRegressionTests
     // ═══════════════════════════════════════════════════════════════════════
 
     [Test]
+    [Obsolete]
     public void SessionLimit_ConcurrentCreation_NeverExceedsMax()
     {
         var manager = new SessionManager();

@@ -14,15 +14,15 @@
       },
       "Microsoft.DotNet.ILCompiler": {
         "type": "Direct",
-        "requested": "[10.0.4, )",
-        "resolved": "10.0.4",
-        "contentHash": "tjoEJBbnn4duaUJ+akWmIe4jTsIN4zZt92wynr5UAWj+HgoQLQI0kV5twx0j1k5cL19WMQw/wT7T1h8pOLZYkg=="
+        "requested": "[10.0.9, )",
+        "resolved": "10.0.9",
+        "contentHash": "4y+VsQOcs4EiTSINdCpCWi/aLRbIbGTxSezQXd8uGVhzbDRm1FNVTZDyCUQixE0+g9UFusvfxVcF68YYz7RzxA=="
       },
       "Microsoft.NET.ILLink.Tasks": {
         "type": "Direct",
-        "requested": "[10.0.4, )",
-        "resolved": "10.0.4",
-        "contentHash": "CCx8ojW3mOL150/LnP0DK7qpMrJEt6xxNCmJFKoX89v1h0FwpsEHqennowGPYDxp6zIkIO4f9PxynjOeLF+1zw=="
+        "requested": "[10.0.9, )",
+        "resolved": "10.0.9",
+        "contentHash": "4Iw41e2h7I4t70SJcX2GCmbyKJIlA273Cfm9RJMM050/3VBejGAG1KcthP5Z2L6SQcbfbf6BhNWO26+ZG+GzMg=="
       },
       "Serilog": {
         "type": "Direct",
@@ -119,7 +119,7 @@
       },
       "Microsoft.Extensions.DependencyInjection.Abstractions": {
         "type": "CentralTransitive",
-        "requested": "[10.0.2, )",
+        "requested": "[10.0.3, )",
         "resolved": "6.0.0",
         "contentHash": "xlzi2IYREJH3/m6+lUrQlujzX8wDitm4QGnUu6kUXTQAWPuZY8i+ticFJbzfqaetLA6KR/rO6Ew/HuYD+bxifg=="
       },

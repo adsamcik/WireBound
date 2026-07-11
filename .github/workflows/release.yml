@@ -131,7 +131,7 @@ jobs:
           tar -czvf "../../WireBound-${{ steps.version.outputs.VERSION }}-${{ matrix.runtime }}.tar.gz" .
 
       - name: Upload release artifact
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@v7
         with:
           name: WireBound-${{ steps.version.outputs.VERSION }}-${{ matrix.runtime }}
           path: ./WireBound-${{ steps.version.outputs.VERSION }}-${{ matrix.runtime }}.${{ matrix.archive }}

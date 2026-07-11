@@ -540,9 +540,14 @@ public sealed partial class SettingsViewModel : ObservableObject, IDisposable
         PasswordlessElevationError = null;
         try
         {
-            var success = await _helperProcessManager.InstallPasswordlessElevationAsync();
-            IsPasswordlessElevationInstalled = success && await _helperProcessManager.IsPasswordlessElevationInstalledAsync();
-            if (!success)
+            // Run on a background thread — the underlying Linux implementation uses
+            // synchronous process waits (pkexec/systemctl) that would otherwise block the UI thread.
+            await Task.Run(() => _helperProcessManager.InstallPasswordlessElevationAsync());
+
+            // Always re-verify actual state rather than trusting the reported result — a
+            // partially-completed install/uninstall could otherwise be misreported.
+            IsPasswordlessElevationInstalled = await Task.Run(() => _helperProcessManager.IsPasswordlessElevationInstalledAsync());
+            if (!IsPasswordlessElevationInstalled)
             {
                 PasswordlessElevationError = "Failed to install passwordless elevation. Check that pkexec/polkit is available.";
             }
@@ -567,11 +572,16 @@ public sealed partial class SettingsViewModel : ObservableObject, IDisposable
         PasswordlessElevationError = null;
         try
         {
-            var success = await _helperProcessManager.UninstallPasswordlessElevationAsync();
-            IsPasswordlessElevationInstalled = !success && await _helperProcessManager.IsPasswordlessElevationInstalledAsync();
-            if (!success)
+            // Run on a background thread — the underlying Linux implementation uses
+            // synchronous process waits (pkexec/systemctl) that would otherwise block the UI thread.
+            await Task.Run(() => _helperProcessManager.UninstallPasswordlessElevationAsync());
+
+            // Always re-verify actual state rather than trusting the reported result — a
+            // partially-completed install/uninstall could otherwise be misreported.
+            IsPasswordlessElevationInstalled = await Task.Run(() => _helperProcessManager.IsPasswordlessElevationInstalledAsync());
+            if (IsPasswordlessElevationInstalled)
             {
-                PasswordlessElevationError = "Failed to uninstall passwordless elevation.";
+                PasswordlessElevationError = "Failed to fully uninstall passwordless elevation.";
             }
         }
         catch (Exception ex)

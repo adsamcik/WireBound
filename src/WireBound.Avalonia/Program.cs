@@ -3,6 +3,7 @@ using Serilog;
 using System;
 using System.Runtime.Versioning;
 using System.Threading;
+using System.Threading.Tasks;
 using Velopack;
 using WireBound.Platform.Windows.Services;
 
@@ -102,18 +103,18 @@ class Program
     {
         var startupService = new WindowsStartupService();
 
-        try
-        {
-            startupService.SetStartupEnabledAsync(false).GetAwaiter().GetResult();
-        }
-        catch
-        {
-            // Best-effort cleanup — never block uninstall.
-        }
+        // Each call is bounded well under Velopack's 30-second OnBeforeUninstallFastCallback
+        // hard limit (after which it force-exits the process) — a slow/pending UAC prompt on
+        // the elevated Task Scheduler removal must not consume the entire uninstall budget.
+        RunWithTimeout(() => startupService.SetStartupEnabledAsync(false), TimeSpan.FromSeconds(5));
+        RunWithTimeout(() => startupService.SetHelperStartupEnabledAsync(false), TimeSpan.FromSeconds(20));
+    }
 
+    private static void RunWithTimeout(Func<Task<bool>> action, TimeSpan timeout)
+    {
         try
         {
-            startupService.SetHelperStartupEnabledAsync(false).GetAwaiter().GetResult();
+            Task.Run(action).Wait(timeout);
         }
         catch
         {

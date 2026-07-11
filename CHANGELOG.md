@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- **Velopack Packaging (CI)** - Four compounding bugs in `release.yml`/`publish.ps1` meant Velopack had never produced a real Windows Setup.exe / Linux AppImage since it was introduced; the v0.8.0 GitHub Release predates these fixes and only contains the zip/tar.gz archives:
+  - `vpk pack --delta ./velopack-prev` used invalid syntax (`--delta` only accepts `None`/`BestSpeed`/`BestSize`, not a path), so `vpk pack` errored and the subsequent upload step found an empty output directory. Fixed by downloading the previous release directly into the pack `--outputDir`, where Velopack auto-detects it for delta generation, and removing the invalid `--delta` path argument.
+  - The release workflow's `build` job runs on `ubuntu-latest` for both matrix legs, so `vpk pack` defaulted to packaging for the host OS (Linux) even for the `win-x64` leg. Fixed by adding explicit `[win]`/`[linux]` platform directives (also applied to `publish.ps1`'s local Velopack packaging).
+  - `vpk upload github` lacked `--merge true`, so the second matrix leg's upload was silently rejected once the first leg's upload created a release/draft for the same tag. Fixed by adding `--merge true`.
+  - Both matrix legs uploaded to GitHub Releases concurrently, so `--merge true` alone could still race if neither leg saw the release created yet. Fixed by uploading each leg's Velopack output as a build artifact instead, and moving the actual `vpk upload github` calls into the single, sequential `release` job (after `softprops/action-gh-release` creates the release), mirroring the existing zip/tar.gz artifact pattern.
+
 ## [0.8.0] - 2026-07-11
 
 ### Security

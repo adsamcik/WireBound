@@ -4,9 +4,9 @@
     "net10.0": {
       "Microsoft.Diagnostics.Tracing.TraceEvent": {
         "type": "Direct",
-        "requested": "[3.1.29, )",
-        "resolved": "3.1.29",
-        "contentHash": "QYj2YorkI0e/qBMZ+EPed2QIhVH4Jkx1+KrT/PLTgnyzkx+xtqvKe44JjCR3z8J/sNFvpJn8ORmemOYx58kbRg==",
+        "requested": "[3.1.30, )",
+        "resolved": "3.1.30",
+        "contentHash": "87DUtWHbLA+IFiO6R/dixDrYZa55xmBkZZAK7RowXRvY64O3AJBYjMnAtamf+QhVJ9ZzKHrXCbZpS5Tw2iog6g==",
         "dependencies": {
           "Microsoft.Diagnostics.NETCore.Client": "0.2.510501",
           "System.Reflection.TypeExtensions": "4.7.0"

@@ -729,7 +729,7 @@
           "Avalonia": "[12.1.0, )",
           "Avalonia.Desktop": "[12.1.0, )",
           "Avalonia.Fonts.Inter": "[12.1.0, )",
-          "Avalonia.Themes.Fluent": "[11.3.11, )",
+          "Avalonia.Themes.Fluent": "[12.1.0, )",
           "CommunityToolkit.Mvvm": "[8.4.2, )",
           "LiveChartsCore.SkiaSharpView.Avalonia": "[2.0.0-rc6.1, )",
           "Microsoft.EntityFrameworkCore.Sqlite": "[10.0.9, )",
@@ -846,11 +846,11 @@
       },
       "Avalonia.Themes.Fluent": {
         "type": "CentralTransitive",
-        "requested": "[11.3.11, )",
-        "resolved": "11.3.11",
-        "contentHash": "GBLwgTwLPGaWxtbBdZ+kUn+QIKVorTc3m8v3nr0wsvRJkWHPgrDR5LAoHJjkPQCLDFuqocYFIeLOUAaBYP0MeA==",
+        "requested": "[12.1.0, )",
+        "resolved": "12.1.0",
+        "contentHash": "MVi5L9HymnNm+gP2aNXNcyrP2iKGJWFubQ5Bv8/Przflxca1aIT9QBpTUV6c3olA9rLYFY7MJRR/C/BZaUhemQ==",
         "dependencies": {
-          "Avalonia": "11.3.11"
+          "Avalonia": "12.1.0"
         }
       },
       "CommunityToolkit.Mvvm": {

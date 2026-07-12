@@ -1,5 +1,6 @@
 using Avalonia;
 using Avalonia.Controls.ApplicationLifetimes;
+using Avalonia.Input.Platform;
 using WireBound.Core.Services;
 
 namespace WireBound.Avalonia.Services;

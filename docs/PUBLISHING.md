@@ -85,7 +85,7 @@ Portable builds still receive update notifications but link to GitHub for manual
 
 - **Format:** Self-contained application bundle
 - **Contents:** Executable with all dependencies (no .NET runtime required)
-- **Executable:** `WireBound.Avalonia.exe` (Windows) or `WireBound.Avalonia` (Linux)
+- **Executable:** `WireBound.exe` (Windows) or `WireBound` (Linux)
 
 ## Version Numbering
 
@@ -109,7 +109,7 @@ Versions are set in:
 
 1. Download `WireBound-<version>-win-x64.zip`
 2. Extract to any folder
-3. Run `WireBound.Avalonia.exe`
+3. Run `WireBound.exe`
 
 ### Linux
 
@@ -118,10 +118,10 @@ Versions are set in:
 tar -xzf WireBound-<version>-linux-x64.tar.gz
 
 # Make executable
-chmod +x WireBound.Avalonia
+chmod +x WireBound
 
 # Run
-./WireBound.Avalonia
+./WireBound
 ```
 
 ## Troubleshooting
@@ -148,7 +148,7 @@ dotnet restore --runtime win-x64
 **Solution:** Ensure execute permissions and required libraries:
 
 ```bash
-chmod +x WireBound.Avalonia
+chmod +x WireBound
 # Install X11/Wayland dependencies if needed
 sudo apt install libx11-6 libice6 libsm6
 ```

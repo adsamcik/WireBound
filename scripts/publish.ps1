@@ -189,8 +189,13 @@ if ($Velopack) {
         New-Item -ItemType Directory -Path $velopackOutput -Force | Out-Null
 
         $exeName = if ($targetIsWindows) { "WireBound.exe" } else { "WireBound" }
+        # An explicit platform directive is required for vpk to package for a
+        # target OS other than the current host (e.g. building linux-x64
+        # packages from Windows), and is harmless when it matches the host.
+        $vpkDirective = if ($targetIsWindows) { "[win]" } else { "[linux]" }
 
         $vpkArgs = @(
+            $vpkDirective,
             "pack",
             "-u", "WireBound",
             "-v", $Version,
@@ -229,11 +234,11 @@ Write-Host ""
 if ($targetIsWindows) {
     Write-Host "📋 To install (Windows):"
     Write-Host "   1. Extract the ZIP file"
-    Write-Host "   2. Run WireBound.Avalonia.exe"
+    Write-Host "   2. Run WireBound.exe"
 } elseif ($Runtime.StartsWith("linux")) {
     Write-Host "📋 To install (Linux):"
     Write-Host "   1. Extract: tar -xzf $($archive.Name)"
-    Write-Host "   2. Make executable: chmod +x WireBound.Avalonia"
-    Write-Host "   3. Run: ./WireBound.Avalonia"
+    Write-Host "   2. Make executable: chmod +x WireBound"
+    Write-Host "   3. Run: ./WireBound"
 }
 Write-Host ""

@@ -34,6 +34,7 @@ public class SessionManagerComprehensiveTests
     }
 
     [Test]
+    [Obsolete]
     public void ValidateSession_WithValidSession_ReturnsSessionInfo()
     {
         var manager = new SessionManager();
@@ -51,6 +52,7 @@ public class SessionManagerComprehensiveTests
     // ═══════════════════════════════════════════════════════════════════════
 
     [Test]
+    [Obsolete]
     public void CreateSession_SetsAllProperties()
     {
         var manager = new SessionManager();
@@ -66,6 +68,7 @@ public class SessionManagerComprehensiveTests
     }
 
     [Test]
+    [Obsolete]
     public void CreateSession_GeneratesUniqueSessionIds()
     {
         var manager = new SessionManager();
@@ -84,6 +87,7 @@ public class SessionManagerComprehensiveTests
     // ═══════════════════════════════════════════════════════════════════════
 
     [Test]
+    [Obsolete]
     public void RemoveSession_ExistingSession_ReturnsTrue()
     {
         var manager = new SessionManager();
@@ -99,6 +103,7 @@ public class SessionManagerComprehensiveTests
     }
 
     [Test]
+    [Obsolete]
     public void RemoveSession_DecrementsActiveCount()
     {
         var manager = new SessionManager();
@@ -110,6 +115,7 @@ public class SessionManagerComprehensiveTests
     }
 
     [Test]
+    [Obsolete]
     public void RemoveSession_ThenValidate_ReturnsNull()
     {
         var manager = new SessionManager();
@@ -131,6 +137,7 @@ public class SessionManagerComprehensiveTests
     }
 
     [Test]
+    [Obsolete]
     public void ActiveCount_AfterCreateAndRemoveCycles()
     {
         var manager = new SessionManager();
@@ -153,6 +160,7 @@ public class SessionManagerComprehensiveTests
     // ═══════════════════════════════════════════════════════════════════════
 
     [Test]
+    [Obsolete]
     public void CreateSession_AtExactMax_Succeeds()
     {
         var manager = new SessionManager();
@@ -168,6 +176,7 @@ public class SessionManagerComprehensiveTests
     }
 
     [Test]
+    [Obsolete]
     public void CreateSession_AtMaxPlusOne_ReturnsNull()
     {
         var manager = new SessionManager();
@@ -179,6 +188,7 @@ public class SessionManagerComprehensiveTests
     }
 
     [Test]
+    [Obsolete]
     public void CreateSession_AfterRemoveFromFull_Succeeds()
     {
         var manager = new SessionManager();
@@ -203,6 +213,7 @@ public class SessionManagerComprehensiveTests
     // ═══════════════════════════════════════════════════════════════════════
 
     [Test]
+    [Obsolete]
     public void CreateSession_SamePidMultipleTimes_AllowsMultiple()
     {
         var manager = new SessionManager();

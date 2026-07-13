@@ -2,8 +2,11 @@ using Avalonia;
 using Serilog;
 using Serilog.Events;
 using System;
+using System.Runtime.Versioning;
 using System.Threading;
+using System.Threading.Tasks;
 using Velopack;
+using WireBound.Platform.Windows.Services;
 
 namespace WireBound.Avalonia;
 
@@ -19,13 +22,21 @@ class Program
     {
         // Velopack lifecycle hooks — MUST be the very first line.
         // Safe no-op when not installed via Velopack (portable/dev mode).
-        VelopackApp.Build()
+        var velopackApp = VelopackApp.Build()
             .OnRestarted(v =>
             {
                 // Flag for showing What's New dialog after update restart
                 Environment.SetEnvironmentVariable("WIREBOUND_UPDATED_TO", v?.ToString());
-            })
-            .Run();
+            });
+
+        // OnBeforeUninstallFastCallback is Windows-only (fast-exit hook, never invoked on
+        // other platforms) — guard it so the CA1416 platform-compatibility analyzer is satisfied.
+        if (OperatingSystem.IsWindows())
+        {
+            velopackApp.OnBeforeUninstallFastCallback(_ => CleanupWindowsStartupArtifacts());
+        }
+
+        velopackApp.Run();
 
         // Apply process mitigation policies BEFORE any plugin or native DLL
         // load that could be hijacked by an extension-point hook. This is
@@ -92,4 +103,38 @@ class Program
             .UsePlatformDetect()
             .WithInterFont()
             .LogToTrace();
+
+    /// <summary>
+    /// Removes OS-level artifacts (Registry startup entry, elevation helper scheduled task)
+    /// left behind by <c>WindowsStartupService</c> before Add/Remove Programs uninstalls the app.
+    /// </summary>
+    /// <remarks>
+    /// Runs as a Velopack fast-exit hook (before <see cref="Environment.Exit(int)"/> is called),
+    /// so it must complete quickly and must never throw — a cleanup failure should never block
+    /// or fail the uninstall. Serilog is not configured yet at this point in the process lifetime,
+    /// so failures here are swallowed silently rather than logged.
+    /// </remarks>
+    [SupportedOSPlatform("windows")]
+    private static void CleanupWindowsStartupArtifacts()
+    {
+        var startupService = new WindowsStartupService();
+
+        // Each call is bounded well under Velopack's 30-second OnBeforeUninstallFastCallback
+        // hard limit (after which it force-exits the process) — a slow/pending UAC prompt on
+        // the elevated Task Scheduler removal must not consume the entire uninstall budget.
+        RunWithTimeout(() => startupService.SetStartupEnabledAsync(false), TimeSpan.FromSeconds(5));
+        RunWithTimeout(() => startupService.SetHelperStartupEnabledAsync(false), TimeSpan.FromSeconds(20));
+    }
+
+    private static void RunWithTimeout(Func<Task<bool>> action, TimeSpan timeout)
+    {
+        try
+        {
+            Task.Run(action).Wait(timeout);
+        }
+        catch
+        {
+            // Best-effort cleanup — never block uninstall.
+        }
+    }
 }

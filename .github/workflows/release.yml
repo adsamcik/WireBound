@@ -38,7 +38,7 @@ jobs:
     
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
         with:
           fetch-depth: 0
 
@@ -84,39 +84,44 @@ jobs:
         run: dotnet tool install -g vpk
 
       - name: Download previous Velopack release
-        run: vpk download github --repoUrl https://github.com/adsamcik/WireBound --channel ${{ matrix.runtime }} -o ./velopack-prev
+        # Velopack auto-generates a delta when a previous full release already
+        # exists in the pack's --outputDir, so download it there directly
+        # (there is no --previous flag on `vpk pack`; see docs.velopack.io/packaging/deltas).
+        run: vpk download github --repoUrl https://github.com/adsamcik/WireBound --channel ${{ matrix.runtime }} -o ./velopack/${{ matrix.runtime }}
         continue-on-error: true
 
       - name: Package with Velopack (Windows)
         if: matrix.runtime == 'win-x64'
+        # The build job runs on ubuntu-latest for both matrix legs, so an explicit
+        # [win] directive is required to cross-compile a Windows package here;
+        # without it, `vpk pack` defaults to packaging for the host OS (Linux).
         run: |
-          vpk pack -u WireBound -v ${{ steps.version.outputs.VERSION }} \
+          vpk '[win]' pack -u WireBound -v ${{ steps.version.outputs.VERSION }} \
             -p ./publish/${{ matrix.runtime }} \
             -o ./velopack/${{ matrix.runtime }} \
-            -e WireBound.Avalonia.exe \
-            --channel ${{ matrix.runtime }} \
-            --delta ./velopack-prev || true
+            -e WireBound.exe \
+            --channel ${{ matrix.runtime }} || true
 
       - name: Package with Velopack (Linux)
         if: matrix.runtime == 'linux-x64'
         run: |
-          vpk pack -u WireBound -v ${{ steps.version.outputs.VERSION }} \
+          vpk '[linux]' pack -u WireBound -v ${{ steps.version.outputs.VERSION }} \
             -p ./publish/${{ matrix.runtime }} \
             -o ./velopack/${{ matrix.runtime }} \
-            -e WireBound.Avalonia \
-            --channel ${{ matrix.runtime }} \
-            --delta ./velopack-prev || true
+            -e WireBound \
+            --channel ${{ matrix.runtime }} || true
 
-      - name: Upload Velopack to GitHub Release
+      - name: Upload Velopack artifact
+        # Uploading the Velopack package to GitHub Releases happens later, in the
+        # single sequential `release` job, to avoid both matrix legs racing to
+        # create/merge a release for the same tag at the same time.
         if: always()
-        run: |
-          vpk upload github \
-            --repoUrl https://github.com/adsamcik/WireBound \
-            --tag v${{ steps.version.outputs.VERSION }} \
-            --token ${{ secrets.GITHUB_TOKEN }} \
-            --channel ${{ matrix.runtime }} \
-            -o ./velopack/${{ matrix.runtime }} || echo "Velopack upload skipped"
-        continue-on-error: true
+        uses: actions/upload-artifact@v7
+        with:
+          name: Velopack-${{ steps.version.outputs.VERSION }}-${{ matrix.runtime }}
+          path: ./velopack/${{ matrix.runtime }}
+          retention-days: 30
+          if-no-files-found: ignore
 
       - name: Create archive (zip)
         if: matrix.archive == 'zip'
@@ -131,7 +136,7 @@ jobs:
           tar -czvf "../../WireBound-${{ steps.version.outputs.VERSION }}-${{ matrix.runtime }}.tar.gz" .
 
       - name: Upload release artifact
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@v7
         with:
           name: WireBound-${{ steps.version.outputs.VERSION }}-${{ matrix.runtime }}
           path: ./WireBound-${{ steps.version.outputs.VERSION }}-${{ matrix.runtime }}.${{ matrix.archive }}
@@ -143,7 +148,7 @@ jobs:
     
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
 
       - name: Determine version
         id: version
@@ -157,7 +162,7 @@ jobs:
           echo "VERSION=$version" >> $GITHUB_OUTPUT
 
       - name: Download all artifacts
-        uses: actions/download-artifact@v7
+        uses: actions/download-artifact@v8
         with:
           path: ./artifacts
           pattern: WireBound-*
@@ -169,8 +174,8 @@ jobs:
           ## WireBound v$version
           
           ### Downloads
-          - **Linux (x64)**: \`WireBound-$version-linux-x64.tar.gz\` - Extract and run \`WireBound.Avalonia\`
-          - **Windows (x64)**: \`WireBound-$version-win-x64.zip\` - Extract and run \`WireBound.Avalonia.exe\`
+          - **Linux (x64)**: \`WireBound-$version-linux-x64.tar.gz\` - Extract and run \`WireBound\`
+          - **Windows (x64)**: \`WireBound-$version-win-x64.zip\` - Extract and run \`WireBound.exe\`
           
           ### System Requirements
           - Linux / Windows 10+
@@ -181,7 +186,7 @@ jobs:
           EOF
 
       - name: Create GitHub Release
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@v3
         with:
           tag_name: v${{ steps.version.outputs.VERSION }}
           name: WireBound v${{ steps.version.outputs.VERSION }}
@@ -189,5 +194,53 @@ jobs:
           draft: false
           prerelease: ${{ inputs.prerelease || false }}
           files: ./artifacts/**/*
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Install Velopack CLI
+        run: dotnet tool install -g vpk
+
+      - name: Download Velopack artifact (win-x64)
+        # Downloaded by exact name (not `pattern`) into an explicit per-runtime
+        # directory, so the destination path is always known regardless of
+        # whether zero, one, or both runtime artifacts exist — download-artifact@v8
+        # only extracts directly into a matched `pattern`'s named subdirectory
+        # when 2+ artifacts match; with exactly 1 match it flattens into the
+        # shared root, which broke path lookups below when only one leg produced
+        # a Velopack package.
+        uses: actions/download-artifact@v8
+        continue-on-error: true
+        with:
+          name: Velopack-${{ steps.version.outputs.VERSION }}-win-x64
+          path: ./velopack-artifacts/win-x64
+
+      - name: Download Velopack artifact (linux-x64)
+        uses: actions/download-artifact@v8
+        continue-on-error: true
+        with:
+          name: Velopack-${{ steps.version.outputs.VERSION }}-linux-x64
+          path: ./velopack-artifacts/linux-x64
+
+      - name: Upload Velopack packages to GitHub Release
+        # Runs sequentially (one leg after the other, both within this single
+        # job) after the release above already exists, so `--merge true` always
+        # merges into a stable target instead of racing two parallel matrix
+        # legs to create/merge the same tag's release simultaneously.
+        if: always()
+        run: |
+          for runtime in win-x64 linux-x64; do
+            dir="./velopack-artifacts/$runtime"
+            if [ -d "$dir" ] && [ -n "$(ls -A "$dir" 2>/dev/null)" ]; then
+              vpk upload github \
+                --repoUrl https://github.com/adsamcik/WireBound \
+                --tag v${{ steps.version.outputs.VERSION }} \
+                --token ${{ secrets.GITHUB_TOKEN }} \
+                --channel "$runtime" \
+                --merge true \
+                -o "$dir" || echo "Velopack upload skipped ($runtime)"
+            else
+              echo "No Velopack package found for $runtime, skipping upload"
+            fi
+          done
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

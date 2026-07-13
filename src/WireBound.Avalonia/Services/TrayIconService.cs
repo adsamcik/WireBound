@@ -22,14 +22,29 @@ public sealed class TrayIconService : ITrayIconService
     private Window? _mainWindow;
     private bool _isDisposed;
     private bool _minimizeToTray;
-    private bool _showActivityGraph = true;
+    private TrayIconMode _iconMode = TrayIconMode.Traffic;
+    private string _trafficAdapterId = string.Empty;
     private bool _isTraySupported = true;
     private NativeMenuItem? _updateMenuItem;
 
-    // Activity graph data - stores last N readings for the mini-graph
+    /// <summary>
+    /// True when the icon shows a live metric graph (anything but the static app icon).
+    /// Live modes keep the tray icon permanently visible.
+    /// </summary>
+    private bool IsLiveMode => _iconMode != TrayIconMode.AppIcon;
+
+    // Activity graph data - stores last N readings for the mini-graphs
     private const int GraphHistorySize = 16;
     private readonly Queue<(float download, float upload)> _activityHistory = new();
+    private readonly Queue<float> _cpuHistory = new();
+    private readonly Queue<float> _ramHistory = new();
     private long _autoScaleMaxSpeed = 1_000_000; // 1 MB/s default, auto-adjusts
+
+    // Last metric values (used for tooltip composition)
+    private long _lastDownloadBps;
+    private long _lastUploadBps;
+    private double _lastCpuPercent;
+    private double _lastRamPercent;
 
     // Memory pressure state (updated via UpdateMemoryPressure, consumed on UI thread)
     private MemoryPressureLevel _memoryPressureLevel = MemoryPressureLevel.Normal;
@@ -52,29 +67,45 @@ public sealed class TrayIconService : ITrayIconService
     }
 
     /// <summary>
-    /// Gets or sets whether the tray icon shows a dynamic activity graph.
+    /// Gets or sets which network adapter's traffic the tray shows in Traffic mode.
+    /// Plain data holder read by the polling service; setting it has no immediate UI effect.
     /// </summary>
-    public bool ShowActivityGraph
+    public string TrafficAdapterId
     {
-        get => _showActivityGraph;
+        get => _trafficAdapterId;
+        set => _trafficAdapterId = value ?? string.Empty;
+    }
+
+    /// <summary>
+    /// Gets or sets what the tray icon displays. Changing it re-renders the icon
+    /// for the new mode immediately (marshalling to the UI thread when required)
+    /// and updates icon visibility.
+    /// </summary>
+    public TrayIconMode IconMode
+    {
+        get => _iconMode;
         set
         {
-            _showActivityGraph = value;
-            if (_trayIcon != null)
+            _iconMode = value;
+            if (_trayIcon == null || _isDisposed) return;
+
+            if (!Dispatcher.UIThread.CheckAccess())
             {
-                // When activity graph is enabled, icon should always be visible
-                if (value)
-                {
-                    _trayIcon.IsVisible = true;
-                }
-                else
-                {
-                    // Reset to static icon and apply normal visibility rules
-                    UpdateStaticIcon();
-                    UpdateTrayIconVisibility();
-                }
+                Dispatcher.UIThread.Post(ApplyIconModeChange);
+                return;
             }
+
+            ApplyIconModeChange();
         }
+    }
+
+    private void ApplyIconModeChange()
+    {
+        if (_trayIcon == null || _isDisposed) return;
+
+        var icon = CreateIconForCurrentMode();
+        if (icon != null) _trayIcon.Icon = icon;
+        UpdateTrayIconVisibility();
     }
 
     /// <summary>
@@ -188,19 +219,55 @@ public sealed class TrayIconService : ITrayIconService
     }
 
     /// <summary>
-    /// Creates a simple tray icon programmatically using SkiaSharp.
-    /// This creates a cyan lightning bolt icon matching the app branding.
+    /// Picks the initial tray icon at setup time based on the active
+    /// <see cref="IconMode"/>. Live graph modes render their chart immediately —
+    /// with no samples yet they draw as an empty graph frame, so the user sees the
+    /// chart UI from the first frame instead of a static PNG that flickers to a
+    /// graph one second later. <see cref="TrayIconMode.AppIcon"/> (or a failed
+    /// render) falls back to the brand PNG.
     /// </summary>
-    private static WindowIcon? CreateIconBitmap()
-    {
-        return CreateStaticIcon();
-    }
+    private WindowIcon? CreateIconBitmap() => CreateIconForCurrentMode();
 
     /// <summary>
-    /// Creates a static lightning bolt icon (used when activity graph is disabled).
+    /// Renders the icon appropriate for the current <see cref="IconMode"/>,
+    /// falling back to the static brand icon when a graph can't be produced.
+    /// </summary>
+    private WindowIcon? CreateIconForCurrentMode() => _iconMode switch
+    {
+        TrayIconMode.Traffic => CreateActivityGraphIcon() ?? CreateStaticIcon(),
+        TrayIconMode.Cpu => CreateMetricGraphIcon(_cpuHistory, ChartColors.CpuColor) ?? CreateStaticIcon(),
+        TrayIconMode.Ram => CreateMetricGraphIcon(_ramHistory, ChartColors.MemoryColor) ?? CreateStaticIcon(),
+        _ => CreateStaticIcon(),
+    };
+
+    /// <summary>
+    /// Creates the static tray icon from the app's bundled
+    /// <c>Assets/wirebound-16.png</c> (or 32px fallback) so the tray matches
+    /// the rest of the app's brand iconography. Falls back to the procedural
+    /// SkiaSharp lightning bolt if the asset can't be loaded — that path
+    /// guarantees the tray is always usable, even in unbundled dev runs.
     /// </summary>
     private static WindowIcon? CreateStaticIcon()
     {
+        try
+        {
+            // Try the bundled brand icon first. Avalonia's AssetLoader resolves
+            // avares:// URIs against any AvaloniaResource-bundled file. The
+            // 16px asset is sized exactly for the tray on Windows.
+            var assetUri = new Uri("avares://WireBound/Assets/wirebound-16.png");
+            if (global::Avalonia.Platform.AssetLoader.Exists(assetUri))
+            {
+                using var stream = global::Avalonia.Platform.AssetLoader.Open(assetUri);
+                var bitmap = new global::Avalonia.Media.Imaging.Bitmap(stream);
+                return new WindowIcon(bitmap);
+            }
+        }
+        catch (Exception ex)
+        {
+            Log.Debug(ex, "Could not load tray icon from assets; falling back to procedural");
+        }
+
+        // Fallback: procedural cyan circle + lightning bolt. Kept for safety.
         try
         {
             using var surface = SKSurface.Create(new SKImageInfo(IconSize, IconSize, SKColorType.Rgba8888, SKAlphaType.Premul));
@@ -247,35 +314,27 @@ public sealed class TrayIconService : ITrayIconService
     }
 
     /// <summary>
-    /// Updates the tray icon to the static version.
+    /// Updates the tray icon with the latest network and system metrics.
+    /// Appends all metric histories (so switching modes stays warm), renders at
+    /// most one icon based on the active <see cref="IconMode"/>, and refreshes the tooltip.
     /// </summary>
-    private void UpdateStaticIcon()
-    {
-        if (_trayIcon == null) return;
-
-        var icon = CreateStaticIcon();
-        if (icon != null)
-        {
-            _trayIcon.Icon = icon;
-        }
-    }
-
-    /// <summary>
-    /// Updates the tray icon with current network activity.
-    /// Creates a Task Manager-style activity graph showing download/upload history.
-    /// </summary>
-    public void UpdateActivity(long downloadSpeedBps, long uploadSpeedBps, long maxSpeedBps = 0)
+    public void UpdateMetrics(long downloadSpeedBps, long uploadSpeedBps, double cpuPercent, double ramPercent)
     {
         if (_trayIcon == null || _isDisposed) return;
 
         // Dispatch to UI thread if not already on it
         if (!Dispatcher.UIThread.CheckAccess())
         {
-            Dispatcher.UIThread.Post(() => UpdateActivity(downloadSpeedBps, uploadSpeedBps, maxSpeedBps));
+            Dispatcher.UIThread.Post(() => UpdateMetrics(downloadSpeedBps, uploadSpeedBps, cpuPercent, ramPercent));
             return;
         }
 
-        // Auto-scale: track the maximum speed seen
+        _lastDownloadBps = downloadSpeedBps;
+        _lastUploadBps = uploadSpeedBps;
+        _lastCpuPercent = cpuPercent;
+        _lastRamPercent = ramPercent;
+
+        // Auto-scale network: track the maximum speed seen
         var currentMax = Math.Max(downloadSpeedBps, uploadSpeedBps);
         if (currentMax > _autoScaleMaxSpeed)
         {
@@ -287,34 +346,35 @@ public sealed class TrayIconService : ITrayIconService
             _autoScaleMaxSpeed = Math.Max(1_000_000, _autoScaleMaxSpeed * 9 / 10);
         }
 
-        var effectiveMax = maxSpeedBps > 0 ? maxSpeedBps : _autoScaleMaxSpeed;
+        var effectiveMax = (float)_autoScaleMaxSpeed;
+        Enqueue(_activityHistory, (
+            Math.Min(1f, downloadSpeedBps / effectiveMax),
+            Math.Min(1f, uploadSpeedBps / effectiveMax)));
 
-        // Normalize to 0-1 range
-        var downloadNorm = Math.Min(1f, downloadSpeedBps / (float)effectiveMax);
-        var uploadNorm = Math.Min(1f, uploadSpeedBps / (float)effectiveMax);
+        // CPU/RAM are percentages (0-100); normalize to 0-1 for the graph.
+        Enqueue(_cpuHistory, (float)Math.Clamp(cpuPercent / 100.0, 0, 1));
+        Enqueue(_ramHistory, (float)Math.Clamp(ramPercent / 100.0, 0, 1));
 
-        // Add to history
-        _activityHistory.Enqueue((downloadNorm, uploadNorm));
-        while (_activityHistory.Count > GraphHistorySize)
+        // Render at most one icon for the active mode (AppIcon renders nothing here).
+        var icon = _iconMode switch
         {
-            _activityHistory.Dequeue();
-        }
+            TrayIconMode.Traffic => CreateActivityGraphIcon(),
+            TrayIconMode.Cpu => CreateMetricGraphIcon(_cpuHistory, ChartColors.CpuColor),
+            TrayIconMode.Ram => CreateMetricGraphIcon(_ramHistory, ChartColors.MemoryColor),
+            _ => null,
+        };
+        if (icon != null) _trayIcon.Icon = icon;
 
-        if (!_showActivityGraph)
+        RefreshTooltip();
+    }
+
+    private static void Enqueue<T>(Queue<T> history, T value)
+    {
+        history.Enqueue(value);
+        while (history.Count > GraphHistorySize)
         {
-            // Just update tooltip with speed info
-            UpdateTooltip(downloadSpeedBps, uploadSpeedBps);
-            return;
+            history.Dequeue();
         }
-
-        // Create the activity graph icon
-        var icon = CreateActivityGraphIcon();
-        if (icon != null)
-        {
-            _trayIcon.Icon = icon;
-        }
-
-        UpdateTooltip(downloadSpeedBps, uploadSpeedBps);
     }
 
     /// <inheritdoc />
@@ -344,8 +404,44 @@ public sealed class TrayIconService : ITrayIconService
     }
 
     /// <summary>
+    /// Draws the shared graph chrome — memory-pressure-tinted background, border,
+    /// and subtle horizontal grid lines — used by every live graph mode.
+    /// </summary>
+    private void DrawGraphFrame(SKCanvas canvas)
+    {
+        // Dark background tinted by memory pressure level
+        canvas.Clear(_memoryPressureLevel switch
+        {
+            MemoryPressureLevel.Warning => new SKColor(60, 50, 20),  // Amber tint
+            MemoryPressureLevel.Critical => new SKColor(60, 20, 20), // Coral tint
+            _ => new SKColor(20, 30, 35)                             // Default dark blue-gray
+        });
+
+        using var borderPaint = new SKPaint
+        {
+            Color = new SKColor(60, 80, 90),
+            IsAntialias = false,
+            Style = SKPaintStyle.Stroke,
+            StrokeWidth = 1
+        };
+        canvas.DrawRect(0, 0, IconSize - 1, IconSize - 1, borderPaint);
+
+        using var gridPaint = new SKPaint
+        {
+            Color = new SKColor(40, 55, 60),
+            IsAntialias = false,
+            Style = SKPaintStyle.Stroke,
+            StrokeWidth = 1
+        };
+        for (int y = 4; y < IconSize - 1; y += 4)
+        {
+            canvas.DrawLine(1, y, IconSize - 2, y, gridPaint);
+        }
+    }
+
+    /// <summary>
     /// Creates a Task Manager-style activity graph icon showing network activity.
-    /// The graph shows download (cyan) and upload (magenta) as stacked area bars.
+    /// The graph shows download (cyan) and upload (pink) as stacked area bars.
     /// </summary>
     private WindowIcon? CreateActivityGraphIcon()
     {
@@ -354,23 +450,7 @@ public sealed class TrayIconService : ITrayIconService
             using var surface = SKSurface.Create(new SKImageInfo(IconSize, IconSize, SKColorType.Rgba8888, SKAlphaType.Premul));
             var canvas = surface.Canvas;
 
-            // Dark background tinted by memory pressure level
-            canvas.Clear(_memoryPressureLevel switch
-            {
-                MemoryPressureLevel.Warning => new SKColor(60, 50, 20),  // Amber tint
-                MemoryPressureLevel.Critical => new SKColor(60, 20, 20), // Coral tint
-                _ => new SKColor(20, 30, 35)                             // Default dark blue-gray
-            });
-
-            // Draw border
-            using var borderPaint = new SKPaint
-            {
-                Color = new SKColor(60, 80, 90),
-                IsAntialias = false,
-                Style = SKPaintStyle.Stroke,
-                StrokeWidth = 1
-            };
-            canvas.DrawRect(0, 0, IconSize - 1, IconSize - 1, borderPaint);
+            DrawGraphFrame(canvas);
 
             // Download color (cyan - matches app theme)
             using var downloadPaint = new SKPaint
@@ -387,21 +467,6 @@ public sealed class TrayIconService : ITrayIconService
                 IsAntialias = false,
                 Style = SKPaintStyle.Fill
             };
-
-            // Grid lines (subtle)
-            using var gridPaint = new SKPaint
-            {
-                Color = new SKColor(40, 55, 60),
-                IsAntialias = false,
-                Style = SKPaintStyle.Stroke,
-                StrokeWidth = 1
-            };
-
-            // Draw horizontal grid lines
-            for (int y = 4; y < IconSize - 1; y += 4)
-            {
-                canvas.DrawLine(1, y, IconSize - 2, y, gridPaint);
-            }
 
             // Draw the activity bars
             var history = _activityHistory.ToArray();
@@ -439,13 +504,7 @@ public sealed class TrayIconService : ITrayIconService
             // If no history, show a flat line at the bottom
             if (history.Length == 0)
             {
-                using var emptyPaint = new SKPaint
-                {
-                    Color = new SKColor(0, 229, 255, 100),
-                    IsAntialias = false,
-                    Style = SKPaintStyle.Fill
-                };
-                canvas.DrawRect(1, IconSize - 2, IconSize - 2, 1, emptyPaint);
+                DrawEmptyBaseline(canvas, new SKColor(0, 229, 255, 100));
             }
 
             return CreateWindowIconFromSurface(surface);
@@ -458,18 +517,95 @@ public sealed class TrayIconService : ITrayIconService
     }
 
     /// <summary>
-    /// Updates the tray icon tooltip with current speed information.
+    /// Creates a single-series graph icon (used for CPU and RAM modes), drawing the
+    /// normalized history as bars from the bottom up in the supplied series color.
     /// </summary>
-    private void UpdateTooltip(long downloadSpeedBps, long uploadSpeedBps)
+    private WindowIcon? CreateMetricGraphIcon(Queue<float> history, SKColor seriesColor)
+    {
+        try
+        {
+            using var surface = SKSurface.Create(new SKImageInfo(IconSize, IconSize, SKColorType.Rgba8888, SKAlphaType.Premul));
+            var canvas = surface.Canvas;
+
+            DrawGraphFrame(canvas);
+
+            using var seriesPaint = new SKPaint
+            {
+                Color = seriesColor,
+                IsAntialias = false,
+                Style = SKPaintStyle.Fill
+            };
+
+            var data = history.ToArray();
+            var graphWidth = IconSize - 2;
+            var graphHeight = IconSize - 2;
+            var barWidth = (float)graphWidth / GraphHistorySize;
+
+            for (int i = 0; i < data.Length; i++)
+            {
+                var value = data[i];
+                var barHeight = value * (graphHeight - 1);
+                if (barHeight > 0.5f)
+                {
+                    var x = 1 + i * barWidth;
+                    canvas.DrawRect(
+                        x, IconSize - 1 - barHeight,
+                        Math.Max(1, barWidth - 0.5f), barHeight,
+                        seriesPaint);
+                }
+            }
+
+            if (data.Length == 0)
+            {
+                DrawEmptyBaseline(canvas, seriesColor.WithAlpha(100));
+            }
+
+            return CreateWindowIconFromSurface(surface);
+        }
+        catch (Exception ex)
+        {
+            Log.Warning(ex, "Failed to create metric graph icon");
+            return null;
+        }
+    }
+
+    private static void DrawEmptyBaseline(SKCanvas canvas, SKColor color)
+    {
+        using var emptyPaint = new SKPaint
+        {
+            Color = color,
+            IsAntialias = false,
+            Style = SKPaintStyle.Fill
+        };
+        canvas.DrawRect(1, IconSize - 2, IconSize - 2, 1, emptyPaint);
+    }
+
+    /// <summary>
+    /// Refreshes the tray tooltip from the most recent metric values, including a
+    /// CPU/RAM line for those modes and the memory-pressure warning line when present.
+    /// </summary>
+    private void RefreshTooltip()
     {
         if (_trayIcon == null) return;
 
-        var downloadSpeed = ByteFormatter.FormatSpeed(downloadSpeedBps);
-        var uploadSpeed = ByteFormatter.FormatSpeed(uploadSpeedBps);
+        var downloadSpeed = ByteFormatter.FormatSpeed(_lastDownloadBps);
+        var uploadSpeed = ByteFormatter.FormatSpeed(_lastUploadBps);
 
-        _trayIcon.ToolTipText = string.IsNullOrEmpty(_memoryTooltipLine)
-            ? $"WireBound\n↓ {downloadSpeed}  ↑ {uploadSpeed}"
-            : $"WireBound\n↓ {downloadSpeed}  ↑ {uploadSpeed}\n{_memoryTooltipLine}";
+        var tooltip = $"WireBound\n↓ {downloadSpeed}  ↑ {uploadSpeed}";
+
+        tooltip += _iconMode switch
+        {
+            TrayIconMode.Cpu => $"\nCPU: {_lastCpuPercent:F0}%",
+            TrayIconMode.Ram => $"\nRAM: {_lastRamPercent:F0}%",
+            _ => string.Empty,
+        };
+
+        if (!string.IsNullOrEmpty(_memoryTooltipLine))
+        {
+            tooltip += $"\n{_memoryTooltipLine}";
+        }
+
+        _trayIcon.ToolTipText = tooltip;
     }
 
     /// <summary>
@@ -584,11 +720,8 @@ public sealed class TrayIconService : ITrayIconService
             Log.Debug(ex, "Window.Activate not fully supported on this platform");
         }
 
-        // Keep icon visible if activity graph is enabled
-        if (_trayIcon != null && !_minimizeToTray && !_showActivityGraph)
-        {
-            _trayIcon.IsVisible = false;
-        }
+        // Re-evaluate tray icon visibility now that the window is shown again.
+        UpdateTrayIconVisibility();
 
         Log.Debug("Main window shown from tray");
     }
@@ -607,18 +740,17 @@ public sealed class TrayIconService : ITrayIconService
     {
         if (_trayIcon == null) return;
 
-        // Always visible if activity graph is enabled
-        if (_showActivityGraph)
+        // Live metric modes (traffic/CPU/RAM) keep the icon permanently visible.
+        if (IsLiveMode)
         {
             _trayIcon.IsVisible = true;
             return;
         }
 
-        // If minimize to tray is disabled and window is visible, hide the tray icon
-        if (!_minimizeToTray && _mainWindow?.IsVisible == true)
-        {
-            _trayIcon.IsVisible = false;
-        }
+        // Static app-icon mode: the icon's only job is to provide access while
+        // the window is hidden, so keep it visible when the window is hidden,
+        // and otherwise show it only when it serves the minimize-to-tray purpose.
+        _trayIcon.IsVisible = _mainWindow?.IsVisible != true || _minimizeToTray;
     }
 
     /// <inheritdoc />

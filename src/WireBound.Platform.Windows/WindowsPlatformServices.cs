@@ -27,6 +27,7 @@ public sealed class WindowsPlatformServices : IPlatformServices
         services.Replace(ServiceDescriptor.Singleton<IHelperProcessManager, WindowsHelperProcessManager>());
         services.Replace(ServiceDescriptor.Singleton<ICpuInfoProvider, WindowsCpuInfoProvider>());
         services.Replace(ServiceDescriptor.Singleton<IMemoryInfoProvider, WindowsMemoryInfoProvider>());
+        services.Replace(ServiceDescriptor.Singleton<IDiskInfoProvider, WindowsDiskInfoProvider>());
         services.Replace(ServiceDescriptor.Singleton<INetworkCostProvider, WindowsNetworkCostProvider>());
         services.Replace(ServiceDescriptor.Singleton<IProcessResourceProvider, WindowsProcessResourceProvider>());
         services.Replace(ServiceDescriptor.Singleton<IAppMetadataProvider, WindowsAppMetadataProvider>());

@@ -13,6 +13,7 @@ public class SystemMonitorServiceTests : IDisposable
 {
     private readonly ICpuInfoProvider _cpuProvider;
     private readonly IMemoryInfoProvider _memoryProvider;
+    private readonly IDiskInfoProvider _diskProvider;
     private readonly ILogger<SystemMonitorService> _logger;
     private readonly SystemMonitorService _service;
 
@@ -38,9 +39,18 @@ public class SystemMonitorServiceTests : IDisposable
             AvailableBytes = 8_000_000_000
         });
 
+        _diskProvider = Substitute.For<IDiskInfoProvider>();
+        _diskProvider.SupportsActivityPercent.Returns(true);
+        _diskProvider.GetDiskInfo().Returns(new DiskInfoData
+        {
+            ReadBytesPerSecond = 1_048_576,
+            WriteBytesPerSecond = 524_288,
+            ActivityPercent = 42
+        });
+
         _logger = Substitute.For<ILogger<SystemMonitorService>>();
 
-        _service = new SystemMonitorService(_cpuProvider, _memoryProvider, _logger);
+        _service = new SystemMonitorService(_cpuProvider, _memoryProvider, _diskProvider, _logger);
     }
 
     public void Dispose()
@@ -77,6 +87,9 @@ public class SystemMonitorServiceTests : IDisposable
         stats.Memory.TotalBytes.Should().Be(16_000_000_000);
         stats.Memory.UsedBytes.Should().Be(8_000_000_000);
         stats.Memory.AvailableBytes.Should().Be(8_000_000_000);
+        stats.Disk.ReadBytesPerSecond.Should().Be(1_048_576);
+        stats.Disk.WriteBytesPerSecond.Should().Be(524_288);
+        stats.Disk.ActivityPercent.Should().Be(42);
     }
 
     [Test]
@@ -154,6 +167,16 @@ public class SystemMonitorServiceTests : IDisposable
         available.Should().BeTrue();
     }
 
+    [Test]
+    public void IsDiskActivityAvailable_DelegatesToProvider()
+    {
+        // Act
+        var available = _service.IsDiskActivityAvailable;
+
+        // Assert
+        available.Should().BeTrue();
+    }
+
     // ═══════════════════════════════════════════════════════════════════════
     // Dispose Tests
     // ═══════════════════════════════════════════════════════════════════════
@@ -169,7 +192,10 @@ public class SystemMonitorServiceTests : IDisposable
         var disposableMemory = Substitute.For<IMemoryInfoProvider, IDisposable>();
         disposableMemory.GetTotalPhysicalMemory().Returns(8_000_000_000L);
 
-        var svc = new SystemMonitorService(disposableCpu, disposableMemory);
+        var disposableDisk = Substitute.For<IDiskInfoProvider, IDisposable>();
+        disposableDisk.GetDiskInfo().Returns(new DiskInfoData());
+
+        var svc = new SystemMonitorService(disposableCpu, disposableMemory, disposableDisk);
 
         // Act
         svc.Dispose();
@@ -177,6 +203,7 @@ public class SystemMonitorServiceTests : IDisposable
         // Assert
         ((IDisposable)disposableCpu).Received(1).Dispose();
         ((IDisposable)disposableMemory).Received(1).Dispose();
+        ((IDisposable)disposableDisk).Received(1).Dispose();
     }
 
     [Test]
@@ -188,8 +215,10 @@ public class SystemMonitorServiceTests : IDisposable
         cpuProvider.GetProcessorCount().Returns(4);
         var memProvider = Substitute.For<IMemoryInfoProvider>();
         memProvider.GetTotalPhysicalMemory().Returns(8_000_000_000L);
+        var diskProvider = Substitute.For<IDiskInfoProvider>();
+        diskProvider.GetDiskInfo().Returns(new DiskInfoData());
 
-        var svc = new SystemMonitorService(cpuProvider, memProvider);
+        var svc = new SystemMonitorService(cpuProvider, memProvider, diskProvider);
         svc.Dispose();
 
         // Act & Assert

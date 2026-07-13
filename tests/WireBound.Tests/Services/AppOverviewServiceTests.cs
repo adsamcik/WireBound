@@ -29,7 +29,14 @@ public class AppOverviewServiceTests : DatabaseTestBase
         _iconService = Substitute.For<IAppIconService>();
         _iconService.GetIconPathAsync(Arg.Any<string>(), Arg.Any<string>(), Arg.Any<CancellationToken>())
             .Returns(Task.FromResult<string?>(null));
-        _service = new AppOverviewService(ServiceProvider, _iconService);
+        // IAppCategoryService is the fallback path when resource rows have no
+        // category. Tests use a substitute that returns the well-known "Other"
+        // bucket so they exercise the fallback wiring without depending on
+        // the real categorization pipeline.
+        var categoryService = Substitute.For<IAppCategoryService>();
+        categoryService.GetCategory(Arg.Any<string>(), Arg.Any<string>(), Arg.Any<int>()).Returns("Other");
+        categoryService.GetCategory(Arg.Any<string>()).Returns("Other");
+        _service = new AppOverviewService(ServiceProvider, _iconService, categoryService);
     }
 
     [Test, Timeout(30000)]
@@ -99,7 +106,11 @@ public class AppOverviewServiceTests : DatabaseTestBase
         var overview = result.Should().ContainSingle().Subject;
         overview.AppIdentifier.Should().Be("network-only");
         overview.AppName.Should().Be("Network Only");
-        overview.CategoryName.Should().BeEmpty();
+        // Apps with only network rows have no persisted CategoryName (that
+        // field lives only on ResourceInsightSnapshots). The service now
+        // synthesizes a category via IAppCategoryService so the UI never
+        // shows an empty pill — our test substitute returns "Other".
+        overview.CategoryName.Should().Be("Other");
         overview.BytesReceived.Should().Be(500);
         overview.BytesSent.Should().Be(250);
         overview.AvgCpuPercent.Should().Be(0);
@@ -321,7 +332,10 @@ public class AppOverviewServiceTests : DatabaseTestBase
         var iconService = Substitute.For<IAppIconService>();
         iconService.GetIconPathAsync(Arg.Any<string>(), Arg.Any<string>(), Arg.Any<CancellationToken>())
             .Returns(Task.FromResult<string?>(null));
-        var service = new AppOverviewService(serviceProvider, iconService);
+        var categoryService = Substitute.For<IAppCategoryService>();
+        categoryService.GetCategory(Arg.Any<string>(), Arg.Any<string>(), Arg.Any<int>()).Returns("Other");
+        categoryService.GetCategory(Arg.Any<string>()).Returns("Other");
+        var service = new AppOverviewService(serviceProvider, iconService, categoryService);
         interceptor.Reset();
         var start = Stopwatch.GetTimestamp();
         var range = DateOnly.FromDateTime(DateTime.Now);

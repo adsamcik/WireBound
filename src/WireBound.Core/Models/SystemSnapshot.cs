@@ -24,4 +24,19 @@ public class SystemSnapshot
     /// Memory usage percentage (0-100)
     /// </summary>
     public double MemoryPercent { get; set; }
+
+    /// <summary>
+    /// Disk read throughput in bytes per second
+    /// </summary>
+    public long DiskReadBytesPerSec { get; set; }
+
+    /// <summary>
+    /// Disk write throughput in bytes per second
+    /// </summary>
+    public long DiskWriteBytesPerSec { get; set; }
+
+    /// <summary>
+    /// Disk activity percentage (0-100)
+    /// </summary>
+    public double DiskActivityPercent { get; set; }
 }

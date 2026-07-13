@@ -33,6 +33,14 @@
     <InternalsVisibleTo Include="WireBound.Tests" />
   </ItemGroup>
 
+  <!-- Embedded executable icon — what Windows Explorer / Start Menu /
+     taskbar show BEFORE the app has even launched. The runtime
+     Window.Icon binding in MainWindow.axaml handles the post-launch
+     window/taskbar icon. -->
+  <PropertyGroup>
+    <ApplicationIcon>Assets\wirebound.ico</ApplicationIcon>
+  </PropertyGroup>
+
   <ItemGroup>
     <!-- Avalonia packages -->
     <PackageReference Include="Avalonia" />

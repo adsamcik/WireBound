@@ -30,10 +30,6 @@ public partial class MainWindow : Window
 
     private void SetNavElementVisibility(bool visible)
     {
-        if (this.FindControl<StackPanel>("NavTitleText") is { } title)
-            title.IsVisible = visible;
-        if (this.FindControl<Grid>("NavWireDivider") is { } divider)
-            divider.IsVisible = visible;
         if (this.FindControl<TextBlock>("StatusText") is { } status)
             status.IsVisible = visible;
         if (this.FindControl<TextBlock>("VersionText") is { } version)

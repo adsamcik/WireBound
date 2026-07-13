@@ -32,7 +32,7 @@ public sealed class NetworkPollingBackgroundService : BackgroundService, INetwor
     private readonly Stopwatch _retentionCleanupStopwatch = new();
     private readonly Stopwatch _liveResourcePollStopwatch = new();
     private readonly List<(long download, long upload, DateTime time)> _snapshotBuffer = new(SnapshotBufferCapacity);
-    private readonly List<(double cpu, double memory, DateTime time)> _systemSnapshotBuffer = new(SnapshotBufferCapacity);
+    private readonly List<(double cpu, double memory, long diskRead, long diskWrite, double diskActivity, DateTime time)> _systemSnapshotBuffer = new(SnapshotBufferCapacity);
     private readonly object _snapshotBufferLock = new();
     private PeriodicTimer? _timer;
     private readonly object _timerLock = new();
@@ -263,15 +263,45 @@ public sealed class NetworkPollingBackgroundService : BackgroundService, INetwor
                         AdjustPollingForCpuLoad(systemStats.Cpu.UsagePercent);
                     }
 
-                    // Update tray icon with current activity
+                    // Update tray icon with current activity and system metrics.
+                    // Snapshot the tray's mode/adapter once for an internally
+                    // consistent tick; reads of a simple enum/string are atomic.
                     var currentStats = _networkMonitor.GetCurrentStats();
-                    _trayIcon.UpdateActivity(currentStats.DownloadSpeedBps, currentStats.UploadSpeedBps);
+                    var trayMode = _trayIcon.IconMode;
+                    var trayAdapterId = _trayIcon.TrafficAdapterId;
+
+                    long trayDownloadBps = currentStats.DownloadSpeedBps;
+                    long trayUploadBps = currentStats.UploadSpeedBps;
+
+                    // When the tray is pinned to a specific adapter, source its
+                    // speeds directly. If that adapter is currently inactive it
+                    // won't appear in GetAllAdapterStats — report zero rather than
+                    // silently showing a different adapter's traffic.
+                    if (trayMode == TrayIconMode.Traffic && !string.IsNullOrEmpty(trayAdapterId))
+                    {
+                        if (_networkMonitor.GetAllAdapterStats().TryGetValue(trayAdapterId, out var adapterStats))
+                        {
+                            trayDownloadBps = adapterStats.DownloadSpeedBps;
+                            trayUploadBps = adapterStats.UploadSpeedBps;
+                        }
+                        else
+                        {
+                            trayDownloadBps = 0;
+                            trayUploadBps = 0;
+                        }
+                    }
+
+                    _trayIcon.UpdateMetrics(
+                        trayDownloadBps,
+                        trayUploadBps,
+                        systemStats.Cpu.UsagePercent,
+                        systemStats.Memory.UsagePercent);
 
                     // Buffer speed snapshot for chart history
                     lock (_snapshotBufferLock)
                     {
                         _snapshotBuffer.Add((currentStats.DownloadSpeedBps, currentStats.UploadSpeedBps, DateTime.Now));
-                        _systemSnapshotBuffer.Add((systemStats.Cpu.UsagePercent, systemStats.Memory.UsagePercent, DateTime.Now));
+                        _systemSnapshotBuffer.Add((systemStats.Cpu.UsagePercent, systemStats.Memory.UsagePercent, systemStats.Disk.ReadBytesPerSecond, systemStats.Disk.WriteBytesPerSecond, systemStats.Disk.ActivityPercent, DateTime.Now));
                     }
 
                     // Flush snapshot buffer periodically (every 30 seconds)
@@ -545,7 +575,7 @@ public sealed class NetworkPollingBackgroundService : BackgroundService, INetwor
     private async Task FlushSnapshotBufferAsync()
     {
         List<(long download, long upload, DateTime time)> snapshots;
-        List<(double cpu, double memory, DateTime time)> systemSnapshots;
+        List<(double cpu, double memory, long diskRead, long diskWrite, double diskActivity, DateTime time)> systemSnapshots;
         lock (_snapshotBufferLock)
         {
             if (_snapshotBuffer.Count == 0 && _systemSnapshotBuffer.Count == 0)

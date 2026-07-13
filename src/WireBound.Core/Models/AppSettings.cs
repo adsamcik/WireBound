@@ -31,6 +31,18 @@ public class AppSettings
     public bool MinimizeToTray { get; set; } = true;
 
     /// <summary>
+    /// What the system tray icon displays (app icon, network traffic, CPU, or RAM).
+    /// </summary>
+    public TrayIconMode TrayIconMode { get; set; } = TrayIconMode.Traffic;
+
+    /// <summary>
+    /// When the tray icon shows network traffic, which adapter to display.
+    /// Empty string = follow the app's monitored adapter; a specific adapter Id
+    /// pins the tray graph to that interface regardless of the monitored selection.
+    /// </summary>
+    public string TrayTrafficAdapterId { get; set; } = string.Empty;
+
+    /// <summary>
     /// Whether to start the application minimized to the system tray
     /// </summary>
     public bool StartMinimized { get; set; } = false;
@@ -133,11 +145,6 @@ public class AppSettings
     /// Default period for the insights page (Today, ThisWeek, ThisMonth).
     /// </summary>
     public string DefaultInsightsPeriod { get; set; } = "ThisWeek";
-
-    /// <summary>
-    /// Whether to show correlation insights between network and system metrics.
-    /// </summary>
-    public bool ShowCorrelationInsights { get; set; } = true;
 
     // === Memory Alerts ===
 

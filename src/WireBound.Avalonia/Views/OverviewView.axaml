@@ -28,8 +28,21 @@
                           AutomationProperties.Name="Network Adapter Selection"
                           AutomationProperties.HelpText="Select which network adapter to monitor">
                     <ComboBox.ItemTemplate>
-                        <DataTemplate>
-                            <TextBlock Text="{Binding DisplayName}" />
+                        <DataTemplate DataType="vm:AdapterDisplayItem">
+                            <StackPanel Orientation="Horizontal" Spacing="8">
+                                <!-- WiFi adapters render their signal-strength
+                                     glyph (1–4 bars from WifiSignalIconKey);
+                                     all others use the static type glyph. -->
+                                <controls:WbIcon IconKey="{Binding WifiSignalIconKey}"
+                                                 IsVisible="{Binding HasWiFiInfo}"
+                                                 Width="16" Height="16"
+                                                 VerticalAlignment="Center" />
+                                <controls:WbIcon IconKey="{Binding TypeIconKey}"
+                                                 IsVisible="{Binding !HasWiFiInfo}"
+                                                 Width="16" Height="16"
+                                                 VerticalAlignment="Center" />
+                                <TextBlock Text="{Binding DisplayName}" VerticalAlignment="Center" />
+                            </StackPanel>
                         </DataTemplate>
                     </ComboBox.ItemTemplate>
                 </ComboBox>
@@ -38,7 +51,7 @@
                               Padding="8,6"
                               VerticalAlignment="Center"
                               AutomationProperties.Name="Show Advanced Adapters">
-                    <TextBlock Text="⚙️" FontSize="14" />
+                    <controls:WbIcon IconKey="WbActionTune" Width="14" Height="14" />
                 </ToggleButton>
             </StackPanel>
             
@@ -62,7 +75,7 @@
                 HorizontalAlignment="Center"
                 AutomationProperties.Name="Auto Switch Notification">
             <StackPanel Orientation="Horizontal" Spacing="8">
-                <TextBlock Text="🔄" FontSize="14" VerticalAlignment="Center" />
+                <controls:WbIcon IconKey="WbActionAuto" Width="14" Height="14" VerticalAlignment="Center" />
                 <TextBlock Text="{Binding AutoSwitchNotification}"
                            FontSize="13" FontWeight="SemiBold"
                            Foreground="{StaticResource PrimaryTextBrush}"
@@ -81,10 +94,7 @@
                         <Grid ColumnDefinitions="Auto, *, Auto">
                             <StackPanel Orientation="Horizontal" Spacing="8">
                                 <Border Background="{StaticResource DownloadBgTintBrush}" CornerRadius="6" Width="28" Height="28">
-                                    <TextBlock Text="↓" FontSize="16" 
-                                               Foreground="{StaticResource DownloadBrush}"
-                                               HorizontalAlignment="Center"
-                                               VerticalAlignment="Center" />
+                                    <controls:WbIcon IconKey="WbMetricDownload" Width="16" Height="16" />
                                 </Border>
                                 <TextBlock Text="Download" Classes="CardTitle" VerticalAlignment="Center" />
                             </StackPanel>
@@ -152,10 +162,7 @@
                         <Grid ColumnDefinitions="Auto, *, Auto">
                             <StackPanel Orientation="Horizontal" Spacing="8">
                                 <Border Background="{StaticResource UploadBgTintBrush}" CornerRadius="6" Width="28" Height="28">
-                                    <TextBlock Text="↑" FontSize="16" 
-                                               Foreground="{StaticResource UploadBrush}"
-                                               HorizontalAlignment="Center"
-                                               VerticalAlignment="Center" />
+                                    <controls:WbIcon IconKey="WbMetricUpload" Width="16" Height="16" />
                                 </Border>
                                 <TextBlock Text="Upload" Classes="CardTitle" VerticalAlignment="Center" />
                             </StackPanel>
@@ -231,10 +238,10 @@
                             </ItemsPanelTemplate>
                         </ItemsControl.ItemsPanel>
                         <ItemsControl.ItemTemplate>
-                            <DataTemplate>
+                            <DataTemplate DataType="vm:SecondaryAdapterInfo">
                                 <Border Margin="0,0,16,0" Padding="4,2">
                                     <StackPanel Orientation="Horizontal" Spacing="6">
-                                        <TextBlock Text="{Binding Icon}" FontSize="13" VerticalAlignment="Center" />
+                                        <controls:WbIcon IconKey="{Binding IconKey}" Width="13" Height="13" VerticalAlignment="Center" />
                                         <TextBlock Text="{Binding Name}" 
                                                    FontSize="12" FontWeight="SemiBold"
                                                    Foreground="{StaticResource SecondaryTextBrush}"
@@ -379,9 +386,7 @@
                         <!-- Card Header -->
                         <StackPanel Orientation="Horizontal" Spacing="8" Margin="0,0,0,16">
                             <Border Background="{StaticResource AccentBgTintBrush}" CornerRadius="6" Width="28" Height="28">
-                                <TextBlock Text="📊" FontSize="14"
-                                           HorizontalAlignment="Center"
-                                           VerticalAlignment="Center" />
+                                <controls:WbIcon IconKey="WbMetricAnalytics" Width="14" Height="14" />
                             </Border>
                             <TextBlock Text="Session Stats" Classes="CardTitle" VerticalAlignment="Center" />
                         </StackPanel>
@@ -454,9 +459,7 @@
                         <!-- Card Header -->
                         <StackPanel Orientation="Horizontal" Spacing="8" Margin="0,0,0,16">
                             <Border Background="{StaticResource CpuBgTintBrush}" CornerRadius="6" Width="28" Height="28">
-                                <TextBlock Text="💻" FontSize="14"
-                                           HorizontalAlignment="Center"
-                                           VerticalAlignment="Center" />
+                                <controls:WbIcon IconKey="WbEntityCpu" Width="14" Height="14" />
                             </Border>
                             <TextBlock Text="System Health" Classes="CardTitle" VerticalAlignment="Center" />
                         </StackPanel>

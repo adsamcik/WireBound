@@ -81,6 +81,11 @@ public partial class App : Application
             // Ensure startup entry points to current executable (handles updates that change install path)
             await EnsureStartupPathUpdatedAsync();
 
+            // Try to silently connect to / start an existing auto-started helper.
+            // This MUST run before the first per-process query but does not block
+            // the UI — failures are logged and surfaced via Settings.
+            await TryAutoConnectHelperAsync();
+
             // Initialize tray icon and apply settings
             await InitializeTrayIconAsync(mainWindow);
 
@@ -102,6 +107,157 @@ public partial class App : Application
         catch (Exception ex)
         {
             Log.Error(ex, "Failed to complete async initialization");
+        }
+    }
+
+    /// <summary>
+    /// Silently attempts to connect to a pre-running elevated helper, or to
+    /// start one via the registered Task Scheduler / systemd hook (no UAC /
+    /// pkexec prompt).
+    ///
+    /// <para>
+    /// Sequence:
+    /// </para>
+    /// <list type="number">
+    ///   <item>If the user has not opted into auto-start (<c>IsHelperStartupEnabledAsync</c>
+    ///         returns false), do nothing. The user must explicitly enable the
+    ///         toggle in Settings (which triggers a one-time UAC/pkexec to
+    ///         register the system hook).</item>
+    ///   <item>Validate the registered hook still points at the expected helper
+    ///         binary via <c>ValidateRegistrationAsync</c>. If the registration
+    ///         has been mutated, refuse to auto-connect and surface a warning
+    ///         in Settings — never trust a tampered scheduled task / unit.</item>
+    ///   <item>Try a short-timeout connect to an existing helper instance
+    ///         (helper likely already running from login).</item>
+    ///   <item>If no existing helper, attempt to start one via the silent path
+    ///         (<c>allowInteractive: false</c> — guarantees no UAC prompt).</item>
+    ///   <item>On any failure, log warning, fire connection-state event, never
+    ///         block. App keeps working in cross-platform mode.</item>
+    /// </list>
+    ///
+    /// <para>
+    /// Total budget is ~6 seconds. The state surfaces via
+    /// <see cref="IElevationService.HelperConnectionStateChanged"/> so Settings
+    /// can show "Registered / Running / Connected / Tampered" without blocking
+    /// startup.
+    /// </para>
+    /// </summary>
+    private async Task TryAutoConnectHelperAsync()
+    {
+        if (_serviceProvider is null) return;
+
+        try
+        {
+            var startupService = _serviceProvider.GetRequiredService<IStartupService>();
+            var elevationService = _serviceProvider.GetRequiredService<IElevationService>();
+
+            if (!elevationService.IsElevationSupported)
+            {
+                Log.Debug("Elevation not supported on this platform; skipping auto-connect");
+                return;
+            }
+
+            if (!startupService.IsHelperStartupSupported)
+            {
+                Log.Debug("Helper auto-start not supported on this platform");
+                return;
+            }
+
+            var enabled = await startupService.IsHelperStartupEnabledAsync();
+            if (!enabled)
+            {
+                Log.Debug("Helper auto-start not enabled by user; skipping");
+                return;
+            }
+
+            // Task / unit definition integrity check — refuse to invoke a
+            // registration that has been mutated.
+            var helperManager = _serviceProvider.GetService<IHelperProcessManager>();
+            if (helperManager is not null)
+            {
+                var regValid = await helperManager.ValidateRegistrationAsync();
+                if (!regValid.IsValid)
+                {
+                    Log.Warning(
+                        "Helper auto-start registration is invalid: {Reason}. " +
+                        "Refusing to auto-connect — user must repair via Settings.",
+                        regValid.ErrorMessage);
+                    return;
+                }
+            }
+
+            // Step 1: try to connect to an existing helper (likely already
+            // started by Task Scheduler / systemd at login).
+            var existing = await elevationService.TryConnectExistingAsync(timeoutMs: 2500);
+            if (existing.IsSuccess)
+            {
+                Log.Information("Auto-connected to existing elevation helper");
+                return;
+            }
+
+            // Step 2: not running — try the silent start path (no UAC fallback).
+            if (elevationService is WireBound.Platform.Windows.Services.WindowsElevationService winSvc)
+            {
+                // The Windows service exposes the allowInteractive flag via its
+                // internal StartHelperInternalAsync; we call StartHelperAsync
+                // which delegates with allowInteractive=true, but the helper
+                // manager itself respects the flag we pass. For the auto-start
+                // path we want allowInteractive=false everywhere.
+                // We accomplish that by invoking the helper manager directly.
+                if (helperManager is not null)
+                {
+                    var startResult = await helperManager.StartAsync(allowInteractive: false);
+                    if (!startResult.IsSuccess)
+                    {
+                        Log.Information(
+                            "Helper auto-start could not start helper silently: {Status} ({Error}). " +
+                            "User can manually enable via Settings.",
+                            startResult.Status, startResult.ErrorMessage);
+                        return;
+                    }
+                    // Helper started — now connect.
+                    var conn = await elevationService.TryConnectExistingAsync(timeoutMs: 3000);
+                    if (!conn.IsSuccess)
+                    {
+                        Log.Warning(
+                            "Helper started but auto-connect failed: {Status} ({Error})",
+                            conn.Status, conn.ErrorMessage);
+                    }
+                    else
+                    {
+                        Log.Information("Auto-started and connected to elevation helper");
+                    }
+                }
+                return;
+            }
+
+            // Linux: same approach via the manager.
+            if (helperManager is not null)
+            {
+                var startResult = await helperManager.StartAsync(allowInteractive: false);
+                if (!startResult.IsSuccess)
+                {
+                    Log.Information(
+                        "Helper auto-start could not start helper silently: {Status} ({Error}). " +
+                        "User can manually enable via Settings.",
+                        startResult.Status, startResult.ErrorMessage);
+                    return;
+                }
+                var conn = await elevationService.TryConnectExistingAsync(timeoutMs: 3000);
+                if (!conn.IsSuccess)
+                {
+                    Log.Warning("Helper started but auto-connect failed: {Error}", conn.ErrorMessage);
+                }
+                else
+                {
+                    Log.Information("Auto-started and connected to elevation helper");
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            // Never let auto-connect bubble up — degraded mode is preferable to crash
+            Log.Error(ex, "Helper auto-connect threw unexpectedly");
         }
     }
 
@@ -154,6 +310,7 @@ public partial class App : Application
         services.AddSingleton<IAppCategoryService, AppCategoryService>();
         services.AddSingleton<IResourceInsightsService, ResourceInsightsService>();
         services.AddSingleton<IAppOverviewService, AppOverviewService>();
+        services.AddSingleton<AppGroupingService>();
 
         // Register DNS resolver service for reverse lookups
         services.AddSingleton<IDnsResolverService, DnsResolverService>();
@@ -190,6 +347,7 @@ public partial class App : Application
         services.AddSingleton<AppsViewModel>();
         services.AddSingleton<ConnectionsViewModel>();
         services.AddSingleton<SystemViewModel>();
+        services.AddSingleton<HistoryViewModel>();
 
         // Register View factory for navigation
         services.AddTransient<OverviewView>();
@@ -198,6 +356,7 @@ public partial class App : Application
         services.AddTransient<AppsView>();
         services.AddTransient<ConnectionsView>();
         services.AddTransient<SystemView>();
+        services.AddTransient<HistoryView>();
     }
 
     [System.Diagnostics.CodeAnalysis.SuppressMessage("AOT", "IL3050", Justification = "EF Core AOT: EnsureCreated uses runtime model building; ApplyMigrations uses raw SQL which is AOT-safe")]
@@ -256,6 +415,15 @@ public partial class App : Application
             var pollingService = _serviceProvider!.GetRequiredService<NetworkPollingBackgroundService>();
             await pollingService.StartAsync(CancellationToken.None);
             Log.Information("Background polling service started");
+
+            // Eagerly construct AppsViewModel so its live-CPU sampling timer
+            // starts running at app startup, not on first navigation to Apps.
+            // Without this, users who land on (and stay on) Overview never get
+            // a populated Apps tab when they finally visit it — and worse,
+            // they see "—" placeholders for ~10s after navigation because the
+            // 60s rolling window starts empty. Singleton lifetime means this
+            // is a one-shot cost.
+            _ = _serviceProvider!.GetRequiredService<AppsViewModel>();
         }
         catch (Exception ex)
         {
@@ -279,19 +447,30 @@ public partial class App : Application
             await Dispatcher.UIThread.InvokeAsync(() =>
             {
                 trayIconService.Initialize(mainWindow, settings.MinimizeToTray);
+                trayIconService.IconMode = settings.TrayIconMode;
+                trayIconService.TrafficAdapterId = settings.TrayTrafficAdapterId;
             });
 
             // Subscribe to settings changes
             var settingsViewModel = _serviceProvider.GetRequiredService<SettingsViewModel>();
             settingsViewModel.PropertyChanged += (_, e) =>
             {
-                if (e.PropertyName == nameof(SettingsViewModel.MinimizeToTray))
+                switch (e.PropertyName)
                 {
-                    trayIconService.MinimizeToTray = settingsViewModel.MinimizeToTray;
+                    case nameof(SettingsViewModel.MinimizeToTray):
+                        trayIconService.MinimizeToTray = settingsViewModel.MinimizeToTray;
+                        break;
+                    case nameof(SettingsViewModel.SelectedTrayIconMode):
+                        trayIconService.IconMode = settingsViewModel.SelectedTrayIconMode;
+                        break;
+                    case nameof(SettingsViewModel.SelectedTrayAdapter):
+                        trayIconService.TrafficAdapterId = settingsViewModel.SelectedTrayAdapter?.Id ?? string.Empty;
+                        break;
                 }
             };
 
-            Log.Information("Tray icon initialized with MinimizeToTray={MinimizeToTray}", settings.MinimizeToTray);
+            Log.Information("Tray icon initialized with MinimizeToTray={MinimizeToTray}, IconMode={IconMode}",
+                settings.MinimizeToTray, settings.TrayIconMode);
         }
         catch (Exception ex)
         {

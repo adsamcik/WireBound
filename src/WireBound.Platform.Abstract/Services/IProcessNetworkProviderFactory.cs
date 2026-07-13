@@ -30,6 +30,14 @@ public interface IProcessNetworkProviderFactory
     IProcessNetworkProvider GetProvider();
 
     /// <summary>
+    /// Get the always-available basic (unelevated) provider that enumerates the OS
+    /// connection table with process attribution (PID + name) but no byte counters.
+    /// Used to attribute connections the elevated helper could not — e.g. connections
+    /// that pre-date ETW tracking and come back as "Unattributed" / ProcessId 0.
+    /// </summary>
+    IProcessNetworkProvider GetBasicProvider();
+
+    /// <summary>
     /// Check if an elevated provider is available (helper is connected).
     /// </summary>
     bool HasElevatedProvider { get; }

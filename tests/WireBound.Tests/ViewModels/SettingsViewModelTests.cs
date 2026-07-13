@@ -81,8 +81,7 @@ public class SettingsViewModelTests : IAsyncDisposable
             DefaultTimeRange = "FiveMinutes",
             PerformanceModeEnabled = false,
             ChartUpdateIntervalMs = 1000,
-            DefaultInsightsPeriod = "ThisWeek",
-            ShowCorrelationInsights = true
+            DefaultInsightsPeriod = "ThisWeek"
         };
     }
 
@@ -696,6 +695,118 @@ public class SettingsViewModelTests : IAsyncDisposable
 
         // Assert
         await _persistence.Received().SaveSettingsAsync(Arg.Is<AppSettings>(s => s.StartHelperWithSystem));
+    }
+
+    #endregion
+
+    #region Memory Alert Explicit-Save Tests
+
+    [Test]
+    public async Task MemoryAlert_WhenChanged_MarksDirtyAndDoesNotAutoSave()
+    {
+        // Arrange
+        var viewModel = CreateViewModel();
+        await viewModel.InitializationTask;
+
+        // Act
+        viewModel.MemoryWarningThresholdPercent = 70;
+
+        // Advance well past the auto-save debounce window
+        _fakeTimeProvider.Advance(TimeSpan.FromMilliseconds(600));
+        if (viewModel.PendingAutoSaveTask is not null)
+            await viewModel.PendingAutoSaveTask;
+
+        // Assert — memory edits flag unsaved changes and do NOT auto-save
+        viewModel.HasUnsavedMemoryAlertChanges.Should().BeTrue();
+        await _persistence.DidNotReceive().SaveSettingsAsync(Arg.Any<AppSettings>());
+    }
+
+    [Test]
+    public async Task SaveMemoryAlerts_PersistsPushesAndClearsDirty()
+    {
+        // Arrange
+        var viewModel = CreateViewModel();
+        await viewModel.InitializationTask;
+
+        viewModel.MemoryAlertsEnabled = true;
+        viewModel.MemoryWarningThresholdPercent = 70;
+        viewModel.HasUnsavedMemoryAlertChanges.Should().BeTrue();
+
+        // Act
+        await viewModel.SaveMemoryAlertsCommand.ExecuteAsync(null);
+
+        // Assert — persisted, pushed to the live detector, and dirty flag cleared
+        await _persistence.Received().SaveSettingsAsync(
+            Arg.Is<AppSettings>(s => s.MemoryAlertsEnabled && s.MemoryWarningThresholdPercent == 70));
+        _pollingService.Received().UpdateMemoryAlertSettings(
+            true, 70, Arg.Any<int>(), Arg.Any<int>(), Arg.Any<int>(), Arg.Any<int>());
+        viewModel.HasUnsavedMemoryAlertChanges.Should().BeFalse();
+    }
+
+    [Test]
+    public async Task Save_WhenHelperStartupUnchanged_DoesNotReinvokeElevatedRegistration()
+    {
+        // Baseline helper startup is false (IsHelperStartupEnabledAsync -> false).
+        var viewModel = CreateViewModel();
+        await viewModel.InitializationTask;
+
+        // Change an unrelated, auto-saved setting (no startup change).
+        viewModel.MinimizeToTray = false;
+        _fakeTimeProvider.Advance(TimeSpan.FromMilliseconds(600));
+        await viewModel.PendingAutoSaveTask!;
+
+        // The elevated helper registration (the UAC source) must NOT be re-invoked.
+        await _startupService.DidNotReceive().SetHelperStartupEnabledAsync(Arg.Any<bool>());
+    }
+
+    [Test]
+    public async Task AutoSave_WhileMemoryAlertsDirty_PersistsCommittedNotDraftMemoryValues()
+    {
+        // Default committed warning threshold is 85 (from default settings).
+        var viewModel = CreateViewModel();
+        await viewModel.InitializationTask;
+
+        // Edit a memory field (dirty, not committed via the memory save command).
+        viewModel.MemoryWarningThresholdPercent = 70;
+        viewModel.HasUnsavedMemoryAlertChanges.Should().BeTrue();
+
+        // Trigger an unrelated auto-save.
+        viewModel.MinimizeToTray = false;
+        _fakeTimeProvider.Advance(TimeSpan.FromMilliseconds(600));
+        await viewModel.PendingAutoSaveTask!;
+
+        // The committed value (85) is persisted, NOT the unsaved draft (70).
+        await _persistence.Received().SaveSettingsAsync(
+            Arg.Is<AppSettings>(s => s.MemoryWarningThresholdPercent == 85));
+        viewModel.HasUnsavedMemoryAlertChanges.Should().BeTrue();
+    }
+
+    [Test]
+    public async Task SaveMemoryAlerts_WhenPersistFails_KeepsDirtyAndRestoresCommitted()
+    {
+        var viewModel = CreateViewModel();
+        await viewModel.InitializationTask;
+
+        viewModel.MemoryWarningThresholdPercent = 70;
+
+        _persistence.SaveSettingsAsync(Arg.Any<AppSettings>())
+            .Returns(Task.FromException(new InvalidOperationException("disk full")));
+
+        // Act — the explicit save fails
+        var act = async () => await viewModel.SaveMemoryAlertsCommand.ExecuteAsync(null);
+        await act.Should().ThrowAsync<InvalidOperationException>();
+
+        // Still dirty because the save did not complete
+        viewModel.HasUnsavedMemoryAlertChanges.Should().BeTrue();
+
+        // Committed snapshot was restored: a later auto-save persists the old 85, not 70.
+        _persistence.ClearReceivedCalls();
+        _persistence.SaveSettingsAsync(Arg.Any<AppSettings>()).Returns(Task.CompletedTask);
+        viewModel.MinimizeToTray = false;
+        _fakeTimeProvider.Advance(TimeSpan.FromMilliseconds(600));
+        await viewModel.PendingAutoSaveTask!;
+        await _persistence.Received().SaveSettingsAsync(
+            Arg.Is<AppSettings>(s => s.MemoryWarningThresholdPercent == 85));
     }
 
     #endregion

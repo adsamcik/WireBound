@@ -443,6 +443,8 @@ public class DataPersistenceServiceTests : DatabaseTestBase
             SaveIntervalSeconds = 120,
             StartWithWindows = true,
             MinimizeToTray = false,
+            TrayIconMode = TrayIconMode.Cpu,
+            TrayTrafficAdapterId = "eth0-custom",
             StartMinimized = true,
             UseIpHelperApi = true,
             SelectedAdapterId = "eth0-custom",
@@ -460,7 +462,6 @@ public class DataPersistenceServiceTests : DatabaseTestBase
             PerformanceModeEnabled = true,
             ChartUpdateIntervalMs = 2500,
             DefaultInsightsPeriod = "ThisMonth",
-            ShowCorrelationInsights = false,
             CheckForUpdates = false,
             AutoDownloadUpdates = false
         };
@@ -474,6 +475,8 @@ public class DataPersistenceServiceTests : DatabaseTestBase
         loaded.SaveIntervalSeconds.Should().Be(120);
         loaded.StartWithWindows.Should().BeTrue();
         loaded.MinimizeToTray.Should().BeFalse();
+        loaded.TrayIconMode.Should().Be(TrayIconMode.Cpu);
+        loaded.TrayTrafficAdapterId.Should().Be("eth0-custom");
         loaded.StartMinimized.Should().BeTrue();
         loaded.UseIpHelperApi.Should().BeTrue();
         loaded.SelectedAdapterId.Should().Be("eth0-custom");
@@ -491,7 +494,6 @@ public class DataPersistenceServiceTests : DatabaseTestBase
         loaded.PerformanceModeEnabled.Should().BeTrue();
         loaded.ChartUpdateIntervalMs.Should().Be(2500);
         loaded.DefaultInsightsPeriod.Should().Be("ThisMonth");
-        loaded.ShowCorrelationInsights.Should().BeFalse();
         loaded.CheckForUpdates.Should().BeFalse();
         loaded.AutoDownloadUpdates.Should().BeFalse();
     }

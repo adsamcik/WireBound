@@ -2,6 +2,7 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:vm="using:WireBound.Avalonia.ViewModels"
              xmlns:lvc="using:LiveChartsCore.SkiaSharpView.Avalonia"
+             xmlns:controls="using:WireBound.Avalonia.Controls"
              x:Class="WireBound.Avalonia.Views.SystemView"
              x:DataType="vm:SystemViewModel"
              Background="{StaticResource BackgroundBrush}"
@@ -90,7 +91,7 @@
                                   Cursor="Hand"
                                   AutomationProperties.Name="Live Metrics Tab">
                         <StackPanel Orientation="Horizontal" Spacing="8">
-                            <TextBlock Text="⚡" FontSize="14" VerticalAlignment="Center" />
+                            <controls:WbIcon IconKey="WbNavLive" Width="14" Height="14" VerticalAlignment="Center" />
                             <TextBlock Text="Live Metrics" FontSize="13" FontWeight="SemiBold" VerticalAlignment="Center" />
                         </StackPanel>
                     </ToggleButton>
@@ -103,21 +104,8 @@
                                   Cursor="Hand"
                                   AutomationProperties.Name="System Trends Tab">
                         <StackPanel Orientation="Horizontal" Spacing="8">
-                            <TextBlock Text="💻" FontSize="14" VerticalAlignment="Center" />
+                            <controls:WbIcon IconKey="WbMetricAnalytics" Width="14" Height="14" VerticalAlignment="Center" />
                             <TextBlock Text="System Trends" FontSize="13" FontWeight="SemiBold" VerticalAlignment="Center" />
-                        </StackPanel>
-                    </ToggleButton>
-
-                    <ToggleButton IsChecked="{Binding SelectedSystemTab, Converter={x:Static ObjectConverters.Equal}, ConverterParameter={x:Static vm:SystemTab.Correlations}}"
-                                  Command="{Binding SelectCorrelationsTabCommand}"
-                                  Classes="tab-toggle"
-                                  Padding="16,10"
-                                  CornerRadius="10"
-                                  Cursor="Hand"
-                                  AutomationProperties.Name="Correlations Tab">
-                        <StackPanel Orientation="Horizontal" Spacing="8">
-                            <TextBlock Text="🔗" FontSize="14" VerticalAlignment="Center" />
-                            <TextBlock Text="Correlations" FontSize="13" FontWeight="SemiBold" VerticalAlignment="Center" />
                         </StackPanel>
                     </ToggleButton>
                 </StackPanel>
@@ -126,7 +114,7 @@
             <Panel Grid.Row="2" Margin="0,20,0,0">
                 <!-- Loading Indicator -->
                 <Border Classes="Card" Padding="40"
-                        IsVisible="{Binding IsLoading}"
+                        IsVisible="{Binding ShowLoadingOverlay}"
                         ZIndex="10"
                         HorizontalAlignment="Center"
                         VerticalAlignment="Center">
@@ -144,7 +132,7 @@
                         HorizontalAlignment="Center"
                         VerticalAlignment="Center">
                     <StackPanel HorizontalAlignment="Center" Spacing="12">
-                        <TextBlock Text="⚠️" FontSize="32" HorizontalAlignment="Center" />
+                        <controls:WbIcon IconKey="WbStatusWarning" Width="32" Height="32" HorizontalAlignment="Center" />
                         <TextBlock Text="Unable to load system history"
                                    FontSize="18" FontWeight="Bold"
                                    HorizontalAlignment="Center" />
@@ -161,15 +149,13 @@
                 <Grid RowDefinitions="Auto, Auto, Auto, Auto">
                     
                     <!-- Header -->
-                    <Grid ColumnDefinitions="Auto, *, Auto">
+                    <Grid Grid.Row="0" ColumnDefinitions="Auto, *, Auto">
                         <StackPanel Orientation="Horizontal" Spacing="12">
                             <Border Background="{StaticResource InfoBgTintBrush}" 
                                     CornerRadius="10" 
                                     Width="48" Height="48"
                                     VerticalAlignment="Center">
-                                <TextBlock Text="🖥️" FontSize="24"
-                                           HorizontalAlignment="Center"
-                                           VerticalAlignment="Center" />
+                                <controls:WbIcon IconKey="WbEntityCpu" Width="24" Height="24" />
                             </Border>
                             <StackPanel VerticalAlignment="Center" Spacing="2">
                                 <TextBlock Text="CPU" 
@@ -188,7 +174,7 @@
                                     CornerRadius="8" 
                                     Padding="12,6">
                                 <StackPanel Orientation="Horizontal" Spacing="6">
-                                    <TextBlock Text="🔢" FontSize="12" VerticalAlignment="Center" />
+                                    <controls:WbIcon IconKey="WbEntityCores" Width="12" Height="12" VerticalAlignment="Center" />
                                     <TextBlock Text="{Binding ProcessorCount, StringFormat='{}{0} Cores'}"
                                                FontSize="12" FontWeight="SemiBold"
                                                Foreground="{StaticResource SecondaryTextBrush}"
@@ -200,7 +186,7 @@
                                     Padding="12,6"
                                     IsVisible="{Binding CpuFrequencyMhz, Converter={x:Static ObjectConverters.IsNotNull}}">
                                 <StackPanel Orientation="Horizontal" Spacing="6">
-                                    <TextBlock Text="⚡" FontSize="12" VerticalAlignment="Center" />
+                                    <controls:WbIcon IconKey="WbNavLive" Width="12" Height="12" VerticalAlignment="Center" />
                                     <TextBlock Text="{Binding CpuFrequencyMhz, StringFormat='{}{0:F0} MHz'}"
                                                FontSize="12" FontWeight="SemiBold"
                                                Foreground="{StaticResource SecondaryTextBrush}"
@@ -212,7 +198,7 @@
                                     Padding="12,6"
                                     IsVisible="{Binding IsCpuTemperatureAvailable}">
                                 <StackPanel Orientation="Horizontal" Spacing="6">
-                                    <TextBlock Text="🌡️" FontSize="12" VerticalAlignment="Center" />
+                                    <controls:WbIcon IconKey="WbEntityThermal" Width="12" Height="12" VerticalAlignment="Center" />
                                     <TextBlock Text="{Binding CpuTemperature, StringFormat='{}{0:F1}°C'}"
                                                FontSize="12" FontWeight="SemiBold"
                                                Foreground="{StaticResource WarningBrush}"
@@ -223,7 +209,7 @@
                     </Grid>
                     
                     <!-- Usage Display and Progress -->
-                    <Grid ColumnDefinitions="Auto, *" Margin="0,24,0,0">
+                    <Grid Grid.Row="1" ColumnDefinitions="Auto, *" Margin="0,24,0,0">
                         <!-- Large Percentage -->
                         <StackPanel VerticalAlignment="Center" Margin="0,0,32,0">
                             <TextBlock Text="{Binding CpuUsageFormatted}"
@@ -254,7 +240,7 @@
                     </Grid>
                     
                     <!-- Per-Core Usage (if available) -->
-                    <Border 
+                    <Border Grid.Row="2"
                             Background="{StaticResource BorderSubtleBrush}" 
                             CornerRadius="12" 
                             Padding="16,12"
@@ -317,7 +303,7 @@
                 <Grid RowDefinitions="Auto, Auto, Auto, Auto">
                     
                     <!-- Header -->
-                    <Grid ColumnDefinitions="Auto, *">
+                    <Grid Grid.Row="0" ColumnDefinitions="Auto, *">
                         <StackPanel Orientation="Horizontal" Spacing="12">
                             <Border Background="{StaticResource AccentBgTintBrush}" 
                                     CornerRadius="10" 
@@ -338,7 +324,7 @@
                     </Grid>
                     
                     <!-- Usage Display and Progress -->
-                    <Grid ColumnDefinitions="Auto, *" Margin="0,24,0,0">
+                    <Grid Grid.Row="1" ColumnDefinitions="Auto, *" Margin="0,24,0,0">
                         <!-- Large Percentage -->
                         <StackPanel VerticalAlignment="Center" Margin="0,0,32,0">
                             <TextBlock Text="{Binding MemoryUsageFormatted}"
@@ -369,7 +355,7 @@
                     </Grid>
                     
                     <!-- Memory Stats -->
-                    <Grid ColumnDefinitions="*, *, *" Margin="0,16,0,0">
+                    <Grid Grid.Row="2" ColumnDefinitions="*, *, *" Margin="0,16,0,0">
                         <Border Background="{StaticResource BorderSubtleBrush}" 
                                 CornerRadius="12" 
                                 Padding="16,12"
@@ -434,6 +420,112 @@
                 </Grid>
             </Border>
 
+            <!-- DISK SECTION -->
+            <Border Classes="ElevatedCard">
+                <Grid RowDefinitions="Auto, Auto, Auto, Auto">
+
+                    <!-- Header -->
+                    <Grid Grid.Row="0" ColumnDefinitions="Auto, *">
+                        <StackPanel Orientation="Horizontal" Spacing="12">
+                            <Border Background="{StaticResource DiskBgTintBrush}"
+                                    CornerRadius="10"
+                                    Width="48" Height="48"
+                                    VerticalAlignment="Center">
+                                <TextBlock Text="💽" FontSize="24"
+                                           HorizontalAlignment="Center"
+                                           VerticalAlignment="Center" />
+                            </Border>
+                            <StackPanel VerticalAlignment="Center" Spacing="2">
+                                <TextBlock Text="Disk"
+                                           FontSize="18" FontWeight="Bold"
+                                           Foreground="{StaticResource PrimaryTextBrush}" />
+                                <TextBlock Text="Disk read/write activity"
+                                           Classes="Caption" />
+                            </StackPanel>
+                        </StackPanel>
+                    </Grid>
+
+                    <!-- Activity Display and Progress -->
+                    <Grid Grid.Row="1" ColumnDefinitions="Auto, *" Margin="0,24,0,0">
+                        <!-- Large Percentage -->
+                        <StackPanel VerticalAlignment="Center" Margin="0,0,32,0">
+                            <TextBlock Text="{Binding DiskActivityFormatted}"
+                                       FontSize="56" FontWeight="Bold"
+                                       Foreground="{StaticResource DiskBrush}"
+                                       HorizontalAlignment="Center" />
+                            <TextBlock Text="Disk Activity"
+                                       Classes="Caption"
+                                       HorizontalAlignment="Center" />
+                        </StackPanel>
+
+                        <!-- Progress Bar -->
+                        <Grid Grid.Column="1" VerticalAlignment="Center">
+                            <ProgressBar Value="{Binding DiskActivityPercent}"
+                                         Minimum="0"
+                                         Maximum="100"
+                                         Height="24"
+                                         CornerRadius="12"
+                                         Background="{StaticResource SurfaceBrush}"
+                                         Foreground="{StaticResource DiskBrush}"
+                                         AutomationProperties.Name="Disk Activity" />
+                            <TextBlock Text="{Binding DiskActivityPercent, StringFormat='{}{0:F1}%'}"
+                                       FontSize="11" FontWeight="Bold"
+                                       Foreground="{StaticResource PrimaryTextBrush}"
+                                       HorizontalAlignment="Center"
+                                       VerticalAlignment="Center" />
+                        </Grid>
+                    </Grid>
+
+                    <!-- Disk Stats -->
+                    <Grid Grid.Row="2" ColumnDefinitions="*, *" Margin="0,16,0,0">
+                        <Border Background="{StaticResource BorderSubtleBrush}"
+                                CornerRadius="12"
+                                Padding="16,12"
+                                Margin="0,0,8,0">
+                            <StackPanel HorizontalAlignment="Center" Spacing="4">
+                                <TextBlock Text="READ" Classes="MetricLabel" HorizontalAlignment="Center" />
+                                <TextBlock Text="{Binding DiskRead}"
+                                           FontSize="20" FontWeight="Bold"
+                                           Foreground="{StaticResource DiskBrush}"
+                                           HorizontalAlignment="Center" />
+                            </StackPanel>
+                        </Border>
+                        <Border Grid.Column="1"
+                                Background="{StaticResource BorderSubtleBrush}"
+                                CornerRadius="12"
+                                Padding="16,12"
+                                Margin="8,0,0,0">
+                            <StackPanel HorizontalAlignment="Center" Spacing="4">
+                                <TextBlock Text="WRITE" Classes="MetricLabel" HorizontalAlignment="Center" />
+                                <TextBlock Text="{Binding DiskWrite}"
+                                           FontSize="20" FontWeight="Bold"
+                                           Foreground="{StaticResource DiskDarkBrush}"
+                                           HorizontalAlignment="Center" />
+                            </StackPanel>
+                        </Border>
+                    </Grid>
+
+                    <!-- Disk Chart -->
+                    <Grid Grid.Row="3" RowDefinitions="Auto, 280" Margin="0,20,0,0">
+                        <TextBlock Text="Disk Throughput History (1 minute)"
+                                   FontSize="12" FontWeight="SemiBold"
+                                   Margin="0,0,0,8" />
+                        <lvc:CartesianChart Grid.Row="1"
+                                            Series="{Binding DiskSeries}"
+                                            XAxes="{Binding DiskXAxes}"
+                                            YAxes="{Binding DiskYAxes}"
+                                            ZoomMode="None"
+                                            TooltipPosition="Top"
+                                            LegendPosition="Top"
+                                            LegendTextPaint="#A0A8B8"
+                                            LegendTextSize="12"
+                                            Background="{StaticResource SurfaceBrush}"
+                                            AutomationProperties.Name="Disk Throughput Chart"
+                                            AutomationProperties.HelpText="Chart showing disk read and write throughput over the last minute" />
+                    </Grid>
+                </Grid>
+            </Border>
+
                 </StackPanel>
 
                 <!-- SYSTEM TRENDS TAB CONTENT                                        -->
@@ -442,12 +534,12 @@
                             Spacing="20">
 
                     <!-- Summary Statistics Cards -->
-                    <Grid ColumnDefinitions="*, *, *" IsVisible="{Binding HasData}">
+                    <Grid ColumnDefinitions="*, *, *, *" IsVisible="{Binding HasData}">
                         <!-- Avg CPU -->
-                        <Border Classes="ElevatedCard" Margin="0,0,10,0">
+                        <Border Classes="ElevatedCard" Margin="0,0,8,0">
                             <StackPanel HorizontalAlignment="Center" Spacing="8">
                                 <StackPanel Orientation="Horizontal" Spacing="8" HorizontalAlignment="Center">
-                                    <TextBlock Text="🔲" FontSize="16" VerticalAlignment="Center" />
+                                    <controls:WbIcon IconKey="WbEntityCpu" Width="16" Height="16" VerticalAlignment="Center" />
                                     <TextBlock Text="AVG CPU" Classes="MetricLabel" VerticalAlignment="Center" />
                                 </StackPanel>
                                 <TextBlock Text="{Binding AvgCpuPercent, StringFormat={}{0:F1}%}"
@@ -462,10 +554,10 @@
                         </Border>
 
                         <!-- Avg Memory -->
-                        <Border Grid.Column="1" Classes="ElevatedCard" Margin="5,0">
+                        <Border Grid.Column="1" Classes="ElevatedCard" Margin="8,0">
                             <StackPanel HorizontalAlignment="Center" Spacing="8">
                                 <StackPanel Orientation="Horizontal" Spacing="8" HorizontalAlignment="Center">
-                                    <TextBlock Text="💾" FontSize="16" VerticalAlignment="Center" />
+                                    <controls:WbIcon IconKey="WbEntityMemory" Width="16" Height="16" VerticalAlignment="Center" />
                                     <TextBlock Text="AVG MEMORY" Classes="MetricLabel" VerticalAlignment="Center" />
                                 </StackPanel>
                                 <TextBlock Text="{Binding AvgMemoryPercent, StringFormat={}{0:F1}%}"
@@ -479,11 +571,29 @@
                             </StackPanel>
                         </Border>
 
-                        <!-- Peak Memory -->
-                        <Border Grid.Column="2" Classes="ElevatedCard" Margin="10,0,0,0">
+                        <!-- Avg Disk -->
+                        <Border Grid.Column="2" Classes="ElevatedCard" Margin="8,0">
                             <StackPanel HorizontalAlignment="Center" Spacing="8">
                                 <StackPanel Orientation="Horizontal" Spacing="8" HorizontalAlignment="Center">
-                                    <TextBlock Text="📈" FontSize="16" VerticalAlignment="Center" />
+                                    <TextBlock Text="💽" FontSize="16" VerticalAlignment="Center" />
+                                    <TextBlock Text="AVG DISK" Classes="MetricLabel" VerticalAlignment="Center" />
+                                </StackPanel>
+                                <TextBlock Text="{Binding AvgDiskActivityPercent, StringFormat={}{0:F1}%}"
+                                           FontSize="32" FontWeight="Bold"
+                                           Foreground="{StaticResource DiskBrush}"
+                                           HorizontalAlignment="Center" />
+                                <TextBlock Text="{Binding DiskTrendStatus}"
+                                           FontSize="12"
+                                           Classes="Subtitle"
+                                           HorizontalAlignment="Center" />
+                            </StackPanel>
+                        </Border>
+
+                        <!-- Peak Memory -->
+                        <Border Grid.Column="3" Classes="ElevatedCard" Margin="8,0,0,0">
+                            <StackPanel HorizontalAlignment="Center" Spacing="8">
+                                <StackPanel Orientation="Horizontal" Spacing="8" HorizontalAlignment="Center">
+                                    <controls:WbIcon IconKey="WbEntityPeak" Width="16" Height="16" VerticalAlignment="Center" />
                                     <TextBlock Text="PEAK MEMORY" Classes="MetricLabel" VerticalAlignment="Center" />
                                 </StackPanel>
                                 <TextBlock Text="{Binding MaxMemoryPercent, StringFormat={}{0:F1}%}"
@@ -517,7 +627,7 @@
                     <!-- Empty State -->
                     <Border Classes="Card" Padding="60" IsVisible="{Binding !HasData}" HorizontalAlignment="Center">
                         <StackPanel HorizontalAlignment="Center" Spacing="12">
-                            <TextBlock Text="💻" FontSize="48" HorizontalAlignment="Center" />
+                            <controls:WbIcon IconKey="WbNavSystem" Width="48" Height="48" HorizontalAlignment="Center" />
                             <TextBlock Text="No system data yet"
                                        FontSize="18" FontWeight="Bold"
                                        HorizontalAlignment="Center" />
@@ -528,149 +638,6 @@
                     </Border>
                 </StackPanel>
 
-                <!-- ═══════════════════════════════════════════════════════════════ -->
-                <!-- CORRELATIONS TAB CONTENT                                         -->
-                <!-- ═══════════════════════════════════════════════════════════════ -->
-                <StackPanel IsVisible="{Binding SelectedSystemTab, Converter={x:Static ObjectConverters.Equal}, ConverterParameter={x:Static vm:SystemTab.Correlations}}"
-                            Spacing="20">
-
-                    <Grid ColumnDefinitions="*, *" IsVisible="{Binding HasData}">
-                        <!-- Correlation Coefficients -->
-                        <Border Classes="ElevatedCard" Margin="0,0,10,0">
-                            <StackPanel Spacing="16">
-                                <TextBlock Text="Correlation Coefficients" Classes="SectionHeader" />
-
-                                <!-- Network ↔ CPU -->
-                                <Border Background="{StaticResource BorderSubtleBrush}" CornerRadius="10" Padding="16,12">
-                                    <Grid ColumnDefinitions="*, Auto">
-                                        <StackPanel Orientation="Horizontal" Spacing="8">
-                                            <TextBlock Text="🌐" FontSize="16" VerticalAlignment="Center" />
-                                            <TextBlock Text="Network ↔ CPU" 
-                                                       FontSize="14" FontWeight="SemiBold"
-                                                       VerticalAlignment="Center" />
-                                        </StackPanel>
-                                        <TextBlock Grid.Column="1"
-                                                   Text="{Binding NetworkCpuCorrelation, StringFormat={}{0:F2}}"
-                                                   FontSize="20" FontWeight="Bold"
-                                                   Foreground="{StaticResource PrimaryBrush}"
-                                                   VerticalAlignment="Center" />
-                                    </Grid>
-                                </Border>
-
-                                <!-- Network ↔ Memory -->
-                                <Border Background="{StaticResource BorderSubtleBrush}" CornerRadius="10" Padding="16,12">
-                                    <Grid ColumnDefinitions="*, Auto">
-                                        <StackPanel Orientation="Horizontal" Spacing="8">
-                                            <TextBlock Text="🌐" FontSize="16" VerticalAlignment="Center" />
-                                            <TextBlock Text="Network ↔ Memory" 
-                                                       FontSize="14" FontWeight="SemiBold"
-                                                       VerticalAlignment="Center" />
-                                        </StackPanel>
-                                        <TextBlock Grid.Column="1"
-                                                   Text="{Binding NetworkMemoryCorrelation, StringFormat={}{0:F2}}"
-                                                   FontSize="20" FontWeight="Bold"
-                                                   Foreground="{StaticResource AccentBrush}"
-                                                   VerticalAlignment="Center" />
-                                    </Grid>
-                                </Border>
-
-                                <!-- CPU ↔ Memory -->
-                                <Border Background="{StaticResource BorderSubtleBrush}" CornerRadius="10" Padding="16,12">
-                                    <Grid ColumnDefinitions="*, Auto">
-                                        <StackPanel Orientation="Horizontal" Spacing="8">
-                                            <TextBlock Text="🔲" FontSize="16" VerticalAlignment="Center" />
-                                            <TextBlock Text="CPU ↔ Memory" 
-                                                       FontSize="14" FontWeight="SemiBold"
-                                                       VerticalAlignment="Center" />
-                                        </StackPanel>
-                                        <TextBlock Grid.Column="1"
-                                                   Text="{Binding CpuMemoryCorrelation, StringFormat={}{0:F2}}"
-                                                   FontSize="20" FontWeight="Bold"
-                                                   Foreground="{StaticResource SuccessBrush}"
-                                                   VerticalAlignment="Center" />
-                                    </Grid>
-                                </Border>
-                            </StackPanel>
-                        </Border>
-
-                        <!-- Insights Panel -->
-                        <Border Grid.Column="1" Classes="ElevatedCard" Margin="10,0,0,0">
-                            <StackPanel Spacing="16">
-                                <TextBlock Text="Insights" Classes="SectionHeader" />
-
-                                <ItemsControl ItemsSource="{Binding CorrelationInsights}">
-                                    <ItemsControl.ItemTemplate>
-                                        <DataTemplate x:DataType="x:String">
-                                            <Border Background="{StaticResource BorderSubtleBrush}" 
-                                                    CornerRadius="8" 
-                                                    Padding="12,10"
-                                                    Margin="0,0,0,8">
-                                                <DockPanel>
-                                                    <TextBlock Text="•" 
-                                                               FontSize="16" 
-                                                               Foreground="{StaticResource PrimaryBrush}"
-                                                               VerticalAlignment="Top"
-                                                               Margin="0,0,10,0"
-                                                               DockPanel.Dock="Left" />
-                                                    <TextBlock Text="{Binding}"
-                                                               FontSize="13"
-                                                               TextWrapping="Wrap"
-                                                               VerticalAlignment="Center" />
-                                                </DockPanel>
-                                            </Border>
-                                        </DataTemplate>
-                                    </ItemsControl.ItemTemplate>
-                                </ItemsControl>
-
-                                <!-- Empty insights state -->
-                                <TextBlock Text="Not enough data to generate insights yet"
-                                           Classes="Subtitle"
-                                           IsVisible="{Binding !CorrelationInsights.Count}"
-                                           HorizontalAlignment="Center"
-                                           Margin="0,20" />
-                            </StackPanel>
-                        </Border>
-                    </Grid>
-
-                    <!-- Overlay Chart -->
-                    <Border Classes="ElevatedCard" Height="320" IsVisible="{Binding HasData}">
-                        <Grid RowDefinitions="Auto, *">
-                            <StackPanel>
-                                <TextBlock Text="Normalized Metrics Overlay" Classes="SectionHeader" />
-                                <TextBlock Text="Network, CPU, and Memory trends normalized for comparison"
-                                           Classes="Subtitle" Margin="0,4,0,0" />
-                            </StackPanel>
-                            <lvc:CartesianChart Grid.Row="1"
-                                                Series="{Binding CorrelationChart}"
-                                                XAxes="{Binding SystemTrendXAxes}"
-                                                YAxes="{Binding SystemTrendYAxes}"
-                                                TooltipPosition="Top"
-                                                LegendPosition="Top"
-                                                LegendTextPaint="#A0A8B8"
-                                                LegendTextSize="12"
-                                                ZoomMode="None"
-                                                Background="{StaticResource CardBrush}"
-                                                Margin="0,12,0,0"
-                                                AutomationProperties.Name="Correlation Overlay Chart"
-                                                AutomationProperties.HelpText="Overlay chart showing normalized Network, CPU, and Memory metrics" />
-                        </Grid>
-                    </Border>
-
-                    <!-- Empty State -->
-                    <Border Classes="Card" Padding="60" IsVisible="{Binding !HasData}" HorizontalAlignment="Center">
-                        <StackPanel HorizontalAlignment="Center" Spacing="12">
-                            <TextBlock Text="🔗" FontSize="48" HorizontalAlignment="Center" />
-                            <TextBlock Text="No correlation data yet"
-                                       FontSize="18" FontWeight="Bold"
-                                       HorizontalAlignment="Center" />
-                            <TextBlock Text="Correlations require both network and system data"
-                                       Classes="Subtitle"
-                                       HorizontalAlignment="Center" />
-                        </StackPanel>
-                    </Border>
-                </StackPanel>
-
-                <!-- ═══════════════════════════════════════════════════════════════ -->
             </Panel>
         </Grid>
     </ScrollViewer>

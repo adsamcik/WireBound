@@ -57,12 +57,13 @@ public partial class MainViewModel : ObservableObject, IRecipient<UpdateAvailabl
         // Initialize navigation items
         NavigationItems =
         [
-            new NavigationItem { Title = "Overview", Icon = "📊", Route = Routes.Overview },
-            new NavigationItem { Title = "Live Chart", Icon = "📈", Route = Routes.Charts },
-            new NavigationItem { Title = "Apps", Icon = "📦", Route = Routes.Apps },
-            new NavigationItem { Title = "Connections", Icon = "🔗", Route = Routes.Connections },
-            new NavigationItem { Title = "System", Icon = "💻", Route = Routes.System },
-            new NavigationItem { Title = "Settings", Icon = "⚙️", Route = Routes.Settings }
+            new NavigationItem { Title = "Overview",    IconKey = "WbNavOverview",    Route = Routes.Overview },
+            new NavigationItem { Title = "Live Chart",  IconKey = "WbNavLive",        Route = Routes.Charts },
+            new NavigationItem { Title = "Apps",        IconKey = "WbNavApps",        Route = Routes.Apps },
+            new NavigationItem { Title = "Connections", IconKey = "WbNavConnections", Route = Routes.Connections },
+            new NavigationItem { Title = "System",      IconKey = "WbNavSystem",      Route = Routes.System },
+            new NavigationItem { Title = "History",     IconKey = "WbMetricAnalytics", Route = Routes.History },
+            new NavigationItem { Title = "Settings",    IconKey = "WbNavSettings",    Route = Routes.Settings }
         ];
 
         _selectedNavigationItem = NavigationItems[0];

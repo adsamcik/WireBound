@@ -1,4 +1,5 @@
 using WireBound.Avalonia.Services;
+using WireBound.Core.Models;
 
 namespace WireBound.Tests.Services;
 
@@ -28,11 +29,19 @@ public class TrayIconServiceTests
     }
 
     [Test]
-    public void ShowActivityGraph_DefaultIsTrue()
+    public void IconMode_DefaultIsTraffic()
     {
         using var service = new TrayIconService();
 
-        service.ShowActivityGraph.Should().BeTrue();
+        service.IconMode.Should().Be(TrayIconMode.Traffic);
+    }
+
+    [Test]
+    public void TrafficAdapterId_DefaultIsEmpty()
+    {
+        using var service = new TrayIconService();
+
+        service.TrafficAdapterId.Should().BeEmpty();
     }
 
     // ═══════════════════════════════════════════════════════════════════════
@@ -52,15 +61,37 @@ public class TrayIconServiceTests
     }
 
     [Test]
-    public void ShowActivityGraph_PropertyUpdates()
+    public void IconMode_PropertyUpdates()
     {
         using var service = new TrayIconService();
 
-        service.ShowActivityGraph = false;
-        service.ShowActivityGraph.Should().BeFalse();
+        // Without an attached tray icon the setter simply stores the value.
+        service.IconMode = TrayIconMode.Cpu;
+        service.IconMode.Should().Be(TrayIconMode.Cpu);
 
-        service.ShowActivityGraph = true;
-        service.ShowActivityGraph.Should().BeTrue();
+        service.IconMode = TrayIconMode.Ram;
+        service.IconMode.Should().Be(TrayIconMode.Ram);
+
+        service.IconMode = TrayIconMode.AppIcon;
+        service.IconMode.Should().Be(TrayIconMode.AppIcon);
+    }
+
+    [Test]
+    public void TrafficAdapterId_PropertyUpdates()
+    {
+        using var service = new TrayIconService();
+
+        service.TrafficAdapterId = "eth0";
+        service.TrafficAdapterId.Should().Be("eth0");
+    }
+
+    [Test]
+    public void TrafficAdapterId_NullCoercesToEmpty()
+    {
+        using var service = new TrayIconService();
+
+        service.TrafficAdapterId = null!;
+        service.TrafficAdapterId.Should().BeEmpty();
     }
 
     // ═══════════════════════════════════════════════════════════════════════
@@ -95,12 +126,12 @@ public class TrayIconServiceTests
     // ═══════════════════════════════════════════════════════════════════════
 
     [Test]
-    public void UpdateActivity_WithoutInitialize_DoesNotThrow()
+    public void UpdateMetrics_WithoutInitialize_DoesNotThrow()
     {
         using var service = new TrayIconService();
 
-        // UpdateActivity checks _trayIcon == null and returns early
-        var act = () => service.UpdateActivity(1_000_000, 500_000);
+        // UpdateMetrics checks _trayIcon == null and returns early
+        var act = () => service.UpdateMetrics(1_000_000, 500_000, 42.0, 60.0);
 
         act.Should().NotThrow();
     }

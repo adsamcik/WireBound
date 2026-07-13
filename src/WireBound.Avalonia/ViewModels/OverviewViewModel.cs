@@ -37,6 +37,7 @@ public sealed partial class OverviewViewModel : ObservableObject, IRecipient<Mem
     private readonly ISystemMonitorService _systemMonitor;
     private readonly INavigationService _navigationService;
     private readonly IDataPersistenceService? _dataPersistence;
+    private readonly IWiFiInfoService? _wiFiInfoService;
     private readonly ISystemSnapshotRepository? _systemSnapshotRepository;
     private readonly ILogger<OverviewViewModel>? _logger;
     private bool _disposed;
@@ -246,6 +247,7 @@ public sealed partial class OverviewViewModel : ObservableObject, IRecipient<Mem
         INavigationService navigationService,
         IDataPersistenceService? dataPersistence = null,
         ISystemSnapshotRepository? systemSnapshotRepository = null,
+        IWiFiInfoService? wiFiInfoService = null,
         ILogger<OverviewViewModel>? logger = null)
     {
         _dispatcher = dispatcher;
@@ -254,6 +256,7 @@ public sealed partial class OverviewViewModel : ObservableObject, IRecipient<Mem
         _navigationService = navigationService;
         _dataPersistence = dataPersistence;
         _systemSnapshotRepository = systemSnapshotRepository;
+        _wiFiInfoService = wiFiInfoService;
         _logger = logger;
         _isViewActive = navigationService.CurrentView == Routes.Overview;
 
@@ -715,6 +718,15 @@ public sealed partial class OverviewViewModel : ObservableObject, IRecipient<Mem
         foreach (var adapter in networkAdapters)
         {
             var displayItem = new AdapterDisplayItem(adapter);
+            // Populate WiFi info so SignalBars / WifiSignalIconKey reflect
+            // actual signal strength instead of always-zero. Without this
+            // the wifi-strength variants in Assets/Icons/wb-adapter-wifi-N
+            // would never render — every wifi adapter would fall through to
+            // the generic glyph.
+            if (adapter.AdapterType == NetworkAdapterType.WiFi)
+            {
+                displayItem.WiFiInfo = _wiFiInfoService?.GetWiFiInfo(adapter.Id);
+            }
             Adapters.Add(displayItem);
         }
     }
@@ -821,12 +833,7 @@ public sealed partial class OverviewViewModel : ObservableObject, IRecipient<Mem
                 {
                     AdapterId = adapterId,
                     Name = adapter.DisplayName,
-                    Icon = adapter.IsKnownVpn ? "🔐" : adapter.AdapterType switch
-                    {
-                        NetworkAdapterType.WiFi => "📶",
-                        NetworkAdapterType.Ethernet => "🔌",
-                        _ => "🌐"
-                    },
+                    IconKey = ResolveAdapterIconKey(adapter),
                     DownloadSpeed = ByteFormatter.FormatSpeed(adapterStats.DownloadSpeedBps),
                     UploadSpeed = ByteFormatter.FormatSpeed(adapterStats.UploadSpeedBps),
                     DownloadBps = adapterStats.DownloadSpeedBps,
@@ -839,6 +846,44 @@ public sealed partial class OverviewViewModel : ObservableObject, IRecipient<Mem
             SecondaryAdapters = new ObservableCollection<SecondaryAdapterInfo>(activeList);
             HasSecondaryAdapters = activeList.Count > 0;
             RebuildSecondaryAdapterSeries();
+        }
+    }
+
+    /// <summary>
+    /// Picks the right Wire Trace icon for a secondary adapter chip,
+    /// preferring VPN where the adapter is a known VPN, and falling through
+    /// to a signal-strength-aware Wi-Fi variant when the adapter is wireless
+    /// and a live signal reading is available. Other adapter types map to
+    /// their static type icon.
+    /// </summary>
+    private string ResolveAdapterIconKey(NetworkAdapter adapter)
+    {
+        if (adapter.IsKnownVpn) return "WbAdapterVpn";
+
+        switch (adapter.AdapterType)
+        {
+            case NetworkAdapterType.WiFi:
+                // Query signal strength so 1-bar wifi doesn't render as 4-bar.
+                // When the platform provider isn't available (Linux without
+                // the helper, missing service registration) we fall back to
+                // the strongest icon — better than mis-representing strength.
+                var info = _wiFiInfoService?.GetWiFiInfo(adapter.Id);
+                return info?.SignalStrength switch
+                {
+                    >= 75 => "WbAdapterWifi4",
+                    >= 50 => "WbAdapterWifi3",
+                    >= 25 => "WbAdapterWifi2",
+                    > 0   => "WbAdapterWifi1",
+                    _     => "WbAdapterWifi4"
+                };
+            case NetworkAdapterType.Ethernet:
+                return "WbAdapterEthernet";
+            case NetworkAdapterType.Loopback:
+                return "WbAdapterLoopback";
+            case NetworkAdapterType.Tunnel:
+                return "WbAdapterTunnel";
+            default:
+                return adapter.IsVirtual ? "WbAdapterVirtual" : "WbAdapterGeneric";
         }
     }
 

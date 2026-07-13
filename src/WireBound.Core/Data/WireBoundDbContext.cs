@@ -201,6 +201,8 @@ public sealed class WireBoundDbContext : DbContext
                     Granularity INTEGER NOT NULL DEFAULT 0,
                     BytesReceived INTEGER NOT NULL DEFAULT 0,
                     BytesSent INTEGER NOT NULL DEFAULT 0,
+                    LoopbackBytesReceived INTEGER NOT NULL DEFAULT 0,
+                    LoopbackBytesSent INTEGER NOT NULL DEFAULT 0,
                     PeakDownloadSpeed INTEGER NOT NULL DEFAULT 0,
                     PeakUploadSpeed INTEGER NOT NULL DEFAULT 0,
                     LastUpdated TEXT NOT NULL DEFAULT '0001-01-01'
@@ -217,6 +219,10 @@ public sealed class WireBoundDbContext : DbContext
                     AvgMemoryPercent REAL NOT NULL DEFAULT 0,
                     MaxMemoryPercent REAL NOT NULL DEFAULT 0,
                     AvgMemoryUsedBytes INTEGER NOT NULL DEFAULT 0,
+                    AvgDiskActivityPercent REAL NOT NULL DEFAULT 0,
+                    MaxDiskActivityPercent REAL NOT NULL DEFAULT 0,
+                    AvgDiskReadBytesPerSec INTEGER NOT NULL DEFAULT 0,
+                    AvgDiskWriteBytesPerSec INTEGER NOT NULL DEFAULT 0,
                     AvgGpuPercent REAL,
                     MaxGpuPercent REAL,
                     AvgGpuMemoryPercent REAL
@@ -232,6 +238,10 @@ public sealed class WireBoundDbContext : DbContext
                     AvgMemoryPercent REAL NOT NULL DEFAULT 0,
                     MaxMemoryPercent REAL NOT NULL DEFAULT 0,
                     PeakMemoryUsedBytes INTEGER NOT NULL DEFAULT 0,
+                    AvgDiskActivityPercent REAL NOT NULL DEFAULT 0,
+                    MaxDiskActivityPercent REAL NOT NULL DEFAULT 0,
+                    PeakDiskReadBytesPerSec INTEGER NOT NULL DEFAULT 0,
+                    PeakDiskWriteBytesPerSec INTEGER NOT NULL DEFAULT 0,
                     AvgGpuPercent REAL,
                     MaxGpuPercent REAL
                 )
@@ -296,7 +306,10 @@ public sealed class WireBoundDbContext : DbContext
                     Id INTEGER PRIMARY KEY AUTOINCREMENT,
                     Timestamp TEXT NOT NULL DEFAULT '0001-01-01',
                     CpuPercent REAL NOT NULL DEFAULT 0,
-                    MemoryPercent REAL NOT NULL DEFAULT 0
+                    MemoryPercent REAL NOT NULL DEFAULT 0,
+                    DiskReadBytesPerSec INTEGER NOT NULL DEFAULT 0,
+                    DiskWriteBytesPerSec INTEGER NOT NULL DEFAULT 0,
+                    DiskActivityPercent REAL NOT NULL DEFAULT 0
                 )
                 """);
 
@@ -320,6 +333,8 @@ public sealed class WireBoundDbContext : DbContext
                 ("SaveIntervalSeconds", "INTEGER NOT NULL DEFAULT 60"),
                 ("StartWithWindows", "INTEGER NOT NULL DEFAULT 0"),
                 ("MinimizeToTray", "INTEGER NOT NULL DEFAULT 1"),
+                ("TrayIconMode", "INTEGER NOT NULL DEFAULT 1"),
+                ("TrayTrafficAdapterId", "TEXT NOT NULL DEFAULT ''"),
                 ("UseIpHelperApi", "INTEGER NOT NULL DEFAULT 0"),
                 ("SelectedAdapterId", "TEXT NOT NULL DEFAULT 'auto'"),
                 ("DataRetentionDays", "INTEGER NOT NULL DEFAULT 365"),
@@ -337,7 +352,6 @@ public sealed class WireBoundDbContext : DbContext
                 ("PerformanceModeEnabled", "INTEGER NOT NULL DEFAULT 0"),
                 ("ChartUpdateIntervalMs", "INTEGER NOT NULL DEFAULT 1000"),
                 ("DefaultInsightsPeriod", "TEXT NOT NULL DEFAULT 'ThisWeek'"),
-                ("ShowCorrelationInsights", "INTEGER NOT NULL DEFAULT 1"),
                 ("CheckForUpdates", "INTEGER NOT NULL DEFAULT 1"),
                 ("AutoDownloadUpdates", "INTEGER NOT NULL DEFAULT 1"),
                 ("StartHelperWithSystem", "INTEGER NOT NULL DEFAULT 0"),
@@ -374,7 +388,10 @@ public sealed class WireBoundDbContext : DbContext
             EnsureColumnsExist(connection, "SystemSnapshots",
                 ("Timestamp", "TEXT NOT NULL DEFAULT '0001-01-01'"),
                 ("CpuPercent", "REAL NOT NULL DEFAULT 0"),
-                ("MemoryPercent", "REAL NOT NULL DEFAULT 0"));
+                ("MemoryPercent", "REAL NOT NULL DEFAULT 0"),
+                ("DiskReadBytesPerSec", "INTEGER NOT NULL DEFAULT 0"),
+                ("DiskWriteBytesPerSec", "INTEGER NOT NULL DEFAULT 0"),
+                ("DiskActivityPercent", "REAL NOT NULL DEFAULT 0"));
 
             EnsureColumnsExist(connection, "MemoryPressureEvents",
                 ("Timestamp", "TEXT NOT NULL DEFAULT '0001-01-01'"),
@@ -393,6 +410,8 @@ public sealed class WireBoundDbContext : DbContext
                 ("Granularity", "INTEGER NOT NULL DEFAULT 0"),
                 ("BytesReceived", "INTEGER NOT NULL DEFAULT 0"),
                 ("BytesSent", "INTEGER NOT NULL DEFAULT 0"),
+                ("LoopbackBytesReceived", "INTEGER NOT NULL DEFAULT 0"),
+                ("LoopbackBytesSent", "INTEGER NOT NULL DEFAULT 0"),
                 ("PeakDownloadSpeed", "INTEGER NOT NULL DEFAULT 0"),
                 ("PeakUploadSpeed", "INTEGER NOT NULL DEFAULT 0"),
                 ("LastUpdated", "TEXT NOT NULL DEFAULT '0001-01-01'"));
@@ -405,6 +424,10 @@ public sealed class WireBoundDbContext : DbContext
                 ("AvgMemoryPercent", "REAL NOT NULL DEFAULT 0"),
                 ("MaxMemoryPercent", "REAL NOT NULL DEFAULT 0"),
                 ("AvgMemoryUsedBytes", "INTEGER NOT NULL DEFAULT 0"),
+                ("AvgDiskActivityPercent", "REAL NOT NULL DEFAULT 0"),
+                ("MaxDiskActivityPercent", "REAL NOT NULL DEFAULT 0"),
+                ("AvgDiskReadBytesPerSec", "INTEGER NOT NULL DEFAULT 0"),
+                ("AvgDiskWriteBytesPerSec", "INTEGER NOT NULL DEFAULT 0"),
                 ("AvgGpuPercent", "REAL"),
                 ("MaxGpuPercent", "REAL"),
                 ("AvgGpuMemoryPercent", "REAL"));
@@ -416,6 +439,10 @@ public sealed class WireBoundDbContext : DbContext
                 ("AvgMemoryPercent", "REAL NOT NULL DEFAULT 0"),
                 ("MaxMemoryPercent", "REAL NOT NULL DEFAULT 0"),
                 ("PeakMemoryUsedBytes", "INTEGER NOT NULL DEFAULT 0"),
+                ("AvgDiskActivityPercent", "REAL NOT NULL DEFAULT 0"),
+                ("MaxDiskActivityPercent", "REAL NOT NULL DEFAULT 0"),
+                ("PeakDiskReadBytesPerSec", "INTEGER NOT NULL DEFAULT 0"),
+                ("PeakDiskWriteBytesPerSec", "INTEGER NOT NULL DEFAULT 0"),
                 ("AvgGpuPercent", "REAL"),
                 ("MaxGpuPercent", "REAL"));
 

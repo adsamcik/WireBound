@@ -4,6 +4,7 @@ using System.Runtime.InteropServices;
 using Microsoft.Diagnostics.Tracing;
 using Microsoft.Diagnostics.Tracing.Session;
 using Serilog;
+using WireBound.IPC;
 using WireBound.IPC.Messages;
 
 namespace WireBound.Elevation.Windows;
@@ -548,6 +549,12 @@ public sealed class EtwConnectionTracker : IDisposable
                     ExecutablePath = p.ExecutablePath,
                     TotalBytesSent = p.BytesSent,
                     TotalBytesReceived = p.BytesReceived,
+                    LoopbackBytesSent = p.Connections
+                        .Where(c => LoopbackClassifier.IsLoopback(c.RemoteAddress))
+                        .Sum(c => c.BytesSent),
+                    LoopbackBytesReceived = p.Connections
+                        .Where(c => LoopbackClassifier.IsLoopback(c.RemoteAddress))
+                        .Sum(c => c.BytesReceived),
                     ActiveConnectionCount = p.Connections.Count
                 })
                 .ToList();

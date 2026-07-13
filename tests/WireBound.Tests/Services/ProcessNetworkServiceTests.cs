@@ -169,6 +169,82 @@ public class ProcessNetworkServiceTests : IDisposable
         result.Should().NotBeNull();
     }
 
+    private static ConnectionStats Conn(int processId, string processName = "", int localPort = 5000,
+        long bytesSent = 0, long bytesReceived = 0) => new()
+    {
+        Protocol = "TCP",
+        LocalAddress = "127.0.0.1",
+        LocalPort = localPort,
+        RemoteAddress = "127.0.0.1",
+        RemotePort = 8080,
+        ProcessId = processId,
+        ProcessName = processName,
+        BytesSent = bytesSent,
+        BytesReceived = bytesReceived,
+        HasByteCounters = true
+    };
+
+    [Test]
+    public async Task GetConnectionStatsAsync_HelperConnected_AttributesPreExistingFromOsTable()
+    {
+        var elevated = new List<ConnectionStats>
+        {
+            Conn(processId: 0, processName: "Unattributed (pre-existing connection)", bytesSent: 2000, bytesReceived: 1000)
+        };
+        _provider.GetConnectionStatsAsync(Arg.Any<CancellationToken>()).Returns(elevated);
+
+        var basicProvider = Substitute.For<IProcessNetworkProvider>();
+        basicProvider.GetConnectionStatsAsync(Arg.Any<CancellationToken>())
+            .Returns(new List<ConnectionStats> { Conn(processId: 4321, processName: "node") });
+
+        _providerFactory.HasElevatedProvider.Returns(true);
+        _providerFactory.GetBasicProvider().Returns(basicProvider);
+
+        var result = await _service.GetConnectionStatsAsync();
+
+        var enriched = result.Single();
+        enriched.ProcessId.Should().Be(4321);
+        enriched.ProcessName.Should().Be("node");
+        // Identity recovered, byte volume cleared (OS table has no byte data).
+        enriched.BytesSent.Should().Be(0);
+        enriched.BytesReceived.Should().Be(0);
+    }
+
+    [Test]
+    public async Task GetConnectionStatsAsync_AmbiguousOwner_LeavesConnectionUnattributed()
+    {
+        _provider.GetConnectionStatsAsync(Arg.Any<CancellationToken>())
+            .Returns(new List<ConnectionStats> { Conn(processId: 0) });
+
+        var basicProvider = Substitute.For<IProcessNetworkProvider>();
+        // Same connection key resolves to two different PIDs -> ambiguous, skip.
+        basicProvider.GetConnectionStatsAsync(Arg.Any<CancellationToken>())
+            .Returns(new List<ConnectionStats> { Conn(processId: 111, processName: "a"), Conn(processId: 222, processName: "b") });
+
+        _providerFactory.HasElevatedProvider.Returns(true);
+        _providerFactory.GetBasicProvider().Returns(basicProvider);
+
+        var result = await _service.GetConnectionStatsAsync();
+
+        result.Single().ProcessId.Should().Be(0);
+    }
+
+    [Test]
+    public async Task GetConnectionStatsAsync_NoElevatedProvider_DoesNotQueryOsTable()
+    {
+        _provider.GetConnectionStatsAsync(Arg.Any<CancellationToken>())
+            .Returns(new List<ConnectionStats> { Conn(processId: 0) });
+
+        var basicProvider = Substitute.For<IProcessNetworkProvider>();
+        _providerFactory.HasElevatedProvider.Returns(false);
+        _providerFactory.GetBasicProvider().Returns(basicProvider);
+
+        var result = await _service.GetConnectionStatsAsync();
+
+        result.Single().ProcessId.Should().Be(0);
+        await basicProvider.DidNotReceive().GetConnectionStatsAsync(Arg.Any<CancellationToken>());
+    }
+
     // ═══════════════════════════════════════════════════════════════════════
     // ProviderChanged Tests
     // ═══════════════════════════════════════════════════════════════════════

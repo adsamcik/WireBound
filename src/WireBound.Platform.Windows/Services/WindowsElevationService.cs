@@ -42,6 +42,7 @@ namespace WireBound.Platform.Windows.Services;
 public sealed class WindowsElevationService : IElevationService, IAsyncDisposable
 {
     private readonly ILogger<WindowsElevationService>? _logger;
+    private readonly ILoggerFactory? _loggerFactory;
     private readonly IHelperProcessManager? _helperManager;
     private readonly Lazy<bool> _isElevated;
     private IHelperConnection? _helperConnection;
@@ -55,10 +56,12 @@ public sealed class WindowsElevationService : IElevationService, IAsyncDisposabl
 
     public WindowsElevationService(
         ILogger<WindowsElevationService>? logger = null,
-        IHelperProcessManager? helperManager = null)
+        IHelperProcessManager? helperManager = null,
+        ILoggerFactory? loggerFactory = null)
     {
         _logger = logger;
         _helperManager = helperManager;
+        _loggerFactory = loggerFactory;
         _isElevated = new Lazy<bool>(CheckIsElevated);
     }
 
@@ -80,6 +83,72 @@ public sealed class WindowsElevationService : IElevationService, IAsyncDisposabl
     /// <inheritdoc />
     public async Task<ElevationResult> StartHelperAsync(CancellationToken cancellationToken = default)
     {
+        return await StartHelperInternalAsync(allowInteractive: true, cancellationToken);
+    }
+
+    /// <inheritdoc />
+    public async Task<ElevationResult> TryConnectExistingAsync(int timeoutMs = 2500, CancellationToken cancellationToken = default)
+    {
+        if (_disposed)
+        {
+            return ElevationResult.Failed("Service has been disposed");
+        }
+
+        // Cap the time spent here so a cold "no helper running" path does not
+        // delay app startup. The pipe-existence probe alone is O(microseconds);
+        // the real cost is the auth handshake which we keep under 2 retries
+        // with no backoff.
+        using var timeoutCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+        timeoutCts.CancelAfter(timeoutMs);
+
+        await _connectionLock.WaitAsync(timeoutCts.Token);
+        try
+        {
+            if (IsHelperConnected)
+                return ElevationResult.Success();
+
+            // Cheap probe — does the named pipe actually exist?
+            if (!File.Exists(@$"\\.\pipe\{WireBound.IPC.IpcConstants.WindowsPipeName}"))
+            {
+                _logger?.LogDebug("Helper pipe does not exist; skipping connect attempt");
+                return ElevationResult.Failed("Helper is not running");
+            }
+
+            // Single short attempt (no retries / no backoff) — if the helper
+            // is up, the handshake completes in milliseconds.
+            try
+            {
+                var connection = new WindowsHelperConnection(_loggerFactory?.CreateLogger<WindowsHelperConnection>());
+                var connected = await connection.ConnectAsync(timeoutCts.Token);
+                if (connected)
+                {
+                    connection.ConnectionLost += OnConnectionLost;
+                    _helperConnection = connection;
+                    _logger?.LogInformation("Connected to existing helper process (no UAC prompt)");
+                    OnHelperConnectionStateChanged(true, "Connected to existing helper");
+                    return ElevationResult.Success();
+                }
+                await connection.DisposeAsync();
+                return ElevationResult.Failed("Helper rejected authentication");
+            }
+            catch (OperationCanceledException) when (timeoutCts.IsCancellationRequested)
+            {
+                return ElevationResult.Failed($"Connect timed out after {timeoutMs}ms");
+            }
+            catch (Exception ex)
+            {
+                _logger?.LogDebug(ex, "Could not connect to existing helper");
+                return ElevationResult.Failed($"Connect failed: {ex.Message}");
+            }
+        }
+        finally
+        {
+            _connectionLock.Release();
+        }
+    }
+
+    private async Task<ElevationResult> StartHelperInternalAsync(bool allowInteractive, CancellationToken cancellationToken)
+    {
         if (_disposed)
         {
             return ElevationResult.Failed("Service has been disposed");
@@ -92,6 +161,41 @@ public sealed class WindowsElevationService : IElevationService, IAsyncDisposabl
             {
                 _logger?.LogDebug("Helper already connected, skipping start");
                 return ElevationResult.Success();
+            }
+
+            // ── Pre-spawn probe ──────────────────────────────────────────
+            // If a helper is already running (e.g. orphan from a previous main
+            // app instance, or one started by the scheduled task at login),
+            // reuse it instead of launching a duplicate that will collide on
+            // the Global mutex and exit with code 1. This both avoids the
+            // unnecessary UAC prompt and prevents the "Another instance is
+            // already running" silent failure loop.
+            if (File.Exists(@$"\\.\pipe\{WireBound.IPC.IpcConstants.WindowsPipeName}"))
+            {
+                _logger?.LogDebug("Existing helper pipe detected, attempting to reuse before spawning a new helper");
+                try
+                {
+                    var existing = new WindowsHelperConnection(_loggerFactory?.CreateLogger<WindowsHelperConnection>());
+                    using var probeCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+                    probeCts.CancelAfter(2500);
+                    var connected = await existing.ConnectAsync(probeCts.Token);
+                    if (connected)
+                    {
+                        existing.ConnectionLost += OnConnectionLost;
+                        _helperConnection = existing;
+                        _logger?.LogInformation("Reused existing helper process (no UAC prompt needed)");
+                        OnHelperConnectionStateChanged(true, "Connected to existing helper");
+                        return ElevationResult.Success();
+                    }
+                    await existing.DisposeAsync();
+                    _logger?.LogWarning(
+                        "Existing helper pipe exists but handshake failed — likely an orphan from an older build. " +
+                        "Spawning a fresh helper, which may fail until the orphan exits.");
+                }
+                catch (Exception ex)
+                {
+                    _logger?.LogWarning(ex, "Could not reuse existing helper, will attempt fresh spawn");
+                }
             }
 
             // Log if running elevated - this is a security warning
@@ -115,7 +219,7 @@ public sealed class WindowsElevationService : IElevationService, IAsyncDisposabl
                     return ElevationResult.Failed($"Helper validation failed: {validationResult.ErrorMessage}");
                 }
 
-                var startResult = await _helperManager.StartAsync(cancellationToken);
+                var startResult = await _helperManager.StartAsync(allowInteractive, cancellationToken);
                 if (!startResult.IsSuccess)
                 {
                     _logger?.LogWarning("Failed to start helper: {Status} - {Error}",
@@ -234,7 +338,7 @@ public sealed class WindowsElevationService : IElevationService, IAsyncDisposabl
             try
             {
                 _logger?.LogDebug("Attempting to connect to helper (attempt {Attempt}/{Max})", attempt, maxRetries);
-                var connection = new WindowsHelperConnection();
+                var connection = new WindowsHelperConnection(_loggerFactory?.CreateLogger<WindowsHelperConnection>());
                 var connected = await connection.ConnectAsync(cancellationToken);
 
                 if (connected)

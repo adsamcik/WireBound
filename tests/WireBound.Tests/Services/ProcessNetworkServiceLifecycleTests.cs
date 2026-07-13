@@ -188,6 +188,8 @@ public class ProcessNetworkServiceLifecycleTests
 
         public IProcessNetworkProvider GetProvider() => _provider;
 
+        public IProcessNetworkProvider GetBasicProvider() => _provider;
+
         public void RaiseProviderChanged(IProcessNetworkProvider provider)
         {
             _provider = provider;

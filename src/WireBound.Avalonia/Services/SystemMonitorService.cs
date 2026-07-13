@@ -13,6 +13,7 @@ public sealed class SystemMonitorService : ISystemMonitorService, IDisposable
 {
     private readonly ICpuInfoProvider _cpuProvider;
     private readonly IMemoryInfoProvider _memoryProvider;
+    private readonly IDiskInfoProvider _diskProvider;
     private readonly ILogger<SystemMonitorService>? _logger;
     private readonly string _processorName;
     private SystemStats _currentStats = new();
@@ -23,10 +24,12 @@ public sealed class SystemMonitorService : ISystemMonitorService, IDisposable
     public SystemMonitorService(
         ICpuInfoProvider cpuProvider,
         IMemoryInfoProvider memoryProvider,
+        IDiskInfoProvider diskProvider,
         ILogger<SystemMonitorService>? logger = null)
     {
         _cpuProvider = cpuProvider;
         _memoryProvider = memoryProvider;
+        _diskProvider = diskProvider;
         _logger = logger;
         _processorName = cpuProvider.GetProcessorName();
 
@@ -47,6 +50,7 @@ public sealed class SystemMonitorService : ISystemMonitorService, IDisposable
         {
             var cpuData = _cpuProvider.GetCpuInfo();
             var memoryData = _memoryProvider.GetMemoryInfo();
+            var diskData = _diskProvider.GetDiskInfo();
 
             _currentStats = new SystemStats
             {
@@ -69,6 +73,13 @@ public sealed class SystemMonitorService : ISystemMonitorService, IDisposable
                     AvailableBytes = memoryData.AvailableBytes,
                     TotalVirtualBytes = memoryData.TotalVirtualBytes,
                     UsedVirtualBytes = memoryData.UsedVirtualBytes
+                },
+                Disk = new DiskStats
+                {
+                    Timestamp = DateTime.Now,
+                    ReadBytesPerSecond = diskData.ReadBytesPerSecond,
+                    WriteBytesPerSecond = diskData.WriteBytesPerSecond,
+                    ActivityPercent = diskData.ActivityPercent
                 }
             };
 
@@ -88,6 +99,8 @@ public sealed class SystemMonitorService : ISystemMonitorService, IDisposable
 
     public bool IsPerCoreUsageAvailable => _cpuProvider.SupportsPerCoreUsage;
 
+    public bool IsDiskActivityAvailable => _diskProvider.SupportsActivityPercent;
+
     public void Dispose()
     {
         if (_disposed) return;
@@ -100,6 +113,11 @@ public sealed class SystemMonitorService : ISystemMonitorService, IDisposable
         if (_memoryProvider is IDisposable disposableMemory)
         {
             disposableMemory.Dispose();
+        }
+
+        if (_diskProvider is IDisposable disposableDisk)
+        {
+            disposableDisk.Dispose();
         }
 
         _disposed = true;

@@ -18,6 +18,12 @@ public class HourlySystemStats
     public double MaxMemoryPercent { get; set; }
     public long AvgMemoryUsedBytes { get; set; }
 
+    // Disk metrics
+    public double AvgDiskActivityPercent { get; set; }
+    public double MaxDiskActivityPercent { get; set; }
+    public long AvgDiskReadBytesPerSec { get; set; }
+    public long AvgDiskWriteBytesPerSec { get; set; }
+
     // GPU metrics (optional, null if not available)
     public double? AvgGpuPercent { get; set; }
     public double? MaxGpuPercent { get; set; }

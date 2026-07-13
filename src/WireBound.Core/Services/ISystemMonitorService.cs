@@ -41,4 +41,9 @@ public interface ISystemMonitorService
     /// Whether per-core CPU usage is available
     /// </summary>
     bool IsPerCoreUsageAvailable { get; }
+
+    /// <summary>
+    /// Whether disk activity (busy %) monitoring is available
+    /// </summary>
+    bool IsDiskActivityAvailable { get; }
 }

@@ -13,10 +13,18 @@ public interface ITrayIconService : IDisposable
     bool MinimizeToTray { get; set; }
 
     /// <summary>
-    /// Gets or sets whether the tray icon should show a dynamic activity graph.
-    /// When enabled, the icon displays a real-time network activity meter similar to Task Manager.
+    /// Gets or sets what the tray icon displays (app icon, network traffic, CPU, or RAM).
+    /// Changing this re-renders the icon immediately.
     /// </summary>
-    bool ShowActivityGraph { get; set; }
+    TrayIconMode IconMode { get; set; }
+
+    /// <summary>
+    /// Gets or sets which network adapter's traffic the tray shows when
+    /// <see cref="IconMode"/> is <see cref="TrayIconMode.Traffic"/>.
+    /// Empty string = follow the app's monitored adapter; a specific adapter Id
+    /// pins the tray graph to that interface. Consumed by the polling service.
+    /// </summary>
+    string TrafficAdapterId { get; set; }
 
     /// <summary>
     /// Hides the main application window to the system tray.
@@ -29,13 +37,15 @@ public interface ITrayIconService : IDisposable
     void ShowMainWindow();
 
     /// <summary>
-    /// Updates the tray icon with current network activity.
-    /// When ShowActivityGraph is enabled, this updates the dynamic activity meter.
+    /// Updates the tray icon with the latest network and system metrics.
+    /// Renders at most one icon per call based on the active <see cref="IconMode"/>,
+    /// and refreshes the tooltip. Safe to call from any thread.
     /// </summary>
-    /// <param name="downloadSpeedBps">Current download speed in bytes per second</param>
-    /// <param name="uploadSpeedBps">Current upload speed in bytes per second</param>
-    /// <param name="maxSpeedBps">Maximum speed for scaling (auto-scales if 0)</param>
-    void UpdateActivity(long downloadSpeedBps, long uploadSpeedBps, long maxSpeedBps = 0);
+    /// <param name="downloadSpeedBps">Download speed in bytes per second for the tray's traffic source</param>
+    /// <param name="uploadSpeedBps">Upload speed in bytes per second for the tray's traffic source</param>
+    /// <param name="cpuPercent">Current CPU usage percentage (0-100)</param>
+    /// <param name="ramPercent">Current memory usage percentage (0-100)</param>
+    void UpdateMetrics(long downloadSpeedBps, long uploadSpeedBps, double cpuPercent, double ramPercent);
 
     /// <summary>
     /// Sets whether an update is available, adding/removing a tray context menu item.

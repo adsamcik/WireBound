@@ -2,6 +2,7 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:vm="using:WireBound.Avalonia.ViewModels"
              xmlns:lvc="using:LiveChartsCore.SkiaSharpView.Avalonia"
+             xmlns:controls="using:WireBound.Avalonia.Controls"
              x:Class="WireBound.Avalonia.Views.ChartsView"
              x:DataType="vm:ChartsViewModel"
              Background="{StaticResource BackgroundBrush}"
@@ -19,7 +20,7 @@
             <!-- Time Range Selector -->
             <Border Grid.Column="1" Classes="CompactCard" VerticalAlignment="Center" Padding="14,10">
                 <StackPanel Orientation="Horizontal" Spacing="12">
-                    <TextBlock Text="⏱️" FontSize="16" VerticalAlignment="Center" />
+                    <controls:WbIcon IconKey="WbActionTimeRange" Width="16" Height="16" VerticalAlignment="Center" />
                     <TextBlock Text="Time Range" Classes="Caption" VerticalAlignment="Center" />
                     <ComboBox ItemsSource="{Binding TimeRangeOptions}"
                               SelectedItem="{Binding SelectedTimeRange}"
@@ -44,7 +45,7 @@
                 <Border Background="{StaticResource BorderSubtleBrush}" CornerRadius="12" Padding="16,12" Margin="0,0,10,0">
                     <StackPanel HorizontalAlignment="Center" Spacing="6">
                         <StackPanel Orientation="Horizontal" Spacing="6" HorizontalAlignment="Center">
-                            <TextBlock Text="⬇️" FontSize="12" />
+                            <controls:WbIcon IconKey="WbMetricDownload" Width="12" Height="12" />
                             <TextBlock Text="PEAK DOWNLOAD" Classes="MetricLabel" />
                         </StackPanel>
                         <TextBlock Text="{Binding PeakDownloadSpeed}"
@@ -57,7 +58,7 @@
                 <Border Grid.Column="1" Background="{StaticResource BorderSubtleBrush}" CornerRadius="12" Padding="16,12" Margin="10,0">
                     <StackPanel HorizontalAlignment="Center" Spacing="6">
                         <StackPanel Orientation="Horizontal" Spacing="6" HorizontalAlignment="Center">
-                            <TextBlock Text="📊" FontSize="12" />
+                            <controls:WbIcon IconKey="WbMetricAnalytics" Width="12" Height="12" />
                             <TextBlock Text="AVG DOWNLOAD" Classes="MetricLabel" />
                         </StackPanel>
                         <TextBlock Text="{Binding AverageDownloadSpeed}"
@@ -70,7 +71,7 @@
                 <Border Grid.Column="2" Background="{StaticResource BorderSubtleBrush}" CornerRadius="12" Padding="16,12" Margin="10,0">
                     <StackPanel HorizontalAlignment="Center" Spacing="6">
                         <StackPanel Orientation="Horizontal" Spacing="6" HorizontalAlignment="Center">
-                            <TextBlock Text="⬆️" FontSize="12" />
+                            <controls:WbIcon IconKey="WbMetricUpload" Width="12" Height="12" />
                             <TextBlock Text="PEAK UPLOAD" Classes="MetricLabel" />
                         </StackPanel>
                         <TextBlock Text="{Binding PeakUploadSpeed}"
@@ -83,7 +84,7 @@
                 <Border Grid.Column="3" Background="{StaticResource BorderSubtleBrush}" CornerRadius="12" Padding="16,12" Margin="10,0,0,0">
                     <StackPanel HorizontalAlignment="Center" Spacing="6">
                         <StackPanel Orientation="Horizontal" Spacing="6" HorizontalAlignment="Center">
-                            <TextBlock Text="📊" FontSize="12" />
+                            <controls:WbIcon IconKey="WbMetricAnalytics" Width="12" Height="12" />
                             <TextBlock Text="AVG UPLOAD" Classes="MetricLabel" />
                         </StackPanel>
                         <TextBlock Text="{Binding AverageUploadSpeed}"
@@ -136,7 +137,7 @@
                         Padding="12,8"
                         HorizontalAlignment="Center">
                     <StackPanel Orientation="Horizontal" Spacing="8">
-                        <TextBlock Text="💡" FontSize="12" VerticalAlignment="Center" />
+                        <controls:WbIcon IconKey="WbMetricInsight" Width="12" Height="12" VerticalAlignment="Center" />
                         <TextBlock Text="Scroll to zoom • Drag to pan • Change time range above"
                                    FontSize="12"
                                    Foreground="{StaticResource SecondaryTextBrush}"
@@ -153,9 +154,7 @@
                 <!-- Download -->
                 <StackPanel Orientation="Horizontal" Spacing="16" HorizontalAlignment="Center" Margin="0,0,12,0">
                     <Border Background="{StaticResource DownloadBgTintBrush}" CornerRadius="10" Width="48" Height="48" VerticalAlignment="Center">
-                        <TextBlock Text="↓" FontSize="28" FontWeight="Bold"
-                                   Foreground="{StaticResource DownloadBrush}"
-                                   HorizontalAlignment="Center" VerticalAlignment="Center" />
+                        <controls:WbIcon IconKey="WbMetricDownload" Width="28" Height="28" />
                     </Border>
                     <StackPanel VerticalAlignment="Center" Spacing="2">
                         <TextBlock Text="Download Speed" Classes="Caption" />
@@ -170,9 +169,7 @@
                 <!-- Upload -->
                 <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="16" HorizontalAlignment="Center" Margin="12,0,0,0">
                     <Border Background="{StaticResource UploadBgTintBrush}" CornerRadius="10" Width="48" Height="48" VerticalAlignment="Center">
-                        <TextBlock Text="↑" FontSize="28" FontWeight="Bold"
-                                   Foreground="{StaticResource UploadBrush}"
-                                   HorizontalAlignment="Center" VerticalAlignment="Center" />
+                        <controls:WbIcon IconKey="WbMetricUpload" Width="28" Height="28" />
                     </Border>
                     <StackPanel VerticalAlignment="Center" Spacing="2">
                         <TextBlock Text="Upload Speed" Classes="Caption" />

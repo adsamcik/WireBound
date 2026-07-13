@@ -1,7 +1,33 @@
 <Styles xmlns="https://github.com/avaloniaui"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:lvc="using:LiveChartsCore.SkiaSharpView.Avalonia"
-        xmlns:helpers="using:WireBound.Avalonia.Helpers">
+        xmlns:helpers="using:WireBound.Avalonia.Helpers"
+        xmlns:controls="using:WireBound.Avalonia.Controls"
+        xmlns:converters="using:WireBound.Avalonia.Converters">
+
+    <!-- WbIcon template: render the generated raster icon directly. High-quality
+         interpolation keeps the detailed icons crisp when downscaled to small UI
+         sizes (14-24px). Semantic icons are recoloured to their theme brush (or the
+         explicit Tint) by TintedIconConverter; others render natively. -->
+    <Style Selector="controls|WbIcon">
+        <Setter Property="Width" Value="20" />
+        <Setter Property="Height" Value="20" />
+        <Setter Property="HorizontalAlignment" Value="Center" />
+        <Setter Property="VerticalAlignment" Value="Center" />
+        <Setter Property="Template">
+            <ControlTemplate>
+                <Image Stretch="Uniform"
+                       RenderOptions.BitmapInterpolationMode="HighQuality">
+                    <Image.Source>
+                        <MultiBinding Converter="{x:Static converters:TintedIconConverter.Instance}">
+                            <Binding Path="IconKey" RelativeSource="{RelativeSource TemplatedParent}" />
+                            <Binding Path="Tint" RelativeSource="{RelativeSource TemplatedParent}" />
+                        </MultiBinding>
+                    </Image.Source>
+                </Image>
+            </ControlTemplate>
+        </Setter>
+    </Style>
 
     <!-- Forward mouse-wheel events from chart controls to the ancestor ScrollViewer.
          Without this the chart consumes the wheel event for zoom and the page becomes
@@ -161,12 +187,19 @@
     
     <Style Selector="Button.Accent">
         <Setter Property="Background" Value="{StaticResource AccentBgTintBrush}" />
-        <Setter Property="Foreground" Value="{StaticResource PrimaryBrush}" />
+        <Setter Property="Foreground" Value="{StaticResource PrimaryTextBrush}" />
+        <Setter Property="BorderBrush" Value="{StaticResource PrimaryBrush}" />
+        <Setter Property="BorderThickness" Value="1" />
         <Setter Property="FontSize" Value="14" />
         <Setter Property="FontWeight" Value="Bold" />
         <Setter Property="Padding" Value="20,12" />
         <Setter Property="CornerRadius" Value="10" />
         <Setter Property="Cursor" Value="Hand" />
+    </Style>
+
+    <Style Selector="Button.Accent:pointerover /template/ ContentPresenter">
+        <Setter Property="Background" Value="{StaticResource PrimaryBrush}" />
+        <Setter Property="TextElement.Foreground" Value="{StaticResource BackgroundBrush}" />
     </Style>
     
     <Style Selector="Button.Ghost">
@@ -180,8 +213,84 @@
     </Style>
 
     <!-- ═══════════════════════════════════════════════════════════════════ -->
+    <!-- FILTER CHIPS: pill-shaped buttons used for stateful scoping controls -->
+    <!-- (date range presets, sort presets, etc.). The .active class signals -->
+    <!-- which option is currently chosen — fixes the "looks like flat text" -->
+    <!-- problem on AppsView where users couldn't tell which range was on.   -->
+    <!-- ═══════════════════════════════════════════════════════════════════ -->
+
+    <Style Selector="Button.FilterChip">
+        <Setter Property="Background" Value="Transparent" />
+        <Setter Property="Foreground" Value="{StaticResource SecondaryTextBrush}" />
+        <Setter Property="BorderBrush" Value="{StaticResource BorderBrush}" />
+        <Setter Property="BorderThickness" Value="1" />
+        <Setter Property="CornerRadius" Value="999" />
+        <Setter Property="Padding" Value="14,7" />
+        <Setter Property="MinHeight" Value="36" />
+        <Setter Property="FontSize" Value="13" />
+        <Setter Property="FontWeight" Value="SemiBold" />
+        <Setter Property="Cursor" Value="Hand" />
+    </Style>
+    <Style Selector="Button.FilterChip /template/ ContentPresenter">
+        <Setter Property="CornerRadius" Value="999" />
+    </Style>
+    <Style Selector="Button.FilterChip:pointerover /template/ ContentPresenter">
+        <Setter Property="Background" Value="{StaticResource SelectionBgBrush}" />
+        <Setter Property="BorderBrush" Value="{StaticResource PrimaryBrush}" />
+    </Style>
+    <Style Selector="Button.FilterChip.active">
+        <Setter Property="Foreground" Value="{StaticResource PrimaryBrush}" />
+        <Setter Property="BorderBrush" Value="{StaticResource PrimaryBrush}" />
+    </Style>
+    <Style Selector="Button.FilterChip.active /template/ ContentPresenter">
+        <Setter Property="Background" Value="{StaticResource AccentBgTintBrush}" />
+    </Style>
+
+    <!-- ═══════════════════════════════════════════════════════════════════ -->
+    <!-- TOOLBAR BUTTONS: compact controls for toolbar rows where Primary    -->
+    <!-- chrome would dominate the controls it sits next to. Combine with a  -->
+    <!-- semantic class: `Classes="Secondary ToolbarButton"`.                -->
+    <!-- ═══════════════════════════════════════════════════════════════════ -->
+
+    <Style Selector="Button.ToolbarButton">
+        <Setter Property="MinHeight" Value="40" />
+        <Setter Property="Padding" Value="14,10" />
+        <Setter Property="FontSize" Value="13" />
+        <Setter Property="FontWeight" Value="SemiBold" />
+    </Style>
+
+    <!-- ═══════════════════════════════════════════════════════════════════ -->
+    <!-- SUBTLE CARD: a quieter surface for secondary toolbars / filter      -->
+    <!-- strips so they don't compete visually with the primary card above.  -->
+    <!-- Same corner + border treatment as Card, no shadow, slightly lower   -->
+    <!-- contrast border so it reads as "context for the row above."         -->
+    <!-- ═══════════════════════════════════════════════════════════════════ -->
+
+    <Style Selector="Border.SubtleCard">
+        <Setter Property="Background" Value="{StaticResource SurfaceBrush}" />
+        <Setter Property="BorderBrush" Value="{StaticResource BorderSubtleBrush}" />
+        <Setter Property="BorderThickness" Value="1" />
+        <Setter Property="CornerRadius" Value="12" />
+        <Setter Property="Padding" Value="16" />
+    </Style>
+
+    <!-- ═══════════════════════════════════════════════════════════════════ -->
     <!-- INPUT STYLES                                                         -->
     <!-- ═══════════════════════════════════════════════════════════════════ -->
+
+    <!-- Date pickers: match the themed input treatment (surface fill, themed
+         border, 8px radius, 40px height) so they sit on the same baseline as
+         the search box and combo boxes in toolbar rows instead of rendering
+         with the default Fluent chrome. -->
+    <Style Selector="CalendarDatePicker">
+        <Setter Property="Background" Value="{StaticResource SurfaceBrush}" />
+        <Setter Property="Foreground" Value="{StaticResource PrimaryTextBrush}" />
+        <Setter Property="BorderBrush" Value="{StaticResource BorderBrush}" />
+        <Setter Property="BorderThickness" Value="1" />
+        <Setter Property="CornerRadius" Value="8" />
+        <Setter Property="MinHeight" Value="40" />
+        <Setter Property="VerticalContentAlignment" Value="Center" />
+    </Style>
 
     <Style Selector="TextBox">
         <Setter Property="Background" Value="{StaticResource SurfaceBrush}" />

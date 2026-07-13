@@ -33,10 +33,17 @@ public static class ChartColors
     public static SKColor CpuAccentColor => new(96, 165, 250);     // #60A5FA - CPU accent
     public static SKColor CpuDimColor => new(37, 99, 235);         // #2563EB - CPU dim
 
-    // Memory: Amethyst Purple
-    public static SKColor MemoryColor => new(168, 85, 247);        // #A855F7 - Primary Memory
-    public static SKColor MemoryAccentColor => new(192, 132, 252); // #C084FC - Memory accent
-    public static SKColor MemoryDimColor => new(147, 51, 234);     // #9333EA - Memory dim
+    // Memory: Magenta Pink (colorblind-safe — distinct from CPU blue, which a
+    // red-green deficiency would otherwise collapse a violet toward). Warmth +
+    // lightness keep it separable from the blues under deuteranopia/protanopia.
+    public static SKColor MemoryColor => new(236, 72, 153);        // #EC4899 - Primary Memory
+    public static SKColor MemoryAccentColor => new(244, 114, 182); // #F472B6 - Memory accent
+    public static SKColor MemoryDimColor => new(219, 39, 119);     // #DB2777 - Memory dim
+
+    // Disk: Amber Gold
+    public static SKColor DiskColor => new(245, 158, 11);          // #F59E0B - Primary Disk / activity
+    public static SKColor DiskReadColor => new(245, 158, 11);      // #F59E0B - Disk read throughput
+    public static SKColor DiskWriteColor => new(180, 83, 9);       // #B45309 - Disk write throughput
 
     // ═══════════════════════════════════════════════════════════════════════
     // CHART AXIS & GRID COLORS
@@ -67,17 +74,19 @@ public static class ChartColors
 
     /// <summary>
     /// A palette of colors for multi-series charts (e.g., per-app usage).
-    /// Designed to be distinguishable on dark backgrounds.
+    /// Uses the Okabe-Ito colorblind-safe categorical palette (with black
+    /// swapped for a light grey so it reads on the dark theme), so series stay
+    /// distinguishable under deuteranopia, protanopia, and tritanopia.
     /// </summary>
     public static readonly SKColor[] SeriesPalette =
     [
-        new(0, 229, 255),    // Electric Cyan
-        new(255, 107, 53),   // Coral Orange
-        new(138, 201, 38),   // Lime Green
-        new(255, 182, 39),   // Amber
-        new(157, 78, 221),   // Purple
-        new(255, 99, 132),   // Pink
-        new(54, 162, 235),   // Blue
-        new(75, 192, 192),   // Teal
+        new(86, 180, 233),   // #56B4E9 Sky Blue
+        new(230, 159, 0),    // #E69F00 Orange
+        new(0, 158, 115),    // #009E73 Bluish Green
+        new(204, 121, 167),  // #CC79A7 Reddish Purple
+        new(240, 228, 66),   // #F0E442 Yellow
+        new(0, 114, 178),    // #0072B2 Blue
+        new(213, 94, 0),     // #D55E00 Vermilion
+        new(191, 191, 191),  // #BFBFBF Light Grey
     ];
 }

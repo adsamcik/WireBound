@@ -82,6 +82,54 @@ public class ConverterTests
     }
 
     // ═══════════════════════════════════════════════════════════════════════
+    // TrayIconModeConverter
+    // ═══════════════════════════════════════════════════════════════════════
+
+    [Test]
+    [Arguments(TrayIconMode.AppIcon, "Application Icon")]
+    [Arguments(TrayIconMode.Traffic, "Network Traffic")]
+    [Arguments(TrayIconMode.Cpu, "CPU Usage")]
+    [Arguments(TrayIconMode.Ram, "RAM Usage")]
+    public void TrayIconModeConverter_Convert_ReturnsFriendlyLabel(TrayIconMode mode, string expected)
+    {
+        var converter = new TrayIconModeConverter();
+
+        var result = converter.Convert(mode, typeof(string), null, CultureInfo.InvariantCulture);
+
+        result.Should().Be(expected);
+    }
+
+    [Test]
+    public void TrayIconModeConverter_Convert_Null_ReturnsNull()
+    {
+        var converter = new TrayIconModeConverter();
+
+        var result = converter.Convert(null, typeof(string), null, CultureInfo.InvariantCulture);
+
+        result.Should().BeNull();
+    }
+
+    [Test]
+    public void TrayIconModeConverter_Convert_NonEnumValue_ReturnsToString()
+    {
+        var converter = new TrayIconModeConverter();
+
+        var result = converter.Convert("SomeString", typeof(string), null, CultureInfo.InvariantCulture);
+
+        result.Should().Be("SomeString");
+    }
+
+    [Test]
+    public void TrayIconModeConverter_ConvertBack_ReturnsDoNothing()
+    {
+        var converter = new TrayIconModeConverter();
+
+        var result = converter.ConvertBack("CPU Usage", typeof(TrayIconMode), null, CultureInfo.InvariantCulture);
+
+        result.Should().Be(global::Avalonia.Data.BindingOperations.DoNothing);
+    }
+
+    // ═══════════════════════════════════════════════════════════════════════
     // SelectedRowBackgroundConverter
     // ═══════════════════════════════════════════════════════════════════════
 

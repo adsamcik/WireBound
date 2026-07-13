@@ -37,6 +37,7 @@ public sealed class ResourceInsightsService : IResourceInsightsService
     // ResourceInsightSnapshots. Window is 60s by default but the accessor lets
     // callers request a shorter window if they want a more reactive read.
     private readonly ConcurrentDictionary<string, TimeWindowedAverage> _liveCpuWindows = new();
+    private readonly ConcurrentDictionary<string, TimeWindowedAverage> _liveRamWindows = new();
     private static readonly TimeSpan LiveCpuMaxWindow = TimeSpan.FromMinutes(2);
 
     // Previous snapshot for CPU% delta calculation
@@ -113,10 +114,14 @@ public sealed class ResourceInsightsService : IResourceInsightsService
         foreach (var entry in smoothed)
         {
             if (string.IsNullOrEmpty(entry.AppIdentifier)) continue;
-            var window = _liveCpuWindows.GetOrAdd(
+            var cpuWindow = _liveCpuWindows.GetOrAdd(
                 entry.AppIdentifier,
                 _ => new TimeWindowedAverage(LiveCpuMaxWindow));
-            window.Add(entry.CpuPercent, now);
+            cpuWindow.Add(entry.CpuPercent, now);
+            var ramWindow = _liveRamWindows.GetOrAdd(
+                entry.AppIdentifier,
+                _ => new TimeWindowedAverage(LiveCpuMaxWindow));
+            ramWindow.Add(entry.PrivateBytes, now);
         }
 
         return smoothed
@@ -142,6 +147,32 @@ public sealed class ResourceInsightsService : IResourceInsightsService
         var now = _timeProvider.GetLocalNow().DateTime;
         var result = new Dictionary<string, double>(_liveCpuWindows.Count);
         foreach (var (appId, buffer) in _liveCpuWindows)
+        {
+            var avg = buffer.GetAverage(window, now);
+            if (!double.IsNaN(avg))
+            {
+                result[appId] = avg;
+            }
+        }
+        return result;
+    }
+
+    /// <summary>
+    /// Same shape as <see cref="GetRollingCpuByApp"/> but for private-bytes
+    /// RAM. Values are bytes, not percentages. Use the same retention/window
+    /// semantics — apps without recent samples are omitted; callers should
+    /// fall back to <see cref="AppOverview.AvgPrivateBytes"/> for missing keys.
+    /// </summary>
+    public IReadOnlyDictionary<string, double> GetRollingRamByApp(TimeSpan window)
+    {
+        if (window <= TimeSpan.Zero)
+        {
+            throw new ArgumentOutOfRangeException(nameof(window), "Window must be positive.");
+        }
+
+        var now = _timeProvider.GetLocalNow().DateTime;
+        var result = new Dictionary<string, double>(_liveRamWindows.Count);
+        foreach (var (appId, buffer) in _liveRamWindows)
         {
             var avg = buffer.GetAverage(window, now);
             if (!double.IsNaN(avg))

@@ -17,6 +17,12 @@ public class DailySystemStats
     public double MaxMemoryPercent { get; set; }
     public long PeakMemoryUsedBytes { get; set; }
 
+    // Disk metrics
+    public double AvgDiskActivityPercent { get; set; }
+    public double MaxDiskActivityPercent { get; set; }
+    public long PeakDiskReadBytesPerSec { get; set; }
+    public long PeakDiskWriteBytesPerSec { get; set; }
+
     // GPU metrics (optional)
     public double? AvgGpuPercent { get; set; }
     public double? MaxGpuPercent { get; set; }

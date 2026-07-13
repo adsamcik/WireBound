@@ -22,4 +22,7 @@ public sealed class StubProcessNetworkProviderFactory : IProcessNetworkProviderF
 
     /// <inheritdoc />
     public IProcessNetworkProvider GetProvider() => _provider;
+
+    /// <inheritdoc />
+    public IProcessNetworkProvider GetBasicProvider() => _provider;
 }

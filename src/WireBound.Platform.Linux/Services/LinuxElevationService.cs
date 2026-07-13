@@ -84,7 +84,65 @@ public sealed class LinuxElevationService : IElevationService, IAsyncDisposable
     public event EventHandler<HelperConnectionStateChangedEventArgs>? HelperConnectionStateChanged;
 
     /// <inheritdoc />
+    /// <inheritdoc />
     public async Task<ElevationResult> StartHelperAsync(CancellationToken cancellationToken = default)
+    {
+        return await StartHelperInternalAsync(allowInteractive: true, cancellationToken);
+    }
+
+    /// <inheritdoc />
+    public async Task<ElevationResult> TryConnectExistingAsync(int timeoutMs = 2500, CancellationToken cancellationToken = default)
+    {
+        if (_disposed)
+            return ElevationResult.Failed("Service has been disposed");
+
+        using var timeoutCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+        timeoutCts.CancelAfter(timeoutMs);
+
+        await _connectionLock.WaitAsync(timeoutCts.Token);
+        try
+        {
+            if (IsHelperConnected)
+                return ElevationResult.Success();
+
+            if (!File.Exists(WireBound.IPC.IpcConstants.LinuxSocketPath))
+            {
+                _logger?.LogDebug("Helper socket does not exist; skipping connect attempt");
+                return ElevationResult.Failed("Helper is not running");
+            }
+
+            try
+            {
+                var connection = new LinuxHelperConnection();
+                var connected = await connection.ConnectAsync(timeoutCts.Token);
+                if (connected)
+                {
+                    connection.ConnectionLost += OnConnectionLost;
+                    _helperConnection = connection;
+                    _logger?.LogInformation("Connected to existing helper process (no pkexec prompt)");
+                    OnHelperConnectionStateChanged(true, "Connected to existing helper");
+                    return ElevationResult.Success();
+                }
+                await connection.DisposeAsync();
+                return ElevationResult.Failed("Helper rejected authentication");
+            }
+            catch (OperationCanceledException) when (timeoutCts.IsCancellationRequested)
+            {
+                return ElevationResult.Failed($"Connect timed out after {timeoutMs}ms");
+            }
+            catch (Exception ex)
+            {
+                _logger?.LogDebug(ex, "Could not connect to existing helper");
+                return ElevationResult.Failed($"Connect failed: {ex.Message}");
+            }
+        }
+        finally
+        {
+            _connectionLock.Release();
+        }
+    }
+
+    private async Task<ElevationResult> StartHelperInternalAsync(bool allowInteractive, CancellationToken cancellationToken)
     {
         if (_disposed)
         {
@@ -120,7 +178,7 @@ public sealed class LinuxElevationService : IElevationService, IAsyncDisposable
                     return ElevationResult.Failed($"Helper validation failed: {validationResult.ErrorMessage}");
                 }
 
-                var startResult = await _helperManager.StartAsync(cancellationToken);
+                var startResult = await _helperManager.StartAsync(allowInteractive, cancellationToken);
                 if (!startResult.IsSuccess)
                 {
                     _logger?.LogWarning("Failed to start helper: {Status} - {Error}",

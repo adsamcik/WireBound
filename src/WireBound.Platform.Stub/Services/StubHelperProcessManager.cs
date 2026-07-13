@@ -15,8 +15,14 @@ public sealed class StubHelperProcessManager : IHelperProcessManager
     public event EventHandler<HelperExitedEventArgs>? HelperExited;
 #pragma warning restore CS0067
 
-    public Task<HelperStartResult> StartAsync(CancellationToken cancellationToken = default) =>
+    public Task<HelperStartResult> StartAsync(bool allowInteractive = true, CancellationToken cancellationToken = default) =>
         Task.FromResult(HelperStartResult.Failed("Not supported on this platform"));
+
+    public Task<HelperValidationResult> ValidateRegistrationAsync() =>
+        Task.FromResult(HelperValidationResult.Valid()); // nothing to tamper
+
+    public Task<bool> EnsureRegisteredAsync() =>
+        Task.FromResult(false);
 
     public Task StopAsync(TimeSpan? timeout = null) =>
         Task.CompletedTask;

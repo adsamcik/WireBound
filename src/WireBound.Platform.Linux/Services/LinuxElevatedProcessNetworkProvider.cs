@@ -108,7 +108,9 @@ public sealed class LinuxElevatedProcessNetworkProvider : IProcessNetworkProvide
                     ProcessId = p.ProcessId,
                     ProcessName = p.ProcessName,
                     SessionBytesSent = p.TotalBytesSent,
-                    SessionBytesReceived = p.TotalBytesReceived
+                    SessionBytesReceived = p.TotalBytesReceived,
+                    LoopbackBytesSent = p.LoopbackBytesSent,
+                    LoopbackBytesReceived = p.LoopbackBytesReceived
                 })
                 .ToList();
         }

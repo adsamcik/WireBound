@@ -27,6 +27,14 @@ public interface IResourceInsightsService
     IReadOnlyDictionary<string, double> GetRollingCpuByApp(TimeSpan window);
 
     /// <summary>
+    /// Returns the rolling-average private-bytes RAM per app over the
+    /// requested window. Same semantics as <see cref="GetRollingCpuByApp"/>:
+    /// samples are fed by <see cref="GetCurrentByAppAsync"/>, missing keys
+    /// mean "no live samples in window" — fall back to historical averages.
+    /// </summary>
+    IReadOnlyDictionary<string, double> GetRollingRamByApp(TimeSpan window);
+
+    /// <summary>
     /// Group pre-fetched app data into category-level results without re-polling processes.
     /// </summary>
     IReadOnlyList<CategoryResourceUsage> GetCategoryBreakdown(

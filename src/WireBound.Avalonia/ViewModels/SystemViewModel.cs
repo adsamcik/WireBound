@@ -22,7 +22,6 @@ public enum SystemTab
 {
     LiveMetrics = 0,
     SystemTrends = 1,
-    Correlations = 2,
 }
 
 /// <summary>
@@ -35,7 +34,6 @@ public sealed partial class SystemViewModel : ObservableObject, IDisposable
     private readonly INavigationService _navigationService;
     private readonly ISystemSnapshotRepository _systemSnapshotRepository;
     private readonly ISystemHistoryService? _systemHistory;
-    private readonly IDataPersistenceService? _persistence;
     private readonly ILogger<SystemViewModel>? _logger;
     private CancellationTokenSource? _historicalLoadCts;
     private bool _disposed;
@@ -43,7 +41,7 @@ public sealed partial class SystemViewModel : ObservableObject, IDisposable
     private const int MaxHistoryPoints = 60; // 1 minute of data at 1 point/second
 
     // Buffer for system stats (keeps data even when view is not active)
-    private readonly CircularBuffer<(DateTime Timestamp, double CpuPercent, double MemoryPercent)> _statsBuffer = new(3600);
+    private readonly CircularBuffer<(DateTime Timestamp, double CpuPercent, double MemoryPercent, long DiskReadBps, long DiskWriteBps, double DiskActivityPercent)> _statsBuffer = new(3600);
 
     // Latest-wins coalescing: only one UI post in-flight at a time
     private SystemStats? _pendingSystemStats;
@@ -55,6 +53,9 @@ public sealed partial class SystemViewModel : ObservableObject, IDisposable
     private long _lastMemUsed = -1;
     private long _lastMemTotal = -1;
     private long _lastMemAvailable = -1;
+    private double _lastDiskActivityPercent = -1;
+    private long _lastDiskRead = -1;
+    private long _lastDiskWrite = -1;
 
     // Tab Navigation
     [ObservableProperty]
@@ -73,9 +74,6 @@ public sealed partial class SystemViewModel : ObservableObject, IDisposable
 
     [RelayCommand]
     private void SelectSystemTrendsTab() => SelectedSystemTab = SystemTab.SystemTrends;
-
-    [RelayCommand]
-    private void SelectCorrelationsTab() => SelectedSystemTab = SystemTab.Correlations;
 
     // Period Selection for historical system analysis
     [ObservableProperty]
@@ -159,6 +157,22 @@ public sealed partial class SystemViewModel : ObservableObject, IDisposable
     [ObservableProperty]
     private string _memoryAvailable = "0 B";
 
+    // Disk Properties
+    [ObservableProperty]
+    private double _diskActivityPercent;
+
+    [ObservableProperty]
+    private string _diskActivityFormatted = "0%";
+
+    [ObservableProperty]
+    private string _diskRead = "0 B/s";
+
+    [ObservableProperty]
+    private string _diskWrite = "0 B/s";
+
+    [ObservableProperty]
+    private bool _isDiskActivityAvailable;
+
     // Chart data
     [ObservableProperty]
     private BatchObservableCollection<DateTimePoint> _cpuHistoryPoints = new();
@@ -166,8 +180,15 @@ public sealed partial class SystemViewModel : ObservableObject, IDisposable
     [ObservableProperty]
     private BatchObservableCollection<DateTimePoint> _memoryHistoryPoints = new();
 
+    [ObservableProperty]
+    private BatchObservableCollection<DateTimePoint> _diskReadHistoryPoints = new();
+
+    [ObservableProperty]
+    private BatchObservableCollection<DateTimePoint> _diskWriteHistoryPoints = new();
+
     public ISeries[] CpuSeries { get; }
     public ISeries[] MemorySeries { get; }
+    public ISeries[] DiskSeries { get; }
 
     /// <summary>
     /// X-axis configuration for CPU chart
@@ -189,6 +210,16 @@ public sealed partial class SystemViewModel : ObservableObject, IDisposable
     /// </summary>
     public Axis[] MemoryYAxes { get; } = CreatePercentageYAxes("Memory %");
 
+    /// <summary>
+    /// X-axis configuration for Disk throughput chart
+    /// </summary>
+    public Axis[] DiskXAxes { get; } = CreateTimeAxes();
+
+    /// <summary>
+    /// Y-axis configuration for Disk throughput chart (byte/s, auto-scaled)
+    /// </summary>
+    public Axis[] DiskYAxes { get; } = CreateBytesYAxes("Disk B/s");
+
     // Historical System Trends
     [ObservableProperty]
     private double _avgCpuPercent;
@@ -203,10 +234,19 @@ public sealed partial class SystemViewModel : ObservableObject, IDisposable
     private double _maxMemoryPercent;
 
     [ObservableProperty]
+    private double _avgDiskActivityPercent;
+
+    [ObservableProperty]
+    private double _maxDiskActivityPercent;
+
+    [ObservableProperty]
     private string _cpuTrendStatus = "Normal";
 
     [ObservableProperty]
     private string _memoryTrendStatus = "Normal";
+
+    [ObservableProperty]
+    private string _diskTrendStatus = "Normal";
 
     [ObservableProperty]
     private ISeries[] _systemTrendChart = [];
@@ -217,28 +257,21 @@ public sealed partial class SystemViewModel : ObservableObject, IDisposable
     [ObservableProperty]
     private Axis[] _systemTrendYAxes = CreateHistoricalPercentageYAxes();
 
-    // Correlations
-    [ObservableProperty]
-    private double _networkCpuCorrelation;
-
-    [ObservableProperty]
-    private double _networkMemoryCorrelation;
-
-    [ObservableProperty]
-    private double _cpuMemoryCorrelation;
-
-    [ObservableProperty]
-    private ObservableCollection<string> _correlationInsights = [];
-
-    [ObservableProperty]
-    private ISeries[] _correlationChart = [];
-
     // Historical state
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(ShowLoadingOverlay))]
     private bool _isLoading;
 
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(ShowLoadingOverlay))]
     private bool _hasData;
+
+    /// <summary>
+    /// Show the full-screen loading overlay only on the first load, when there is no
+    /// data yet. Reloads triggered by a period/tab change keep the existing data
+    /// visible and update in place, so the screen doesn't blink.
+    /// </summary>
+    public bool ShowLoadingOverlay => IsLoading && !HasData;
 
     [ObservableProperty]
     private bool _hasError;
@@ -252,15 +285,13 @@ public sealed partial class SystemViewModel : ObservableObject, IDisposable
         INavigationService navigationService,
         ISystemSnapshotRepository systemSnapshotRepository,
         ILogger<SystemViewModel>? logger = null,
-        ISystemHistoryService? systemHistory = null,
-        IDataPersistenceService? persistence = null)
+        ISystemHistoryService? systemHistory = null)
     {
         _dispatcher = dispatcher;
         _systemMonitorService = systemMonitorService;
         _navigationService = navigationService;
         _systemSnapshotRepository = systemSnapshotRepository;
         _systemHistory = systemHistory;
-        _persistence = persistence;
         _logger = logger;
         _isViewActive = navigationService.CurrentView == Routes.System;
 
@@ -272,10 +303,12 @@ public sealed partial class SystemViewModel : ObservableObject, IDisposable
         ProcessorName = _systemMonitorService.GetProcessorName();
         ProcessorCount = _systemMonitorService.GetProcessorCount();
         IsCpuTemperatureAvailable = _systemMonitorService.IsCpuTemperatureAvailable;
+        IsDiskActivityAvailable = _systemMonitorService.IsDiskActivityAvailable;
 
         // Initialize chart series
-        CpuSeries = CreateLineSeries(CpuHistoryPoints, SKColors.DodgerBlue, "CPU");
-        MemorySeries = CreateLineSeries(MemoryHistoryPoints, SKColors.MediumPurple, "Memory");
+        CpuSeries = CreateLineSeries(CpuHistoryPoints, ChartColors.CpuColor, "CPU");
+        MemorySeries = CreateLineSeries(MemoryHistoryPoints, ChartColors.MemoryColor, "Memory");
+        DiskSeries = CreateDiskSeries(DiskReadHistoryPoints, DiskWriteHistoryPoints);
 
         // Subscribe to stats updates
         _systemMonitorService.StatsUpdated += OnStatsUpdated;
@@ -288,7 +321,8 @@ public sealed partial class SystemViewModel : ObservableObject, IDisposable
         UpdateProperties(initialStats);
         if (initialStats != null)
         {
-            _statsBuffer.Add((initialStats.Timestamp, initialStats.Cpu.UsagePercent, initialStats.Memory.UsagePercent));
+            _statsBuffer.Add((initialStats.Timestamp, initialStats.Cpu.UsagePercent, initialStats.Memory.UsagePercent,
+                initialStats.Disk.ReadBytesPerSecond, initialStats.Disk.WriteBytesPerSecond, initialStats.Disk.ActivityPercent));
         }
 
         // Load historical data from database
@@ -329,7 +363,8 @@ public sealed partial class SystemViewModel : ObservableObject, IDisposable
             // Populate the in-memory buffer with historical data
             foreach (var snapshot in history)
             {
-                _statsBuffer.Add((snapshot.Timestamp, snapshot.CpuPercent, snapshot.MemoryPercent));
+                _statsBuffer.Add((snapshot.Timestamp, snapshot.CpuPercent, snapshot.MemoryPercent,
+                    snapshot.DiskReadBytesPerSec, snapshot.DiskWriteBytesPerSec, snapshot.DiskActivityPercent));
             }
 
             // Render chart from buffer on UI thread
@@ -350,21 +385,28 @@ public sealed partial class SystemViewModel : ObservableObject, IDisposable
 
         var cpuPoints = new DateTimePoint[bufferData.Length - startIndex];
         var memPoints = new DateTimePoint[bufferData.Length - startIndex];
+        var diskReadPoints = new DateTimePoint[bufferData.Length - startIndex];
+        var diskWritePoints = new DateTimePoint[bufferData.Length - startIndex];
         for (var i = startIndex; i < bufferData.Length; i++)
         {
             var idx = i - startIndex;
             cpuPoints[idx] = new DateTimePoint(bufferData[i].Timestamp, bufferData[i].CpuPercent);
             memPoints[idx] = new DateTimePoint(bufferData[i].Timestamp, bufferData[i].MemoryPercent);
+            diskReadPoints[idx] = new DateTimePoint(bufferData[i].Timestamp, bufferData[i].DiskReadBps);
+            diskWritePoints[idx] = new DateTimePoint(bufferData[i].Timestamp, bufferData[i].DiskWriteBps);
         }
 
         CpuHistoryPoints.ReplaceAll(cpuPoints);
         MemoryHistoryPoints.ReplaceAll(memPoints);
+        DiskReadHistoryPoints.ReplaceAll(diskReadPoints);
+        DiskWriteHistoryPoints.ReplaceAll(diskWritePoints);
     }
 
     private void OnStatsUpdated(object? sender, SystemStats e)
     {
         // Always buffer data regardless of view visibility
-        _statsBuffer.Add((e.Timestamp, e.Cpu.UsagePercent, e.Memory.UsagePercent));
+        _statsBuffer.Add((e.Timestamp, e.Cpu.UsagePercent, e.Memory.UsagePercent,
+            e.Disk.ReadBytesPerSecond, e.Disk.WriteBytesPerSecond, e.Disk.ActivityPercent));
 
         // Skip UI updates when not visible
         if (!_isViewActive) return;
@@ -429,10 +471,30 @@ public sealed partial class SystemViewModel : ObservableObject, IDisposable
             MemoryAvailable = ByteFormatter.FormatBytes(stats.Memory.AvailableBytes);
         }
 
+        // Update Disk properties (cache string formatting)
+        DiskActivityPercent = stats.Disk.ActivityPercent;
+        if (Math.Abs(_lastDiskActivityPercent - stats.Disk.ActivityPercent) >= 0.05)
+        {
+            _lastDiskActivityPercent = stats.Disk.ActivityPercent;
+            DiskActivityFormatted = $"{stats.Disk.ActivityPercent:F1}%";
+        }
+        if (_lastDiskRead != stats.Disk.ReadBytesPerSecond)
+        {
+            _lastDiskRead = stats.Disk.ReadBytesPerSecond;
+            DiskRead = ByteFormatter.FormatSpeedInBytes(stats.Disk.ReadBytesPerSecond);
+        }
+        if (_lastDiskWrite != stats.Disk.WriteBytesPerSecond)
+        {
+            _lastDiskWrite = stats.Disk.WriteBytesPerSecond;
+            DiskWrite = ByteFormatter.FormatSpeedInBytes(stats.Disk.WriteBytesPerSecond);
+        }
+
         // Update chart history
         var timestamp = stats.Timestamp;
         AddHistoryPoint(CpuHistoryPoints, timestamp, stats.Cpu.UsagePercent);
         AddHistoryPoint(MemoryHistoryPoints, timestamp, stats.Memory.UsagePercent);
+        AddHistoryPoint(DiskReadHistoryPoints, timestamp, stats.Disk.ReadBytesPerSecond);
+        AddHistoryPoint(DiskWriteHistoryPoints, timestamp, stats.Disk.WriteBytesPerSecond);
     }
 
     private void AddHistoryPoint(BatchObservableCollection<DateTimePoint> points, DateTime timestamp, double value)
@@ -456,6 +518,41 @@ public sealed partial class SystemViewModel : ObservableObject, IDisposable
                 Values = points,
                 Fill = new SolidColorPaint(color.WithAlpha(50)),
                 Stroke = new SolidColorPaint(color, 2),
+                GeometryFill = null,
+                GeometryStroke = null,
+                GeometrySize = 0,
+                LineSmoothness = 0.5,
+                AnimationsSpeed = TimeSpan.Zero,
+                EnableNullSplitting = false
+            }
+        ];
+    }
+
+    private static ISeries[] CreateDiskSeries(
+        ObservableCollection<DateTimePoint> readPoints,
+        ObservableCollection<DateTimePoint> writePoints)
+    {
+        return
+        [
+            new LineSeries<DateTimePoint>
+            {
+                Name = "Read",
+                Values = readPoints,
+                Fill = new SolidColorPaint(ChartColors.DiskReadColor.WithAlpha(40)),
+                Stroke = new SolidColorPaint(ChartColors.DiskReadColor, 2),
+                GeometryFill = null,
+                GeometryStroke = null,
+                GeometrySize = 0,
+                LineSmoothness = 0.5,
+                AnimationsSpeed = TimeSpan.Zero,
+                EnableNullSplitting = false
+            },
+            new LineSeries<DateTimePoint>
+            {
+                Name = "Write",
+                Values = writePoints,
+                Fill = new SolidColorPaint(ChartColors.DiskWriteColor.WithAlpha(40)),
+                Stroke = new SolidColorPaint(ChartColors.DiskWriteColor, 2),
                 GeometryFill = null,
                 GeometryStroke = null,
                 GeometrySize = 0,
@@ -499,6 +596,23 @@ public sealed partial class SystemViewModel : ObservableObject, IDisposable
         ];
     }
 
+    private static Axis[] CreateBytesYAxes(string name)
+    {
+        return
+        [
+            new Axis
+            {
+                Name = name,
+                NamePaint = new SolidColorPaint(ChartColors.AxisNameColor),
+                MinLimit = 0,
+                LabelsPaint = new SolidColorPaint(ChartColors.AxisLabelColor),
+                TextSize = 11,
+                Labeler = value => ByteFormatter.FormatSpeedInBytes((long)Math.Max(0, value)),
+                SeparatorsPaint = new SolidColorPaint(ChartColors.GridLineColor)
+            }
+        ];
+    }
+
     private async Task LoadDataForSystemTabAsync(SystemTab tab)
     {
         _historicalLoadCts?.Cancel();
@@ -526,9 +640,6 @@ public sealed partial class SystemViewModel : ObservableObject, IDisposable
             {
                 case SystemTab.SystemTrends:
                     await LoadSystemTrendsDataAsync(startDate, endDate, token).ConfigureAwait(false);
-                    break;
-                case SystemTab.Correlations:
-                    await LoadCorrelationsDataAsync(startDate, endDate, token).ConfigureAwait(false);
                     break;
             }
         }
@@ -572,6 +683,7 @@ public sealed partial class SystemViewModel : ObservableObject, IDisposable
                 SystemTrendChart = [];
                 CpuTrendStatus = "Unavailable";
                 MemoryTrendStatus = "Unavailable";
+                DiskTrendStatus = "Unavailable";
             }).ConfigureAwait(false);
             return;
         }
@@ -591,8 +703,11 @@ public sealed partial class SystemViewModel : ObservableObject, IDisposable
                 MaxCpuPercent = 0;
                 AvgMemoryPercent = 0;
                 MaxMemoryPercent = 0;
+                AvgDiskActivityPercent = 0;
+                MaxDiskActivityPercent = 0;
                 CpuTrendStatus = "No Data";
                 MemoryTrendStatus = "No Data";
+                DiskTrendStatus = "No Data";
                 SystemTrendChart = [];
             }).ConfigureAwait(false);
             return;
@@ -602,8 +717,11 @@ public sealed partial class SystemViewModel : ObservableObject, IDisposable
         var maxCpu = stats.Max(s => s.MaxCpuPercent);
         var avgMemory = stats.Average(s => s.AvgMemoryPercent);
         var maxMemory = stats.Max(s => s.MaxMemoryPercent);
+        var avgDisk = stats.Average(s => s.AvgDiskActivityPercent);
+        var maxDisk = stats.Max(s => s.MaxDiskActivityPercent);
         var cpuTrendStatus = GetTrendStatus(maxCpu, avgCpu);
         var memoryTrendStatus = GetTrendStatus(maxMemory, avgMemory);
+        var diskTrendStatus = GetTrendStatus(maxDisk, avgDisk);
         var chart = CreateSystemTrendSeries(stats);
 
         await UpdateHistoricalUiAsync(() =>
@@ -612,102 +730,12 @@ public sealed partial class SystemViewModel : ObservableObject, IDisposable
             MaxCpuPercent = maxCpu;
             AvgMemoryPercent = avgMemory;
             MaxMemoryPercent = maxMemory;
+            AvgDiskActivityPercent = avgDisk;
+            MaxDiskActivityPercent = maxDisk;
             CpuTrendStatus = cpuTrendStatus;
             MemoryTrendStatus = memoryTrendStatus;
+            DiskTrendStatus = diskTrendStatus;
             SystemTrendChart = chart;
-            HasData = true;
-        }).ConfigureAwait(false);
-    }
-
-    private async Task LoadCorrelationsDataAsync(DateOnly startDate, DateOnly endDate, CancellationToken token)
-    {
-        if (_systemHistory is null || _persistence is null)
-        {
-            await UpdateHistoricalUiAsync(() =>
-            {
-                HasData = false;
-                CorrelationInsights = ["Correlation data unavailable: required services are not configured."];
-                CorrelationChart = [];
-            }).ConfigureAwait(false);
-            return;
-        }
-
-        var start = startDate.ToDateTime(TimeOnly.MinValue);
-        var end = endDate.ToDateTime(TimeOnly.MaxValue);
-
-        token.ThrowIfCancellationRequested();
-        var systemStats = await _systemHistory.GetHourlyStatsAsync(start, end).ConfigureAwait(false);
-        token.ThrowIfCancellationRequested();
-
-        var networkData = new List<HourlyUsage>();
-        for (var date = startDate; date <= endDate; date = date.AddDays(1))
-        {
-            token.ThrowIfCancellationRequested();
-            var usage = await _persistence.GetHourlyUsageAsync(date).ConfigureAwait(false);
-            networkData.AddRange(usage);
-        }
-
-        if (systemStats.Count == 0 || networkData.Count == 0)
-        {
-            await UpdateHistoricalUiAsync(() =>
-            {
-                HasData = false;
-                NetworkCpuCorrelation = 0;
-                NetworkMemoryCorrelation = 0;
-                CpuMemoryCorrelation = 0;
-                CorrelationInsights = ["Insufficient data for correlation analysis."];
-                CorrelationChart = [];
-            }).ConfigureAwait(false);
-            return;
-        }
-
-        var networkByHour = networkData
-            .GroupBy(u => u.Hour)
-            .ToDictionary(g => g.Key, g => g.Sum(u => u.BytesReceived + u.BytesSent));
-
-        var alignedData = systemStats
-            .Where(s => networkByHour.ContainsKey(s.Hour))
-            .Select(s => new
-            {
-                NetworkBytes = (double)networkByHour[s.Hour],
-                Cpu = s.AvgCpuPercent,
-                Memory = s.AvgMemoryPercent
-            })
-            .ToList();
-
-        if (alignedData.Count < 3)
-        {
-            await UpdateHistoricalUiAsync(() =>
-            {
-                HasData = false;
-                NetworkCpuCorrelation = 0;
-                NetworkMemoryCorrelation = 0;
-                CpuMemoryCorrelation = 0;
-                CorrelationInsights = ["Need at least 3 hours of overlapping data for correlation analysis."];
-                CorrelationChart = [];
-            }).ConfigureAwait(false);
-            return;
-        }
-
-        var networkCpuCorrelation = CalculateCorrelation(
-            alignedData.Select(d => d.NetworkBytes).ToList(),
-            alignedData.Select(d => d.Cpu).ToList());
-        var networkMemoryCorrelation = CalculateCorrelation(
-            alignedData.Select(d => d.NetworkBytes).ToList(),
-            alignedData.Select(d => d.Memory).ToList());
-        var cpuMemoryCorrelation = CalculateCorrelation(
-            alignedData.Select(d => d.Cpu).ToList(),
-            alignedData.Select(d => d.Memory).ToList());
-        var insights = GenerateCorrelationInsights(networkCpuCorrelation, networkMemoryCorrelation, cpuMemoryCorrelation);
-        var chart = BuildCorrelationChart(networkCpuCorrelation, networkMemoryCorrelation, cpuMemoryCorrelation);
-
-        await UpdateHistoricalUiAsync(() =>
-        {
-            NetworkCpuCorrelation = networkCpuCorrelation;
-            NetworkMemoryCorrelation = networkMemoryCorrelation;
-            CpuMemoryCorrelation = cpuMemoryCorrelation;
-            CorrelationInsights = [.. insights];
-            CorrelationChart = chart;
             HasData = true;
         }).ConfigureAwait(false);
     }
@@ -748,77 +776,17 @@ public sealed partial class SystemViewModel : ObservableObject, IDisposable
                 GeometryFill = new SolidColorPaint(ChartColors.MemoryColor),
                 GeometryStroke = null,
                 LineSmoothness = 0.35
-            }
-        ];
-    }
-
-    private static double CalculateCorrelation(List<double> x, List<double> y)
-    {
-        if (x.Count != y.Count || x.Count < 2) return 0;
-
-        var avgX = x.Average();
-        var avgY = y.Average();
-        double sumXY = 0;
-        double sumX2 = 0;
-        double sumY2 = 0;
-
-        for (var i = 0; i < x.Count; i++)
-        {
-            var dx = x[i] - avgX;
-            var dy = y[i] - avgY;
-            sumXY += dx * dy;
-            sumX2 += dx * dx;
-            sumY2 += dy * dy;
-        }
-
-        var denominator = Math.Sqrt(sumX2 * sumY2);
-        return denominator == 0 ? 0 : sumXY / denominator;
-    }
-
-    private static List<string> GenerateCorrelationInsights(double networkCpu, double networkMemory, double cpuMemory)
-    {
-        var insights = new List<string>();
-
-        if (Math.Abs(networkCpu) > 0.7)
-        {
-            insights.Add(networkCpu > 0
-                ? "Network activity strongly correlates with CPU usage. Network-intensive applications may impact system performance."
-                : "Network activity inversely correlates with CPU usage, suggesting efficient network offloading.");
-        }
-
-        if (Math.Abs(networkMemory) > 0.7)
-        {
-            insights.Add(networkMemory > 0
-                ? "Network activity strongly correlates with memory usage. Monitor applications with high network throughput."
-                : "Network activity inversely correlates with memory usage.");
-        }
-
-        if (Math.Abs(cpuMemory) > 0.8)
-        {
-            insights.Add(cpuMemory > 0
-                ? "CPU and memory usage are highly correlated. Resource-intensive workloads affect both metrics."
-                : "CPU and memory usage show inverse correlation.");
-        }
-
-        if (insights.Count == 0)
-        {
-            insights.Add("No strong correlations detected. System resource usage appears independent of network activity.");
-        }
-
-        return insights;
-    }
-
-    private static ISeries[] BuildCorrelationChart(double networkCpu, double networkMemory, double cpuMemory)
-    {
-        return
-        [
-            new ColumnSeries<double>
+            },
+            new LineSeries<DateTimePoint>
             {
-                Name = "Correlation Strength",
-                Values = [Math.Abs(networkCpu), Math.Abs(networkMemory), Math.Abs(cpuMemory)],
-                Fill = new SolidColorPaint(ChartColors.DownloadColor),
-                Stroke = null,
-                MaxBarWidth = 80
+                Name = "Disk %",
+                Values = stats.Select(s => new DateTimePoint(s.Hour, s.AvgDiskActivityPercent)).ToArray(),
+                Fill = new SolidColorPaint(ChartColors.DiskColor.WithAlpha(40)),
+                Stroke = new SolidColorPaint(ChartColors.DiskColor, 2),
+                GeometrySize = 4,
+                GeometryFill = new SolidColorPaint(ChartColors.DiskColor),
+                GeometryStroke = null,
+                LineSmoothness = 0.35
             }
         ];
     }

@@ -23,11 +23,18 @@ public sealed partial class AppsViewModel : ObservableObject, IDisposable
     private readonly IElevationService _elevationService;
     private readonly INavigationService _navigationService;
     private readonly IResourceInsightsService? _resourceInsights;
+    private readonly Services.AppGroupingService _groupingService;
     private readonly ILogger<AppsViewModel>? _logger;
     private readonly CancellationTokenSource _cts = new();
     private CancellationTokenSource? _searchDebounceCts;
     private CancellationTokenSource? _detailLoadCts;
     private IReadOnlyList<AppOverview> _loadedApps = [];
+    // Latest grouping outcome — kept so toggling expansion can rebuild the
+    // visible list without re-running the grouping pass.
+    private IReadOnlyList<Services.AppGroupingService.GroupResult> _groupedResults = [];
+    // GroupKey → IsExpanded. Persisted across reloads so the user's
+    // open/closed choices survive a refresh.
+    private readonly Dictionary<string, bool> _groupExpansionState = new(StringComparer.Ordinal);
     private bool _disposed;
     private bool _isUpdatingSelection;
     private bool _suppressRecompute;
@@ -56,10 +63,18 @@ public sealed partial class AppsViewModel : ObservableObject, IDisposable
     public event Action? ResetListScrollRequested;
 
     [ObservableProperty]
-    private DateTime? _startDate = DateTime.Now.Date;
+    private DateTime? _startDate = DateTime.Now.AddHours(-24);
 
     [ObservableProperty]
     private DateTime? _endDate = DateTime.Now;
+
+    /// <summary>
+    /// The QUICK RANGE preset key currently in effect (today / 24h / 7d / 30d),
+    /// or "" when the range was set manually. Drives the active-chip highlight.
+    /// Defaults to "24h" to match the initial <see cref="StartDate"/> range.
+    /// </summary>
+    [ObservableProperty]
+    private string _selectedDatePreset = "24h";
 
     [ObservableProperty]
     private BatchObservableCollection<AppOverview> _apps = new();
@@ -93,6 +108,17 @@ public sealed partial class AppsViewModel : ObservableObject, IDisposable
 
     [ObservableProperty]
     private string _topMemoryApp = "—";
+
+    /// <summary>
+    /// When false (default), per-app traffic figures, ranking and the summary
+    /// totals reflect NETWORK (non-loopback) bytes; loopback/localhost traffic
+    /// (e.g. adb, local dev servers) is surfaced separately. When true, loopback
+    /// is folded back into the headline totals.
+    /// </summary>
+    [ObservableProperty]
+    private bool _includeLocalTraffic;
+
+    partial void OnIncludeLocalTrafficChanged(bool value) => RecomputeView();
 
     /// <summary>
     /// Count of apps in the filtered + sorted view (drives the APPS COUNT card).
@@ -185,6 +211,33 @@ public sealed partial class AppsViewModel : ObservableObject, IDisposable
     [ObservableProperty]
     private BatchObservableCollection<TopDestinationDisplayEntry> _topDestinationDisplayItems = new();
 
+    // ── Column visibility ─────────────────────────────────────────────
+    // Per-column flags driving the Apps list. Bound to ColumnDefinition.Width
+    // via BoolToGridLengthConverter (column collapses to 0px when false) and
+    // to each header/cell's IsVisible (so empty stubs don't ghost-render).
+    // The three left-most columns (indent, icon, name) are always visible —
+    // no flag for them. Defaults: every optional column on.
+    [ObservableProperty]
+    private bool _showTotalColumn = true;
+
+    [ObservableProperty]
+    private bool _showDownloadColumn = true;
+
+    [ObservableProperty]
+    private bool _showUploadColumn = true;
+
+    [ObservableProperty]
+    private bool _showCpuColumn = true;
+
+    [ObservableProperty]
+    private bool _showRamColumn = true;
+
+    [ObservableProperty]
+    private bool _showHoursColumn = true;
+
+    [ObservableProperty]
+    private bool _showCategoryColumn = true;
+
     public bool ShowStatusBanner => !IsPlatformSupported || RequiresElevation || IsByteTrackingLimited;
     public string SelectedAppDisplayName => SelectedApp is null ? "—" : GetDisplayName(SelectedApp);
     public string SelectedAppExecutablePath => SelectedApp?.ExecutablePath ?? "";
@@ -227,19 +280,39 @@ public sealed partial class AppsViewModel : ObservableObject, IDisposable
     public string AvgPrivateBytesSortGlyph => GetSortGlyph(AppsSortColumn.AvgPrivateBytes);
     public string HoursActiveSortGlyph => GetSortGlyph(AppsSortColumn.HoursActive);
 
+    /// <summary>
+    /// The QUICK SORT preset key matching the current sort column + direction,
+    /// or "" when the sort doesn't map to a preset (e.g. an ascending header
+    /// sort). Derived from state so it stays correct after header-click sorts;
+    /// drives the active-chip highlight in the toolbar.
+    /// </summary>
+    public string ActiveSortPreset => (SortColumn, SortDescending) switch
+    {
+        (AppsSortColumn.TotalBytes, true) => "traffic",
+        (AppsSortColumn.BytesReceived, true) => "download",
+        (AppsSortColumn.BytesSent, true) => "upload",
+        (AppsSortColumn.AvgCpuPercent, true) => "cpu",
+        (AppsSortColumn.AvgPrivateBytes, true) => "ram",
+        (AppsSortColumn.LastSeen, true) => "recent",
+        (AppsSortColumn.Name, false) => "name",
+        _ => ""
+    };
+
     public AppsViewModel(
         IUiDispatcher dispatcher,
         IAppOverviewService appOverviewService,
         IElevationService elevationService,
         INavigationService navigationService,
         ILogger<AppsViewModel>? logger = null,
-        IResourceInsightsService? resourceInsights = null)
+        IResourceInsightsService? resourceInsights = null,
+        Services.AppGroupingService? groupingService = null)
     {
         _dispatcher = dispatcher;
         _appOverviewService = appOverviewService;
         _elevationService = elevationService;
         _navigationService = navigationService;
         _resourceInsights = resourceInsights;
+        _groupingService = groupingService ?? new Services.AppGroupingService();
         _logger = logger;
 
         IsPlatformSupported = _elevationService.IsElevationSupported
@@ -251,6 +324,13 @@ public sealed partial class AppsViewModel : ObservableObject, IDisposable
 
         _elevationService.HelperConnectionStateChanged += OnHelperConnectionStateChanged;
         _navigationService.NavigationChanged += OnNavigationChanged;
+
+        // Start the live CPU refresh timer up-front regardless of which tab the
+        // user is currently on. The cost is tiny (one timer tick every 2s
+        // reading a small dictionary) and it eliminates a class of bugs
+        // where the initial-route case never fires a NavigationChanged event
+        // and the CPU column stays at "—" forever.
+        StartLiveCpuRefresh();
 
         InitializationTask = InitializeAsync();
     }
@@ -292,24 +372,48 @@ public sealed partial class AppsViewModel : ObservableObject, IDisposable
     }
 
     /// <summary>
-    /// Pulls the rolling-60s CPU averages from <see cref="IResourceInsightsService"/>
-    /// and writes them into each visible <see cref="AppOverview.LiveCpuPercent"/>.
-    /// AppOverview is INotifyPropertyChanged so the bound CPU cells update
-    /// in place without a list rebuild.
+    /// Pulls the rolling-60s CPU and RAM averages from <see cref="IResourceInsightsService"/>
+    /// and writes them into each visible <see cref="AppOverview"/>'s live
+    /// fields. AppOverview is INotifyPropertyChanged so the bound CPU/RAM
+    /// cells update in place without a list rebuild.
+    ///
+    /// <para>
+    /// Group heads need special handling: their synthesized
+    /// <c>AppIdentifier</c> ("<c>group:&lt;dir&gt;|&lt;name&gt;</c>") is not
+    /// a key in the rolling dictionaries, so we aggregate from the underlying
+    /// members instead (CPU = sum, RAM = sum). This gives the user the live
+    /// total for the app family on the collapsed row — matching what the head's
+    /// other aggregated columns show.
+    /// </para>
     /// </summary>
     private void RefreshLiveCpuValues()
     {
         if (_resourceInsights is null) return;
 
-        IReadOnlyDictionary<string, double> rolling;
+        IReadOnlyDictionary<string, double> rollingCpu;
+        IReadOnlyDictionary<string, double> rollingRam;
         try
         {
-            rolling = _resourceInsights.GetRollingCpuByApp(LiveCpuRollingWindow);
+            rollingCpu = _resourceInsights.GetRollingCpuByApp(LiveCpuRollingWindow);
+            rollingRam = _resourceInsights.GetRollingRamByApp(LiveCpuRollingWindow);
         }
         catch (Exception ex)
         {
-            _logger?.LogDebug(ex, "Failed to read rolling CPU samples");
+            _logger?.LogDebug(ex, "Failed to read rolling resource samples");
             return;
+        }
+
+        // Build a one-time lookup from "group:<key>" (the head's AppIdentifier)
+        // to its member identifiers. The groupedResults snapshot is stable for
+        // this tick — RecomputeView always replaces it wholesale.
+        var groupedResults = _groupedResults;
+        var headToMemberIds = new Dictionary<string, IReadOnlyList<string>>(StringComparer.Ordinal);
+        foreach (var group in groupedResults)
+        {
+            if (group.IsGroup && group.Head.AppIdentifier is { Length: > 0 } headId)
+            {
+                headToMemberIds[headId] = group.Members.Select(m => m.AppIdentifier).ToList();
+            }
         }
 
         // Snapshot the collection on the calling thread to avoid touching it
@@ -320,9 +424,44 @@ public sealed partial class AppsViewModel : ObservableObject, IDisposable
         {
             foreach (var app in snapshot)
             {
-                app.LiveCpuPercent = rolling.TryGetValue(app.AppIdentifier, out var live)
-                    ? live
-                    : double.NaN;
+                double resolvedCpu;
+                double resolvedRam;
+                if (app.IsGroupHead && headToMemberIds.TryGetValue(app.AppIdentifier, out var memberIds))
+                {
+                    // Sum live CPU + RAM across all underlying members. If NONE
+                    // of the members has a sample yet, fall through to NaN so
+                    // "—" stays visible instead of "0.0%" / "0 B".
+                    double cpuSum = 0;
+                    double ramSum = 0;
+                    var anyCpu = false;
+                    var anyRam = false;
+                    foreach (var memberId in memberIds)
+                    {
+                        if (rollingCpu.TryGetValue(memberId, out var memberCpu))
+                        {
+                            cpuSum += memberCpu;
+                            anyCpu = true;
+                        }
+                        if (rollingRam.TryGetValue(memberId, out var memberRam))
+                        {
+                            ramSum += memberRam;
+                            anyRam = true;
+                        }
+                    }
+                    resolvedCpu = anyCpu ? cpuSum : double.NaN;
+                    resolvedRam = anyRam ? ramSum : double.NaN;
+                }
+                else
+                {
+                    resolvedCpu = rollingCpu.TryGetValue(app.AppIdentifier, out var liveCpu)
+                        ? liveCpu
+                        : double.NaN;
+                    resolvedRam = rollingRam.TryGetValue(app.AppIdentifier, out var liveRam)
+                        ? liveRam
+                        : double.NaN;
+                }
+                app.LiveCpuPercent = resolvedCpu;
+                app.LiveRamBytes = resolvedRam;
             }
         }, UiDispatcherPriority.Background);
     }
@@ -454,7 +593,18 @@ public sealed partial class AppsViewModel : ObservableObject, IDisposable
             _suppressRecompute = false;
         }
 
+        SelectedDatePreset = preset;
+
         await LoadOverviewAsync();
+
+        // If the detail view is open, the per-app charts/destinations were
+        // loaded with the old range and would silently mismatch the new
+        // header. Re-run SelectAppAsync to refetch everything for the new
+        // range without leaving the detail view.
+        if (IsDetailOpen && SelectedApp is { } app)
+        {
+            await SelectAppAsync(app);
+        }
     }
 
     /// <summary>Resets every filter (but not sort / date range) back to its default.</summary>
@@ -669,9 +819,28 @@ public sealed partial class AppsViewModel : ObservableObject, IDisposable
         }
     }
 
+    partial void OnStartDateChanged(DateTime? value)
+    {
+        // A manual date edit (not a preset application, which suppresses
+        // recompute) means no QUICK RANGE preset is active any more.
+        if (!_suppressRecompute)
+        {
+            SelectedDatePreset = "";
+        }
+    }
+
+    partial void OnEndDateChanged(DateTime? value)
+    {
+        if (!_suppressRecompute)
+        {
+            SelectedDatePreset = "";
+        }
+    }
+
     partial void OnSortColumnChanged(AppsSortColumn value)
     {
         NotifySortGlyphsChanged();
+        OnPropertyChanged(nameof(ActiveSortPreset));
         if (!_suppressRecompute)
         {
             RecomputeView();
@@ -686,6 +855,7 @@ public sealed partial class AppsViewModel : ObservableObject, IDisposable
     partial void OnSortDescendingChanged(bool value)
     {
         NotifySortGlyphsChanged();
+        OnPropertyChanged(nameof(ActiveSortPreset));
         if (!_suppressRecompute)
         {
             RecomputeView();
@@ -778,13 +948,81 @@ public sealed partial class AppsViewModel : ObservableObject, IDisposable
         var filtered = _loadedApps.Where(MatchesActiveFilters).ToList();
 
         IEnumerable<AppOverview> ordered = SortDescending
-            ? filtered.OrderByDescending(GetSortKey).ThenBy(app => GetDisplayName(app), StringComparer.OrdinalIgnoreCase)
-            : filtered.OrderBy(GetSortKey).ThenBy(app => GetDisplayName(app), StringComparer.OrdinalIgnoreCase);
+            ? filtered
+                .OrderByDescending(IsLiveAvailableForSortColumn)
+                .ThenByDescending(GetSortKey)
+                .ThenBy(app => GetDisplayName(app), StringComparer.OrdinalIgnoreCase)
+            : filtered
+                .OrderByDescending(IsLiveAvailableForSortColumn)
+                .ThenBy(GetSortKey)
+                .ThenBy(app => GetDisplayName(app), StringComparer.OrdinalIgnoreCase);
 
         var materialized = ordered.ToList();
-        Apps.ReplaceAll(materialized);
+
+        // Group related apps (same install dir + similar name) into
+        // expandable rows. The summary cards continue to operate on the
+        // ungrouped filtered list so the totals match the raw data.
+        _groupedResults = _groupingService.Group(materialized);
+        Apps.ReplaceAll(BuildVisibleRows(_groupedResults));
         UpdateSummary(materialized);
         HasActiveFilters = ComputeHasActiveFilters();
+    }
+
+    /// <summary>
+    /// Flatten the grouping output into the row sequence the ListBox shows,
+    /// honouring the user's per-group expansion state. The grouping pass
+    /// runs once per recompute; expansion toggles re-flatten without
+    /// re-grouping.
+    /// </summary>
+    private List<AppOverview> BuildVisibleRows(IReadOnlyList<Services.AppGroupingService.GroupResult> groups)
+    {
+        var rows = new List<AppOverview>(groups.Count);
+        foreach (var group in groups)
+        {
+            if (!group.IsGroup)
+            {
+                rows.Add(group.Head);
+                continue;
+            }
+
+            // Restore expansion state if we've seen this group before.
+            if (group.Head.GroupKey is { Length: > 0 } key
+                && _groupExpansionState.TryGetValue(key, out var expanded))
+            {
+                group.Head.IsExpanded = expanded;
+            }
+
+            rows.Add(group.Head);
+            if (group.Head.IsExpanded)
+            {
+                foreach (var member in group.Members)
+                {
+                    // Tag members so the view can indent them. Don't mutate
+                    // the original record (it's referenced by _loadedApps).
+                    rows.Add(member with { GroupKey = group.Head.GroupKey, IsGroupMember = true });
+                }
+            }
+        }
+        return rows;
+    }
+
+    /// <summary>
+    /// Toggle a group's expanded state. Bound from the chevron in the master
+    /// list. CommandParameter is the group head's AppOverview so we don't
+    /// need an extra GroupKey lookup hop.
+    /// </summary>
+    [RelayCommand]
+    private void ToggleGroup(AppOverview? head)
+    {
+        if (head is null || !head.IsGroupHead || head.GroupKey is not { Length: > 0 } key)
+            return;
+
+        var newState = !head.IsExpanded;
+        head.IsExpanded = newState;
+        _groupExpansionState[key] = newState;
+
+        // Re-flatten without re-grouping or refiltering.
+        Apps.ReplaceAll(BuildVisibleRows(_groupedResults));
     }
 
     private bool ComputeHasActiveFilters()
@@ -800,20 +1038,36 @@ public sealed partial class AppsViewModel : ObservableObject, IDisposable
         {
             AppsSortColumn.Name => GetDisplayName(app),
             AppsSortColumn.Category => app.CategoryName,
-            AppsSortColumn.BytesReceived => app.BytesReceived,
-            AppsSortColumn.BytesSent => app.BytesSent,
-            AppsSortColumn.TotalBytes => app.TotalBytes,
-            // CPU column displays the rolling-60s live value when available,
-            // so the sort should match what the user sees. Fall back to the
-            // historical avg only when no live sample exists — otherwise
-            // every freshly-launched process would race to the top with NaN.
+            AppsSortColumn.BytesReceived => IncludeLocalTraffic ? app.BytesReceived : app.NetworkBytesReceived,
+            AppsSortColumn.BytesSent => IncludeLocalTraffic ? app.BytesSent : app.NetworkBytesSent,
+            AppsSortColumn.TotalBytes => IncludeLocalTraffic ? app.TotalBytes : app.NetworkTotalBytes,
+            // CPU + RAM columns: prefer the live (60s rolling) value so the
+            // sort matches the large number on top of the cell. Apps with no
+            // live sample drop to their historical average — those rows are
+            // demoted to the bottom of the list by IsLiveAvailableForSortColumn
+            // so they don't ghost-rank between live rows.
             AppsSortColumn.AvgCpuPercent => app.HasLiveCpu ? app.LiveCpuPercent : app.AvgCpuPercent,
-            AppsSortColumn.AvgPrivateBytes => app.AvgPrivateBytes,
+            AppsSortColumn.AvgPrivateBytes => app.HasLiveRam ? app.LiveRamBytes : app.AvgPrivateBytes,
             AppsSortColumn.HoursActive => app.HoursActive,
             AppsSortColumn.LastSeen => app.LastSeen.Ticks,
             _ => app.TotalBytes
         };
     }
+
+    /// <summary>
+    /// Primary ordering key used together with <see cref="GetSortKey"/>:
+    /// returns <c>true</c> when the app has a live sample for the active
+    /// sort column, so live rows always cluster ABOVE "—" rows regardless of
+    /// sort direction. Without this, sorting by CPU/RAM intersperses "—"
+    /// rows (sorted by their hidden historical avg) between live values —
+    /// confusing because the avg isn't what's visible on top of the cell.
+    /// </summary>
+    private bool IsLiveAvailableForSortColumn(AppOverview app) => SortColumn switch
+    {
+        AppsSortColumn.AvgCpuPercent => app.HasLiveCpu,
+        AppsSortColumn.AvgPrivateBytes => app.HasLiveRam,
+        _ => true  // Other columns don't have a live/historical distinction.
+    };
 
     /// <summary>
     /// Returns true when the given app passes the currently-active filter
@@ -894,8 +1148,8 @@ public sealed partial class AppsViewModel : ObservableObject, IDisposable
     {
         AppCount = apps.Count;
         ShownAppCount = apps.Count;
-        TotalDownload = ByteFormatter.FormatBytes(apps.Sum(a => a.BytesReceived));
-        TotalUpload = ByteFormatter.FormatBytes(apps.Sum(a => a.BytesSent));
+        TotalDownload = ByteFormatter.FormatBytes(apps.Sum(a => IncludeLocalTraffic ? a.BytesReceived : a.NetworkBytesReceived));
+        TotalUpload = ByteFormatter.FormatBytes(apps.Sum(a => IncludeLocalTraffic ? a.BytesSent : a.NetworkBytesSent));
         TopCpuApp = apps.Count == 0 ? "—" : GetDisplayName(apps.MaxBy(a => a.AvgCpuPercent)!);
         TopMemoryApp = apps.Count == 0 ? "—" : GetDisplayName(apps.MaxBy(a => a.AvgPrivateBytes)!);
     }

@@ -2,6 +2,7 @@ using System.Collections.Concurrent;
 using System.Globalization;
 using System.Net;
 using Serilog;
+using WireBound.IPC;
 using WireBound.IPC.Messages;
 
 namespace WireBound.Elevation.Linux;
@@ -324,6 +325,12 @@ public sealed class NetlinkConnectionTracker : IDisposable
                     ProcessName = p.ProcessName,
                     TotalBytesSent = p.BytesSent,
                     TotalBytesReceived = p.BytesReceived,
+                    LoopbackBytesSent = p.Connections
+                        .Where(c => LoopbackClassifier.IsLoopback(c.RemoteAddress))
+                        .Sum(c => c.BytesSent),
+                    LoopbackBytesReceived = p.Connections
+                        .Where(c => LoopbackClassifier.IsLoopback(c.RemoteAddress))
+                        .Sum(c => c.BytesReceived),
                     ActiveConnectionCount = p.Connections.Count
                 })
                 .ToList();

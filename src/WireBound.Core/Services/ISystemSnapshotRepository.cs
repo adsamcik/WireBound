@@ -10,7 +10,7 @@ public interface ISystemSnapshotRepository
     /// <summary>
     /// Save a batch of system snapshots for chart history (more efficient than individual saves).
     /// </summary>
-    Task SaveSystemSnapshotBatchAsync(IEnumerable<(double cpuPercent, double memoryPercent, DateTime timestamp)> snapshots);
+    Task SaveSystemSnapshotBatchAsync(IEnumerable<(double cpuPercent, double memoryPercent, long diskReadBytesPerSec, long diskWriteBytesPerSec, double diskActivityPercent, DateTime timestamp)> snapshots);
 
     /// <summary>
     /// Get system stats history for a time range.

@@ -28,6 +28,7 @@ public sealed class ViewFactory : IViewFactory
             Routes.Apps => CreateAppsView(),
             Routes.Connections => CreateConnectionsView(),
             Routes.System => CreateSystemView(),
+            Routes.History => CreateHistoryView(),
             _ => CreateOverviewView()
         };
     }
@@ -71,6 +72,13 @@ public sealed class ViewFactory : IViewFactory
     {
         var view = _serviceProvider.GetRequiredService<SystemView>();
         view.DataContext = _serviceProvider.GetRequiredService<SystemViewModel>();
+        return view;
+    }
+
+    private Control CreateHistoryView()
+    {
+        var view = _serviceProvider.GetRequiredService<HistoryView>();
+        view.DataContext = _serviceProvider.GetRequiredService<HistoryViewModel>();
         return view;
     }
 }

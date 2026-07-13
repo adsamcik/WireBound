@@ -27,6 +27,12 @@ class Program
             })
             .Run();
 
+        // Apply process mitigation policies BEFORE any plugin or native DLL
+        // load that could be hijacked by an extension-point hook. This is
+        // the only defense that meaningfully blocks in-process injection,
+        // which is the realistic bypass of the IPC identity check.
+        ProcessMitigations.ApplyEarly();
+
         // Single-instance enforcement — exit immediately if another instance is running
         using var mutex = new Mutex(true, MutexName, out var createdNew);
         if (!createdNew)

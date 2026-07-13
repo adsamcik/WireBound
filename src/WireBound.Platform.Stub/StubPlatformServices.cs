@@ -24,6 +24,7 @@ public sealed class StubPlatformServices : IPlatformServices
         services.AddSingleton<IHelperProcessManager, StubHelperProcessManager>();
         services.AddSingleton<ICpuInfoProvider, StubCpuInfoProvider>();
         services.AddSingleton<IMemoryInfoProvider, StubMemoryInfoProvider>();
+        services.AddSingleton<IDiskInfoProvider, StubDiskInfoProvider>();
         services.AddSingleton<INetworkCostProvider, StubNetworkCostProvider>();
         services.AddSingleton<IProcessResourceProvider, StubProcessResourceProvider>();
         services.AddSingleton<IAppMetadataProvider, StubAppMetadataProvider>();

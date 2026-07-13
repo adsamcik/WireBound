@@ -42,4 +42,20 @@ public class ProcessByteStats
     /// </summary>
     [Key(5)]
     public string ExecutablePath { get; set; } = string.Empty;
+
+    /// <summary>
+    /// Subset of <see cref="TotalBytesSent"/> that went to loopback/localhost
+    /// remote addresses (127.0.0.0/8, ::1). Lets the app separate real network
+    /// traffic from local IPC-style traffic (e.g. adb, dev servers) in per-app
+    /// accounting. Computed by the helper from its per-connection data.
+    /// </summary>
+    [Key(6)]
+    public long LoopbackBytesSent { get; set; }
+
+    /// <summary>
+    /// Subset of <see cref="TotalBytesReceived"/> received from loopback/localhost
+    /// remote addresses. See <see cref="LoopbackBytesSent"/>.
+    /// </summary>
+    [Key(7)]
+    public long LoopbackBytesReceived { get; set; }
 }

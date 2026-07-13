@@ -115,6 +115,20 @@ public class ConnectionsViewModelTests : IAsyncDisposable
     }
 
     [Test]
+    public async Task IsInitialLoading_IsFalseAfterFirstRefresh()
+    {
+        _processNetworkServiceMock.GetConnectionStatsAsync().Returns(new List<ConnectionStats>());
+
+        var viewModel = CreateViewModel();
+        await viewModel.InitializationTask;
+
+        // The full-screen overlay binds to IsInitialLoading, which flips false after the
+        // first refresh — so periodic refreshes don't flash the overlay (no blink).
+        viewModel.IsInitialLoading.Should().BeFalse();
+        viewModel.Dispose();
+    }
+
+    [Test]
     public void Constructor_InitializesConnectionsCollection()
     {
         // Act
@@ -618,6 +632,134 @@ public class ConnectionsViewModelTests : IAsyncDisposable
 
     #endregion
 
+    #region Localhost vs Network Differentiation Tests
+
+    [Test]
+    public async Task ScopeFilter_Local_ShowsOnlyLoopback()
+    {
+        var connections = new List<ConnectionStats>
+        {
+            CreateConnectionStats(remoteAddress: "127.0.0.1", remotePort: 8080),
+            CreateConnectionStats(remoteAddress: "8.8.8.8", remotePort: 443),
+        };
+        _processNetworkServiceMock.GetConnectionStatsAsync().Returns(connections);
+        var viewModel = CreateViewModel();
+        await viewModel.InitializationTask;
+
+        viewModel.ScopeFilter = ConnectionScope.Local;
+
+        viewModel.Connections.Count.Should().Be(1);
+        viewModel.Connections.Should().OnlyContain(c => c.IsLoopback);
+        viewModel.ConnectionCount.Should().Be(2); // summary shows total, not filtered
+        viewModel.Dispose();
+    }
+
+    [Test]
+    public async Task ScopeFilter_Network_ShowsOnlyExternal()
+    {
+        var connections = new List<ConnectionStats>
+        {
+            CreateConnectionStats(remoteAddress: "127.0.0.1", remotePort: 8080),
+            CreateConnectionStats(remoteAddress: "8.8.8.8", remotePort: 443),
+        };
+        _processNetworkServiceMock.GetConnectionStatsAsync().Returns(connections);
+        var viewModel = CreateViewModel();
+        await viewModel.InitializationTask;
+
+        viewModel.ScopeFilter = ConnectionScope.Network;
+
+        viewModel.Connections.Count.Should().Be(1);
+        viewModel.Connections.Should().OnlyContain(c => !c.IsLoopback);
+        viewModel.Dispose();
+    }
+
+    [Test]
+    public async Task SplitTotals_ClassifyLoopbackVsNetwork()
+    {
+        var connections = new List<ConnectionStats>
+        {
+            CreateConnectionStats(remoteAddress: "127.0.0.1", bytesReceived: 1024, bytesSent: 2048),
+            CreateConnectionStats(remoteAddress: "8.8.8.8", bytesReceived: 4096, bytesSent: 512),
+        };
+        _processNetworkServiceMock.GetConnectionStatsAsync().Returns(connections);
+        var viewModel = CreateViewModel();
+        await viewModel.InitializationTask;
+
+        viewModel.LocalReceived.Should().Be("1.00 KB");
+        viewModel.LocalSent.Should().Be("2.00 KB");
+        viewModel.NetworkReceived.Should().Be("4.00 KB");
+        viewModel.NetworkSent.Should().Be("512 B");
+        viewModel.Dispose();
+    }
+
+    [Test]
+    public async Task SearchAndScope_AreAndedTogether()
+    {
+        var connections = new List<ConnectionStats>
+        {
+            CreateConnectionStats(remoteAddress: "127.0.0.1", remotePort: 5037, processName: "adb"),
+            CreateConnectionStats(remoteAddress: "127.0.0.1", remotePort: 9000, processName: "node"),
+            CreateConnectionStats(remoteAddress: "8.8.8.8", remotePort: 443, processName: "adb"),
+        };
+        _processNetworkServiceMock.GetConnectionStatsAsync().Returns(connections);
+        var viewModel = CreateViewModel();
+        await viewModel.InitializationTask;
+
+        viewModel.ScopeFilter = ConnectionScope.Local;
+        viewModel.SearchText = "adb";
+        if (viewModel.PendingSearchTask is not null)
+            await viewModel.PendingSearchTask;
+
+        viewModel.Connections.Count.Should().Be(1);
+        viewModel.Connections.Should().OnlyContain(c => c.IsLoopback && c.ProcessName == "adb");
+        viewModel.Dispose();
+    }
+
+    [Test]
+    public async Task ClearingSearch_RestoresHiddenConnections()
+    {
+        var connections = new List<ConnectionStats>
+        {
+            CreateConnectionStats(remoteAddress: "8.8.8.8", processName: "chrome"),
+            CreateConnectionStats(remoteAddress: "1.1.1.1", processName: "firefox"),
+        };
+        _processNetworkServiceMock.GetConnectionStatsAsync().Returns(connections);
+        var viewModel = CreateViewModel();
+        await viewModel.InitializationTask;
+
+        viewModel.SearchText = "chrome";
+        if (viewModel.PendingSearchTask is not null)
+            await viewModel.PendingSearchTask;
+        viewModel.Connections.Count.Should().Be(1);
+
+        viewModel.SearchText = "";
+        if (viewModel.PendingSearchTask is not null)
+            await viewModel.PendingSearchTask;
+        viewModel.Connections.Count.Should().Be(2);
+        viewModel.Dispose();
+    }
+
+    [Test]
+    public async Task HasVisibleConnections_ReflectsFilteredList()
+    {
+        var connections = new List<ConnectionStats>
+        {
+            CreateConnectionStats(remoteAddress: "8.8.8.8")
+        };
+        _processNetworkServiceMock.GetConnectionStatsAsync().Returns(connections);
+        var viewModel = CreateViewModel();
+        await viewModel.InitializationTask;
+
+        viewModel.HasVisibleConnections.Should().BeTrue();
+
+        viewModel.ScopeFilter = ConnectionScope.Local; // no loopback -> list empty
+        viewModel.HasVisibleConnections.Should().BeFalse();
+        viewModel.ConnectionCount.Should().Be(1);       // total still reported
+        viewModel.Dispose();
+    }
+
+    #endregion
+
     #region Null Service Tests
 
     [Test]
@@ -650,6 +792,52 @@ public class ConnectionsViewModelTests : IAsyncDisposable
             _clipboardServiceMock);
 
         viewModel.Dispose();
+    }
+
+    #endregion
+
+    #region ConnectionDisplayItem Localhost Labeling Tests
+
+    [Test]
+    [Arguments("127.0.0.1")]
+    [Arguments("127.0.0.53")]
+    [Arguments("::1")]
+    public void FromConnectionStats_LoopbackRemote_LabelsAsLocalhost(string remoteAddress)
+    {
+        var stats = CreateConnectionStats(remoteAddress: remoteAddress, remotePort: 8080);
+
+        var item = ConnectionDisplayItem.FromConnectionStats(stats);
+
+        item.DisplayName.Should().Be("localhost");
+        item.IsLoopback.Should().BeTrue();
+        // The raw IP stays visible as the subtitle.
+        item.ShowRemoteEndpoint.Should().BeTrue();
+        item.RemoteEndpoint.Should().Contain(remoteAddress);
+    }
+
+    [Test]
+    public void FromConnectionStats_NonLoopbackRemote_KeepsAddress()
+    {
+        var stats = CreateConnectionStats(remoteAddress: "8.8.8.8", remotePort: 443);
+
+        var item = ConnectionDisplayItem.FromConnectionStats(stats);
+
+        item.DisplayName.Should().Be("8.8.8.8");
+        item.IsLoopback.Should().BeFalse();
+        // No hostname and not loopback -> subtitle hidden (redundant with title).
+        item.ShowRemoteEndpoint.Should().BeFalse();
+    }
+
+    [Test]
+    public void FromConnectionStats_ResolvedHostname_PrefersHostnameOverLocalhost()
+    {
+        var stats = CreateConnectionStats(remoteAddress: "127.0.0.1", remotePort: 5432);
+        stats.ResolvedHostname = "my-local-db";
+
+        var item = ConnectionDisplayItem.FromConnectionStats(stats);
+
+        item.DisplayName.Should().Be("my-local-db");
+        item.ShowRemoteEndpoint.Should().BeTrue();
     }
 
     #endregion

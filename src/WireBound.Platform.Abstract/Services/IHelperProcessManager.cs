@@ -69,9 +69,51 @@ public interface IHelperProcessManager : IAsyncDisposable
     /// </list>
     /// </para>
     /// </remarks>
+    /// <param name="allowInteractive">
+    /// When <c>true</c> (default), the manager may fall back to a UAC prompt
+    /// (Windows) or pkexec dialog (Linux) if the silent Task Scheduler / systemd
+    /// path is not available. When <c>false</c>, the manager attempts ONLY the
+    /// silent path and fails closed if that path is unavailable — used by the
+    /// app-launch auto-start flow so we never surprise the user with an
+    /// elevation prompt at login.
+    /// </param>
     /// <param name="cancellationToken">Cancellation token</param>
     /// <returns>Result indicating success or failure with details</returns>
-    Task<HelperStartResult> StartAsync(CancellationToken cancellationToken = default);
+    Task<HelperStartResult> StartAsync(bool allowInteractive = true, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Verifies that the registered auto-start mechanism (Windows Task Scheduler
+    /// task or Linux systemd unit) still points to the expected helper binary
+    /// and has not been tampered with.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// This catches a critical attack surface: if a same-user attacker could
+    /// modify the scheduled task / unit to point at <c>evil.exe</c>, that
+    /// binary would run at <c>RL HIGHEST</c> / as root at every login —
+    /// turning a same-user vulnerability into a persistent privilege
+    /// escalation. The check is "fail closed": if we cannot read the task
+    /// definition, we assume the worst and report invalid.
+    /// </para>
+    /// <para>
+    /// Returns <c>Valid()</c> when the registration matches expectations,
+    /// or <c>Invalid(reason)</c> when it has been mutated, points elsewhere,
+    /// or cannot be read. The auto-start flow MUST NOT proceed if this
+    /// returns <c>Invalid</c>; instead surface a "repair registration"
+    /// affordance in Settings.
+    /// </para>
+    /// </remarks>
+    Task<HelperValidationResult> ValidateRegistrationAsync();
+
+    /// <summary>
+    /// Ensures any one-time platform registration required for auto-start
+    /// is in place. On Linux this installs the system systemd template +
+    /// polkit policy (one-time pkexec). On Windows this is a no-op because
+    /// the per-user scheduled task is registered by
+    /// <c>IStartupService.SetHelperStartupEnabledAsync</c>.
+    /// </summary>
+    /// <returns>True if registration is in place; false on error.</returns>
+    Task<bool> EnsureRegisteredAsync();
 
     /// <summary>
     /// Gracefully stops the helper process.

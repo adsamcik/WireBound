@@ -130,7 +130,87 @@ public sealed class ProcessNetworkService : IProcessNetworkService
             _providerLock.Release();
         }
 
-        return await provider.GetConnectionStatsAsync();
+        var stats = await provider.GetConnectionStatsAsync();
+
+        // When the elevated helper is active, recover the owner of any connection it
+        // left "Unattributed" (ProcessId 0) using the OS connection table.
+        if (_providerFactory.HasElevatedProvider && stats.Count > 0)
+        {
+            var hasUnattributed = false;
+            foreach (var s in stats)
+            {
+                if (s.ProcessId == 0) { hasUnattributed = true; break; }
+            }
+
+            if (hasUnattributed)
+            {
+                var basic = _providerFactory.GetBasicProvider();
+                if (basic != null && !ReferenceEquals(basic, provider))
+                    stats = await EnrichUnattributedConnectionsAsync(stats, basic).ConfigureAwait(false);
+            }
+        }
+
+        return stats;
+    }
+
+    /// <summary>
+    /// Connections that pre-date the elevated helper's ETW tracking come back with
+    /// ProcessId 0 ("Unattributed") because the helper never saw their process-start
+    /// event. The OS connection table still knows the owner, so fill those gaps from
+    /// the basic (unelevated) provider. Byte counters are cleared on enriched rows:
+    /// the OS table has no byte data, and the helper's aggregate-on-first-row total
+    /// must not be falsely pinned to a single recovered app.
+    /// </summary>
+    private async Task<IReadOnlyList<Platform.Abstract.Models.ConnectionStats>> EnrichUnattributedConnectionsAsync(
+        IReadOnlyList<Platform.Abstract.Models.ConnectionStats> stats,
+        IProcessNetworkProvider basicProvider)
+    {
+        try
+        {
+            var osConnections = await basicProvider.GetConnectionStatsAsync().ConfigureAwait(false);
+            if (osConnections.Count == 0) return stats;
+
+            // Map connection tuple -> owner, skipping any key that resolves to more
+            // than one PID (ambiguous) so we never guess wrong.
+            var ownerByKey = new Dictionary<string, (int Pid, string Name)>(StringComparer.OrdinalIgnoreCase);
+            var ambiguousKeys = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            foreach (var c in osConnections)
+            {
+                if (c.ProcessId == 0) continue;
+                var key = c.ConnectionKey;
+                if (ownerByKey.TryGetValue(key, out var existing))
+                {
+                    if (existing.Pid != c.ProcessId) ambiguousKeys.Add(key);
+                }
+                else
+                {
+                    ownerByKey[key] = (c.ProcessId, c.ProcessName);
+                }
+            }
+
+            foreach (var s in stats)
+            {
+                if (s.ProcessId != 0) continue;
+                var key = s.ConnectionKey;
+                if (ambiguousKeys.Contains(key)) continue;
+                if (ownerByKey.TryGetValue(key, out var owner))
+                {
+                    s.ProcessId = owner.Pid;
+                    s.ProcessName = owner.Name;
+                    // Identity recovered, but per-connection byte volume is unknown.
+                    s.BytesSent = 0;
+                    s.BytesReceived = 0;
+                    s.SendSpeedBps = 0;
+                    s.ReceiveSpeedBps = 0;
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger?.LogDebug(ex, "Failed to attribute pre-existing connections from the OS connection table");
+        }
+
+        return stats;
     }
 
     private void OnProviderStatsUpdated(object? sender, ProcessNetworkProviderEventArgs e)

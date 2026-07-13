@@ -27,6 +27,7 @@ public sealed class LinuxPlatformServices : IPlatformServices
         services.Replace(ServiceDescriptor.Singleton<IHelperProcessManager, LinuxHelperProcessManager>());
         services.Replace(ServiceDescriptor.Singleton<ICpuInfoProvider, LinuxCpuInfoProvider>());
         services.Replace(ServiceDescriptor.Singleton<IMemoryInfoProvider, LinuxMemoryInfoProvider>());
+        services.Replace(ServiceDescriptor.Singleton<IDiskInfoProvider, LinuxDiskInfoProvider>());
         services.Replace(ServiceDescriptor.Singleton<INetworkCostProvider, LinuxNetworkCostProvider>());
         services.Replace(ServiceDescriptor.Singleton<IProcessResourceProvider, LinuxProcessResourceProvider>());
         services.Replace(ServiceDescriptor.Singleton<IAppMetadataProvider, LinuxAppMetadataProvider>());

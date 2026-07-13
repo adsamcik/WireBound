@@ -16,11 +16,16 @@ public sealed class AppOverviewService : IAppOverviewService
 {
     private readonly IServiceProvider _serviceProvider;
     private readonly IAppIconService _iconService;
+    private readonly IAppCategoryService _categoryService;
 
-    public AppOverviewService(IServiceProvider serviceProvider, IAppIconService iconService)
+    public AppOverviewService(
+        IServiceProvider serviceProvider,
+        IAppIconService iconService,
+        IAppCategoryService categoryService)
     {
         _serviceProvider = serviceProvider;
         _iconService = iconService;
+        _categoryService = categoryService;
     }
 
     public async Task<IReadOnlyList<AppOverview>> GetOverviewAsync(
@@ -50,6 +55,8 @@ public sealed class AppOverviewService : IAppOverviewService
                 r.Timestamp,
                 r.BytesReceived,
                 r.BytesSent,
+                r.LoopbackBytesReceived,
+                r.LoopbackBytesSent,
                 r.PeakDownloadSpeed,
                 r.PeakUploadSpeed,
                 r.LastUpdated))
@@ -110,6 +117,34 @@ public sealed class AppOverviewService : IAppOverviewService
                 continue;
             }
 
+            // Resolve the category. Two scenarios produce an empty value here:
+            //   1. The app has only ever generated network rows (resource
+            //      sampler hasn't seen its process yet), so the join had no
+            //      resource side to copy CategoryName from.
+            //   2. The app's resource rows were persisted before the
+            //      categorizer ran (legacy rows from earlier builds).
+            // Either way, we have the executable name/path on the network
+            // side — synthesize the category on the fly so the UI never
+            // shows an empty pill. `_categoryService.GetCategory` always
+            // returns at least "Other", never empty.
+            var resolvedCategory = PickLatestNonEmpty(
+                appResourceRows.Select(r => new TextCandidate(r.CategoryName, r.LastUpdated)));
+            if (string.IsNullOrWhiteSpace(resolvedCategory))
+            {
+                var processName = PickLatestNonEmpty(
+                    appNetworkRows.Select(r => new TextCandidate(r.ProcessName, r.LastUpdated)));
+                var execPath = PickLatestNonEmpty(
+                    appNetworkRows.Select(r => new TextCandidate(r.ExecutablePath, r.LastUpdated)));
+                var execName = !string.IsNullOrWhiteSpace(processName)
+                    ? processName
+                    : (!string.IsNullOrWhiteSpace(execPath)
+                        ? Path.GetFileNameWithoutExtension(execPath)
+                        : string.Empty);
+                resolvedCategory = !string.IsNullOrWhiteSpace(execName) || !string.IsNullOrWhiteSpace(execPath)
+                    ? _categoryService.GetCategory(execName, execPath)
+                    : "Other";
+            }
+
             overview.Add(new AppOverview(
                 appIdentifier,
                 PickLatestNonEmpty(
@@ -117,7 +152,7 @@ public sealed class AppOverviewService : IAppOverviewService
                         .Concat(appResourceRows.Select(r => new TextCandidate(r.AppName, r.LastUpdated)))),
                 PickLatestNonEmpty(appNetworkRows.Select(r => new TextCandidate(r.ProcessName, r.LastUpdated))),
                 PickLatestNonEmpty(appNetworkRows.Select(r => new TextCandidate(r.ExecutablePath, r.LastUpdated))),
-                PickLatestNonEmpty(appResourceRows.Select(r => new TextCandidate(r.CategoryName, r.LastUpdated))),
+                resolvedCategory,
                 appNetworkRows.Sum(r => r.BytesReceived),
                 appNetworkRows.Sum(r => r.BytesSent),
                 appNetworkRows.Count == 0 ? 0 : appNetworkRows.Max(r => r.PeakDownloadSpeed),
@@ -128,7 +163,11 @@ public sealed class AppOverviewService : IAppOverviewService
                 appResourceRows.Count == 0 ? 0 : appResourceRows.Max(r => r.PeakPrivateBytes),
                 timestamps.Min(),
                 timestamps.Max(),
-                timestamps.Select(ToHourBucket).Distinct().Count()));
+                timestamps.Select(ToHourBucket).Distinct().Count())
+            {
+                LoopbackBytesReceived = appNetworkRows.Sum(r => r.LoopbackBytesReceived),
+                LoopbackBytesSent = appNetworkRows.Sum(r => r.LoopbackBytesSent)
+            });
         }
 
         var sorted = overview
@@ -305,6 +344,8 @@ public sealed class AppOverviewService : IAppOverviewService
         DateTime Timestamp,
         long BytesReceived,
         long BytesSent,
+        long LoopbackBytesReceived,
+        long LoopbackBytesSent,
         long PeakDownloadSpeed,
         long PeakUploadSpeed,
         DateTime LastUpdated);

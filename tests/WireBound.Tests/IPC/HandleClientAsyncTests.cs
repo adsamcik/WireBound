@@ -1,4 +1,5 @@
 using System.Runtime.Versioning;
+using System.Security.Cryptography;
 using System.Security.Principal;
 using WireBound.Elevation.Windows;
 using WireBound.IPC;
@@ -12,6 +13,22 @@ namespace WireBound.Tests.IPC;
 /// Tests the HandleClientAsync message loop in the Windows ElevationServer.
 /// Uses a DuplexStream (two MemoryStreams) to simulate the IPC transport
 /// without requiring named pipes or admin privileges.
+///
+/// <para>
+/// The new auth flow makes the server push a server-issued nonce as its
+/// first message (Challenge) before reading any client message. Tests
+/// therefore need to:
+/// <list type="number">
+///   <item>Override the server's <c>NonceFactory</c> with a deterministic
+///         nonce so the test can pre-compute its HMAC signature.</item>
+///   <item>Expect the Challenge as the FIRST response in every test.</item>
+///   <item>Use a <see cref="PassThroughClientIdentityVerifier"/> so the
+///         test process (which is not WireBound.exe) passes identity
+///         verification — separate from the auth tests in
+///         <c>WindowsElevationServerHandlerTests</c>, here we want to test
+///         message-loop behaviour, not the verifier itself.</item>
+/// </list>
+/// </para>
 /// </summary>
 [NotInParallel("SecretFile")]
 [SupportedOSPlatform("windows")]
@@ -19,6 +36,7 @@ public class HandleClientAsyncTests : IDisposable
 {
     private readonly ElevationServer? _server;
     private readonly byte[]? _secret;
+    private readonly byte[] _fixedNonce;
     private readonly bool _available;
 
     public HandleClientAsyncTests()
@@ -26,16 +44,23 @@ public class HandleClientAsyncTests : IDisposable
         try
         {
             var sid = WindowsIdentity.GetCurrent().User!.Value;
-            _server = new ElevationServer(sid);
+            _server = new ElevationServer(sid, new PassThroughClientIdentityVerifier());
             // Extract secret via reflection to avoid race with other test classes
             // that also call SecretManager.GenerateAndStore() concurrently
             _secret = (byte[])typeof(ElevationServer)
                 .GetField("_secret", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance)!
                 .GetValue(_server)!;
+
+            // Fix the nonce so test-prepared auth messages can sign against it.
+            // The 32-byte pattern is just a memorable test marker.
+            _fixedNonce = new byte[32];
+            for (var i = 0; i < 32; i++) _fixedNonce[i] = (byte)(0xA0 + i);
+            _server.NonceFactory = () => _fixedNonce;
+
             _available = true;
         }
-        catch (Exception) when (!OperatingSystem.IsWindows()) { _available = false; }
-        catch (IOException) { _available = false; }
+        catch (Exception) when (!OperatingSystem.IsWindows()) { _available = false; _fixedNonce = []; }
+        catch (IOException) { _available = false; _fixedNonce = []; }
     }
 
     // ═══════════════════════════════════════════════════════════════════════
@@ -45,9 +70,9 @@ public class HandleClientAsyncTests : IDisposable
     private IpcMessage CreateValidAuthMessage()
     {
         var pid = Environment.ProcessId;
-        var timestamp = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
         var executablePath = Environment.ProcessPath
             ?? throw new InvalidOperationException("Current executable path is unavailable.");
+        var imageHash = ClientImageHasher.HashFile(executablePath);
         return new IpcMessage
         {
             Type = MessageType.Authenticate,
@@ -55,9 +80,11 @@ public class HandleClientAsyncTests : IDisposable
             Payload = IpcTransport.SerializePayload(new AuthenticateRequest
             {
                 ClientPid = pid,
-                Timestamp = timestamp,
-                Signature = HmacAuthenticator.Sign(pid, timestamp, _secret!),
-                ExecutablePath = executablePath
+                Timestamp = DateTimeOffset.UtcNow.ToUnixTimeSeconds(),
+                Signature = HmacAuthenticator.SignWithNonce(pid, imageHash, _fixedNonce, _secret!),
+                ExecutablePath = executablePath,
+                ClientImageHash = imageHash,
+                Nonce = _fixedNonce
             })
         };
     }
@@ -92,7 +119,19 @@ public class HandleClientAsyncTests : IDisposable
 
         await _server!.HandleClientAsync(duplex, Environment.ProcessId, CancellationToken.None);
 
-        return await ReadResponses(serverToClient);
+        var all = await ReadResponses(serverToClient);
+
+        // Drop the leading Challenge message — it is always emitted as the
+        // first response on every new connection (nonce handshake). The tests
+        // below assert on the subsequent message exchange.
+        if (all.Count > 0 && all[0].Type == MessageType.Challenge)
+        {
+            // Sanity-check the nonce is what we forced via NonceFactory.
+            var challenge = IpcTransport.DeserializePayload<ChallengeMessage>(all[0].Payload);
+            challenge.Nonce.Should().Equal(_fixedNonce, "test seeded a deterministic nonce");
+            all.RemoveAt(0);
+        }
+        return all;
     }
 
     // ═══════════════════════════════════════════════════════════════════════
@@ -188,15 +227,24 @@ public class HandleClientAsyncTests : IDisposable
     {
         if (!_available) return;
 
+        // Build an auth with wrong signature but correct nonce/hash plumbing
+        // so the test exercises the HMAC-validation branch, not the nonce or
+        // schema-validation branches.
+        var pid = Environment.ProcessId;
+        var exePath = Environment.ProcessPath!;
+        var imageHash = ClientImageHasher.HashFile(exePath);
         var badAuth = new IpcMessage
         {
             Type = MessageType.Authenticate,
             RequestId = "bad-auth",
             Payload = IpcTransport.SerializePayload(new AuthenticateRequest
             {
-                ClientPid = Environment.ProcessId,
+                ClientPid = pid,
                 Timestamp = DateTimeOffset.UtcNow.ToUnixTimeSeconds(),
-                Signature = "wrong"
+                Signature = "wrong-signature-not-base64-valid-hmac",
+                ExecutablePath = exePath,
+                ClientImageHash = imageHash,
+                Nonce = _fixedNonce
             })
         };
         var stats = new IpcMessage { Type = MessageType.ConnectionStats, RequestId = "cs-2" };

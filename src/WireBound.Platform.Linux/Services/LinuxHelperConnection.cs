@@ -32,16 +32,47 @@ public sealed class LinuxHelperConnection : IHelperConnection
             var secret = SecretManager.Load();
             if (secret is null) return false;
 
+            // STEP 1: receive the server's challenge nonce. The server sends
+            // it immediately on connect — no client request required.
+            var challengeMsg = await IpcTransport.ReceiveAsync(_stream, cancellationToken);
+            if (challengeMsg is null || challengeMsg.Type != MessageType.Challenge)
+            {
+                Serilog.Log.Warning("Expected Challenge as first message, got {Type}", challengeMsg?.Type);
+                return false;
+            }
+            var challenge = IpcTransport.DeserializePayload<ChallengeMessage>(challengeMsg.Payload);
+            if (challenge.Nonce.Length == 0)
+            {
+                Serilog.Log.Warning("Challenge nonce is empty");
+                return false;
+            }
+
+            // STEP 2: bind authentication to our own binary by hashing it now.
+            var ownExePath = Environment.ProcessPath
+                ?? throw new InvalidOperationException("Environment.ProcessPath is null");
+            byte[] imageHash;
+            try
+            {
+                imageHash = ClientImageHasher.HashFile(ownExePath);
+            }
+            catch (Exception ex)
+            {
+                Serilog.Log.Warning(ex, "Failed to hash own executable for IPC auth");
+                return false;
+            }
+
+            // STEP 3: send AuthenticateRequest signed with HMAC(pid || hash || nonce).
             var pid = Environment.ProcessId;
-            var timestamp = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
-            var signature = HmacAuthenticator.Sign(pid, timestamp, secret);
+            var signature = HmacAuthenticator.SignWithNonce(pid, imageHash, challenge.Nonce, secret);
 
             var authRequest = new AuthenticateRequest
             {
                 ClientPid = pid,
-                Timestamp = timestamp,
+                Timestamp = DateTimeOffset.UtcNow.ToUnixTimeSeconds(),
                 Signature = signature,
-                ExecutablePath = Environment.ProcessPath ?? string.Empty
+                ExecutablePath = ownExePath,
+                ClientImageHash = imageHash,
+                Nonce = challenge.Nonce
             };
 
             var request = new IpcMessage
@@ -57,13 +88,18 @@ public sealed class LinuxHelperConnection : IHelperConnection
             var authResponse = IpcTransport.DeserializePayload<AuthenticateResponse>(response.Payload);
             if (!authResponse.Success) return false;
 
-            // Verify server identity (mutual auth) — server must prove it holds the secret
-            var expectedServerSig = HmacAuthenticator.Sign(0, authResponse.ExpiresAtUtc, secret);
+            // STEP 4: verify the server's mutual-auth signature is bound to
+            // OUR nonce (defeats pipe-squatting even if the secret leaked).
+            var expectedServerSig = HmacAuthenticator.SignServerResponse(
+                authResponse.SessionId ?? string.Empty,
+                authResponse.ExpiresAtUtc,
+                challenge.Nonce,
+                secret);
             if (!CryptographicOperations.FixedTimeEquals(
                 System.Text.Encoding.UTF8.GetBytes(expectedServerSig),
                 System.Text.Encoding.UTF8.GetBytes(authResponse.ServerSignature)))
             {
-                Serilog.Log.Warning("Server signature verification failed — possible pipe squatting attack");
+                Serilog.Log.Warning("Server signature verification failed — possible socket squatting attack");
                 return false;
             }
 

@@ -126,16 +126,17 @@ public class ChartColorsTests
     }
 
     [Test]
-    public void MemoryColor_ShouldReturnValidAmethystPurple()
+    public void MemoryColor_ShouldReturnColorblindSafeMagenta()
     {
         // Act
         var color = ChartColors.MemoryColor;
 
-        // Assert
+        // Assert — #EC4899, a warm magenta that stays distinct from CPU blue
+        // under red-green color blindness (unlike the previous amethyst purple).
         color.Should().NotBe(SKColor.Empty);
-        color.Red.Should().Be(168);
-        color.Green.Should().Be(85);
-        color.Blue.Should().Be(247);
+        color.Red.Should().Be(236);
+        color.Green.Should().Be(72);
+        color.Blue.Should().Be(153);
         color.Alpha.Should().Be(255);
     }
 
@@ -291,27 +292,27 @@ public class ChartColorsTests
     }
 
     [Test]
-    public void SeriesPalette_FirstColorShouldBeElectricCyan()
+    public void SeriesPalette_FirstColorShouldBeOkabeItoSkyBlue()
     {
         // Act
         var firstColor = ChartColors.SeriesPalette[0];
 
-        // Assert
-        firstColor.Red.Should().Be(0);
-        firstColor.Green.Should().Be(229);
-        firstColor.Blue.Should().Be(255);
+        // Assert — Okabe-Ito Sky Blue #56B4E9
+        firstColor.Red.Should().Be(86);
+        firstColor.Green.Should().Be(180);
+        firstColor.Blue.Should().Be(233);
     }
 
     [Test]
-    public void SeriesPalette_SecondColorShouldBeCoralOrange()
+    public void SeriesPalette_SecondColorShouldBeOkabeItoOrange()
     {
         // Act
         var secondColor = ChartColors.SeriesPalette[1];
 
-        // Assert
-        secondColor.Red.Should().Be(255);
-        secondColor.Green.Should().Be(107);
-        secondColor.Blue.Should().Be(53);
+        // Assert — Okabe-Ito Orange #E69F00
+        secondColor.Red.Should().Be(230);
+        secondColor.Green.Should().Be(159);
+        secondColor.Blue.Should().Be(0);
     }
 
     [Test]
@@ -355,10 +356,13 @@ public class ChartColorsTests
     }
 
     [Test]
-    public void MemoryColors_ShouldBeInPurpleFamily()
+    public void MemoryColor_ShouldBeWarmMagenta_NotBlueDominant()
     {
-        // Memory colors should have high red and blue (purple)
-        ChartColors.MemoryColor.Blue.Should().BeGreaterThan(ChartColors.MemoryColor.Green);
+        // Memory is a warm magenta (#EC4899): red dominates and green is the
+        // smallest channel. Crucially red > blue keeps it warm so a red-green
+        // deficiency can't collapse it toward CPU's blue.
         ChartColors.MemoryColor.Red.Should().BeGreaterThan(ChartColors.MemoryColor.Green);
+        ChartColors.MemoryColor.Blue.Should().BeGreaterThan(ChartColors.MemoryColor.Green);
+        ChartColors.MemoryColor.Red.Should().BeGreaterThan(ChartColors.MemoryColor.Blue);
     }
 }

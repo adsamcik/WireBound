@@ -41,7 +41,7 @@ public sealed class LinuxHelperProcessManager : IHelperProcessManager
 
     public event EventHandler<HelperExitedEventArgs>? HelperExited;
 
-    public async Task<HelperStartResult> StartAsync(CancellationToken cancellationToken = default)
+    public async Task<HelperStartResult> StartAsync(bool allowInteractive = true, CancellationToken cancellationToken = default)
     {
         if (_disposed) return HelperStartResult.Failed("Manager has been disposed");
         if (IsRunning) return HelperStartResult.Success(_helperProcess?.Id ?? 0);
@@ -53,15 +53,85 @@ public sealed class LinuxHelperProcessManager : IHelperProcessManager
         // Try systemd service first (no password prompt if polkit policy is installed)
         if (IsServiceInstalled())
         {
+            // Verify the installed unit still points at the expected helper
+            // — protects against a same-user attacker re-pointing the unit.
+            var regValid = await ValidateRegistrationAsync();
+            if (!regValid.IsValid)
+            {
+                _logger?.LogError("Systemd unit validation failed: {Error}", regValid.ErrorMessage);
+                return HelperStartResult.ValidationFailed(
+                    $"Systemd unit has been tampered: {regValid.ErrorMessage}");
+            }
+
             _logger?.LogInformation("Starting helper via systemd service");
             var serviceResult = await StartViaSystemdAsync(cancellationToken);
             if (serviceResult.IsSuccess) return serviceResult;
 
-            _logger?.LogWarning("systemd start failed, falling back to pkexec");
+            _logger?.LogWarning("systemd start failed: {Reason}", serviceResult.ErrorMessage);
+            if (!allowInteractive)
+            {
+                return HelperStartResult.Failed(
+                    $"Silent start via systemd failed and interactive elevation disabled: {serviceResult.ErrorMessage}");
+            }
+            _logger?.LogWarning("Falling back to pkexec");
+        }
+        else if (!allowInteractive)
+        {
+            return HelperStartResult.Failed(
+                "Systemd unit not installed and interactive elevation disabled");
         }
 
-        // Fallback: pkexec (graphical password prompt)
+        // Fallback: pkexec (graphical password prompt) — only when allowed
         return await StartViaPkexecAsync(cancellationToken);
+    }
+
+    /// <inheritdoc />
+    public Task<HelperValidationResult> ValidateRegistrationAsync()
+    {
+        try
+        {
+            var unitPath = Path.Combine(SystemdSystemDir, ServiceFileName);
+            if (!File.Exists(unitPath))
+                return Task.FromResult(HelperValidationResult.Valid()); // nothing registered
+
+            var content = File.ReadAllText(unitPath);
+
+            // The unit MUST point at the canonical helper path
+            var expectedExec = $"ExecStart={HelperPath}";
+            if (!content.Contains(expectedExec, StringComparison.Ordinal))
+                return Task.FromResult(HelperValidationResult.Invalid(
+                    $"Systemd unit ExecStart does not match expected helper path '{HelperPath}'"));
+
+            // MUST run as root (otherwise the helper can't do its job)
+            if (!content.Contains("User=root", StringComparison.Ordinal))
+                return Task.FromResult(HelperValidationResult.Invalid(
+                    "Systemd unit must specify User=root"));
+
+            // MUST have NoNewPrivileges hardening — defense-in-depth signal that
+            // someone hasn't downgraded the hardened unit we installed
+            if (!content.Contains("NoNewPrivileges=yes", StringComparison.Ordinal))
+                return Task.FromResult(HelperValidationResult.Invalid(
+                    "Systemd unit must specify NoNewPrivileges=yes — refusing to launch a hardening-stripped unit"));
+
+            // Unit file MUST be root-owned and not user-writable. If a same-user
+            // attacker can rewrite the unit, they own the helper.
+            var unitInfo = new FileInfo(unitPath);
+            if (unitInfo.Attributes.HasFlag(FileAttributes.ReparsePoint))
+                return Task.FromResult(HelperValidationResult.Invalid(
+                    $"Systemd unit file is a symlink: {unitPath}"));
+
+            var mode = File.GetUnixFileMode(unitPath);
+            if (mode.HasFlag(UnixFileMode.OtherWrite) || mode.HasFlag(UnixFileMode.GroupWrite))
+                return Task.FromResult(HelperValidationResult.Invalid(
+                    $"Systemd unit file '{unitPath}' has group/other write permission — refusing to trust"));
+
+            return Task.FromResult(HelperValidationResult.Valid());
+        }
+        catch (Exception ex)
+        {
+            return Task.FromResult(HelperValidationResult.Invalid(
+                $"Exception while validating systemd unit: {ex.Message}"));
+        }
     }
 
     public async Task StopAsync(TimeSpan? timeout = null)
@@ -132,9 +202,29 @@ public sealed class LinuxHelperProcessManager : IHelperProcessManager
         return HelperValidationResult.Valid();
     }
 
+    /// <inheritdoc />
+    public Task<bool> EnsureRegisteredAsync() => EnsureInstalledAsync();
+
     /// <summary>
-    /// Installs the systemd system service and polkit policy for passwordless startup.
-    /// Requires a one-time password prompt via pkexec.
+    /// Ensures the hardened systemd system template unit and polkit policy are
+    /// installed. Returns <c>true</c> if both are already present (or were just
+    /// installed), <c>false</c> if installation failed. Skips the one-time
+    /// pkexec prompt when the registration is already in place.
+    /// </summary>
+    internal async Task<bool> EnsureInstalledAsync()
+    {
+        if (File.Exists(Path.Combine(SystemdSystemDir, ServiceFileName)) &&
+            File.Exists($"/usr/share/polkit-1/actions/{PolkitPolicyId}.policy"))
+        {
+            return true;
+        }
+
+        return await InstallService();
+    }
+
+    /// <summary>
+    /// Installs the systemd system service template and polkit policy for
+    /// passwordless startup. Requires a one-time password prompt via pkexec.
     /// </summary>
     public async Task<bool> InstallService()
     {
@@ -370,7 +460,7 @@ public sealed class LinuxHelperProcessManager : IHelperProcessManager
     /// Returns the real UID of the current process by reading /proc/self/status.
     /// Falls back to the UID environment variable if /proc is unavailable.
     /// </summary>
-    private static int GetCurrentUid()
+    internal static int GetCurrentUid()
     {
         try
         {

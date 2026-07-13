@@ -51,6 +51,18 @@ public class ProcessNetworkStats
     public long SessionBytesSent { get; set; }
 
     /// <summary>
+    /// Subset of <see cref="SessionBytesReceived"/> that came from loopback /
+    /// localhost remote addresses (127.0.0.0/8, ::1). Zero unless the elevated
+    /// helper provided per-connection classification.
+    /// </summary>
+    public long LoopbackBytesReceived { get; set; }
+
+    /// <summary>
+    /// Subset of <see cref="SessionBytesSent"/> that went to loopback / localhost.
+    /// </summary>
+    public long LoopbackBytesSent { get; set; }
+
+    /// <summary>
     /// When this process was first seen in current session
     /// </summary>
     public DateTime FirstSeen { get; set; } = DateTime.Now;
@@ -74,4 +86,14 @@ public class ProcessNetworkStats
     /// Combined session bytes (received + sent)
     /// </summary>
     public long TotalSessionBytes => SessionBytesReceived + SessionBytesSent;
+
+    /// <summary>
+    /// Network (non-loopback) bytes received this session.
+    /// </summary>
+    public long NetworkBytesReceived => Math.Max(0, SessionBytesReceived - LoopbackBytesReceived);
+
+    /// <summary>
+    /// Network (non-loopback) bytes sent this session.
+    /// </summary>
+    public long NetworkBytesSent => Math.Max(0, SessionBytesSent - LoopbackBytesSent);
 }

@@ -763,7 +763,8 @@
       "wirebound.ipc": {
         "type": "Project",
         "dependencies": {
-          "MessagePack": "[3.1.4, )"
+          "MessagePack": "[3.1.4, )",
+          "Microsoft.Extensions.Logging.Abstractions": "[10.0.2, )"
         }
       },
       "wirebound.platform.abstract": {

@@ -61,17 +61,23 @@
     <Color x:Key="CpuColorDark">#2563EB</Color>
     <Color x:Key="CpuBgTint">#103B82F6</Color>
     
-    <!-- Memory Colors (Amethyst Purple) -->
-    <Color x:Key="MemoryColor">#A855F7</Color>
-    <Color x:Key="MemoryColorLight">#C084FC</Color>
-    <Color x:Key="MemoryColorDark">#9333EA</Color>
-    <Color x:Key="MemoryBgTint">#10A855F7</Color>
+    <!-- Memory Colors (Magenta Pink — colorblind-safe vs CPU blue) -->
+    <Color x:Key="MemoryColor">#EC4899</Color>
+    <Color x:Key="MemoryColorLight">#F472B6</Color>
+    <Color x:Key="MemoryColorDark">#DB2777</Color>
+    <Color x:Key="MemoryBgTint">#10EC4899</Color>
     
     <!-- GPU Colors (Emerald Green) -->
     <Color x:Key="GpuColor">#10B981</Color>
     <Color x:Key="GpuColorLight">#34D399</Color>
     <Color x:Key="GpuColorDark">#059669</Color>
     <Color x:Key="GpuBgTint">#1010B981</Color>
+    
+    <!-- Disk Colors (Amber Gold) -->
+    <Color x:Key="DiskColor">#F59E0B</Color>
+    <Color x:Key="DiskColorLight">#FBBF24</Color>
+    <Color x:Key="DiskColorDark">#B45309</Color>
+    <Color x:Key="DiskBgTint">#10F59E0B</Color>
     
     <!-- ═══════════════════════════════════════════════════════════════════ -->
     <!-- TEXT COLORS                                                          -->
@@ -174,7 +180,7 @@
     
     <!-- BoxShadow glow color -->
     <Color x:Key="PrimaryGlowColor">#8000E5FF</Color>
-    <!-- Accent Brush (used for update notifications, correlation values) -->
+    <!-- Accent Brush (used for update notifications) -->
     <SolidColorBrush x:Key="AccentBrush" Color="{StaticResource SecondaryColor}" />
     
     <SolidColorBrush x:Key="BackgroundBrush" Color="{StaticResource BackgroundColor}" />
@@ -233,5 +239,11 @@
     <SolidColorBrush x:Key="GpuLightBrush" Color="{StaticResource GpuColorLight}" />
     <SolidColorBrush x:Key="GpuDarkBrush" Color="{StaticResource GpuColorDark}" />
     <SolidColorBrush x:Key="GpuBgTintBrush" Color="{StaticResource GpuBgTint}" />
+
+    <!-- Disk Brushes -->
+    <SolidColorBrush x:Key="DiskBrush" Color="{StaticResource DiskColor}" />
+    <SolidColorBrush x:Key="DiskLightBrush" Color="{StaticResource DiskColorLight}" />
+    <SolidColorBrush x:Key="DiskDarkBrush" Color="{StaticResource DiskColorDark}" />
+    <SolidColorBrush x:Key="DiskBgTintBrush" Color="{StaticResource DiskBgTint}" />
 
 </ResourceDictionary>

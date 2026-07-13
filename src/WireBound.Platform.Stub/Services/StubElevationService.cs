@@ -41,6 +41,12 @@ public sealed class StubElevationService : IElevationService
     }
 
     /// <inheritdoc />
+    public Task<ElevationResult> TryConnectExistingAsync(int timeoutMs = 2500, CancellationToken cancellationToken = default)
+    {
+        return Task.FromResult(ElevationResult.NotSupported());
+    }
+
+    /// <inheritdoc />
     public Task StopHelperAsync()
     {
         return Task.CompletedTask;

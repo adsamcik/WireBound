@@ -12,6 +12,19 @@ using WireBound.Platform.Abstract.Services;
 namespace WireBound.Avalonia.ViewModels;
 
 /// <summary>
+/// Filters the connection list by traffic scope.
+/// </summary>
+public enum ConnectionScope
+{
+    /// <summary>All connections.</summary>
+    All,
+    /// <summary>External (non-loopback) connections only.</summary>
+    Network,
+    /// <summary>Loopback / localhost connections only.</summary>
+    Local
+}
+
+/// <summary>
 /// Display model for a network connection with formatted properties
 /// </summary>
 public partial class ConnectionDisplayItem : ObservableObject
@@ -23,13 +36,36 @@ public partial class ConnectionDisplayItem : ObservableObject
     private string _localEndpoint = "";
 
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(ShowRemoteEndpoint))]
     private string _remoteEndpoint = "";
 
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(ShowRemoteEndpoint))]
     private string _remoteHostname = "";
+
+    /// <summary>
+    /// True when the remote address is a loopback address (127.0.0.0/8 or ::1),
+    /// in which case <see cref="DisplayName"/> is shown as "localhost".
+    /// </summary>
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(ShowRemoteEndpoint))]
+    [NotifyPropertyChangedFor(nameof(ScopeLabel))]
+    private bool _isLoopback;
 
     [ObservableProperty]
     private string _displayName = "";
+
+    /// <summary>
+    /// Whether to show the raw endpoint subtitle beneath the remote title — shown
+    /// when a hostname was resolved, or for loopback (so the IP stays visible under
+    /// the "localhost" label).
+    /// </summary>
+    public bool ShowRemoteEndpoint => IsLoopback || !string.IsNullOrEmpty(RemoteHostname);
+
+    /// <summary>
+    /// Short label distinguishing loopback ("Local") from external ("Network") traffic.
+    /// </summary>
+    public string ScopeLabel => IsLoopback ? "Local" : "Network";
 
     [ObservableProperty]
     private string _processName = "";
@@ -68,7 +104,8 @@ public partial class ConnectionDisplayItem : ObservableObject
             LocalEndpoint = $"{stats.LocalAddress}:{stats.LocalPort}",
             RemoteEndpoint = stats.RemoteEndpoint,
             RemoteHostname = stats.ResolvedHostname ?? "",
-            DisplayName = stats.DisplayName,
+            IsLoopback = IsLoopbackAddress(stats.RemoteAddress),
+            DisplayName = FormatRemoteTitle(stats),
             ProcessName = stats.ProcessName,
             ProcessId = stats.ProcessId,
             State = stats.State.ToString(),
@@ -84,11 +121,32 @@ public partial class ConnectionDisplayItem : ObservableObject
         };
     }
 
+    /// <summary>
+    /// Produces the primary remote label: a resolved hostname if available,
+    /// "localhost" for loopback addresses, otherwise the raw IP.
+    /// </summary>
+    private static string FormatRemoteTitle(ConnectionStats stats)
+    {
+        if (!string.IsNullOrEmpty(stats.ResolvedHostname))
+            return stats.ResolvedHostname;
+        return IsLoopbackAddress(stats.RemoteAddress) ? "localhost" : stats.RemoteAddress;
+    }
+
+    private static bool IsLoopbackAddress(string address) =>
+        System.Net.IPAddress.TryParse(address, out var ip) && System.Net.IPAddress.IsLoopback(ip);
+
     public void UpdateFrom(ConnectionStats stats)
     {
         var newState = stats.State.ToString();
         if (State != newState)
             State = newState;
+
+        // Process attribution can change after creation (e.g. a pre-existing
+        // connection gets attributed from the OS table on a later refresh).
+        if (ProcessName != stats.ProcessName)
+            ProcessName = stats.ProcessName;
+        if (ProcessId != stats.ProcessId)
+            ProcessId = stats.ProcessId;
 
         if (BytesSentValue != stats.BytesSent)
         {
@@ -156,6 +214,7 @@ public sealed partial class ConnectionsViewModel : ObservableObject, IDisposable
     private readonly ILogger<ConnectionsViewModel>? _logger;
     private readonly TimeProvider _timeProvider;
     private readonly Dictionary<string, ConnectionDisplayItem> _connectionMap = new();
+    private readonly HashSet<string> _displayedKeys = new();
     private ITimer? _refreshTimer;
     private bool _disposed;
     private bool _isViewActive;
@@ -168,6 +227,14 @@ public sealed partial class ConnectionsViewModel : ObservableObject, IDisposable
 
     [ObservableProperty]
     private bool _isLoading;
+
+    /// <summary>
+    /// True only until the first connection refresh completes. The full-screen
+    /// loading overlay binds to this so periodic refreshes update the list in place
+    /// instead of flashing the overlay on every tick.
+    /// </summary>
+    [ObservableProperty]
+    private bool _isInitialLoading = true;
 
     [ObservableProperty]
     private bool _isPlatformSupported = true;
@@ -184,6 +251,14 @@ public sealed partial class ConnectionsViewModel : ObservableObject, IDisposable
     /// </summary>
     [ObservableProperty]
     private bool _isByteTrackingLimited;
+
+    /// <summary>
+    /// True while a <see cref="StartElevatedHelperAsync"/> request is in
+    /// flight (covers the UAC/pkexec dialog window). Bound to the button's
+    /// enable state so the user cannot fire a second request mid-handshake.
+    /// </summary>
+    [ObservableProperty]
+    private bool _isStartingHelper;
 
     [ObservableProperty]
     private string _errorMessage = "";
@@ -208,6 +283,33 @@ public sealed partial class ConnectionsViewModel : ObservableObject, IDisposable
 
     [ObservableProperty]
     private string _totalReceived = "0 B";
+
+    // Split totals: localhost (loopback) vs external network traffic.
+    [ObservableProperty]
+    private string _networkReceived = "0 B";
+
+    [ObservableProperty]
+    private string _networkSent = "0 B";
+
+    [ObservableProperty]
+    private string _localReceived = "0 B";
+
+    [ObservableProperty]
+    private string _localSent = "0 B";
+
+    /// <summary>
+    /// Scope filter applied to the connection list (All / Network / Local). Does not
+    /// affect the summary cards, which always reflect the full picture.
+    /// </summary>
+    [ObservableProperty]
+    private ConnectionScope _scopeFilter = ConnectionScope.All;
+
+    /// <summary>
+    /// True when at least one connection is currently shown (after filtering). The
+    /// "no connections" empty state binds to the inverse of this.
+    /// </summary>
+    [ObservableProperty]
+    private bool _hasVisibleConnections;
 
     [ObservableProperty]
     private BatchObservableCollection<ConnectionDisplayItem> _connections = new();
@@ -281,7 +383,80 @@ public sealed partial class ConnectionsViewModel : ObservableObject, IDisposable
         _dispatcher.Post(() =>
         {
             IsByteTrackingLimited = !e.IsConnected;
+            RequiresElevation = !e.IsConnected
+                                && _elevationService.RequiresElevationFor(ElevatedFeature.PerProcessNetworkMonitoring)
+                                && _elevationService.IsElevationSupported;
         }, UiDispatcherPriority.Background);
+    }
+
+    /// <summary>
+    /// Starts the minimal elevated helper process from the Connections page
+    /// banner. Same pattern as the Settings "Start Helper" button — this does
+    /// NOT elevate the main app; it launches a separate, locked-down helper
+    /// that only exposes ETW/netlink telemetry.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// User-initiated, so <c>allowInteractive: true</c> is implicit (default).
+    /// On Windows this triggers a one-time UAC prompt unless the helper is
+    /// already registered with Task Scheduler. On Linux this triggers pkexec
+    /// unless the systemd template is installed and the polkit policy is
+    /// active.
+    /// </para>
+    /// <para>
+    /// The command is bound to <see cref="IsByteTrackingLimited"/> so it
+    /// disappears the moment the helper connects and updates the banner.
+    /// </para>
+    /// </remarks>
+    [RelayCommand]
+    private async Task StartElevatedHelperAsync()
+    {
+        if (!_elevationService.IsElevationSupported)
+        {
+            _logger?.LogWarning("Helper start requested but elevation not supported on this platform");
+            return;
+        }
+
+        if (_elevationService.IsHelperConnected)
+        {
+            _logger?.LogDebug("Helper already connected");
+            return;
+        }
+
+        IsStartingHelper = true;
+        try
+        {
+            _logger?.LogInformation("User requested to start elevated helper from Connections page");
+            var result = await _elevationService.StartHelperAsync();
+
+            if (result.IsSuccess)
+            {
+                _logger?.LogInformation("Helper process started successfully");
+                IsByteTrackingLimited = !_elevationService.IsHelperConnected;
+                RequiresElevation = _elevationService.RequiresElevationFor(ElevatedFeature.PerProcessNetworkMonitoring)
+                                    && !_elevationService.IsHelperConnected;
+            }
+            else if (result.Status == ElevationStatus.Cancelled)
+            {
+                _logger?.LogInformation("User cancelled helper elevation request");
+            }
+            else
+            {
+                _logger?.LogWarning("Failed to start helper: {Error}", result.ErrorMessage);
+                HasError = true;
+                ErrorMessage = result.ErrorMessage ?? "Failed to start elevated helper";
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger?.LogError(ex, "Unexpected error starting elevated helper");
+            HasError = true;
+            ErrorMessage = ex.Message;
+        }
+        finally
+        {
+            IsStartingHelper = false;
+        }
     }
 
     private void OnNavigationChanged(string route)
@@ -341,15 +516,20 @@ public sealed partial class ConnectionsViewModel : ObservableObject, IDisposable
 
         _dispatcher.Post(() =>
         {
-            // Update any connections with this IP
-            foreach (var conn in Connections)
+            // Update all known connections with this IP — including hidden ones, so a
+            // newly resolved hostname can reveal a search match — then re-evaluate
+            // their visibility against the current filter.
+            foreach (var kvp in _connectionMap)
             {
+                var conn = kvp.Value;
                 if (conn.RemoteEndpoint.StartsWith(e.IpAddress))
                 {
                     conn.RemoteHostname = e.Hostname;
                     conn.DisplayName = e.Hostname;
+                    UpdateItemVisibility(kvp.Key);
                 }
             }
+            HasVisibleConnections = Connections.Count > 0;
         }, UiDispatcherPriority.Background);
     }
 
@@ -368,7 +548,6 @@ public sealed partial class ConnectionsViewModel : ObservableObject, IDisposable
         {
             await _dispatcher.InvokeAsync(() =>
             {
-                IsLoading = true;
                 HasError = false;
             });
 
@@ -379,6 +558,7 @@ public sealed partial class ConnectionsViewModel : ObservableObject, IDisposable
             {
                 UpdateConnectionsList(stats);
                 IsLoading = false;
+                IsInitialLoading = false;
             });
         }
         catch (Exception ex)
@@ -389,6 +569,7 @@ public sealed partial class ConnectionsViewModel : ObservableObject, IDisposable
                 HasError = true;
                 ErrorMessage = $"Failed to refresh connections: {ex.Message}";
                 IsLoading = false;
+                IsInitialLoading = false;
             });
         }
     }
@@ -396,8 +577,9 @@ public sealed partial class ConnectionsViewModel : ObservableObject, IDisposable
     private void UpdateConnectionsList(IReadOnlyList<ConnectionStats> stats)
     {
         var currentKeys = new HashSet<string>();
-        long totalSent = 0;
-        long totalReceived = 0;
+        long totalSent = 0, totalReceived = 0;
+        long networkSent = 0, networkReceived = 0;
+        long localSent = 0, localReceived = 0;
         int tcpCount = 0;
         int udpCount = 0;
 
@@ -406,8 +588,6 @@ public sealed partial class ConnectionsViewModel : ObservableObject, IDisposable
             var key = stat.ConnectionKey;
             currentKeys.Add(key);
 
-            totalSent += stat.BytesSent;
-            totalReceived += stat.BytesReceived;
             if (stat.Protocol == "TCP") tcpCount++;
             else udpCount++;
 
@@ -421,66 +601,124 @@ public sealed partial class ConnectionsViewModel : ObservableObject, IDisposable
                 stat.ResolvedHostname = hostname;
             }
 
-            if (_connectionMap.TryGetValue(key, out var existing))
+            if (!_connectionMap.TryGetValue(key, out var item))
             {
-                existing.UpdateFrom(stat);
+                item = ConnectionDisplayItem.FromConnectionStats(stat);
+                _connectionMap[key] = item;
             }
             else
             {
-                var item = ConnectionDisplayItem.FromConnectionStats(stat);
-                _connectionMap[key] = item;
-                Connections.Add(item);
+                item.UpdateFrom(stat);
             }
+
+            // Split totals by loopback vs external.
+            totalSent += stat.BytesSent;
+            totalReceived += stat.BytesReceived;
+            if (item.IsLoopback)
+            {
+                localSent += stat.BytesSent;
+                localReceived += stat.BytesReceived;
+            }
+            else
+            {
+                networkSent += stat.BytesSent;
+                networkReceived += stat.BytesReceived;
+            }
+
+            UpdateItemVisibility(key);
         }
 
-        // Remove stale connections
-        var staleCount = 0;
+        // Remove stale connections from the master map and the displayed list.
         foreach (var key in _connectionMap.Keys.Where(k => !currentKeys.Contains(k)).ToList())
         {
             if (_connectionMap.Remove(key, out var item))
             {
-                Connections.Remove(item);
-                staleCount++;
+                if (_displayedKeys.Remove(key))
+                    Connections.Remove(item);
             }
         }
 
-        // Apply search filter
-        ApplyFilter();
-
-        // Update stats
-        ConnectionCount = Connections.Count;
+        // Summary cards reflect the full picture (independent of the list filter).
+        ConnectionCount = _connectionMap.Count;
         TcpCount = tcpCount;
         UdpCount = udpCount;
         TotalSent = ByteFormatter.FormatBytes(totalSent);
         TotalReceived = ByteFormatter.FormatBytes(totalReceived);
+        NetworkSent = ByteFormatter.FormatBytes(networkSent);
+        NetworkReceived = ByteFormatter.FormatBytes(networkReceived);
+        LocalSent = ByteFormatter.FormatBytes(localSent);
+        LocalReceived = ByteFormatter.FormatBytes(localReceived);
+        HasVisibleConnections = Connections.Count > 0;
     }
 
-    private void ApplyFilter()
+    /// <summary>
+    /// Whether a connection passes the current scope filter and search text.
+    /// </summary>
+    private bool IsVisible(ConnectionDisplayItem item)
     {
-        if (string.IsNullOrWhiteSpace(SearchText))
-            return;
+        if (ScopeFilter == ConnectionScope.Local && !item.IsLoopback) return false;
+        if (ScopeFilter == ConnectionScope.Network && item.IsLoopback) return false;
 
-        var search = SearchText;
-        // Build filtered list and replace in one notification
-        var filtered = new List<ConnectionDisplayItem>(Connections.Count);
-        foreach (var c in Connections)
+        if (!string.IsNullOrWhiteSpace(SearchText))
         {
-            if (c.RemoteEndpoint.Contains(search, StringComparison.OrdinalIgnoreCase) ||
-                c.RemoteHostname.Contains(search, StringComparison.OrdinalIgnoreCase) ||
-                c.ProcessName.Contains(search, StringComparison.OrdinalIgnoreCase))
-            {
-                filtered.Add(c);
-            }
+            var s = SearchText;
+            return item.RemoteEndpoint.Contains(s, StringComparison.OrdinalIgnoreCase)
+                || item.RemoteHostname.Contains(s, StringComparison.OrdinalIgnoreCase)
+                || item.ProcessName.Contains(s, StringComparison.OrdinalIgnoreCase)
+                || item.DisplayName.Contains(s, StringComparison.OrdinalIgnoreCase);
         }
 
-        if (filtered.Count < Connections.Count)
-            Connections.ReplaceAll(filtered);
+        return true;
+    }
+
+    /// <summary>
+    /// Incrementally adds or removes a single connection from the displayed list to
+    /// match the current filter — avoids a full collection reset (and the resulting
+    /// flicker) on every refresh.
+    /// </summary>
+    private void UpdateItemVisibility(string key)
+    {
+        if (!_connectionMap.TryGetValue(key, out var item)) return;
+
+        var visible = IsVisible(item);
+        var displayed = _displayedKeys.Contains(key);
+
+        if (visible && !displayed)
+        {
+            Connections.Add(item);
+            _displayedKeys.Add(key);
+        }
+        else if (!visible && displayed)
+        {
+            Connections.Remove(item);
+            _displayedKeys.Remove(key);
+        }
+    }
+
+    /// <summary>
+    /// Re-evaluates the visibility of every known connection against the current
+    /// filter, incrementally. Used when the scope filter or search text changes.
+    /// </summary>
+    private void ReapplyFilter()
+    {
+        foreach (var key in _connectionMap.Keys.ToList())
+            UpdateItemVisibility(key);
+
+        HasVisibleConnections = Connections.Count > 0;
     }
 
     partial void OnSearchTextChanged(string value)
     {
+        // Filter locally right away for responsiveness, then refresh from the service
+        // (the periodic refresh also re-applies the predicate).
+        ReapplyFilter();
         PendingSearchTask = RefreshConnectionsAsync();
     }
+
+    partial void OnScopeFilterChanged(ConnectionScope value) => ReapplyFilter();
+
+    [RelayCommand]
+    private void SelectScope(ConnectionScope scope) => ScopeFilter = scope;
 
     [RelayCommand]
     private void SortBy(string column)

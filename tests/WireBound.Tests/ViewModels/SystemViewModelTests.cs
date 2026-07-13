@@ -18,7 +18,6 @@ public class SystemViewModelTests : IAsyncDisposable
     private readonly INavigationService _navigationServiceMock;
     private readonly ISystemSnapshotRepository _systemSnapshotRepositoryMock;
     private readonly ISystemHistoryService _systemHistoryMock;
-    private readonly IDataPersistenceService _persistenceMock;
 
     public SystemViewModelTests()
     {
@@ -27,7 +26,6 @@ public class SystemViewModelTests : IAsyncDisposable
         _navigationServiceMock = Substitute.For<INavigationService>();
         _systemSnapshotRepositoryMock = Substitute.For<ISystemSnapshotRepository>();
         _systemHistoryMock = Substitute.For<ISystemHistoryService>();
-        _persistenceMock = Substitute.For<IDataPersistenceService>();
         SetupDefaultMocks();
     }
 
@@ -40,7 +38,6 @@ public class SystemViewModelTests : IAsyncDisposable
         _navigationServiceMock.CurrentView.Returns(Routes.System);
         _systemSnapshotRepositoryMock.GetSystemHistoryAsync(Arg.Any<DateTime>()).Returns(new List<SystemSnapshot>());
         _systemHistoryMock.GetHourlyStatsAsync(Arg.Any<DateTime>(), Arg.Any<DateTime>()).Returns(new List<HourlySystemStats>());
-        _persistenceMock.GetHourlyUsageAsync(Arg.Any<DateOnly>()).Returns(new List<HourlyUsage>());
         _dispatcherMock.InvokeAsync(Arg.Any<Action>()).Returns(call =>
         {
             call.Arg<Action>()();
@@ -81,11 +78,33 @@ public class SystemViewModelTests : IAsyncDisposable
             _systemMonitorMock,
             _navigationServiceMock,
             _systemSnapshotRepositoryMock,
-            systemHistory: _systemHistoryMock,
-            persistence: _persistenceMock);
+            systemHistory: _systemHistoryMock);
         _createdViewModels.Add(viewModel);
         return viewModel;
     }
+
+    #region Loading Overlay Tests
+
+    [Test]
+    public async Task ShowLoadingOverlay_TrueOnlyWhenLoadingWithoutData()
+    {
+        var viewModel = CreateViewModel();
+        await viewModel.InitializationTask;
+
+        // Initial load (no data yet) -> overlay shown.
+        viewModel.IsLoading = true;
+        viewModel.HasData = false;
+        viewModel.ShowLoadingOverlay.Should().BeTrue();
+
+        // A reload while existing data is shown (e.g. period change) -> no overlay, no blink.
+        viewModel.HasData = true;
+        viewModel.ShowLoadingOverlay.Should().BeFalse();
+
+        viewModel.IsLoading = false;
+        viewModel.ShowLoadingOverlay.Should().BeFalse();
+    }
+
+    #endregion
 
     #region Constructor Tests
 
@@ -241,43 +260,6 @@ public class SystemViewModelTests : IAsyncDisposable
         viewModel.AvgMemoryPercent.Should().Be(60);
         viewModel.MaxMemoryPercent.Should().Be(90);
         viewModel.SystemTrendChart.Should().NotBeEmpty();
-        viewModel.HasData.Should().BeTrue();
-    }
-
-    [Test]
-    public async Task SystemViewModel_LoadsCorrelationsForSelectedPeriod()
-    {
-        // Arrange
-        var baseHour = DateTime.Today.AddHours(9);
-        var systemData = new List<HourlySystemStats>
-        {
-            new() { Hour = baseHour, AvgCpuPercent = 20, AvgMemoryPercent = 30 },
-            new() { Hour = baseHour.AddHours(1), AvgCpuPercent = 40, AvgMemoryPercent = 50 },
-            new() { Hour = baseHour.AddHours(2), AvgCpuPercent = 60, AvgMemoryPercent = 70 }
-        };
-        var networkData = new List<HourlyUsage>
-        {
-            new() { Hour = baseHour, BytesReceived = 100, BytesSent = 20 },
-            new() { Hour = baseHour.AddHours(1), BytesReceived = 200, BytesSent = 40 },
-            new() { Hour = baseHour.AddHours(2), BytesReceived = 300, BytesSent = 60 }
-        };
-        _systemHistoryMock.GetHourlyStatsAsync(Arg.Any<DateTime>(), Arg.Any<DateTime>()).Returns(systemData);
-        _persistenceMock.GetHourlyUsageAsync(Arg.Any<DateOnly>()).Returns(networkData);
-
-        var viewModel = CreateViewModel();
-        await viewModel.InitializationTask;
-
-        // Act
-        viewModel.SelectCorrelationsTabCommand.Execute(null);
-        await viewModel.PendingLoadTask!;
-
-        // Assert
-        viewModel.SelectedSystemTab.Should().Be(SystemTab.Correlations);
-        viewModel.NetworkCpuCorrelation.Should().BeApproximately(1, 0.0001);
-        viewModel.NetworkMemoryCorrelation.Should().BeApproximately(1, 0.0001);
-        viewModel.CpuMemoryCorrelation.Should().BeApproximately(1, 0.0001);
-        viewModel.CorrelationInsights.Should().NotBeEmpty();
-        viewModel.CorrelationChart.Should().NotBeEmpty();
         viewModel.HasData.Should().BeTrue();
     }
 

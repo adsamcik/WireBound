@@ -4,6 +4,7 @@
              xmlns:vm="using:WireBound.Avalonia.ViewModels"
              xmlns:services="using:WireBound.Core.Services"
              xmlns:converters="using:WireBound.Avalonia.Converters"
+             xmlns:controls="using:WireBound.Avalonia.Controls"
              x:Class="WireBound.Avalonia.Views.AppsView"
              x:DataType="vm:AppsViewModel"
              Background="{StaticResource BackgroundBrush}"
@@ -14,9 +15,9 @@
              list and toolbar have room to breathe; previous design split the page
              with a 520px detail drawer which squashed the master columns into
              unusable slivers on standard 1440px screens. -->
-        <ScrollViewer Margin="28"
+        <ScrollViewer Margin="24"
                       IsVisible="{Binding !IsDetailOpen}">
-            <StackPanel Spacing="20">
+            <StackPanel Spacing="24">
                 <StackPanel Spacing="4">
                     <TextBlock Text="Apps" Classes="PageTitle" />
                     <TextBlock Text="Unified application network and resource activity" Classes="Subtitle" />
@@ -27,7 +28,7 @@
                         IsVisible="{Binding ShowStatusBanner}">
                     <Grid ColumnDefinitions="Auto, *, Auto" ColumnSpacing="16">
                         <Border Background="{StaticResource InfoBgTintBrush}" CornerRadius="10" Width="48" Height="48">
-                            <TextBlock Text="ℹ️" FontSize="24" HorizontalAlignment="Center" VerticalAlignment="Center" />
+                            <controls:WbIcon IconKey="WbStatusInfo" Width="24" Height="24" />
                         </Border>
                         <StackPanel Grid.Column="1" Spacing="8" VerticalAlignment="Center">
                             <TextBlock Text="Apps tracking status"
@@ -57,29 +58,27 @@
                     </Grid>
                 </Border>
 
-                <!-- Summary cards: WrapPanel so they reflow on narrow widths instead
-                     of clipping their values when 5 fixed columns don't fit. -->
-                <ItemsControl>
-                    <ItemsControl.ItemsPanel>
-                        <ItemsPanelTemplate>
-                            <WrapPanel ItemWidth="240" ItemHeight="86" />
-                        </ItemsPanelTemplate>
-                    </ItemsControl.ItemsPanel>
-                    <Border Classes="ElevatedCard" Margin="0,0,12,12" Padding="16,12">
+                <!-- Summary metrics: a fixed 5-up grid. The previous WrapPanel
+                     reflowed into a 3+2 layout at common shell widths, leaving
+                     an empty slot. These metrics are always five and always
+                     equal weight, so a Grid with star columns gives the
+                     correct visual rhythm. -->
+                <Grid ColumnDefinitions="*, *, *, *, *" ColumnSpacing="16">
+                    <Border Grid.Column="0" Classes="CompactCard">
                         <StackPanel Spacing="6">
                             <StackPanel Orientation="Horizontal" Spacing="8">
-                                <TextBlock Text="📦" FontSize="14" />
+                                <controls:WbIcon IconKey="WbEntityApp" Width="14" Height="14" />
                                 <TextBlock Text="APPS SHOWN" Classes="MetricLabel" />
                             </StackPanel>
                             <TextBlock Text="{Binding ShownAppCount}"
-                                       FontSize="24" FontWeight="Bold"
+                                       FontSize="20" FontWeight="Bold"
                                        TextTrimming="CharacterEllipsis" />
                         </StackPanel>
                     </Border>
-                    <Border Classes="ElevatedCard" Margin="0,0,12,12" Padding="16,12">
+                    <Border Grid.Column="1" Classes="CompactCard">
                         <StackPanel Spacing="6">
                             <StackPanel Orientation="Horizontal" Spacing="8">
-                                <TextBlock Text="⬇️" FontSize="14" />
+                                <controls:WbIcon IconKey="WbMetricDownload" Width="14" Height="14" />
                                 <TextBlock Text="TOTAL DOWNLOAD" Classes="MetricLabel" />
                             </StackPanel>
                             <TextBlock Text="{Binding TotalDownload}"
@@ -89,10 +88,10 @@
                                        Foreground="{StaticResource DownloadBrush}" />
                         </StackPanel>
                     </Border>
-                    <Border Classes="ElevatedCard" Margin="0,0,12,12" Padding="16,12">
+                    <Border Grid.Column="2" Classes="CompactCard">
                         <StackPanel Spacing="6">
                             <StackPanel Orientation="Horizontal" Spacing="8">
-                                <TextBlock Text="⬆️" FontSize="14" />
+                                <controls:WbIcon IconKey="WbMetricUpload" Width="14" Height="14" />
                                 <TextBlock Text="TOTAL UPLOAD" Classes="MetricLabel" />
                             </StackPanel>
                             <TextBlock Text="{Binding TotalUpload}"
@@ -102,47 +101,51 @@
                                        Foreground="{StaticResource UploadBrush}" />
                         </StackPanel>
                     </Border>
-                    <Border Classes="ElevatedCard" Margin="0,0,12,12" Padding="16,12">
+                    <Border Grid.Column="3" Classes="CompactCard">
                         <StackPanel Spacing="6">
                             <StackPanel Orientation="Horizontal" Spacing="8">
-                                <TextBlock Text="🔥" FontSize="14" />
+                                <controls:WbIcon IconKey="WbEntityCpu" Width="14" Height="14" />
                                 <TextBlock Text="TOP CPU APP" Classes="MetricLabel" />
                             </StackPanel>
                             <TextBlock Text="{Binding TopCpuApp}"
-                                       FontSize="16" FontWeight="Bold"
+                                       FontSize="20" FontWeight="Bold"
                                        TextTrimming="CharacterEllipsis"
                                        ToolTip.Tip="{Binding TopCpuApp}" />
                         </StackPanel>
                     </Border>
-                    <Border Classes="ElevatedCard" Margin="0,0,12,12" Padding="16,12">
+                    <Border Grid.Column="4" Classes="CompactCard">
                         <StackPanel Spacing="6">
                             <StackPanel Orientation="Horizontal" Spacing="8">
-                                <TextBlock Text="🧠" FontSize="14" />
+                                <controls:WbIcon IconKey="WbEntityMemory" Width="14" Height="14" />
                                 <TextBlock Text="TOP RAM APP" Classes="MetricLabel" />
                             </StackPanel>
                             <TextBlock Text="{Binding TopMemoryApp}"
-                                       FontSize="16" FontWeight="Bold"
+                                       FontSize="20" FontWeight="Bold"
                                        TextTrimming="CharacterEllipsis"
                                        ToolTip.Tip="{Binding TopMemoryApp}" />
                         </StackPanel>
                     </Border>
-                </ItemsControl>
+                </Grid>
 
-                <!-- Toolbar row 1: search + date scoping + Refresh.
-                     Row 2 (chips) lives in its own card below. -->
-                <Border Classes="Card" Padding="20,16">
-                    <StackPanel Spacing="14">
-                        <Grid ColumnDefinitions="*, Auto, Auto, Auto, Auto, Auto" ColumnSpacing="14">
+                <!-- Unified filter panel: search + date scoping on top, then a
+                     divider, then the filter dimensions + sort presets. A single
+                     surface (one border/shadow/radius) replaces the previous
+                     two stacked cards, which created a visible seam. -->
+                <Border Classes="Card">
+                    <StackPanel Spacing="16">
+                        <Grid ColumnDefinitions="*, Auto, Auto, Auto, Auto, Auto, Auto" ColumnSpacing="16">
                             <Border Grid.Column="0"
                                     Background="{StaticResource SurfaceBrush}"
-                                    CornerRadius="10"
-                                    BorderBrush="{StaticResource GlassBorderBrush}"
+                                    CornerRadius="8"
+                                    BorderBrush="{StaticResource BorderBrush}"
                                     BorderThickness="1"
+                                    MinHeight="40"
                                     Padding="12,0">
                                 <TextBox Watermark="Search apps…"
                                          Text="{Binding SearchText}"
                                          Background="Transparent"
                                          BorderThickness="0"
+                                         VerticalAlignment="Center"
                                          MinWidth="220"
                                          AutomationProperties.Name="Search Apps"
                                          AutomationProperties.HelpText="Filter applications by name, process, path, or category"
@@ -152,49 +155,82 @@
                                       ItemsSource="{Binding AvailableCategories}"
                                       SelectedItem="{Binding SelectedCategory}"
                                       MinWidth="150"
+                                      MinHeight="40"
                                       AutomationProperties.Name="App Category Filter"
                                       AutomationProperties.HelpText="Filter applications by category" />
                             <CalendarDatePicker Grid.Column="2"
                                                 SelectedDate="{Binding StartDate}"
                                                 AutomationProperties.Name="Apps Start Date" />
-                            <TextBlock Grid.Column="3" Text="→" VerticalAlignment="Center" Foreground="{StaticResource MutedTextBrush}" />
+                            <TextBlock Grid.Column="3" Text="→" VerticalAlignment="Center"
+                                       Foreground="{StaticResource MutedTextBrush}"
+                                       AutomationProperties.Name="to" />
                             <CalendarDatePicker Grid.Column="4"
                                                 SelectedDate="{Binding EndDate}"
                                                 AutomationProperties.Name="Apps End Date" />
+                            <!-- Columns menu: lets users toggle which optional columns
+                                 to show in the list below. The three left-most columns
+                                 (indent, icon, application name) are always visible
+                                 because they identify what a row is — there's nothing
+                                 useful to look at without them. -->
                             <Button Grid.Column="5"
-                                    Content="🔄 Refresh"
-                                    Classes="Primary"
+                                    Classes="Secondary ToolbarButton"
+                                    AutomationProperties.Name="Choose visible columns"
+                                    AutomationProperties.HelpText="Show or hide individual data columns in the apps list">
+                                <StackPanel Orientation="Horizontal" Spacing="6">
+                                    <controls:WbIcon IconKey="WbActionTune" Width="14" Height="14" />
+                                    <TextBlock Text="Columns" VerticalAlignment="Center" />
+                                </StackPanel>
+                                <Button.Flyout>
+                                    <MenuFlyout Placement="BottomEdgeAlignedRight">
+                                        <MenuItem Header="Total" ToggleType="CheckBox" IsChecked="{Binding ShowTotalColumn}" />
+                                        <MenuItem Header="Download" ToggleType="CheckBox" IsChecked="{Binding ShowDownloadColumn}" />
+                                        <MenuItem Header="Upload" ToggleType="CheckBox" IsChecked="{Binding ShowUploadColumn}" />
+                                        <MenuItem Header="CPU (live + avg)" ToggleType="CheckBox" IsChecked="{Binding ShowCpuColumn}" />
+                                        <MenuItem Header="RAM (live + avg)" ToggleType="CheckBox" IsChecked="{Binding ShowRamColumn}" />
+                                        <MenuItem Header="Hours" ToggleType="CheckBox" IsChecked="{Binding ShowHoursColumn}" />
+                                        <MenuItem Header="Category" ToggleType="CheckBox" IsChecked="{Binding ShowCategoryColumn}" />
+                                    </MenuFlyout>
+                                </Button.Flyout>
+                            </Button>
+                            <Button Grid.Column="6"
+                                    Classes="Secondary ToolbarButton"
                                     Command="{Binding RefreshCommand}"
                                     IsEnabled="{Binding !IsLoading}"
-                                    AutomationProperties.Name="Refresh Apps Data" />
+                                    AutomationProperties.Name="Refresh Apps Data">
+                                <StackPanel Orientation="Horizontal" Spacing="6">
+                                    <controls:WbIcon IconKey="WbActionRefresh" Width="14" Height="14" />
+                                    <TextBlock Text="Refresh" VerticalAlignment="Center" />
+                                </StackPanel>
+                            </Button>
                         </Grid>
 
-                        <!-- Date presets: shortcut for the common scoping decisions. -->
+                        <!-- Date presets: shortcut for the common scoping decisions.
+                             Chip .active state marks the range currently in effect. -->
                         <StackPanel Orientation="Horizontal" Spacing="8">
-                            <TextBlock Text="QUICK RANGE" Classes="MetricLabel" VerticalAlignment="Center" />
-                            <Button Content="Today" Classes="Ghost"
+                            <TextBlock Text="QUICK RANGE" Classes="MetricLabel" VerticalAlignment="Center" Margin="0,0,4,0" />
+                            <Button Content="Today" Classes="FilterChip"
+                                    Classes.active="{Binding SelectedDatePreset, Converter={x:Static ObjectConverters.Equal}, ConverterParameter=today}"
                                     Command="{Binding ApplyDatePresetCommand}" CommandParameter="today" />
-                            <Button Content="24h" Classes="Ghost"
+                            <Button Content="24h" Classes="FilterChip"
+                                    Classes.active="{Binding SelectedDatePreset, Converter={x:Static ObjectConverters.Equal}, ConverterParameter=24h}"
                                     Command="{Binding ApplyDatePresetCommand}" CommandParameter="24h" />
-                            <Button Content="7d" Classes="Ghost"
+                            <Button Content="7d" Classes="FilterChip"
+                                    Classes.active="{Binding SelectedDatePreset, Converter={x:Static ObjectConverters.Equal}, ConverterParameter=7d}"
                                     Command="{Binding ApplyDatePresetCommand}" CommandParameter="7d" />
-                            <Button Content="30d" Classes="Ghost"
+                            <Button Content="30d" Classes="FilterChip"
+                                    Classes.active="{Binding SelectedDatePreset, Converter={x:Static ObjectConverters.Equal}, ConverterParameter=30d}"
                                     Command="{Binding ApplyDatePresetCommand}" CommandParameter="30d" />
                         </StackPanel>
-                    </StackPanel>
-                </Border>
 
-                <!-- Toolbar row 2: filter dimensions + sort presets + Clear All.
-                     Separate card so the dense filter strip doesn't crowd the
-                     primary search/date toolbar above. -->
-                <Border Classes="Card" Padding="20,14">
-                    <StackPanel Spacing="14">
-                        <Grid ColumnDefinitions="Auto, Auto, Auto, Auto, *, Auto" ColumnSpacing="14" RowDefinitions="Auto">
+                        <Rectangle Classes="Divider" />
+
+                        <Grid ColumnDefinitions="Auto, Auto, Auto, Auto, *, Auto" ColumnSpacing="16" RowDefinitions="Auto">
                             <StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Center" Grid.Column="0">
                                 <TextBlock Text="MIN TRAFFIC" Classes="MetricLabel" VerticalAlignment="Center" />
                                 <ComboBox SelectedIndex="0"
                                           SelectionChanged="OnMinTrafficSelectionChanged"
                                           MinWidth="110"
+                                          MinHeight="40"
                                           AutomationProperties.Name="Minimum traffic filter">
                                     <ComboBoxItem Content="Any" Tag="0" />
                                     <ComboBoxItem Content="≥ 100 KB" Tag="102400" />
@@ -207,6 +243,7 @@
                                 <TextBlock Text="ACTIVE" Classes="MetricLabel" VerticalAlignment="Center" />
                                 <ComboBox SelectedItem="{Binding ActivityWindow}"
                                           MinWidth="120"
+                                          MinHeight="40"
                                           AutomationProperties.Name="Recent activity filter">
                                     <vm:AppsActivityWindow>Any</vm:AppsActivityWindow>
                                     <vm:AppsActivityWindow>LastHour</vm:AppsActivityWindow>
@@ -218,6 +255,7 @@
                                 <TextBlock Text="MODE" Classes="MetricLabel" VerticalAlignment="Center" />
                                 <ComboBox SelectedItem="{Binding ActivityMode}"
                                           MinWidth="160"
+                                          MinHeight="40"
                                           AutomationProperties.Name="Activity mode filter">
                                     <vm:AppsActivityMode>All</vm:AppsActivityMode>
                                     <vm:AppsActivityMode>HasNetworkActivity</vm:AppsActivityMode>
@@ -228,22 +266,36 @@
                                     Command="{Binding ClearFiltersCommand}"
                                     IsVisible="{Binding HasActiveFilters}"
                                     AutomationProperties.Name="Clear all filters" />
+                            <CheckBox Grid.Column="5"
+                                      IsChecked="{Binding IncludeLocalTraffic}"
+                                      VerticalAlignment="Center"
+                                      AutomationProperties.Name="Include local loopback traffic in totals and ranking"
+                                      ToolTip.Tip="Off: traffic figures and ranking show network only; localhost/loopback is shown separately. On: loopback is folded into the totals.">
+                                <TextBlock Text="Include local traffic" FontSize="13" VerticalAlignment="Center" />
+                            </CheckBox>
                         </Grid>
                         <StackPanel Orientation="Horizontal" Spacing="8">
-                            <TextBlock Text="QUICK SORT" Classes="MetricLabel" VerticalAlignment="Center" />
-                            <Button Content="Most traffic" Classes="Ghost"
+                            <TextBlock Text="QUICK SORT" Classes="MetricLabel" VerticalAlignment="Center" Margin="0,0,4,0" />
+                            <Button Content="Most traffic" Classes="FilterChip"
+                                    Classes.active="{Binding ActiveSortPreset, Converter={x:Static ObjectConverters.Equal}, ConverterParameter=traffic}"
                                     Command="{Binding ApplySortPresetCommand}" CommandParameter="traffic" />
-                            <Button Content="Download" Classes="Ghost"
+                            <Button Content="Download" Classes="FilterChip"
+                                    Classes.active="{Binding ActiveSortPreset, Converter={x:Static ObjectConverters.Equal}, ConverterParameter=download}"
                                     Command="{Binding ApplySortPresetCommand}" CommandParameter="download" />
-                            <Button Content="Upload" Classes="Ghost"
+                            <Button Content="Upload" Classes="FilterChip"
+                                    Classes.active="{Binding ActiveSortPreset, Converter={x:Static ObjectConverters.Equal}, ConverterParameter=upload}"
                                     Command="{Binding ApplySortPresetCommand}" CommandParameter="upload" />
-                            <Button Content="CPU" Classes="Ghost"
+                            <Button Content="CPU" Classes="FilterChip"
+                                    Classes.active="{Binding ActiveSortPreset, Converter={x:Static ObjectConverters.Equal}, ConverterParameter=cpu}"
                                     Command="{Binding ApplySortPresetCommand}" CommandParameter="cpu" />
-                            <Button Content="RAM" Classes="Ghost"
+                            <Button Content="RAM" Classes="FilterChip"
+                                    Classes.active="{Binding ActiveSortPreset, Converter={x:Static ObjectConverters.Equal}, ConverterParameter=ram}"
                                     Command="{Binding ApplySortPresetCommand}" CommandParameter="ram" />
-                            <Button Content="Recent" Classes="Ghost"
+                            <Button Content="Recent" Classes="FilterChip"
+                                    Classes.active="{Binding ActiveSortPreset, Converter={x:Static ObjectConverters.Equal}, ConverterParameter=recent}"
                                     Command="{Binding ApplySortPresetCommand}" CommandParameter="recent" />
-                            <Button Content="Name" Classes="Ghost"
+                            <Button Content="Name" Classes="FilterChip"
+                                    Classes.active="{Binding ActiveSortPreset, Converter={x:Static ObjectConverters.Equal}, ConverterParameter=name}"
                                     Command="{Binding ApplySortPresetCommand}" CommandParameter="name" />
                         </StackPanel>
                     </StackPanel>
@@ -251,19 +303,39 @@
 
                 <Grid RowDefinitions="Auto, *" RowSpacing="16">
                     <StackPanel Orientation="Horizontal" Spacing="12">
-                        <TextBlock Text="📊" FontSize="16" VerticalAlignment="Center" />
+                        <controls:WbIcon IconKey="WbEntityApp" Width="16" Height="16" VerticalAlignment="Center" />
                         <TextBlock Text="APPLICATIONS" Classes="MetricLabel" VerticalAlignment="Center" />
                     </StackPanel>
 
                     <Grid Grid.Row="1">
                         <Border Classes="Card">
-                            <Grid RowDefinitions="Auto, *">
-                                <Grid Grid.Row="0"
-                                      ColumnDefinitions="Auto, *, 110, 110, 110, 100, 110, 80, 130"
-                                      ColumnSpacing="20"
-                                      Margin="20,0,20,12">
-                                    <Border Width="44" />
-                                    <Button Grid.Column="1"
+                            <!-- Wrap in horizontal ScrollViewer so the dense data table
+                                 can scroll horizontally instead of starving the name
+                                 column when the window is narrower than the ~960px
+                                 fixed-column footprint. Vertical scroll stays on the
+                                 inner ListBox. -->
+                            <ScrollViewer HorizontalScrollBarVisibility="Auto"
+                                          VerticalScrollBarVisibility="Disabled">
+                                <Grid RowDefinitions="Auto, *" MinWidth="940">
+                                    <Grid Grid.Row="0"
+                                          ColumnSpacing="10"
+                                          Margin="20,0,20,12">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="Auto" />
+                                            <ColumnDefinition Width="44" />
+                                            <ColumnDefinition Width="220" />
+                                            <ColumnDefinition Width="{Binding ShowTotalColumn, Converter={x:Static converters:BoolToGridLengthConverter.Instance}, ConverterParameter='110'}" />
+                                            <ColumnDefinition Width="{Binding ShowDownloadColumn, Converter={x:Static converters:BoolToGridLengthConverter.Instance}, ConverterParameter='110'}" />
+                                            <ColumnDefinition Width="{Binding ShowUploadColumn, Converter={x:Static converters:BoolToGridLengthConverter.Instance}, ConverterParameter='110'}" />
+                                            <ColumnDefinition Width="{Binding ShowCpuColumn, Converter={x:Static converters:BoolToGridLengthConverter.Instance}, ConverterParameter='100'}" />
+                                            <ColumnDefinition Width="{Binding ShowRamColumn, Converter={x:Static converters:BoolToGridLengthConverter.Instance}, ConverterParameter='110'}" />
+                                            <ColumnDefinition Width="{Binding ShowHoursColumn, Converter={x:Static converters:BoolToGridLengthConverter.Instance}, ConverterParameter='80'}" />
+                                            <ColumnDefinition Width="{Binding ShowCategoryColumn, Converter={x:Static converters:BoolToGridLengthConverter.Instance}, ConverterParameter='130'}" />
+                                        </Grid.ColumnDefinitions>
+                                    <!-- Col 0 indent spacer / Col 1 icon placeholder so the header lines
+                                         up with the row layout below. -->
+                                    <Border Grid.Column="1" Width="44" />
+                                    <Button Grid.Column="2"
                                             Classes="Ghost"
                                             Padding="0"
                                             HorizontalAlignment="Left"
@@ -276,10 +348,11 @@
                                             <TextBlock Text="{Binding NameSortGlyph}" Classes="MetricLabel" FontSize="11" />
                                         </StackPanel>
                                     </Button>
-                                    <Button Grid.Column="2"
+                                    <Button Grid.Column="3"
                                             Classes="Ghost"
                                             Padding="0"
                                             HorizontalAlignment="Right"
+                                            IsVisible="{Binding ShowTotalColumn}"
                                             Command="{Binding ToggleSortCommand}"
                                             CommandParameter="{x:Static vm:AppsSortColumn.TotalBytes}"
                                             AutomationProperties.Name="Sort by total bytes"
@@ -289,10 +362,11 @@
                                             <TextBlock Text="{Binding TotalBytesSortGlyph}" Classes="MetricLabel" FontSize="11" />
                                         </StackPanel>
                                     </Button>
-                                    <Button Grid.Column="3"
+                                    <Button Grid.Column="4"
                                             Classes="Ghost"
                                             Padding="0"
                                             HorizontalAlignment="Right"
+                                            IsVisible="{Binding ShowDownloadColumn}"
                                             Command="{Binding ToggleSortCommand}"
                                             CommandParameter="{x:Static vm:AppsSortColumn.BytesReceived}"
                                             AutomationProperties.Name="Sort by download"
@@ -302,10 +376,11 @@
                                             <TextBlock Text="{Binding BytesReceivedSortGlyph}" Classes="MetricLabel" FontSize="11" />
                                         </StackPanel>
                                     </Button>
-                                    <Button Grid.Column="4"
+                                    <Button Grid.Column="5"
                                             Classes="Ghost"
                                             Padding="0"
                                             HorizontalAlignment="Right"
+                                            IsVisible="{Binding ShowUploadColumn}"
                                             Command="{Binding ToggleSortCommand}"
                                             CommandParameter="{x:Static vm:AppsSortColumn.BytesSent}"
                                             AutomationProperties.Name="Sort by upload"
@@ -315,37 +390,41 @@
                                             <TextBlock Text="{Binding BytesSentSortGlyph}" Classes="MetricLabel" FontSize="11" />
                                         </StackPanel>
                                     </Button>
-                                    <Button Grid.Column="5"
+                                    <Button Grid.Column="6"
                                             Classes="Ghost"
                                             Padding="0"
                                             HorizontalAlignment="Right"
+                                            IsVisible="{Binding ShowCpuColumn}"
                                             Command="{Binding ToggleSortCommand}"
                                             CommandParameter="{x:Static vm:AppsSortColumn.AvgCpuPercent}"
                                             AutomationProperties.Name="Sort by recent CPU"
                                             AutomationProperties.HelpText="Sort apps by rolling-60s CPU percentage (falls back to historical avg)">
                                         <StackPanel Orientation="Horizontal" Spacing="4">
-                                            <TextBlock Text="CPU (60s)" Classes="MetricLabel" FontSize="11"
-                                                       ToolTip.Tip="Rolling 60-second average CPU usage. Falls back to the historical average for the date range when no live sample is available." />
+                                            <TextBlock Text="CPU" Classes="MetricLabel" FontSize="11"
+                                                       ToolTip.Tip="Live = rolling 60-second CPU usage. Avg = average over the selected date range." />
                                             <TextBlock Text="{Binding AvgCpuPercentSortGlyph}" Classes="MetricLabel" FontSize="11" />
-                                        </StackPanel>
-                                    </Button>
-                                    <Button Grid.Column="6"
-                                            Classes="Ghost"
-                                            Padding="0"
-                                            HorizontalAlignment="Right"
-                                            Command="{Binding ToggleSortCommand}"
-                                            CommandParameter="{x:Static vm:AppsSortColumn.AvgPrivateBytes}"
-                                            AutomationProperties.Name="Sort by average RAM"
-                                            AutomationProperties.HelpText="Sort apps by average RAM usage">
-                                        <StackPanel Orientation="Horizontal" Spacing="4">
-                                            <TextBlock Text="AVG RAM" Classes="MetricLabel" FontSize="11" />
-                                            <TextBlock Text="{Binding AvgPrivateBytesSortGlyph}" Classes="MetricLabel" FontSize="11" />
                                         </StackPanel>
                                     </Button>
                                     <Button Grid.Column="7"
                                             Classes="Ghost"
                                             Padding="0"
                                             HorizontalAlignment="Right"
+                                            IsVisible="{Binding ShowRamColumn}"
+                                            Command="{Binding ToggleSortCommand}"
+                                            CommandParameter="{x:Static vm:AppsSortColumn.AvgPrivateBytes}"
+                                            AutomationProperties.Name="Sort by RAM"
+                                            AutomationProperties.HelpText="Sort apps by average RAM usage">
+                                        <StackPanel Orientation="Horizontal" Spacing="4">
+                                            <TextBlock Text="RAM" Classes="MetricLabel" FontSize="11"
+                                                       ToolTip.Tip="Live = rolling 60-second private bytes. Avg = average over the selected date range." />
+                                            <TextBlock Text="{Binding AvgPrivateBytesSortGlyph}" Classes="MetricLabel" FontSize="11" />
+                                        </StackPanel>
+                                    </Button>
+                                    <Button Grid.Column="8"
+                                            Classes="Ghost"
+                                            Padding="0"
+                                            HorizontalAlignment="Right"
+                                            IsVisible="{Binding ShowHoursColumn}"
                                             Command="{Binding ToggleSortCommand}"
                                             CommandParameter="{x:Static vm:AppsSortColumn.HoursActive}"
                                             AutomationProperties.Name="Sort by active hours"
@@ -355,10 +434,11 @@
                                             <TextBlock Text="{Binding HoursActiveSortGlyph}" Classes="MetricLabel" FontSize="11" />
                                         </StackPanel>
                                     </Button>
-                                    <Button Grid.Column="8"
+                                    <Button Grid.Column="9"
                                             Classes="Ghost"
                                             Padding="0"
                                             HorizontalAlignment="Left"
+                                            IsVisible="{Binding ShowCategoryColumn}"
                                             Command="{Binding ToggleSortCommand}"
                                             CommandParameter="{x:Static vm:AppsSortColumn.Category}"
                                             AutomationProperties.Name="Sort by category"
@@ -392,89 +472,219 @@
                                     </ListBox.Styles>
                                     <ListBox.ItemTemplate>
                                         <DataTemplate x:DataType="services:AppOverview">
-                                            <Border Padding="16,10" Margin="0,0,0,6"
+                                            <!-- Idle (not-running) apps get the whole row dimmed to 0.55 so the
+                                                 user can scan running vs historical entries at a glance. The
+                                                 chip border is also pushed to BorderBrush so the row reads as a
+                                                 "muted" history entry rather than an active monitor target. -->
+                                            <Border Padding="12,10" Margin="0,0,0,6"
                                                     Background="{StaticResource BorderSubtleBrush}"
                                                     CornerRadius="12"
+                                                    Opacity="{Binding IsCurrentlyRunning, Converter={x:Static converters:BoolToDoubleConverter.Instance}, ConverterParameter='1.0|0.55'}"
                                                     ToolTip.Tip="{Binding ExecutablePath}">
-                                                <Grid ColumnDefinitions="Auto, *, 110, 110, 110, 100, 110, 80, 130" ColumnSpacing="20">
-                                                    <!-- Icon: real PNG when extracted, generic placeholder otherwise. Both
-                                                         occupy the same 44×44 slot inside a tinted rounded square so the
-                                                         visual alignment is identical whether or not the helper resolved
-                                                         the executable's icon. -->
-                                                    <Border Width="44" Height="44"
-                                                            Background="{StaticResource AccentBgTintBrush}"
-                                                            CornerRadius="10"
-                                                            ClipToBounds="True">
-                                                        <Grid>
-                                                            <TextBlock Text="📦" FontSize="20"
+                                                <Grid ColumnSpacing="10">
+                                                    <Grid.ColumnDefinitions>
+                                                        <ColumnDefinition Width="Auto" />
+                                                        <ColumnDefinition Width="44" />
+                                                        <ColumnDefinition Width="220" />
+                                                        <ColumnDefinition Width="{Binding #AppsList.((vm:AppsViewModel)DataContext).ShowTotalColumn, Converter={x:Static converters:BoolToGridLengthConverter.Instance}, ConverterParameter='110'}" />
+                                                        <ColumnDefinition Width="{Binding #AppsList.((vm:AppsViewModel)DataContext).ShowDownloadColumn, Converter={x:Static converters:BoolToGridLengthConverter.Instance}, ConverterParameter='110'}" />
+                                                        <ColumnDefinition Width="{Binding #AppsList.((vm:AppsViewModel)DataContext).ShowUploadColumn, Converter={x:Static converters:BoolToGridLengthConverter.Instance}, ConverterParameter='110'}" />
+                                                        <ColumnDefinition Width="{Binding #AppsList.((vm:AppsViewModel)DataContext).ShowCpuColumn, Converter={x:Static converters:BoolToGridLengthConverter.Instance}, ConverterParameter='100'}" />
+                                                        <ColumnDefinition Width="{Binding #AppsList.((vm:AppsViewModel)DataContext).ShowRamColumn, Converter={x:Static converters:BoolToGridLengthConverter.Instance}, ConverterParameter='110'}" />
+                                                        <ColumnDefinition Width="{Binding #AppsList.((vm:AppsViewModel)DataContext).ShowHoursColumn, Converter={x:Static converters:BoolToGridLengthConverter.Instance}, ConverterParameter='80'}" />
+                                                        <ColumnDefinition Width="{Binding #AppsList.((vm:AppsViewModel)DataContext).ShowCategoryColumn, Converter={x:Static converters:BoolToGridLengthConverter.Instance}, ConverterParameter='130'}" />
+                                                    </Grid.ColumnDefinitions>
+                                                    <!-- Col 0 – Indent spacer: 24px nudge for group members so the
+                                                         visual nesting is immediately readable. Auto-sized so it
+                                                         collapses to zero on solos and group heads. -->
+                                                    <Border Grid.Column="0"
+                                                            Width="{Binding IsGroupMember, Converter={x:Static converters:BoolToWidthConverter.Instance}, ConverterParameter=24}" />
+
+                                                    <!-- Col 1 – Icon: real PNG when extracted, generic placeholder
+                                                         otherwise. Both occupy the same 44×44 slot. On group heads
+                                                         a small chevron Button is overlaid in the bottom-right
+                                                         corner of the icon — that's the disclosure affordance,
+                                                         right where the eye is already looking. Replaces the old
+                                                         dedicated 28px chevron column that wasted ~40px of left
+                                                         padding on every row regardless of grouping. -->
+                                                    <Grid Grid.Column="1" Width="44" Height="44">
+                                                        <Border Background="{StaticResource AccentBgTintBrush}"
+                                                                CornerRadius="10"
+                                                                ClipToBounds="True">
+                                                            <Grid>
+                                                                <controls:WbIcon IconKey="WbEntityApp" Width="20" Height="20"
+                                                                                 IsVisible="{Binding !HasIcon}" />
+                                                                <Image Source="{Binding IconPath, Converter={x:Static converters:IconPathToBitmapConverter.Instance}}"
+                                                                       Width="28" Height="28"
                                                                        HorizontalAlignment="Center"
                                                                        VerticalAlignment="Center"
-                                                                       IsVisible="{Binding !HasIcon}" />
-                                                            <Image Source="{Binding IconPath, Converter={x:Static converters:IconPathToBitmapConverter.Instance}}"
-                                                                   Width="28" Height="28"
-                                                                   HorizontalAlignment="Center"
-                                                                   VerticalAlignment="Center"
-                                                                   Stretch="Uniform"
-                                                                   IsVisible="{Binding HasIcon}" />
-                                                        </Grid>
-                                                    </Border>
+                                                                       Stretch="Uniform"
+                                                                       IsVisible="{Binding HasIcon}" />
+                                                            </Grid>
+                                                        </Border>
+                                                        <!-- Chevron overlay: appears only on group heads, sits
+                                                             in the bottom-right corner of the icon tile so it
+                                                             reads as a "this icon expands" disclosure indicator. -->
+                                                        <Button Width="18" Height="18"
+                                                                Padding="0"
+                                                                Background="{StaticResource SurfaceBrush}"
+                                                                BorderBrush="{StaticResource PrimaryBrush}"
+                                                                BorderThickness="1"
+                                                                CornerRadius="9"
+                                                                Cursor="Hand"
+                                                                IsVisible="{Binding IsGroupHead}"
+                                                                VerticalAlignment="Bottom"
+                                                                HorizontalAlignment="Right"
+                                                                Margin="0,0,-4,-4"
+                                                                Command="{Binding $parent[ListBox].((vm:AppsViewModel)DataContext).ToggleGroupCommand}"
+                                                                CommandParameter="{Binding}"
+                                                                ToolTip.Tip="Expand or collapse grouped processes"
+                                                                AutomationProperties.Name="Toggle group">
+                                                            <TextBlock Text="▸"
+                                                                       FontSize="10"
+                                                                       FontWeight="Bold"
+                                                                       Foreground="{StaticResource PrimaryBrush}"
+                                                                       HorizontalAlignment="Center"
+                                                                       VerticalAlignment="Center"
+                                                                       RenderTransformOrigin="0.5,0.5">
+                                                                <TextBlock.RenderTransform>
+                                                                    <RotateTransform Angle="{Binding IsExpanded, Converter={x:Static converters:BoolToAngleConverter.Instance}}" />
+                                                                </TextBlock.RenderTransform>
+                                                            </TextBlock>
+                                                        </Button>
+                                                    </Grid>
 
-                                                    <StackPanel Grid.Column="1" VerticalAlignment="Center" Spacing="3">
-                                                        <TextBlock Text="{Binding AppName}"
-                                                                   FontSize="15" FontWeight="SemiBold"
-                                                                   TextTrimming="CharacterEllipsis" />
+                                                    <!-- Col 2 – Name + process. Two pills can appear next to the
+                                                         name: "(N processes)" on group heads, and "Idle" when the
+                                                         app isn't currently running (no live CPU/RAM samples in
+                                                         the last 60s). Idle apps are also dimmed at the row level. -->
+                                                    <StackPanel Grid.Column="2" VerticalAlignment="Center" Spacing="3">
+                                                        <Grid ColumnDefinitions="*, Auto, Auto" ColumnSpacing="8">
+                                                            <TextBlock Grid.Column="0"
+                                                                       Text="{Binding AppName}"
+                                                                       FontSize="15" FontWeight="SemiBold"
+                                                                       TextTrimming="CharacterEllipsis"
+                                                                       VerticalAlignment="Center" />
+                                                            <Border Grid.Column="1"
+                                                                    Background="{StaticResource BorderSubtleBrush}"
+                                                                    CornerRadius="999"
+                                                                    Padding="8,2"
+                                                                    VerticalAlignment="Center"
+                                                                    IsVisible="{Binding !IsCurrentlyRunning}"
+                                                                    ToolTip.Tip="No live CPU or RAM samples in the last 60 seconds — the process isn't running right now. The 'avg' lines below show its activity over the selected date range.">
+                                                                <StackPanel Orientation="Horizontal" Spacing="4">
+                                                                    <Ellipse Width="6" Height="6"
+                                                                             Fill="{StaticResource MutedTextBrush}"
+                                                                             VerticalAlignment="Center" />
+                                                                    <TextBlock Text="IDLE"
+                                                                               FontSize="10" FontWeight="Bold"
+                                                                               Foreground="{StaticResource SecondaryTextBrush}"
+                                                                               VerticalAlignment="Center" />
+                                                                </StackPanel>
+                                                            </Border>
+                                                            <Border Grid.Column="2"
+                                                                    Background="{StaticResource AccentBgTintBrush}"
+                                                                    CornerRadius="999"
+                                                                    Padding="8,2"
+                                                                    VerticalAlignment="Center"
+                                                                    IsVisible="{Binding IsGroupHead}"
+                                                                    ToolTip.Tip="Grouped processes — click the chevron to expand">
+                                                                <TextBlock Text="{Binding GroupMemberCount, StringFormat='{}{0} processes'}"
+                                                                           FontSize="10" FontWeight="Bold"
+                                                                           Foreground="{StaticResource PrimaryBrush}" />
+                                                            </Border>
+                                                        </Grid>
                                                         <TextBlock Text="{Binding ProcessName}"
                                                                    Classes="Caption"
                                                                    TextTrimming="CharacterEllipsis" />
+                                                        <TextBlock Text="{Binding FormattedLocalTotalBytes, StringFormat='{}localhost: {0}'}"
+                                                                   FontSize="11"
+                                                                   Foreground="{StaticResource SecondaryTextBrush}"
+                                                                   TextTrimming="CharacterEllipsis"
+                                                                   IsVisible="{Binding HasLoopbackTraffic}"
+                                                                   ToolTip.Tip="Loopback / localhost traffic — excluded from the network total and from ranking by default" />
                                                     </StackPanel>
 
-                                                    <TextBlock Grid.Column="2"
+                                                    <TextBlock Grid.Column="3"
                                                                Text="{Binding FormattedTotalBytes}"
                                                                FontSize="15" FontWeight="Bold"
                                                                HorizontalAlignment="Right"
-                                                               VerticalAlignment="Center" />
-                                                    <TextBlock Grid.Column="3"
+                                                               VerticalAlignment="Center"
+                                                               IsVisible="{Binding #AppsList.((vm:AppsViewModel)DataContext).ShowTotalColumn}" />
+                                                    <TextBlock Grid.Column="4"
                                                                Text="{Binding FormattedBytesReceived}"
                                                                FontSize="15" FontWeight="SemiBold"
                                                                Foreground="{StaticResource DownloadBrush}"
                                                                HorizontalAlignment="Right"
-                                                               VerticalAlignment="Center" />
-                                                    <TextBlock Grid.Column="4"
+                                                               VerticalAlignment="Center"
+                                                               IsVisible="{Binding #AppsList.((vm:AppsViewModel)DataContext).ShowDownloadColumn}" />
+                                                    <TextBlock Grid.Column="5"
                                                                Text="{Binding FormattedBytesSent}"
                                                                FontSize="15" FontWeight="SemiBold"
                                                                Foreground="{StaticResource UploadBrush}"
                                                                HorizontalAlignment="Right"
-                                                               VerticalAlignment="Center" />
-                                                    <TextBlock Grid.Column="5"
-                                                               Text="{Binding FormattedLiveCpu}"
-                                                               FontSize="15" FontWeight="SemiBold"
-                                                               HorizontalAlignment="Right"
                                                                VerticalAlignment="Center"
-                                                               ToolTip.Tip="Rolling 60-second average. '—' means no live sample yet — the helper takes ~5 seconds to start producing values." />
-                                                    <TextBlock Grid.Column="6"
-                                                               Text="{Binding FormattedAvgPrivateBytes}"
-                                                               FontSize="15" FontWeight="SemiBold"
-                                                               HorizontalAlignment="Right"
-                                                               VerticalAlignment="Center" />
-                                                    <TextBlock Grid.Column="7"
+                                                               IsVisible="{Binding #AppsList.((vm:AppsViewModel)DataContext).ShowUploadColumn}" />
+                                                    <!-- CPU cell: live (60s rolling) on top, period avg muted below.
+                                                         Two lines makes the "right now vs over time" comparison
+                                                         immediate without taking extra column width. -->
+                                                    <StackPanel Grid.Column="6"
+                                                                Spacing="0"
+                                                                HorizontalAlignment="Right"
+                                                                VerticalAlignment="Center"
+                                                                IsVisible="{Binding #AppsList.((vm:AppsViewModel)DataContext).ShowCpuColumn}"
+                                                                ToolTip.Tip="Live = rolling 60-second CPU usage. '—' means no live sample yet (helper takes ~5s). Avg = average over the selected date range.">
+                                                        <TextBlock Text="{Binding FormattedLiveCpu}"
+                                                                   FontSize="15" FontWeight="SemiBold"
+                                                                   HorizontalAlignment="Right" />
+                                                        <TextBlock Text="{Binding AvgCpuPercent, StringFormat='avg {0:F1}%'}"
+                                                                   FontSize="11"
+                                                                   Foreground="{StaticResource SecondaryTextBrush}"
+                                                                   HorizontalAlignment="Right"
+                                                                   IsVisible="{Binding HasMeaningfulAvgCpu}" />
+                                                    </StackPanel>
+                                                    <!-- RAM cell: same two-line treatment — live (60s rolling) on
+                                                         top, period avg muted below. -->
+                                                    <StackPanel Grid.Column="7"
+                                                                Spacing="0"
+                                                                HorizontalAlignment="Right"
+                                                                VerticalAlignment="Center"
+                                                                IsVisible="{Binding #AppsList.((vm:AppsViewModel)DataContext).ShowRamColumn}"
+                                                                ToolTip.Tip="Live = rolling 60-second private bytes. '—' means no live sample yet (helper takes ~5s). Avg = average over the selected date range.">
+                                                        <TextBlock Text="{Binding FormattedLiveRam}"
+                                                                   FontSize="15" FontWeight="SemiBold"
+                                                                   HorizontalAlignment="Right" />
+                                                        <TextBlock Text="{Binding FormattedAvgPrivateBytes, StringFormat='avg {0}'}"
+                                                                   FontSize="11"
+                                                                   Foreground="{StaticResource SecondaryTextBrush}"
+                                                                   HorizontalAlignment="Right"
+                                                                   IsVisible="{Binding HasMeaningfulAvgRam}" />
+                                                    </StackPanel>
+                                                    <TextBlock Grid.Column="8"
                                                                Text="{Binding HoursActive}"
                                                                FontSize="15" FontWeight="SemiBold"
                                                                HorizontalAlignment="Right"
-                                                               VerticalAlignment="Center" />
-                                                    <!-- Category pill: subtle outline rather than a bare gray label so it
-                                                         reads as a "tag" rather than an afterthought. The outline color
-                                                         comes from the same neutral subtle border used elsewhere so it
-                                                         never competes with primary numeric cells. -->
-                                                    <Border Grid.Column="8"
+                                                               VerticalAlignment="Center"
+                                                               IsVisible="{Binding #AppsList.((vm:AppsViewModel)DataContext).ShowHoursColumn}" />
+                                                    <!-- Col 9 – Category pill: hidden when CategoryName is empty
+                                                         so we never render an empty pill. Also hidden when the
+                                                         Category column is toggled off in the Columns menu. -->
+                                                    <Border Grid.Column="9"
                                                             Padding="10,4"
                                                             CornerRadius="999"
                                                             BorderBrush="{StaticResource GlassBorderBrush}"
                                                             BorderThickness="1"
                                                             HorizontalAlignment="Left"
                                                             VerticalAlignment="Center">
+                                                        <Border.IsVisible>
+                                                            <MultiBinding Converter="{x:Static BoolConverters.And}">
+                                                                <Binding Path="CategoryName" Converter="{x:Static StringConverters.IsNotNullOrEmpty}" />
+                                                                <Binding ElementName="AppsList" Path="((vm:AppsViewModel)DataContext).ShowCategoryColumn" />
+                                                            </MultiBinding>
+                                                        </Border.IsVisible>
                                                         <TextBlock Text="{Binding CategoryName}"
                                                                    FontSize="12"
-                                                                   Foreground="{StaticResource MutedTextBrush}"
+                                                                   Foreground="{StaticResource SecondaryTextBrush}"
                                                                    TextTrimming="CharacterEllipsis" />
                                                     </Border>
                                                 </Grid>
@@ -482,7 +692,8 @@
                                         </DataTemplate>
                                     </ListBox.ItemTemplate>
                                 </ListBox>
-                            </Grid>
+                                </Grid>
+                            </ScrollViewer>
                         </Border>
 
                         <!-- Two empty states swap based on whether filters are
@@ -496,7 +707,7 @@
                                 <StackPanel HorizontalAlignment="Center"
                                             Spacing="12"
                                             IsVisible="{Binding !HasActiveFilters}">
-                                    <TextBlock Text="📦" FontSize="36" HorizontalAlignment="Center" />
+                                    <controls:WbIcon IconKey="WbEntityApp" Width="36" Height="36" HorizontalAlignment="Center" />
                                     <TextBlock Text="No application data yet"
                                                FontSize="16" FontWeight="Bold"
                                                HorizontalAlignment="Center" />
@@ -510,7 +721,7 @@
                                 <StackPanel HorizontalAlignment="Center"
                                             Spacing="12"
                                             IsVisible="{Binding HasActiveFilters}">
-                                    <TextBlock Text="🔍" FontSize="36" HorizontalAlignment="Center" />
+                                    <controls:WbIcon IconKey="WbActionSearch" Width="36" Height="36" HorizontalAlignment="Center" />
                                     <TextBlock Text="No apps match your filters"
                                                FontSize="16" FontWeight="Bold"
                                                HorizontalAlignment="Center" />
@@ -539,12 +750,35 @@
         <ScrollViewer Margin="28"
                       IsVisible="{Binding IsDetailOpen}">
             <StackPanel Spacing="20">
-                <Button Content="← Back to apps"
-                        Classes="Ghost"
-                        Padding="0,4"
-                        HorizontalAlignment="Left"
-                        Command="{Binding CloseDetailCommand}"
-                        AutomationProperties.Name="Back to applications list" />
+                <Grid ColumnDefinitions="Auto, *, Auto" ColumnSpacing="12">
+                    <Button Grid.Column="0"
+                            Content="← Back to apps"
+                            Classes="Ghost"
+                            Padding="0,4"
+                            VerticalAlignment="Center"
+                            Command="{Binding CloseDetailCommand}"
+                            AutomationProperties.Name="Back to applications list" />
+
+                    <!-- Inline date preset strip — the detail view doesn't have its
+                         own date pickers; selecting a preset here also reloads the
+                         master list so the two views stay consistent. -->
+                    <StackPanel Grid.Column="2"
+                                Orientation="Horizontal"
+                                Spacing="8"
+                                VerticalAlignment="Center">
+                        <TextBlock Text="QUICK RANGE" Classes="MetricLabel"
+                                   VerticalAlignment="Center"
+                                   Margin="0,0,4,0" />
+                        <Button Content="Today" Classes="FilterChip"
+                                Command="{Binding ApplyDatePresetCommand}" CommandParameter="today" />
+                        <Button Content="24h" Classes="FilterChip"
+                                Command="{Binding ApplyDatePresetCommand}" CommandParameter="24h" />
+                        <Button Content="7d" Classes="FilterChip"
+                                Command="{Binding ApplyDatePresetCommand}" CommandParameter="7d" />
+                        <Button Content="30d" Classes="FilterChip"
+                                Command="{Binding ApplyDatePresetCommand}" CommandParameter="30d" />
+                    </StackPanel>
+                </Grid>
 
                 <!-- App identity header: icon + name + path + category badge. -->
                 <Border Classes="Card">
@@ -554,10 +788,8 @@
                                 CornerRadius="14"
                                 ClipToBounds="True">
                             <Grid>
-                                <TextBlock Text="📦" FontSize="32"
-                                           HorizontalAlignment="Center"
-                                           VerticalAlignment="Center"
-                                           IsVisible="{Binding !SelectedAppHasIcon}" />
+                                <controls:WbIcon IconKey="WbEntityApp" Width="32" Height="32"
+                                                 IsVisible="{Binding !SelectedAppHasIcon}" />
                                 <Image Source="{Binding SelectedAppIconPath, Converter={x:Static converters:IconPathToBitmapConverter.Instance}}"
                                        Width="44" Height="44"
                                        HorizontalAlignment="Center"
@@ -774,7 +1006,8 @@
                         <TextBlock Text="The helper records remote-endpoint stats globally rather than per app, so this list is the busiest destinations across every process during the selected period — not just this one."
                                    Classes="Caption"
                                    TextWrapping="Wrap" />
-                        <ItemsControl ItemsSource="{Binding TopDestinationDisplayItems}">
+                        <ItemsControl ItemsSource="{Binding TopDestinationDisplayItems}"
+                                      IsVisible="{Binding TopDestinationDisplayItems.Count}">
                             <ItemsControl.ItemTemplate>
                                 <DataTemplate x:DataType="vm:TopDestinationDisplayEntry">
                                     <Border Padding="12,10" Margin="0,0,0,6"
@@ -799,6 +1032,33 @@
                                 </DataTemplate>
                             </ItemsControl.ItemTemplate>
                         </ItemsControl>
+
+                        <!-- Empty state: no destination data has been captured yet for the
+                             selected range. Most commonly this means the elevated helper
+                             hasn't been running (per-address rollups come from the ETW
+                             stream the helper writes), or the date range pre-dates the
+                             first time the helper was connected. -->
+                        <Border Padding="20,24"
+                                CornerRadius="10"
+                                Background="{StaticResource BorderSubtleBrush}"
+                                IsVisible="{Binding !TopDestinationDisplayItems.Count}">
+                            <StackPanel Spacing="8" HorizontalAlignment="Center">
+                                <controls:WbIcon IconKey="WbEntityNetworkNode"
+                                                 Width="28" Height="28"
+                                                 HorizontalAlignment="Center"
+                                                 Opacity="0.6" />
+                                <TextBlock Text="No destinations captured for this range"
+                                           FontSize="13" FontWeight="SemiBold"
+                                           HorizontalAlignment="Center"
+                                           Foreground="{StaticResource PrimaryTextBrush}" />
+                                <TextBlock Text="Per-address statistics are collected by the elevated helper. Make sure the helper is connected (Settings → Elevation) and try a different time range."
+                                           Classes="Caption"
+                                           TextWrapping="Wrap"
+                                           MaxWidth="520"
+                                           TextAlignment="Center"
+                                           HorizontalAlignment="Center" />
+                            </StackPanel>
+                        </Border>
                     </StackPanel>
                 </Border>
             </StackPanel>

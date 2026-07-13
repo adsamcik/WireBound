@@ -53,7 +53,7 @@ public class MainViewModelTests : IAsyncDisposable
         using var viewModel = CreateViewModel();
 
         // Assert
-        viewModel.NavigationItems.Should().HaveCount(6);
+        viewModel.NavigationItems.Should().HaveCount(7);
     }
 
     [Test]
@@ -70,6 +70,7 @@ public class MainViewModelTests : IAsyncDisposable
             Routes.Apps,
             Routes.Connections,
             Routes.System,
+            Routes.History,
             Routes.Settings);
     }
 
@@ -83,7 +84,7 @@ public class MainViewModelTests : IAsyncDisposable
         foreach (var item in viewModel.NavigationItems)
         {
             item.Title.Should().NotBeNullOrEmpty();
-            item.Icon.Should().NotBeNullOrEmpty();
+            item.IconKey.Should().NotBeNullOrEmpty();
             item.Route.Should().NotBeNullOrEmpty();
         }
     }
@@ -364,10 +365,10 @@ public class MainViewModelTests : IAsyncDisposable
         var item = new NavigationItem();
 
         // Act
-        item.Icon = "🔥";
+        item.IconKey = "WbNavOverview";
 
         // Assert
-        item.Icon.Should().Be("🔥");
+        item.IconKey.Should().Be("WbNavOverview");
     }
 
     [Test]
@@ -391,7 +392,7 @@ public class MainViewModelTests : IAsyncDisposable
 
         // Assert
         item.Title.Should().BeEmpty();
-        item.Icon.Should().BeEmpty();
+        item.IconKey.Should().BeEmpty();
         item.Route.Should().BeEmpty();
     }
 

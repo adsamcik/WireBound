@@ -49,7 +49,7 @@ public partial class AdapterDisplayItem : ObservableObject
         {
             Id = NetworkMonitorConstants.AutoAdapterId,
             Name = "Auto",
-            DisplayName = $"🔄 Auto ({suffix})",
+            DisplayName = $"Auto ({suffix})",
             Description = "Automatically detects the primary internet adapter",
             AdapterType = NetworkAdapterType.Other,
             IsActive = true,
@@ -64,13 +64,13 @@ public partial class AdapterDisplayItem : ObservableObject
     {
         if (!IsAuto) return;
         var suffix = string.IsNullOrEmpty(resolvedAdapterName) ? "detecting..." : resolvedAdapterName;
-        DisplayName = $"🔄 Auto ({suffix})";
+        DisplayName = $"Auto ({suffix})";
     }
 
     /// <summary>
-    /// Icon/emoji for the adapter type
+    /// IconKey into the Wire Trace icon set for the adapter type.
     /// </summary>
-    public string TypeIcon => GetTypeIcon();
+    public string TypeIconKey => GetTypeIconKey();
 
     /// <summary>
     /// Badge text (e.g., "VPN", "WiFi", "USB")
@@ -106,15 +106,17 @@ public partial class AdapterDisplayItem : ObservableObject
     };
 
     /// <summary>
-    /// WiFi signal icon based on strength
+    /// IconKey into the Wire Trace icon set for the WiFi signal strength
+    /// (1–4 arcs). Returns the generic adapter glyph when no signal
+    /// information is available.
     /// </summary>
-    public string WifiSignalIcon => SignalBars switch
+    public string WifiSignalIconKey => SignalBars switch
     {
-        4 => "📶",
-        3 => "📶",
-        2 => "📶",
-        1 => "📶",
-        _ => "📡"
+        4 => "WbAdapterWifi4",
+        3 => "WbAdapterWifi3",
+        2 => "WbAdapterWifi2",
+        1 => "WbAdapterWifi1",
+        _ => "WbAdapterGeneric"
     };
 
     /// <summary>
@@ -186,19 +188,19 @@ public partial class AdapterDisplayItem : ObservableObject
 
     partial void OnUploadBpsChanged(long value) => OnPropertyChanged(nameof(HasTraffic));
 
-    private string GetTypeIcon()
+    private string GetTypeIconKey()
     {
-        if (IsKnownVpn) return "🔐";
-        if (IsUsbTethering) return "📱";
-        if (IsBluetoothTethering) return "🔗";
+        if (IsKnownVpn) return "WbAdapterVpn";
+        if (IsUsbTethering) return "WbAdapterUsb";
+        if (IsBluetoothTethering) return "WbAdapterBtTether";
 
         return AdapterType switch
         {
-            NetworkAdapterType.WiFi => "📶",
-            NetworkAdapterType.Ethernet => "🔌",
-            NetworkAdapterType.Loopback => "🔄",
-            NetworkAdapterType.Tunnel => "🚇",
-            _ => IsVirtual ? "💻" : "🌐"
+            NetworkAdapterType.WiFi => "WbAdapterWifi4",
+            NetworkAdapterType.Ethernet => "WbAdapterEthernet",
+            NetworkAdapterType.Loopback => "WbAdapterLoopback",
+            NetworkAdapterType.Tunnel => "WbAdapterTunnel",
+            _ => IsVirtual ? "WbAdapterVirtual" : "WbAdapterGeneric"
         };
     }
 

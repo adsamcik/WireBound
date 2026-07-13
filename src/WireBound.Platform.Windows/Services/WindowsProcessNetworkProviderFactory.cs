@@ -50,6 +50,8 @@ public sealed class WindowsProcessNetworkProviderFactory : IProcessNetworkProvid
         return elevated ?? _basicProvider;
     }
 
+    public IProcessNetworkProvider GetBasicProvider() => _basicProvider;
+
     private void OnHelperConnectionStateChanged(object? sender, HelperConnectionStateChangedEventArgs e)
     {
         IProcessNetworkProvider? providerToDispose = null;

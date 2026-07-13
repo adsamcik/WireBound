@@ -1,6 +1,7 @@
 <UserControl xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:vm="using:WireBound.Avalonia.ViewModels"
+             xmlns:controls="using:WireBound.Avalonia.Controls"
              x:Class="WireBound.Avalonia.Views.SettingsView"
              x:DataType="vm:SettingsViewModel"
              Background="{StaticResource BackgroundBrush}"
@@ -21,8 +22,7 @@
                     
                     <StackPanel Orientation="Horizontal" Spacing="12">
                         <Border Background="{StaticResource DownloadBgTintBrush}" CornerRadius="8" Width="40" Height="40">
-                            <TextBlock Text="📡" FontSize="20"
-                                       HorizontalAlignment="Center" VerticalAlignment="Center" />
+                            <controls:WbIcon IconKey="WbAdapterGeneric" Width="20" Height="20" />
                         </Border>
                         <StackPanel VerticalAlignment="Center">
                             <TextBlock Text="Monitoring Settings" Classes="SectionHeader" />
@@ -114,10 +114,13 @@
                             <StackPanel Spacing="4">
                                 <TextBlock Text="Per-App Network Tracking" Classes="CardTitle" />
                                 <TextBlock Text="Track network usage for individual applications" Classes="Caption" />
-                                <TextBlock Text="⚠️ Requires elevated helper"
-                                           Classes="Caption"
-                                           Foreground="{StaticResource WarningBrush}"
-                                           IsVisible="{Binding RequiresElevation}" />
+                                <StackPanel Orientation="Horizontal" Spacing="6"
+                                            IsVisible="{Binding RequiresElevation}">
+                                    <controls:WbIcon IconKey="WbStatusWarning" Width="12" Height="12" />
+                                    <TextBlock Text="Requires elevated helper"
+                                               Classes="Caption"
+                                               Foreground="{StaticResource WarningBrush}" />
+                                </StackPanel>
                             </StackPanel>
                             <ToggleSwitch Grid.Column="1"
                                           IsChecked="{Binding IsPerAppTrackingEnabled}"
@@ -136,8 +139,7 @@
                     
                     <StackPanel Orientation="Horizontal" Spacing="12">
                         <Border Background="{StaticResource UploadBgTintBrush}" CornerRadius="8" Width="40" Height="40">
-                            <TextBlock Text="🖥️" FontSize="20"
-                                       HorizontalAlignment="Center" VerticalAlignment="Center" />
+                            <controls:WbIcon IconKey="WbEntityApp" Width="20" Height="20" />
                         </Border>
                         <StackPanel VerticalAlignment="Center">
                             <TextBlock Text="Application Settings" Classes="SectionHeader" />
@@ -168,14 +170,20 @@
                             <StackPanel Spacing="4">
                                 <TextBlock Text="Start with Windows" Classes="CardTitle" />
                                 <TextBlock Text="Launch WireBound when Windows starts" Classes="Caption" />
-                                <TextBlock Text="⚠️ Disabled in Windows Settings > Apps > Startup"
-                                           Classes="Caption"
-                                           Foreground="{StaticResource WarningBrush}"
-                                           IsVisible="{Binding IsStartupDisabledByUser}" />
-                                <TextBlock Text="⚠️ Disabled by system policy"
-                                           Classes="Caption"
-                                           Foreground="{StaticResource WarningBrush}"
-                                           IsVisible="{Binding IsStartupDisabledByPolicy}" />
+                                <StackPanel Orientation="Horizontal" Spacing="6"
+                                            IsVisible="{Binding IsStartupDisabledByUser}">
+                                    <controls:WbIcon IconKey="WbStatusWarning" Width="12" Height="12" />
+                                    <TextBlock Text="Disabled in Windows Settings &gt; Apps &gt; Startup"
+                                               Classes="Caption"
+                                               Foreground="{StaticResource WarningBrush}" />
+                                </StackPanel>
+                                <StackPanel Orientation="Horizontal" Spacing="6"
+                                            IsVisible="{Binding IsStartupDisabledByPolicy}">
+                                    <controls:WbIcon IconKey="WbStatusWarning" Width="12" Height="12" />
+                                    <TextBlock Text="Disabled by system policy"
+                                               Classes="Caption"
+                                               Foreground="{StaticResource WarningBrush}" />
+                                </StackPanel>
                             </StackPanel>
                             <ToggleSwitch Grid.Column="1"
                                           IsChecked="{Binding StartWithWindows}"
@@ -200,6 +208,53 @@
                         </Grid>
                     </Border>
                     
+                    <!-- Tray Icon Display -->
+                    <Border Background="{StaticResource BorderSubtleBrush}" CornerRadius="12" Padding="16">
+                        <Grid ColumnDefinitions="*, Auto">
+                            <StackPanel Spacing="4">
+                                <TextBlock Text="Tray Icon Display" Classes="CardTitle" />
+                                <TextBlock Text="Choose what the system tray icon shows" Classes="Caption" />
+                            </StackPanel>
+                            <ComboBox Grid.Column="1"
+                                      ItemsSource="{Binding TrayIconModes}"
+                                      SelectedItem="{Binding SelectedTrayIconMode}"
+                                      MinWidth="160"
+                                      VerticalAlignment="Center"
+                                      AutomationProperties.Name="Tray Icon Display"
+                                      AutomationProperties.HelpText="Choose whether the tray icon shows the app icon, network traffic, CPU, or RAM usage">
+                                <ComboBox.ItemTemplate>
+                                    <DataTemplate>
+                                        <TextBlock Text="{Binding Converter={StaticResource TrayIconModeConverter}}" />
+                                    </DataTemplate>
+                                </ComboBox.ItemTemplate>
+                            </ComboBox>
+                        </Grid>
+                    </Border>
+
+                    <!-- Tray Traffic Adapter (only relevant when showing network traffic) -->
+                    <Border Background="{StaticResource BorderSubtleBrush}" CornerRadius="12" Padding="16"
+                            IsVisible="{Binding IsTrayTrafficMode}">
+                        <Grid ColumnDefinitions="*, Auto">
+                            <StackPanel Spacing="4">
+                                <TextBlock Text="Tray Traffic Adapter" Classes="CardTitle" />
+                                <TextBlock Text="Which adapter's traffic the tray graph shows" Classes="Caption" />
+                            </StackPanel>
+                            <ComboBox Grid.Column="1"
+                                      ItemsSource="{Binding TrayAdapterOptions}"
+                                      SelectedItem="{Binding SelectedTrayAdapter}"
+                                      Width="220"
+                                      VerticalAlignment="Center"
+                                      AutomationProperties.Name="Tray Traffic Adapter"
+                                      AutomationProperties.HelpText="Select which network adapter the tray traffic graph displays">
+                                <ComboBox.ItemTemplate>
+                                    <DataTemplate>
+                                        <TextBlock Text="{Binding Name}" />
+                                    </DataTemplate>
+                                </ComboBox.ItemTemplate>
+                            </ComboBox>
+                        </Grid>
+                    </Border>
+
                     <!-- Start Minimized -->
                     <Border Background="{StaticResource BorderSubtleBrush}" CornerRadius="12" Padding="16">
                         <Grid ColumnDefinitions="*, Auto">
@@ -328,8 +383,7 @@
                     
                     <StackPanel Orientation="Horizontal" Spacing="12">
                         <Border Background="{StaticResource AccentBgTintBrush}" CornerRadius="8" Width="40" Height="40">
-                            <TextBlock Text="📊" FontSize="20"
-                                       HorizontalAlignment="Center" VerticalAlignment="Center" />
+                            <controls:WbIcon IconKey="WbMetricAnalytics" Width="20" Height="20" />
                         </Border>
                         <StackPanel VerticalAlignment="Center">
                             <TextBlock Text="Dashboard Customization" Classes="SectionHeader" />
@@ -403,8 +457,7 @@
                     
                     <StackPanel Orientation="Horizontal" Spacing="12">
                         <Border Background="{StaticResource SuccessBgTintBrush}" CornerRadius="8" Width="40" Height="40">
-                            <TextBlock Text="⚡" FontSize="20"
-                                       HorizontalAlignment="Center" VerticalAlignment="Center" />
+                            <controls:WbIcon IconKey="WbActionAuto" Width="20" Height="20" />
                         </Border>
                         <StackPanel VerticalAlignment="Center">
                             <TextBlock Text="Performance" Classes="SectionHeader" />
@@ -454,8 +507,7 @@
                     
                     <StackPanel Orientation="Horizontal" Spacing="12">
                         <Border Background="{StaticResource DownloadBgTintBrush}" CornerRadius="8" Width="40" Height="40">
-                            <TextBlock Text="💡" FontSize="20"
-                                       HorizontalAlignment="Center" VerticalAlignment="Center" />
+                            <controls:WbIcon IconKey="WbMetricInsight" Width="20" Height="20" />
                         </Border>
                         <StackPanel VerticalAlignment="Center">
                             <TextBlock Text="Insights Page" Classes="SectionHeader" />
@@ -484,20 +536,6 @@
                             </ComboBox>
                         </Grid>
                     </Border>
-                    
-                    <!-- Show Correlation Insights -->
-                    <Border Background="{StaticResource BorderSubtleBrush}" CornerRadius="12" Padding="16">
-                        <Grid ColumnDefinitions="*, Auto">
-                            <StackPanel Spacing="4">
-                                <TextBlock Text="Show Correlation Insights" Classes="CardTitle" />
-                                <TextBlock Text="Display correlations between network and system metrics" Classes="Caption" />
-                            </StackPanel>
-                            <ToggleSwitch Grid.Column="1"
-                                          IsChecked="{Binding ShowCorrelationInsights}"
-                                          VerticalAlignment="Center"
-                                          AutomationProperties.Name="Show Correlation Insights" />
-                        </Grid>
-                    </Border>
                 </StackPanel>
             </Border>
 
@@ -506,7 +544,7 @@
                 <StackPanel Spacing="24">
                     <StackPanel Orientation="Horizontal" Spacing="12">
                         <Border Background="{StaticResource MemoryBgTintBrush}" CornerRadius="8" Width="40" Height="40">
-                            <TextBlock Text="🧠" FontSize="20" HorizontalAlignment="Center" VerticalAlignment="Center" />
+                            <controls:WbIcon IconKey="WbEntityMemory" Width="20" Height="20" />
                         </Border>
                         <StackPanel VerticalAlignment="Center">
                             <TextBlock Text="Memory Alerts" Classes="SectionHeader" />
@@ -606,6 +644,25 @@
                                            AutomationProperties.HelpText="Minimum time between repeated memory alerts" />
                         </Grid>
                     </Border>
+
+                    <!-- Save (memory alerts use explicit save, not auto-save) -->
+                    <Grid ColumnDefinitions="*, Auto">
+                        <StackPanel Orientation="Horizontal" Spacing="6" VerticalAlignment="Center"
+                                    IsVisible="{Binding HasUnsavedMemoryAlertChanges}">
+                            <controls:WbIcon IconKey="WbStatusWarning" Width="14" Height="14" />
+                            <TextBlock Text="You have unsaved memory alert changes"
+                                       Classes="Caption"
+                                       Foreground="{StaticResource WarningBrush}"
+                                       VerticalAlignment="Center" />
+                        </StackPanel>
+                        <Button Grid.Column="1"
+                                Content="Save Memory Alert Settings"
+                                Classes="Accent"
+                                Command="{Binding SaveMemoryAlertsCommand}"
+                                HorizontalAlignment="Right"
+                                AutomationProperties.Name="Save Memory Alert Settings"
+                                AutomationProperties.HelpText="Apply and save the memory alert settings. Enabled only when there are unsaved changes." />
+                    </Grid>
                 </StackPanel>
             </Border>
 
@@ -615,8 +672,7 @@
                     
                     <StackPanel Orientation="Horizontal" Spacing="12">
                         <Border Background="{StaticResource WarningBgTintBrush}" CornerRadius="8" Width="40" Height="40">
-                            <TextBlock Text="🛡️" FontSize="20"
-                                       HorizontalAlignment="Center" VerticalAlignment="Center" />
+                            <controls:WbIcon IconKey="WbEntityHelper" Width="20" Height="20" />
                         </Border>
                         <StackPanel VerticalAlignment="Center">
                             <TextBlock Text="Elevated Helper" Classes="SectionHeader" />
@@ -649,40 +705,84 @@
                                            IsVisible="{Binding IsElevated}" />
                             </StackPanel>
                             <Button Grid.Column="1"
-                                    Content="🛡️ Start Helper"
                                     Command="{Binding RequestElevationCommand}"
                                     IsEnabled="{Binding !IsRequestingElevation}"
                                     IsVisible="{Binding !IsElevated}"
                                     Classes="Warning"
                                     VerticalAlignment="Center"
                                     AutomationProperties.Name="Start Elevated Helper"
-                                    AutomationProperties.HelpText="Start a minimal elevated helper process for advanced features" />
+                                    AutomationProperties.HelpText="Start a minimal elevated helper process for advanced features">
+                                <StackPanel Orientation="Horizontal" Spacing="6">
+                                    <controls:WbIcon IconKey="WbEntityHelper" Width="14" Height="14" />
+                                    <TextBlock Text="Start Helper" />
+                                </StackPanel>
+                            </Button>
                             <Button Grid.Column="1"
-                                    Content="⏹ Stop Helper"
                                     Command="{Binding StopElevationCommand}"
                                     IsEnabled="{Binding !IsRequestingElevation}"
                                     IsVisible="{Binding IsElevated}"
                                     Classes="Secondary"
                                     VerticalAlignment="Center"
                                     AutomationProperties.Name="Stop Elevated Helper"
-                                    AutomationProperties.HelpText="Stop the running elevated helper process. Per-app byte tracking will pause until it is started again." />
+                                    AutomationProperties.HelpText="Stop the running elevated helper process. Per-app byte tracking will pause until it is started again.">
+                                <StackPanel Orientation="Horizontal" Spacing="6">
+                                    <controls:WbIcon IconKey="WbActionStop" Width="14" Height="14" />
+                                    <TextBlock Text="Stop Helper" />
+                                </StackPanel>
+                            </Button>
                         </Grid>
                     </Border>
                     
                     <!-- Helper Auto-Start -->
                     <Border Background="{StaticResource BorderSubtleBrush}" CornerRadius="12" Padding="16"
                             IsVisible="{Binding IsHelperStartupSupported}">
-                        <Grid ColumnDefinitions="*, Auto">
-                            <StackPanel Spacing="4">
-                                <TextBlock Text="Start Helper at Login" Classes="CardTitle" />
-                                <TextBlock Text="Automatically start elevated helper when you log in (no prompt)" Classes="Caption" />
-                            </StackPanel>
-                            <ToggleSwitch Grid.Column="1"
-                                          IsChecked="{Binding StartHelperWithSystem}"
-                                          VerticalAlignment="Center"
-                                          AutomationProperties.Name="Start Helper at Login"
-                                          AutomationProperties.HelpText="Register the elevated helper to start automatically at system login without a prompt" />
-                        </Grid>
+                        <StackPanel Spacing="12">
+                            <Grid ColumnDefinitions="*, Auto">
+                                <StackPanel Spacing="4">
+                                    <TextBlock Text="Start Helper at Login" Classes="CardTitle" />
+                                    <TextBlock Text="Automatically start elevated helper when you log in (no prompt)" Classes="Caption" />
+                                </StackPanel>
+                                <ToggleSwitch Grid.Column="1"
+                                              IsChecked="{Binding StartHelperWithSystem}"
+                                              VerticalAlignment="Center"
+                                              AutomationProperties.Name="Start Helper at Login"
+                                              AutomationProperties.HelpText="Register the elevated helper to start automatically at system login without a prompt" />
+                            </Grid>
+
+                            <!-- Three-state status indicator -->
+                            <TextBlock Classes="Caption"
+                                       Opacity="0.8"
+                                       Text="{Binding HelperAutoStartStatus, StringFormat='Status: {0}'}"
+                                       AutomationProperties.Name="Helper Auto-Start Status" />
+
+                            <!-- Tamper-detected warning + repair affordance -->
+                            <Border Background="#33FF4444"
+                                    BorderBrush="#FFFF4444"
+                                    BorderThickness="1"
+                                    CornerRadius="8"
+                                    Padding="12"
+                                    IsVisible="{Binding IsHelperRegistrationTampered}">
+                                <StackPanel Spacing="8">
+                                    <StackPanel Orientation="Horizontal" Spacing="6">
+                                        <controls:WbIcon IconKey="WbStatusWarning" Width="14" Height="14" />
+                                        <TextBlock Text="Auto-start registration has been modified"
+                                                   FontWeight="SemiBold" />
+                                    </StackPanel>
+                                    <TextBlock Text="{Binding HelperRegistrationTamperReason}"
+                                               Classes="Caption"
+                                               TextWrapping="Wrap" />
+                                    <TextBlock Text="The scheduled task or systemd unit no longer points at the expected helper. The app will not auto-connect until the registration is repaired."
+                                               Classes="Caption"
+                                               TextWrapping="Wrap"
+                                               Opacity="0.85" />
+                                    <Button Content="Repair Registration"
+                                            Command="{Binding RepairHelperRegistrationCommand}"
+                                            HorizontalAlignment="Right"
+                                            AutomationProperties.Name="Repair Helper Auto-Start Registration"
+                                            AutomationProperties.HelpText="Re-register the helper auto-start hook. This triggers a one-time UAC or polkit prompt." />
+                                </StackPanel>
+                            </Border>
+                        </StackPanel>
                     </Border>
                 </StackPanel>
             </Border>
@@ -701,7 +801,7 @@
                         <TextBlock Text="Export usage data or back up the database" Classes="Caption" />
                     </StackPanel>
 
-                    <Grid ColumnDefinitions="*,Auto,Auto" RowDefinitions="Auto">
+                    <Grid ColumnDefinitions="*,Auto,Auto" ColumnSpacing="8" RowDefinitions="Auto">
                         <TextBlock Text="Export daily usage data to CSV or back up the database."
                                    Classes="Caption"
                                    Opacity="0.7"
@@ -710,14 +810,15 @@
                                 Content="Export CSV"
                                 Command="{Binding ExportDailyDataCommand}"
                                 IsEnabled="{Binding !IsExporting}"
-                                Classes="Accent"
-                                Margin="0,0,8,0"
+                                Classes="Primary"
+                                Padding="20,12"
                                 AutomationProperties.Name="Export Daily Data"
                                 AutomationProperties.HelpText="Export daily usage data to a CSV file" />
                         <Button Grid.Column="2"
                                 Content="Backup DB"
                                 Command="{Binding BackupDatabaseCommand}"
                                 IsEnabled="{Binding !IsExporting}"
+                                Classes="Secondary"
                                 AutomationProperties.Name="Backup Database"
                                 AutomationProperties.HelpText="Create a backup copy of the database" />
                     </Grid>

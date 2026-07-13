@@ -46,7 +46,7 @@ public sealed class WindowsHelperProcessManager : IHelperProcessManager
 
     public event EventHandler<HelperExitedEventArgs>? HelperExited;
 
-    public async Task<HelperStartResult> StartAsync(CancellationToken cancellationToken = default)
+    public async Task<HelperStartResult> StartAsync(bool allowInteractive = true, CancellationToken cancellationToken = default)
     {
         if (_disposed) return HelperStartResult.Failed("Manager has been disposed");
         if (IsRunning) return HelperStartResult.Success(_helperProcess!.Id);
@@ -58,15 +58,113 @@ public sealed class WindowsHelperProcessManager : IHelperProcessManager
         // Try Task Scheduler first (no UAC prompt)
         if (await IsScheduledTaskRegistered())
         {
+            // Before invoking the registered task, verify its action still
+            // points at the expected helper. A same-user attacker who can
+            // repoint the task would otherwise get arbitrary code execution
+            // at RL HIGHEST every login.
+            var regValid = await ValidateRegistrationAsync();
+            if (!regValid.IsValid)
+            {
+                _logger?.LogError("Scheduled task definition validation failed: {Error}", regValid.ErrorMessage);
+                return HelperStartResult.ValidationFailed(
+                    $"Scheduled task definition has been tampered: {regValid.ErrorMessage}");
+            }
+
             _logger?.LogInformation("Starting helper via Task Scheduler (no UAC prompt)");
             var taskResult = await StartViaTaskSchedulerAsync(cancellationToken);
             if (taskResult.IsSuccess) return taskResult;
 
-            _logger?.LogWarning("Task Scheduler start failed, falling back to direct launch");
+            _logger?.LogWarning("Task Scheduler start failed: {Reason}", taskResult.ErrorMessage);
+            if (!allowInteractive)
+            {
+                // Auto-start path — never fall back to UAC.
+                return HelperStartResult.Failed(
+                    $"Silent start via Task Scheduler failed and interactive elevation disabled: {taskResult.ErrorMessage}");
+            }
+            _logger?.LogWarning("Falling back to direct launch with UAC");
+        }
+        else if (!allowInteractive)
+        {
+            // Auto-start path with no scheduled task registered — give up.
+            return HelperStartResult.Failed(
+                "Scheduled task not registered and interactive elevation disabled");
         }
 
-        // Fallback: direct launch with UAC
+        // Fallback: direct launch with UAC (only when allowInteractive is true)
         return await StartDirectAsync(cancellationToken);
+    }
+
+    /// <inheritdoc />
+    public async Task<HelperValidationResult> ValidateRegistrationAsync()
+    {
+        try
+        {
+            // No task registered → vacuously "valid" (nothing to tamper with).
+            // The caller checks IsScheduledTaskRegistered separately.
+            if (!await IsScheduledTaskRegistered())
+                return HelperValidationResult.Valid();
+
+            var xml = await RunSchtasksWithOutputAsync($"/Query /TN \"{TaskFolder}\\{TaskName}\" /XML");
+            if (string.IsNullOrWhiteSpace(xml))
+                return HelperValidationResult.Invalid("Could not read scheduled task XML — fail closed");
+
+            // Expected action: <Command>"<HelperPath>"</Command> with /RL HIGHEST and /SC ONLOGON
+            var expectedHelper = HelperPath;
+            // schtasks emits the command path with surrounding quotes; do a
+            // case-insensitive substring search.
+            if (!xml.Contains(expectedHelper, StringComparison.OrdinalIgnoreCase))
+                return HelperValidationResult.Invalid(
+                    $"Scheduled task Command does not contain expected helper path '{expectedHelper}'");
+
+            if (!xml.Contains("<RunLevel>HighestAvailable</RunLevel>", StringComparison.Ordinal))
+                return HelperValidationResult.Invalid(
+                    "Scheduled task does not specify RunLevel=HighestAvailable");
+
+            if (!xml.Contains("<LogonTrigger>", StringComparison.Ordinal))
+                return HelperValidationResult.Invalid(
+                    "Scheduled task does not have a logon trigger");
+
+            // Verify the --caller-sid arg matches the CURRENT user's SID. After
+            // an OS account SID change (rare) the registration would be stale.
+            var currentSid = CurrentUserSid;
+            if (!xml.Contains($"--caller-sid {currentSid}", StringComparison.Ordinal))
+                return HelperValidationResult.Invalid(
+                    $"Scheduled task --caller-sid does not match current user SID {currentSid}");
+
+            return HelperValidationResult.Valid();
+        }
+        catch (Exception ex)
+        {
+            // Fail closed
+            return HelperValidationResult.Invalid($"Exception while validating task: {ex.Message}");
+        }
+    }
+
+    private async Task<string?> RunSchtasksWithOutputAsync(string arguments)
+    {
+        var startInfo = new ProcessStartInfo
+        {
+            FileName = Path.Combine(Environment.SystemDirectory, "schtasks.exe"),
+            Arguments = arguments,
+            UseShellExecute = false,
+            CreateNoWindow = true,
+            RedirectStandardOutput = true,
+            RedirectStandardError = true
+        };
+
+        using var process = Process.Start(startInfo)!;
+        var stdoutTask = process.StandardOutput.ReadToEndAsync();
+        var stderrTask = process.StandardError.ReadToEndAsync();
+        process.WaitForExit(10000);
+
+        if (!process.HasExited)
+        {
+            process.Kill();
+            return null;
+        }
+
+        if (process.ExitCode != 0) return null;
+        return await stdoutTask;
     }
 
     public async Task StopAsync(TimeSpan? timeout = null)
@@ -215,6 +313,16 @@ public sealed class WindowsHelperProcessManager : IHelperProcessManager
         }
     }
 
+    /// <inheritdoc />
+    public Task<bool> EnsureRegisteredAsync()
+    {
+        // On Windows, the per-user scheduled task is registered by
+        // WindowsStartupService.SetHelperStartupEnabledAsync (which already
+        // triggers the one-time UAC prompt). No system-wide registration
+        // needed beyond that.
+        return Task.FromResult(true);
+    }
+
     private async Task<HelperStartResult> StartViaTaskSchedulerAsync(CancellationToken cancellationToken)
     {
         try
@@ -282,16 +390,43 @@ public sealed class WindowsHelperProcessManager : IHelperProcessManager
             var processes = Process.GetProcessesByName(helperName);
             try
             {
-                if (processes.Length > 0)
+                // Filter by MainModule.FileName matching the expected helper path —
+                // a same-user attacker can rename their own process to
+                // "WireBound.Elevation.exe" but cannot fake its actual image path.
+                Process? legitimateHelper = null;
+                foreach (var p in processes)
                 {
-                    _helperProcess = processes[0];
+                    if (legitimateHelper is not null)
+                    {
+                        p.Dispose();
+                        continue;
+                    }
+                    try
+                    {
+                        var actualPath = p.MainModule?.FileName;
+                        if (actualPath is not null &&
+                            string.Equals(
+                                Path.GetFullPath(actualPath),
+                                Path.GetFullPath(HelperPath),
+                                StringComparison.OrdinalIgnoreCase))
+                        {
+                            legitimateHelper = p;
+                            continue;
+                        }
+                    }
+                    catch
+                    {
+                        // Permission denied / process exited / etc — skip,
+                        // can't trust this process is the helper.
+                    }
+                    p.Dispose();
+                }
+
+                if (legitimateHelper is not null)
+                {
+                    _helperProcess = legitimateHelper;
                     _helperProcess.EnableRaisingEvents = true;
                     _helperProcess.Exited += OnHelperProcessExited;
-
-                    // Dispose all other Process objects to avoid handle leaks
-                    for (var j = 1; j < processes.Length; j++)
-                        processes[j].Dispose();
-
                     await WaitForIpcReadyAsync(cancellationToken);
                     return HelperStartResult.Success(_helperProcess.Id);
                 }

@@ -246,7 +246,7 @@ public class AutoAdapterTests : IAsyncDisposable
         {
             AdapterId = "vpn0",
             Name = "WireGuard",
-            Icon = "🔐",
+            IconKey = "WbAdapterVpn",
             DownloadSpeed = "10 MB/s",
             UploadSpeed = "5 MB/s",
             DownloadBps = 10_000_000,
@@ -257,7 +257,7 @@ public class AutoAdapterTests : IAsyncDisposable
 
         info.AdapterId.Should().Be("vpn0");
         info.Name.Should().Be("WireGuard");
-        info.Icon.Should().Be("🔐");
+        info.IconKey.Should().Be("WbAdapterVpn");
         info.DownloadSpeed.Should().Be("10 MB/s");
         info.UploadSpeed.Should().Be("5 MB/s");
         info.DownloadBps.Should().Be(10_000_000);
@@ -273,7 +273,7 @@ public class AutoAdapterTests : IAsyncDisposable
         {
             AdapterId = "eth0",
             Name = "Ethernet",
-            Icon = "🔌",
+            IconKey = "WbAdapterEthernet",
             DownloadSpeed = "0 B/s",
             UploadSpeed = "0 B/s",
             ColorHex = "#3B82F6"
@@ -289,7 +289,7 @@ public class AutoAdapterTests : IAsyncDisposable
         {
             AdapterId = "eth0",
             Name = "Test",
-            Icon = "🌐",
+            IconKey = "WbAdapterGeneric",
             DownloadSpeed = "0 B/s",
             UploadSpeed = "0 B/s",
             ColorHex = "#000"
@@ -306,7 +306,7 @@ public class AutoAdapterTests : IAsyncDisposable
         {
             AdapterId = "eth0",
             Name = "Test",
-            Icon = "🌐",
+            IconKey = "WbAdapterGeneric",
             DownloadSpeed = "0 B/s",
             UploadSpeed = "0 B/s",
             ColorHex = "#000"

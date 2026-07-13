@@ -33,6 +33,22 @@ public sealed partial class SettingsViewModel : ObservableObject, IDisposable
     private bool _isLoading = true;
     private const int AutoSaveDelayMs = 500;
 
+    // Tracks the OS startup state we last applied, so SaveAsync only re-invokes the
+    // OS startup APIs (helper registration runs elevated -> UAC) when the value
+    // actually changed, instead of on every auto-save.
+    private bool _lastAppliedStartWithWindows;
+    private bool _lastAppliedStartHelperWithSystem;
+
+    // Last-committed (persisted) memory-alert values. SaveAsync writes these rather
+    // than the live editable properties, so an unrelated auto-save does not leak
+    // not-yet-saved memory-alert edits into the database.
+    private bool _committedMemoryAlertsEnabled;
+    private int _committedMemoryWarningThresholdPercent = 85;
+    private int _committedMemoryCriticalThresholdPercent = 95;
+    private int _committedMemoryFreeFloorMb = 2048;
+    private int _committedMemoryAlertCooldownSeconds = 300;
+    private int _committedMemoryAlertSustainedSeconds = 30;
+
     [ObservableProperty]
     private ObservableCollection<NetworkAdapter> _adapters = [];
 
@@ -53,6 +69,28 @@ public sealed partial class SettingsViewModel : ObservableObject, IDisposable
 
     [ObservableProperty]
     private bool _minimizeToTray = true;
+
+    [ObservableProperty]
+    private TrayIconMode _selectedTrayIconMode = TrayIconMode.Traffic;
+
+    public TrayIconMode[] TrayIconModes { get; } = Enum.GetValues<TrayIconMode>();
+
+    /// <summary>
+    /// Adapter options offered for the tray traffic graph: a synthetic
+    /// "Follow monitored adapter" entry (Id = "") followed by the real adapters.
+    /// Distinct from <see cref="Adapters"/>, which uses an "Auto (detect primary)" entry.
+    /// </summary>
+    [ObservableProperty]
+    private ObservableCollection<NetworkAdapter> _trayAdapterOptions = [];
+
+    [ObservableProperty]
+    private NetworkAdapter? _selectedTrayAdapter;
+
+    /// <summary>
+    /// True when the tray icon is configured to show network traffic, gating the
+    /// visibility of the tray adapter selector.
+    /// </summary>
+    public bool IsTrayTrafficMode => SelectedTrayIconMode == TrayIconMode.Traffic;
 
     [ObservableProperty]
     private bool _startMinimized;
@@ -97,9 +135,6 @@ public sealed partial class SettingsViewModel : ObservableObject, IDisposable
 
     public List<string> InsightsPeriodOptions { get; } = ["Today", "ThisWeek", "ThisMonth"];
 
-    [ObservableProperty]
-    private bool _showCorrelationInsights = true;
-
     // Memory Alerts
     [ObservableProperty]
     private bool _memoryAlertsEnabled;
@@ -118,6 +153,16 @@ public sealed partial class SettingsViewModel : ObservableObject, IDisposable
 
     [ObservableProperty]
     private int _memoryAlertSustainedSeconds = 30;
+
+    /// <summary>
+    /// True when memory-alert fields have been edited but not yet committed via the
+    /// explicit Save. Memory alerts use explicit save (not auto-save) because applying
+    /// them previously went through the shared auto-save, which re-runs the elevated
+    /// helper-startup registration and triggered a UAC prompt on every keystroke.
+    /// </summary>
+    [ObservableProperty]
+    [NotifyCanExecuteChangedFor(nameof(SaveMemoryAlertsCommand))]
+    private bool _hasUnsavedMemoryAlertChanges;
 
     // Update Check
     [ObservableProperty]
@@ -176,6 +221,31 @@ public sealed partial class SettingsViewModel : ObservableObject, IDisposable
     [ObservableProperty]
     private bool _isHelperStartupSupported;
 
+    /// <summary>
+    /// User-facing status of the elevation helper auto-start chain. Surfaces
+    /// the difference between "registered to auto-start" vs "actually running"
+    /// vs "connected and authenticated" so the user can diagnose problems
+    /// without reading logs.
+    /// </summary>
+    [ObservableProperty]
+    private HelperAutoStartStatus _helperAutoStartStatus;
+
+    /// <summary>
+    /// Set to true when <see cref="IHelperProcessManager.ValidateRegistrationAsync"/>
+    /// reports the scheduled task / systemd unit has been tampered with. The UI
+    /// should surface a warning banner inviting the user to "Repair" (which
+    /// re-runs the one-time UAC/pkexec registration).
+    /// </summary>
+    [ObservableProperty]
+    private bool _isHelperRegistrationTampered;
+
+    /// <summary>
+    /// Human-readable reason for the tamper detection, set alongside
+    /// <see cref="IsHelperRegistrationTampered"/>.
+    /// </summary>
+    [ObservableProperty]
+    private string? _helperRegistrationTamperReason;
+
     /// <summary>Completes when async initialization finishes. Exposed for testability.</summary>
     public Task InitializationTask { get; }
 
@@ -224,8 +294,18 @@ public sealed partial class SettingsViewModel : ObservableObject, IDisposable
         }
     }
     partial void OnStartWithWindowsChanged(bool value) => ScheduleAutoSave();
-    partial void OnStartHelperWithSystemChanged(bool value) => ScheduleAutoSave();
+    partial void OnStartHelperWithSystemChanged(bool value)
+    {
+        ScheduleAutoSave();
+        UpdateHelperAutoStartStatus();
+    }
     partial void OnMinimizeToTrayChanged(bool value) => ScheduleAutoSave();
+    partial void OnSelectedTrayIconModeChanged(TrayIconMode value)
+    {
+        OnPropertyChanged(nameof(IsTrayTrafficMode));
+        ScheduleAutoSave();
+    }
+    partial void OnSelectedTrayAdapterChanged(NetworkAdapter? value) => ScheduleAutoSave();
     partial void OnStartMinimizedChanged(bool value) => ScheduleAutoSave();
     partial void OnSelectedSpeedUnitChanged(SpeedUnit value) => ScheduleAutoSave();
 
@@ -241,11 +321,10 @@ public sealed partial class SettingsViewModel : ObservableObject, IDisposable
     }
     partial void OnChartUpdateIntervalMsChanged(int value) => ScheduleAutoSave();
     partial void OnDefaultInsightsPeriodChanged(string value) => ScheduleAutoSave();
-    partial void OnShowCorrelationInsightsChanged(bool value) => ScheduleAutoSave();
     partial void OnCheckForUpdatesChanged(bool value) => ScheduleAutoSave();
     partial void OnAutoDownloadUpdatesChanged(bool value) => ScheduleAutoSave();
 
-    partial void OnMemoryAlertsEnabledChanged(bool value) { ScheduleAutoSave(); PushMemoryAlertSettings(); }
+    partial void OnMemoryAlertsEnabledChanged(bool value) => MarkMemoryAlertsDirty();
     partial void OnMemoryWarningThresholdPercentChanged(int value)
     {
         if (value is < 50 or > 99)
@@ -253,8 +332,7 @@ public sealed partial class SettingsViewModel : ObservableObject, IDisposable
             MemoryWarningThresholdPercent = Math.Clamp(value, 50, 99);
             return;
         }
-        ScheduleAutoSave();
-        PushMemoryAlertSettings();
+        MarkMemoryAlertsDirty();
     }
     partial void OnMemoryCriticalThresholdPercentChanged(int value)
     {
@@ -263,8 +341,7 @@ public sealed partial class SettingsViewModel : ObservableObject, IDisposable
             MemoryCriticalThresholdPercent = Math.Clamp(value, 60, 99);
             return;
         }
-        ScheduleAutoSave();
-        PushMemoryAlertSettings();
+        MarkMemoryAlertsDirty();
     }
     partial void OnMemoryFreeFloorMbChanged(int value)
     {
@@ -273,8 +350,7 @@ public sealed partial class SettingsViewModel : ObservableObject, IDisposable
             MemoryFreeFloorMb = Math.Clamp(value, 512, 16384);
             return;
         }
-        ScheduleAutoSave();
-        PushMemoryAlertSettings();
+        MarkMemoryAlertsDirty();
     }
     partial void OnMemoryAlertCooldownSecondsChanged(int value)
     {
@@ -283,8 +359,7 @@ public sealed partial class SettingsViewModel : ObservableObject, IDisposable
             MemoryAlertCooldownSeconds = Math.Clamp(value, 60, 3600);
             return;
         }
-        ScheduleAutoSave();
-        PushMemoryAlertSettings();
+        MarkMemoryAlertsDirty();
     }
     partial void OnMemoryAlertSustainedSecondsChanged(int value)
     {
@@ -293,8 +368,61 @@ public sealed partial class SettingsViewModel : ObservableObject, IDisposable
             MemoryAlertSustainedSeconds = Math.Clamp(value, 5, 120);
             return;
         }
-        ScheduleAutoSave();
+        MarkMemoryAlertsDirty();
+    }
+
+    /// <summary>
+    /// Flags the memory-alert fields as having unsaved edits. Memory alerts are not
+    /// auto-saved — the user must click Save (see <see cref="SaveMemoryAlertsCommand"/>).
+    /// </summary>
+    private void MarkMemoryAlertsDirty()
+    {
+        if (_isLoading) return;
+        HasUnsavedMemoryAlertChanges = true;
+    }
+
+    private bool CanSaveMemoryAlerts => HasUnsavedMemoryAlertChanges;
+
+    /// <summary>
+    /// Commits the edited memory-alert settings: persists them, pushes them to the live
+    /// detector, and clears the unsaved-changes flag. Restores the previous committed
+    /// snapshot if persistence fails so a later auto-save can't write a half-applied state.
+    /// </summary>
+    [RelayCommand(CanExecute = nameof(CanSaveMemoryAlerts))]
+    private async Task SaveMemoryAlertsAsync()
+    {
+        var previous = (
+            _committedMemoryAlertsEnabled,
+            _committedMemoryWarningThresholdPercent,
+            _committedMemoryCriticalThresholdPercent,
+            _committedMemoryFreeFloorMb,
+            _committedMemoryAlertCooldownSeconds,
+            _committedMemoryAlertSustainedSeconds);
+
+        _committedMemoryAlertsEnabled = MemoryAlertsEnabled;
+        _committedMemoryWarningThresholdPercent = MemoryWarningThresholdPercent;
+        _committedMemoryCriticalThresholdPercent = MemoryCriticalThresholdPercent;
+        _committedMemoryFreeFloorMb = MemoryFreeFloorMb;
+        _committedMemoryAlertCooldownSeconds = MemoryAlertCooldownSeconds;
+        _committedMemoryAlertSustainedSeconds = MemoryAlertSustainedSeconds;
+
+        try
+        {
+            await SaveAsync();
+        }
+        catch
+        {
+            (_committedMemoryAlertsEnabled,
+             _committedMemoryWarningThresholdPercent,
+             _committedMemoryCriticalThresholdPercent,
+             _committedMemoryFreeFloorMb,
+             _committedMemoryAlertCooldownSeconds,
+             _committedMemoryAlertSustainedSeconds) = previous;
+            throw;
+        }
+
         PushMemoryAlertSettings();
+        HasUnsavedMemoryAlertChanges = false;
     }
 
     private void PushMemoryAlertSettings()
@@ -391,7 +519,7 @@ public sealed partial class SettingsViewModel : ObservableObject, IDisposable
             {
                 Id = NetworkMonitorConstants.AutoAdapterId,
                 Name = "Auto",
-                DisplayName = "🔄 Auto (detect primary)",
+                DisplayName = "Auto (detect primary)",
                 Description = "Automatically detects the primary internet adapter via default gateway",
                 AdapterType = NetworkAdapterType.Other,
                 IsActive = true,
@@ -402,6 +530,25 @@ public sealed partial class SettingsViewModel : ObservableObject, IDisposable
                 Adapters.Add(adapter);
             }
 
+            // Tray traffic adapter options: a "Follow monitored adapter" sentinel
+            // (Id = "") plus the real adapters. Kept separate from Adapters so the
+            // tray's follow semantics aren't confused with the monitor's "Auto" entry.
+            TrayAdapterOptions.Clear();
+            TrayAdapterOptions.Add(new NetworkAdapter
+            {
+                Id = string.Empty,
+                Name = "Follow monitored adapter",
+                DisplayName = "Follow monitored adapter",
+                Description = "Show traffic for whichever adapter the app is monitoring",
+                AdapterType = NetworkAdapterType.Other,
+                IsActive = true,
+                Category = "Auto"
+            });
+            foreach (var adapter in _networkMonitor.GetAdapters())
+            {
+                TrayAdapterOptions.Add(adapter);
+            }
+
             // Load settings from database
             var settings = await _persistence.GetSettingsAsync();
 
@@ -409,6 +556,9 @@ public sealed partial class SettingsViewModel : ObservableObject, IDisposable
             UseIpHelperApi = settings.UseIpHelperApi;
             IsPerAppTrackingEnabled = settings.IsPerAppTrackingEnabled;
             MinimizeToTray = settings.MinimizeToTray;
+            SelectedTrayIconMode = settings.TrayIconMode;
+            SelectedTrayAdapter = TrayAdapterOptions.FirstOrDefault(a => a.Id == settings.TrayTrafficAdapterId)
+                                  ?? TrayAdapterOptions.FirstOrDefault();
             StartMinimized = settings.StartMinimized;
             SelectedSpeedUnit = settings.SpeedUnit;
 
@@ -426,7 +576,6 @@ public sealed partial class SettingsViewModel : ObservableObject, IDisposable
 
             // Insights Page
             DefaultInsightsPeriod = settings.DefaultInsightsPeriod;
-            ShowCorrelationInsights = settings.ShowCorrelationInsights;
 
             // Updates
             CheckForUpdates = settings.CheckForUpdates;
@@ -440,6 +589,16 @@ public sealed partial class SettingsViewModel : ObservableObject, IDisposable
             MemoryFreeFloorMb = settings.MemoryFreeFloorMb;
             MemoryAlertCooldownSeconds = settings.MemoryAlertCooldownSeconds;
             MemoryAlertSustainedSeconds = settings.MemoryAlertSustainedSeconds;
+
+            // Snapshot the persisted values as the committed baseline; SaveAsync writes
+            // these so unrelated auto-saves don't persist not-yet-saved memory edits.
+            _committedMemoryAlertsEnabled = settings.MemoryAlertsEnabled;
+            _committedMemoryWarningThresholdPercent = settings.MemoryWarningThresholdPercent;
+            _committedMemoryCriticalThresholdPercent = settings.MemoryCriticalThresholdPercent;
+            _committedMemoryFreeFloorMb = settings.MemoryFreeFloorMb;
+            _committedMemoryAlertCooldownSeconds = settings.MemoryAlertCooldownSeconds;
+            _committedMemoryAlertSustainedSeconds = settings.MemoryAlertSustainedSeconds;
+            HasUnsavedMemoryAlertChanges = false;
 
             // Load startup state from OS (not from saved settings)
             await LoadStartupStateAsync();
@@ -475,12 +634,119 @@ public sealed partial class SettingsViewModel : ObservableObject, IDisposable
             {
                 IsElevated = e.IsConnected;
                 RequiresElevation = !e.IsConnected && _elevationService.IsElevationSupported;
+                UpdateHelperAutoStartStatus();
             }, UiDispatcherPriority.Background);
         }
         else
         {
             IsElevated = e.IsConnected;
             RequiresElevation = !e.IsConnected && _elevationService.IsElevationSupported;
+            UpdateHelperAutoStartStatus();
+        }
+    }
+
+    /// <summary>
+    /// Recomputes the user-facing <see cref="HelperAutoStartStatus"/> from
+    /// the current state of the elevation + startup services. Idempotent —
+    /// safe to call from any state change.
+    /// </summary>
+    private void UpdateHelperAutoStartStatus()
+    {
+        if (!_elevationService.IsElevationSupported || !_startupService.IsHelperStartupSupported)
+        {
+            HelperAutoStartStatus = HelperAutoStartStatus.NotSupported;
+            return;
+        }
+
+        if (IsHelperRegistrationTampered)
+        {
+            HelperAutoStartStatus = HelperAutoStartStatus.Tampered;
+            return;
+        }
+
+        if (!StartHelperWithSystem)
+        {
+            HelperAutoStartStatus = HelperAutoStartStatus.Disabled;
+            return;
+        }
+
+        // From here, auto-start is enabled. Refine: connected > running > registered.
+        if (_elevationService.IsHelperConnected)
+        {
+            HelperAutoStartStatus = HelperAutoStartStatus.Connected;
+            return;
+        }
+
+        // "Running but not connected" is rare in practice — the main app
+        // authenticates immediately after the helper opens its socket. Best-
+        // effort detection: the helper exposes its IPC endpoint as a file
+        // on both platforms, so we can probe that without an auth attempt.
+        try
+        {
+            var endpoint = OperatingSystem.IsWindows()
+                ? @$"\\.\pipe\{IPC.IpcConstants.WindowsPipeName}"
+                : IPC.IpcConstants.LinuxSocketPath;
+            if (File.Exists(endpoint))
+            {
+                HelperAutoStartStatus = HelperAutoStartStatus.Running;
+                return;
+            }
+        }
+        catch { /* ignore — fall through to Registered */ }
+
+        HelperAutoStartStatus = HelperAutoStartStatus.Registered;
+    }
+
+    /// <summary>
+    /// Re-registers the helper auto-start hook (Windows Task Scheduler entry
+    /// or Linux systemd unit) when tamper-detection has fired. Triggers a
+    /// one-time UAC / pkexec prompt — this is the user explicitly repairing
+    /// a flagged state, so the interactive prompt is acceptable.
+    /// </summary>
+    /// <remarks>
+    /// Two-step (disable → re-enable) so the old tampered entry is removed
+    /// before the new known-good one is written. If the re-enable step fails
+    /// (most commonly because the user cancels UAC/pkexec), the user is left
+    /// with NO registered entry at all — we explicitly flip the local toggle
+    /// and clear the tamper banner to reflect that, so the UI doesn't lie
+    /// about a tampered entry that no longer exists.
+    /// </remarks>
+    [RelayCommand]
+    private async Task RepairHelperRegistrationAsync()
+    {
+        try
+        {
+            await _startupService.SetHelperStartupEnabledAsync(false);
+            var ok = await _startupService.SetHelperStartupEnabledAsync(true);
+            if (ok)
+            {
+                IsHelperRegistrationTampered = false;
+                HelperRegistrationTamperReason = null;
+                StartHelperWithSystem = true;
+                _lastAppliedStartHelperWithSystem = true;
+                UpdateHelperAutoStartStatus();
+                _logger?.LogInformation("Helper auto-start registration repaired");
+            }
+            else
+            {
+                // Re-enable failed (typically user cancelled UAC/pkexec). The
+                // old tampered entry was already deleted in the first step, so
+                // the system is now in a clean "no registration" state. Sync
+                // the UI to that reality instead of keeping the stale banner.
+                StartHelperWithSystem = false;
+                _lastAppliedStartHelperWithSystem = false;
+                IsHelperRegistrationTampered = false;
+                HelperRegistrationTamperReason =
+                    "Repair cancelled. Auto-start is now disabled — re-enable the toggle to retry.";
+                UpdateHelperAutoStartStatus();
+                _logger?.LogWarning(
+                    "Helper auto-start repair did not complete; previous tampered entry was removed, " +
+                    "no new entry was created. Auto-start is now disabled.");
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger?.LogError(ex, "Failed to repair helper registration");
         }
     }
 
@@ -491,6 +757,8 @@ public sealed partial class SettingsViewModel : ObservableObject, IDisposable
             StartWithWindows = false;
             IsStartupDisabledByUser = false;
             IsStartupDisabledByPolicy = false;
+            _lastAppliedStartWithWindows = StartWithWindows;
+            _lastAppliedStartHelperWithSystem = StartHelperWithSystem;
             return;
         }
 
@@ -504,6 +772,12 @@ public sealed partial class SettingsViewModel : ObservableObject, IDisposable
         {
             StartHelperWithSystem = await _startupService.IsHelperStartupEnabledAsync();
         }
+        UpdateHelperAutoStartStatus();
+
+        // Baseline the applied-state trackers to what the OS currently reports, so the
+        // first save doesn't redundantly re-apply (and re-prompt for elevation).
+        _lastAppliedStartWithWindows = StartWithWindows;
+        _lastAppliedStartHelperWithSystem = StartHelperWithSystem;
     }
 
     [RelayCommand]
@@ -517,6 +791,8 @@ public sealed partial class SettingsViewModel : ObservableObject, IDisposable
             IsPerAppTrackingEnabled = IsPerAppTrackingEnabled,
             StartHelperWithSystem = StartHelperWithSystem,
             MinimizeToTray = MinimizeToTray,
+            TrayIconMode = SelectedTrayIconMode,
+            TrayTrafficAdapterId = SelectedTrayAdapter?.Id ?? string.Empty,
             StartMinimized = StartMinimized,
             StartWithWindows = StartWithWindows,
             SpeedUnit = SelectedSpeedUnit,
@@ -535,19 +811,19 @@ public sealed partial class SettingsViewModel : ObservableObject, IDisposable
 
             // Insights Page
             DefaultInsightsPeriod = DefaultInsightsPeriod,
-            ShowCorrelationInsights = ShowCorrelationInsights,
 
             // Updates
             CheckForUpdates = CheckForUpdates,
             AutoDownloadUpdates = AutoDownloadUpdates,
 
-            // Memory Alerts
-            MemoryAlertsEnabled = MemoryAlertsEnabled,
-            MemoryWarningThresholdPercent = MemoryWarningThresholdPercent,
-            MemoryCriticalThresholdPercent = MemoryCriticalThresholdPercent,
-            MemoryFreeFloorMb = MemoryFreeFloorMb,
-            MemoryAlertCooldownSeconds = MemoryAlertCooldownSeconds,
-            MemoryAlertSustainedSeconds = MemoryAlertSustainedSeconds
+            // Memory Alerts — persist the committed snapshot, not the live editable
+            // values, so unrelated auto-saves never write not-yet-saved edits.
+            MemoryAlertsEnabled = _committedMemoryAlertsEnabled,
+            MemoryWarningThresholdPercent = _committedMemoryWarningThresholdPercent,
+            MemoryCriticalThresholdPercent = _committedMemoryCriticalThresholdPercent,
+            MemoryFreeFloorMb = _committedMemoryFreeFloorMb,
+            MemoryAlertCooldownSeconds = _committedMemoryAlertCooldownSeconds,
+            MemoryAlertSustainedSeconds = _committedMemoryAlertSustainedSeconds
         };
 
         // Apply speed unit setting globally
@@ -558,18 +834,21 @@ public sealed partial class SettingsViewModel : ObservableObject, IDisposable
         // Apply settings
         _networkMonitor.SetUseIpHelperApi(UseIpHelperApi);
 
-        // Apply startup setting to OS
-        if (_startupService.IsStartupSupported)
+        // Apply startup setting to OS only when it actually changed — re-applying on
+        // every save is wasteful and (for the helper) re-runs an elevated registration
+        // that prompts UAC each time.
+        if (_startupService.IsStartupSupported && StartWithWindows != _lastAppliedStartWithWindows)
         {
             var result = await _startupService.SetStartupWithResultAsync(StartWithWindows);
             // Update UI state based on actual result
             StartWithWindows = result.State == StartupState.Enabled;
             IsStartupDisabledByUser = result.State == StartupState.DisabledByUser;
             IsStartupDisabledByPolicy = result.State == StartupState.DisabledByPolicy;
+            _lastAppliedStartWithWindows = StartWithWindows;
         }
 
-        // Apply helper startup setting to OS
-        if (_startupService.IsHelperStartupSupported)
+        // Apply helper startup setting to OS only when it changed (runs elevated -> UAC)
+        if (_startupService.IsHelperStartupSupported && StartHelperWithSystem != _lastAppliedStartHelperWithSystem)
         {
             var helperResult = await _startupService.SetHelperStartupEnabledAsync(StartHelperWithSystem);
             if (!helperResult)
@@ -577,6 +856,7 @@ public sealed partial class SettingsViewModel : ObservableObject, IDisposable
                 // Revert UI toggle if OS registration failed (e.g., user cancelled UAC)
                 StartHelperWithSystem = await _startupService.IsHelperStartupEnabledAsync();
             }
+            _lastAppliedStartHelperWithSystem = StartHelperWithSystem;
         }
     }
 

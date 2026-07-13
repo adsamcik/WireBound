@@ -290,6 +290,8 @@ public sealed class DataPersistenceService : IDataPersistenceService
                                  ?? string.Empty,
                 SessionBytesReceived = g.Sum(s => s.SessionBytesReceived),
                 SessionBytesSent = g.Sum(s => s.SessionBytesSent),
+                LoopbackBytesReceived = g.Sum(s => s.LoopbackBytesReceived),
+                LoopbackBytesSent = g.Sum(s => s.LoopbackBytesSent),
                 DownloadSpeedBps = g.Sum(s => s.DownloadSpeedBps),
                 UploadSpeedBps = g.Sum(s => s.UploadSpeedBps)
             })
@@ -324,6 +326,8 @@ public sealed class DataPersistenceService : IDataPersistenceService
                     Granularity = UsageGranularity.Hourly,
                     BytesReceived = stat.SessionBytesReceived,
                     BytesSent = stat.SessionBytesSent,
+                    LoopbackBytesReceived = stat.LoopbackBytesReceived,
+                    LoopbackBytesSent = stat.LoopbackBytesSent,
                     PeakDownloadSpeed = stat.DownloadSpeedBps,
                     PeakUploadSpeed = stat.UploadSpeedBps,
                     LastUpdated = now
@@ -344,6 +348,18 @@ public sealed class DataPersistenceService : IDataPersistenceService
                     record.BytesSent += stat.SessionBytesSent;
                 else
                     record.BytesSent = Math.Max(record.BytesSent, stat.SessionBytesSent);
+
+                // Loopback subset tracks the same session/restart semantics as the
+                // totals above, so it stays a valid subset of BytesReceived/Sent.
+                if (stat.LoopbackBytesReceived < record.LoopbackBytesReceived)
+                    record.LoopbackBytesReceived += stat.LoopbackBytesReceived;
+                else
+                    record.LoopbackBytesReceived = Math.Max(record.LoopbackBytesReceived, stat.LoopbackBytesReceived);
+
+                if (stat.LoopbackBytesSent < record.LoopbackBytesSent)
+                    record.LoopbackBytesSent += stat.LoopbackBytesSent;
+                else
+                    record.LoopbackBytesSent = Math.Max(record.LoopbackBytesSent, stat.LoopbackBytesSent);
 
                 record.PeakDownloadSpeed = Math.Max(record.PeakDownloadSpeed, stat.DownloadSpeedBps);
                 record.PeakUploadSpeed = Math.Max(record.PeakUploadSpeed, stat.UploadSpeedBps);
@@ -611,7 +627,7 @@ public sealed class DataPersistenceService : IDataPersistenceService
             .ConfigureAwait(false);
     }
 
-    public async Task SaveSystemSnapshotBatchAsync(IEnumerable<(double cpuPercent, double memoryPercent, DateTime timestamp)> snapshots)
+    public async Task SaveSystemSnapshotBatchAsync(IEnumerable<(double cpuPercent, double memoryPercent, long diskReadBytesPerSec, long diskWriteBytesPerSec, double diskActivityPercent, DateTime timestamp)> snapshots)
     {
         var snapshotList = snapshots.ToList();
         if (snapshotList.Count == 0)
@@ -624,7 +640,10 @@ public sealed class DataPersistenceService : IDataPersistenceService
         {
             Timestamp = s.timestamp,
             CpuPercent = s.cpuPercent,
-            MemoryPercent = s.memoryPercent
+            MemoryPercent = s.memoryPercent,
+            DiskReadBytesPerSec = s.diskReadBytesPerSec,
+            DiskWriteBytesPerSec = s.diskWriteBytesPerSec,
+            DiskActivityPercent = s.diskActivityPercent
         });
 
         db.SystemSnapshots.AddRange(entities);

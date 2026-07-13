@@ -10,7 +10,14 @@ public sealed partial class SecondaryAdapterInfo : ObservableObject
 {
     public required string AdapterId { get; init; }
     public required string Name { get; init; }
-    public required string Icon { get; init; }
+
+    /// <summary>
+    /// Resource key into the Wire Trace icon set for the adapter's glyph
+    /// (e.g. <c>"WbAdapterVpn"</c>, <c>"WbAdapterWifi4"</c>). Bound by the
+    /// dashboard's secondary-adapter chips. Defaults to the generic adapter
+    /// glyph so call sites that don't override it still render a valid icon.
+    /// </summary>
+    public string IconKey { get; init; } = "WbAdapterGeneric";
 
     [ObservableProperty]
     private string _downloadSpeed = "";

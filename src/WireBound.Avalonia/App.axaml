@@ -11,6 +11,7 @@
             </ResourceDictionary.MergedDictionaries>
             <converters:SpeedUnitConverter x:Key="SpeedUnitConverter" />
             <converters:InsightsPeriodConverter x:Key="InsightsPeriodConverter" />
+            <converters:TrayIconModeConverter x:Key="TrayIconModeConverter" />
         </ResourceDictionary>
     </Application.Resources>
     

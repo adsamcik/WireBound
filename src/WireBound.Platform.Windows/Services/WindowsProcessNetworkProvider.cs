@@ -161,16 +161,29 @@ public sealed class WindowsProcessNetworkProvider : IProcessNetworkProvider
         // Without elevation, we can only get connection info, not byte stats
         // Convert ConnectionInfo to ConnectionStats with zero byte counts
         var connections = GetAllConnectionsInternal();
+
+        // Many loopback (and transient) TCP sockets are reported by the OS with
+        // owning PID 0 — the owning process has already closed its handle. Recover
+        // an owner by attributing such a connection to the process that holds the
+        // listening socket on its local port (the server side) or, failing that,
+        // its remote port. This is what lets pre-existing localhost connections show
+        // a real app instead of "Unattributed".
+        var listenerPortToPid = ConnectionAttribution.BuildTcpListenerMap(
+            connections, c => c.Protocol, c => c.State, c => c.LocalPort, c => c.ProcessId);
+
         var stats = connections.Select(c =>
         {
-            var processInfo = GetProcessInfo(c.ProcessId);
+            var pid = ConnectionAttribution.ResolveOwnerPid(
+                c.Protocol, c.ProcessId, c.LocalPort, c.RemotePort, listenerPortToPid);
+
+            var processInfo = GetProcessInfo(pid);
             return new ConnectionStats
             {
                 LocalAddress = c.LocalAddress?.ToString() ?? "",
                 LocalPort = c.LocalPort,
                 RemoteAddress = c.RemoteAddress?.ToString() ?? "",
                 RemotePort = c.RemotePort,
-                ProcessId = c.ProcessId,
+                ProcessId = pid,
                 ProcessName = processInfo.Name,
                 Protocol = c.Protocol,
                 State = c.State,

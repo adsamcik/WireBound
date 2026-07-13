@@ -36,6 +36,9 @@ public sealed class SystemHistoryService : ISystemHistoryService, IDisposable
         double CpuPercent,
         double MemoryPercent,
         long MemoryUsedBytes,
+        double DiskActivityPercent,
+        long DiskReadBytesPerSec,
+        long DiskWriteBytesPerSec,
         double? GpuPercent,
         double? GpuMemoryPercent);
 
@@ -61,6 +64,9 @@ public sealed class SystemHistoryService : ISystemHistoryService, IDisposable
                 stats.Cpu.UsagePercent,
                 stats.Memory.UsagePercent,
                 stats.Memory.UsedBytes,
+                stats.Disk.ActivityPercent,
+                stats.Disk.ReadBytesPerSecond,
+                stats.Disk.WriteBytesPerSecond,
                 GpuPercent: null, // GPU stats not yet in SystemStats model
                 GpuMemoryPercent: null);
 
@@ -242,6 +248,9 @@ public sealed class SystemHistoryService : ISystemHistoryService, IDisposable
                 var cpuValues = samples.Select(s => s.CpuPercent).ToList();
                 var memValues = samples.Select(s => s.MemoryPercent).ToList();
                 var memBytesValues = samples.Select(s => s.MemoryUsedBytes).ToList();
+                var diskActivityValues = samples.Select(s => s.DiskActivityPercent).ToList();
+                var diskReadValues = samples.Select(s => s.DiskReadBytesPerSec).ToList();
+                var diskWriteValues = samples.Select(s => s.DiskWriteBytesPerSec).ToList();
                 var gpuValues = samples.Where(s => s.GpuPercent.HasValue).Select(s => s.GpuPercent!.Value).ToList();
                 var gpuMemValues = samples.Where(s => s.GpuMemoryPercent.HasValue).Select(s => s.GpuMemoryPercent!.Value).ToList();
 
@@ -256,6 +265,10 @@ public sealed class SystemHistoryService : ISystemHistoryService, IDisposable
                         AvgMemoryPercent = memValues.Average(),
                         MaxMemoryPercent = memValues.Max(),
                         AvgMemoryUsedBytes = (long)memBytesValues.Average(),
+                        AvgDiskActivityPercent = diskActivityValues.Average(),
+                        MaxDiskActivityPercent = diskActivityValues.Max(),
+                        AvgDiskReadBytesPerSec = (long)diskReadValues.Average(),
+                        AvgDiskWriteBytesPerSec = (long)diskWriteValues.Average(),
                         AvgGpuPercent = gpuValues.Count > 0 ? gpuValues.Average() : null,
                         MaxGpuPercent = gpuValues.Count > 0 ? gpuValues.Max() : null,
                         AvgGpuMemoryPercent = gpuMemValues.Count > 0 ? gpuMemValues.Average() : null
@@ -271,6 +284,7 @@ public sealed class SystemHistoryService : ISystemHistoryService, IDisposable
                     existingRecord.MaxCpuPercent = Math.Max(existingRecord.MaxCpuPercent, cpuValues.Max());
                     existingRecord.MinCpuPercent = Math.Min(existingRecord.MinCpuPercent, cpuValues.Min());
                     existingRecord.MaxMemoryPercent = Math.Max(existingRecord.MaxMemoryPercent, memValues.Max());
+                    existingRecord.MaxDiskActivityPercent = Math.Max(existingRecord.MaxDiskActivityPercent, diskActivityValues.Max());
 
                     if (gpuValues.Count > 0)
                     {
@@ -373,7 +387,11 @@ public sealed class SystemHistoryService : ISystemHistoryService, IDisposable
                 MaxCpuPercent = hourlyStats.Max(h => h.MaxCpuPercent),
                 AvgMemoryPercent = hourlyStats.Average(h => h.AvgMemoryPercent),
                 MaxMemoryPercent = hourlyStats.Max(h => h.MaxMemoryPercent),
-                PeakMemoryUsedBytes = hourlyStats.Max(h => h.AvgMemoryUsedBytes)
+                PeakMemoryUsedBytes = hourlyStats.Max(h => h.AvgMemoryUsedBytes),
+                AvgDiskActivityPercent = hourlyStats.Average(h => h.AvgDiskActivityPercent),
+                MaxDiskActivityPercent = hourlyStats.Max(h => h.MaxDiskActivityPercent),
+                PeakDiskReadBytesPerSec = hourlyStats.Max(h => h.AvgDiskReadBytesPerSec),
+                PeakDiskWriteBytesPerSec = hourlyStats.Max(h => h.AvgDiskWriteBytesPerSec)
             };
 
             // Handle GPU stats if any hourly records have them

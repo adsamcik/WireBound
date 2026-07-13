@@ -48,6 +48,8 @@ public sealed class LinuxProcessNetworkProviderFactory : IProcessNetworkProvider
         return _basicProvider;
     }
 
+    public IProcessNetworkProvider GetBasicProvider() => _basicProvider;
+
     private void OnHelperConnectionStateChanged(object? sender, HelperConnectionStateChangedEventArgs e)
     {
         if (e.IsConnected)

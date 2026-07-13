@@ -178,16 +178,25 @@ public sealed partial class LinuxProcessNetworkProvider : IProcessNetworkProvide
         allConnections.AddRange(ParseProcNetFile("/proc/net/udp", "UDP", inodeToPid));
         allConnections.AddRange(ParseProcNetFile("/proc/net/udp6", "UDP", inodeToPid));
 
+        // Loopback/transient sockets can lack an owning process. Attribute them to the
+        // process holding the listening socket on the connection's local (or remote)
+        // port so pre-existing localhost connections show a real app, not "Unattributed".
+        var listenerPortToPid = ConnectionAttribution.BuildTcpListenerMap(
+            allConnections, c => c.Protocol, c => c.State, c => c.LocalPort, c => c.ProcessId);
+
         foreach (var conn in allConnections)
         {
-            var processInfo = GetProcessInfo(conn.ProcessId);
+            var pid = ConnectionAttribution.ResolveOwnerPid(
+                conn.Protocol, conn.ProcessId, conn.LocalPort, conn.RemotePort, listenerPortToPid);
+
+            var processInfo = GetProcessInfo(pid);
             stats.Add(new ConnectionStats
             {
                 LocalAddress = conn.LocalAddress?.ToString() ?? "",
                 LocalPort = conn.LocalPort,
                 RemoteAddress = conn.RemoteAddress?.ToString() ?? "",
                 RemotePort = conn.RemotePort,
-                ProcessId = conn.ProcessId,
+                ProcessId = pid,
                 ProcessName = processInfo.Name,
                 Protocol = conn.Protocol,
                 State = conn.State,

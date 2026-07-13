@@ -820,7 +820,7 @@ public class OverviewViewModelTests : IAsyncDisposable
         {
             AdapterId = "vpn0",
             Name = "WireGuard",
-            Icon = "🔐",
+            IconKey = "WbAdapterVpn",
             DownloadSpeed = "10 MB/s",
             UploadSpeed = "5 MB/s",
             DownloadBps = 10_000_000,

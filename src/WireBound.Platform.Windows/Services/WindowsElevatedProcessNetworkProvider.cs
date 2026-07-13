@@ -214,6 +214,8 @@ public sealed class WindowsElevatedProcessNetworkProvider : IProcessNetworkProvi
                     DisplayName = AppIdentity.ResolveDisplayName(p.ExecutablePath, p.ProcessName),
                     SessionBytesReceived = p.TotalBytesReceived,
                     SessionBytesSent = p.TotalBytesSent,
+                    LoopbackBytesReceived = p.LoopbackBytesReceived,
+                    LoopbackBytesSent = p.LoopbackBytesSent,
                     DownloadSpeedBps = downloadBps,
                     UploadSpeedBps = uploadBps,
                     FirstSeen = firstSeen,

@@ -44,5 +44,11 @@ public enum MessageType : byte
     ProcessStats = 3,
     Heartbeat = 4,
     Shutdown = 5,
+    /// <summary>
+    /// Server-to-client challenge containing a fresh nonce. Sent immediately
+    /// after the pipe/socket connects and before the client authenticates.
+    /// Replaces the timestamp-based replay window with a single-use nonce.
+    /// </summary>
+    Challenge = 6,
     Error = 255
 }

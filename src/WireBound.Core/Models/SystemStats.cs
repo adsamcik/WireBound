@@ -19,4 +19,9 @@ public class SystemStats
     /// Memory statistics
     /// </summary>
     public MemoryStats Memory { get; set; } = new();
+
+    /// <summary>
+    /// Disk activity statistics
+    /// </summary>
+    public DiskStats Disk { get; set; } = new();
 }

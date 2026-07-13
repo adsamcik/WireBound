@@ -144,6 +144,8 @@ public class ModelTests
         settings.SpeedUnit.Should().Be(SpeedUnit.BytesPerSecond);
         settings.StartWithWindows.Should().BeFalse();
         settings.MinimizeToTray.Should().BeTrue();
+        settings.TrayIconMode.Should().Be(TrayIconMode.Traffic);
+        settings.TrayTrafficAdapterId.Should().BeEmpty();
         settings.StartMinimized.Should().BeFalse();
         settings.UseIpHelperApi.Should().BeFalse();
         settings.SelectedAdapterId.Should().Be(NetworkMonitorConstants.AutoAdapterId);
@@ -187,7 +189,6 @@ public class ModelTests
 
         // Assert
         settings.DefaultInsightsPeriod.Should().Be("ThisWeek");
-        settings.ShowCorrelationInsights.Should().BeTrue();
     }
 
     [Test]
@@ -347,6 +348,7 @@ public class ModelTests
         // Assert
         stats.Cpu.Should().NotBeNull();
         stats.Memory.Should().NotBeNull();
+        stats.Disk.Should().NotBeNull();
     }
 
     [Test]
@@ -376,6 +378,54 @@ public class ModelTests
         // Assert
         stats.Cpu.UsagePercent.Should().Be(55.0);
         stats.Memory.UsagePercent.Should().Be(62.5);
+    }
+
+    // ═══════════════════════════════════════════════════════════════════════
+    // DiskStats - Default Values and Computed Properties
+    // ═══════════════════════════════════════════════════════════════════════
+
+    [Test]
+    public void DiskStats_NewInstance_HasDefaultValues()
+    {
+        // Act
+        var stats = new DiskStats();
+
+        // Assert
+        stats.ReadBytesPerSecond.Should().Be(0);
+        stats.WriteBytesPerSecond.Should().Be(0);
+        stats.ActivityPercent.Should().Be(0);
+        stats.TotalBytesPerSecond.Should().Be(0);
+    }
+
+    [Test]
+    public void DiskStats_TotalBytesPerSecond_IsSumOfReadAndWrite()
+    {
+        // Arrange
+        var stats = new DiskStats
+        {
+            ReadBytesPerSecond = 1_048_576,
+            WriteBytesPerSecond = 524_288
+        };
+
+        // Assert
+        stats.TotalBytesPerSecond.Should().Be(1_572_864);
+    }
+
+    [Test]
+    public void DiskStats_FormattedProperties_ReturnStrings()
+    {
+        // Arrange
+        var stats = new DiskStats
+        {
+            ReadBytesPerSecond = 1_048_576,
+            WriteBytesPerSecond = 524_288,
+            ActivityPercent = 42.5
+        };
+
+        // Assert
+        stats.ReadFormatted.Should().NotBeNullOrEmpty();
+        stats.WriteFormatted.Should().NotBeNullOrEmpty();
+        stats.ActivityPercent.Should().Be(42.5);
     }
 
     // ═══════════════════════════════════════════════════════════════════════

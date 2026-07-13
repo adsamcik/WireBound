@@ -1,6 +1,8 @@
 using System.Net.Sockets;
 using System.Runtime.Versioning;
+using System.Security.Cryptography;
 using Serilog;
+using WireBound.Elevation.Linux.Security;
 using WireBound.IPC;
 using WireBound.IPC.Messages;
 using WireBound.IPC.Security;
@@ -22,11 +24,20 @@ public sealed class ElevationServer : IDisposable
     private readonly RateLimiter _heartbeatRateLimiter = new(1);
     private readonly NetlinkConnectionTracker _tracker = new();
     private readonly SemaphoreSlim _connectionSemaphore = new(20);
+    private readonly IClientIdentityVerifier _clientVerifier;
+    private readonly SecurityAuditLogger _audit;
     private int _expectedPeerUid = -1;
     private FileStream? _lockFile;
     private string? _secretFilePath;
+    // Single-client bind: see WindowsElevationServer for rationale.
+    private readonly object _boundIdentityLock = new();
+    private byte[]? _boundImageHash;
+    private string? _boundImagePath;
+    private int _boundClientPid;
 
-    public ElevationServer()
+    public ElevationServer(
+        IClientIdentityVerifier? clientVerifier = null,
+        SecurityAuditLogger? audit = null)
     {
         // Resolve the launching user's home directory so the secret is written
         // where the unprivileged client can read it (not in /root/.local/share/).
@@ -46,15 +57,44 @@ public sealed class ElevationServer : IDisposable
                 ChownFile(secretPath, peerUid);
                 Log.Information("Secret stored at {Path} (owned by UID {Uid})", secretPath, peerUid);
                 _expectedPeerUid = peerUid;
-                return;
+            }
+            else
+            {
+                _secret = SecretManager.GenerateAndStore();
+                _secretFilePath = SecretManager.GetSecretFilePath();
+                Log.Warning("Could not resolve user home; secret stored at default path {Path}", _secretFilePath);
+                _expectedPeerUid = peerUid;
             }
         }
+        else
+        {
+            // Fallback: write to default path (may not work under pkexec but is fail-safe)
+            _secret = SecretManager.GenerateAndStore();
+            _secretFilePath = SecretManager.GetSecretFilePath();
+            Log.Warning("Could not resolve user home; secret stored at default path {Path}", _secretFilePath);
+            _expectedPeerUid = peerUid;
+        }
 
-        // Fallback: write to default path (may not work under pkexec but is fail-safe)
-        _secret = SecretManager.GenerateAndStore();
-        _secretFilePath = SecretManager.GetSecretFilePath();
-        Log.Warning("Could not resolve user home; secret stored at default path {Path}", _secretFilePath);
-        _expectedPeerUid = peerUid;
+        _clientVerifier = clientVerifier ?? CreateDefaultVerifier();
+        _audit = audit ?? new SecurityAuditLogger();
+        _audit.HelperStarted(Environment.ProcessId, _secretFilePath ?? "<unknown>");
+    }
+
+    /// <summary>
+    /// Factory for the per-connection challenge nonce. See Windows server for
+    /// rationale. Defaults to the secure RNG; tests override for determinism.
+    /// </summary>
+    internal Func<byte[]> NonceFactory { get; set; } = static () => RandomNumberGenerator.GetBytes(32);
+
+    /// <summary>
+    /// Default identity verifier for the Linux install layout (helper lives
+    /// next to the <c>WireBound</c> main exe).
+    /// </summary>
+    private static LinuxClientIdentityVerifier CreateDefaultVerifier()
+    {
+        var installDir = AppContext.BaseDirectory;
+        var mainAppPath = Path.Combine(installDir, "WireBound");
+        return new LinuxClientIdentityVerifier(installDir, mainAppPath);
     }
 
     /// <summary>
@@ -285,6 +325,31 @@ public sealed class ElevationServer : IDisposable
         string? sessionId = null;
         // Use verified peer PID as rate limiter identity (stable, OS-verified via SO_PEERCRED)
         var clientId = peerPid > 0 ? $"pid-{peerPid}" : stream.GetHashCode().ToString();
+
+        // Issue a fresh single-use nonce challenge BEFORE accepting the auth message.
+        var nonce = NonceFactory();
+        var nonceExpiresAt = DateTimeOffset.UtcNow.AddSeconds(IpcConstants.TimestampFreshnessSeconds);
+        try
+        {
+            var challenge = new IpcMessage
+            {
+                Type = MessageType.Challenge,
+                Payload = IpcTransport.SerializePayload(new ChallengeMessage
+                {
+                    Nonce = nonce,
+                    ExpiresAtUtc = nonceExpiresAt.ToUnixTimeSeconds()
+                })
+            };
+            await IpcTransport.SendAsync(stream, challenge, cancellationToken);
+        }
+        catch (Exception ex)
+        {
+            Log.Warning(ex, "Failed to send challenge to client PID {Pid}", peerPid);
+            _connectionSemaphore.Release();
+            if (stream is IDisposable d) d.Dispose();
+            return;
+        }
+
         try
         {
             while (!cancellationToken.IsCancellationRequested)
@@ -328,14 +393,14 @@ public sealed class ElevationServer : IDisposable
                 IpcMessage response;
                 if (message.Type == MessageType.Authenticate)
                 {
-                    // Clean up prior session on re-auth to prevent session pool exhaustion
                     if (sessionId is not null)
                     {
                         _sessionManager.RemoveSession(sessionId);
                         _rateLimiter.RemoveClient(sessionId);
                         _heartbeatRateLimiter.RemoveClient(sessionId);
                     }
-                    var (authResponse, newSessionId) = await HandleAuthenticateAsync(message, peerPid, cancellationToken);
+                    var (authResponse, newSessionId) = await HandleAuthenticateAsync(
+                        message, peerPid, nonce, nonceExpiresAt, cancellationToken);
                     sessionId = newSessionId;
                     response = authResponse;
                 }
@@ -351,7 +416,6 @@ public sealed class ElevationServer : IDisposable
                     };
                 }
 
-                // Track auth failures and disconnect after too many consecutive failures
                 if (message.Type == MessageType.Authenticate)
                 {
                     if (sessionId is null)
@@ -398,7 +462,7 @@ public sealed class ElevationServer : IDisposable
     }
 
     internal async Task<(IpcMessage Response, string? SessionId)> HandleAuthenticateAsync(
-        IpcMessage request, int peerPid, CancellationToken cancellationToken)
+        IpcMessage request, int peerPid, byte[] expectedNonce, DateTimeOffset nonceExpiresAt, CancellationToken cancellationToken)
     {
         AuthenticateRequest authRequest;
         try
@@ -407,6 +471,7 @@ public sealed class ElevationServer : IDisposable
         }
         catch
         {
+            _audit.AuthFailure(peerPid, claimedPath: null, "Invalid auth request payload");
             return (CreateResponse(request.RequestId, MessageType.Authenticate,
                 new AuthenticateResponse { Success = false, ErrorMessage = "Invalid auth request" }), null);
         }
@@ -414,46 +479,93 @@ public sealed class ElevationServer : IDisposable
         // Cross-verify: the PID in the auth request must match SO_PEERCRED PID
         if (peerPid > 0 && authRequest.ClientPid != peerPid)
         {
-            Log.Warning("PID mismatch: claimed {ClaimedPid}, actual {ActualPid}",
-                authRequest.ClientPid, peerPid);
+            _audit.AuthFailure(peerPid, authRequest.ExecutablePath,
+                $"PID claimed {authRequest.ClientPid} but socket-verified PID is {peerPid}");
             return (CreateResponse(request.RequestId, MessageType.Authenticate,
                 new AuthenticateResponse { Success = false, ErrorMessage = "PID verification failed" }), null);
         }
 
-        if (!HmacAuthenticator.Validate(authRequest.ClientPid, authRequest.Timestamp, authRequest.Signature, _secret))
+        // Nonce verification — single-use, server-issued for THIS connection.
+        if (authRequest.Nonce.Length != expectedNonce.Length ||
+            !CryptographicOperations.FixedTimeEquals(authRequest.Nonce, expectedNonce))
         {
-            Log.Warning("Authentication failed for PID {Pid}", authRequest.ClientPid);
+            _audit.AuthFailure(peerPid, authRequest.ExecutablePath, "Nonce mismatch — possible replay attempt");
+            return (CreateResponse(request.RequestId, MessageType.Authenticate,
+                new AuthenticateResponse { Success = false, ErrorMessage = "Nonce verification failed" }), null);
+        }
+        if (DateTimeOffset.UtcNow > nonceExpiresAt)
+        {
+            _audit.AuthFailure(peerPid, authRequest.ExecutablePath, "Nonce expired");
+            return (CreateResponse(request.RequestId, MessageType.Authenticate,
+                new AuthenticateResponse { Success = false, ErrorMessage = "Nonce expired" }), null);
+        }
+
+        // Nonce-bound HMAC: signature covers (pid || imageHash || nonce).
+        if (!HmacAuthenticator.ValidateWithNonce(
+                authRequest.ClientPid, authRequest.ClientImageHash, authRequest.Nonce, authRequest.Signature, _secret))
+        {
+            _audit.AuthFailure(peerPid, authRequest.ExecutablePath, "HMAC signature verification failed");
             return (CreateResponse(request.RequestId, MessageType.Authenticate,
                 new AuthenticateResponse { Success = false, ErrorMessage = "Authentication failed" }), null);
         }
 
         if (string.IsNullOrWhiteSpace(authRequest.ExecutablePath))
         {
-            Log.Warning("Auth request from PID {Pid} missing executable path", authRequest.ClientPid);
+            _audit.AuthFailure(peerPid, claimedPath: null, "Missing executable path");
             return (CreateResponse(request.RequestId, MessageType.Authenticate,
                 new AuthenticateResponse { Success = false, ErrorMessage = "Executable path required" }), null);
         }
 
-        if (!ValidateExecutablePath(authRequest.ExecutablePath, authRequest.ClientPid))
+        // Kernel-verified identity: resolves /proc/<pid>/exe, confines to install
+        // dir, checks inode equality (defeats hard-link/bind-mount tricks), and
+        // recomputes SHA-256 of the on-disk binary for constant-time compare.
+        var identity = _clientVerifier.Verify(peerPid, authRequest.ClientImageHash);
+        if (!identity.IsValid)
         {
-            Log.Warning("Executable path validation failed for PID {Pid}: {Path}",
-                authRequest.ClientPid, authRequest.ExecutablePath);
+            _audit.AuthFailure(peerPid, authRequest.ExecutablePath, identity.Reason ?? "identity verification failed");
             return (CreateResponse(request.RequestId, MessageType.Authenticate,
-                new AuthenticateResponse { Success = false, ErrorMessage = "Executable validation failed" }), null);
+                new AuthenticateResponse { Success = false, ErrorMessage = "Identity verification failed" }), null);
+        }
+
+        // Single-client-per-helper-instance.
+        lock (_boundIdentityLock)
+        {
+            if (_boundImageHash is not null)
+            {
+                var boundAlive = IsPidAlive(_boundClientPid);
+                var sameIdentity = authRequest.ClientImageHash.Length == _boundImageHash.Length &&
+                                   CryptographicOperations.FixedTimeEquals(authRequest.ClientImageHash, _boundImageHash);
+                if (!sameIdentity && boundAlive)
+                {
+                    _audit.SecondClientRejected(peerPid, identity.VerifiedImagePath!, _boundImagePath!);
+                    return (CreateResponse(request.RequestId, MessageType.Authenticate,
+                        new AuthenticateResponse
+                        {
+                            Success = false,
+                            ErrorMessage = "Helper is bound to another client identity"
+                        }), null);
+                }
+            }
+            _boundImageHash = authRequest.ClientImageHash;
+            _boundImagePath = identity.VerifiedImagePath;
+            _boundClientPid = authRequest.ClientPid;
         }
 
         var session = await _sessionManager.CreateSessionAsync(
-            authRequest.ClientPid, authRequest.ExecutablePath, cancellationToken);
+            authRequest.ClientPid, identity.VerifiedImagePath!, cancellationToken);
         if (session is null)
         {
+            _audit.AuthFailure(peerPid, authRequest.ExecutablePath, "Max sessions exceeded");
             return (CreateResponse(request.RequestId, MessageType.Authenticate,
                 new AuthenticateResponse { Success = false, ErrorMessage = "Max sessions exceeded" }), null);
         }
 
+        _audit.AuthSuccess(peerPid, identity.VerifiedImagePath!, session.SessionId);
         Log.Information("Authenticated client PID {Pid}, session {SessionId}", authRequest.ClientPid, session.SessionId);
 
-        // Server proves it holds the secret (mutual auth)
-        var serverSig = HmacAuthenticator.Sign(0, session.ExpiresAtUtc.ToUnixTimeSeconds(), _secret);
+        // Mutual auth: server signs (sessionId || expiresAt || nonce).
+        var serverSig = HmacAuthenticator.SignServerResponse(
+            session.SessionId, session.ExpiresAtUtc.ToUnixTimeSeconds(), authRequest.Nonce, _secret);
 
         return (CreateResponse(request.RequestId, MessageType.Authenticate,
             new AuthenticateResponse
@@ -463,6 +575,23 @@ public sealed class ElevationServer : IDisposable
                 ExpiresAtUtc = session.ExpiresAtUtc.ToUnixTimeSeconds(),
                 ServerSignature = serverSig
             }), session.SessionId);
+    }
+
+    /// <summary>
+    /// Returns true iff the given PID still maps to a live process. Used to
+    /// allow rebind when the previously-bound app crashed/restarted.
+    /// </summary>
+    private static bool IsPidAlive(int pid)
+    {
+        if (pid <= 0) return false;
+        try
+        {
+            return Directory.Exists($"/proc/{pid}");
+        }
+        catch
+        {
+            return false;
+        }
     }
 
     internal IpcMessage HandleConnectionStats(IpcMessage request, string? sessionId)

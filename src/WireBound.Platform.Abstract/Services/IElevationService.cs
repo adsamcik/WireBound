@@ -99,6 +99,30 @@ public interface IElevationService
     Task<ElevationResult> StartHelperAsync(CancellationToken cancellationToken = default);
 
     /// <summary>
+    /// Attempts to connect to an already-running helper without ever starting
+    /// a new one. Used by the silent auto-start path so the app never triggers
+    /// UAC/pkexec at login.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// Returns <see cref="ElevationResult.Success"/> when an existing helper
+    /// answers and authentication succeeds.
+    /// Returns <see cref="ElevationResult.Failed"/> when no helper is reachable
+    /// within <paramref name="timeoutMs"/> or auth fails.
+    /// </para>
+    /// <para>
+    /// This MUST never display a UAC prompt, polkit dialog, or any other
+    /// elevation UI — it is intended for the silent app-launch path.
+    /// </para>
+    /// </remarks>
+    /// <param name="timeoutMs">
+    /// Maximum total time to spend attempting to connect. The default of
+    /// 2500ms is intentionally short so a cold "helper not registered, not
+    /// running" path does not delay the UI splash.
+    /// </param>
+    Task<ElevationResult> TryConnectExistingAsync(int timeoutMs = 2500, CancellationToken cancellationToken = default);
+
+    /// <summary>
     /// Stops the elevated helper process.
     /// </summary>
     /// <remarks>

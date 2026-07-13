@@ -17,8 +17,21 @@ public sealed class LinuxStartupService : IStartupService
     private const string AppName = "WireBound";
 
     private const string HelperServiceName = "wirebound-elevation";
-    private const string HelperServiceFileName = $"{HelperServiceName}.service";
     private const string HelperExecutableName = "wirebound-elevation";
+
+    // Path of the hardened system-level template unit installed by
+    // LinuxHelperProcessManager.InstallService(). The Settings toggle only
+    // enables/disables the per-user instance of this template; it never owns
+    // installation/removal of the template itself.
+    private const string SystemTemplatePath =
+        $"/etc/systemd/system/{HelperServiceName}@.service";
+
+    private readonly IHelperProcessManager? _helperManager;
+
+    public LinuxStartupService(IHelperProcessManager? helperManager = null)
+    {
+        _helperManager = helperManager;
+    }
 
     public bool IsStartupSupported => HasDesktopEnvironment();
 
@@ -229,7 +242,13 @@ public sealed class LinuxStartupService : IStartupService
         }
     }
 
-    // === Helper Startup (systemd user service) ===
+    // === Helper Startup (system-level systemd template instance) ===
+    //
+    // The elevated helper needs root (CAP_NET_ADMIN for SOCK_DIAG / eBPF), so a
+    // user-level unit is useless. Instead we delegate to the hardened system
+    // template unit (/etc/systemd/system/wirebound-elevation@.service) that
+    // LinuxHelperProcessManager installs, and toggle the per-user instance
+    // (wirebound-elevation@<uid>.service) of that template.
 
     public bool IsHelperStartupSupported => true;
 
@@ -237,7 +256,9 @@ public sealed class LinuxStartupService : IStartupService
     {
         try
         {
-            var result = RunCommand("systemctl", $"--user is-enabled --quiet {HelperServiceName}");
+            var uid = LinuxHelperProcessManager.GetCurrentUid();
+            var result = RunCommand(
+                "systemctl", $"is-enabled --quiet {HelperServiceName}@{uid}.service");
             return Task.FromResult(result == 0);
         }
         catch (Exception ex)
@@ -247,148 +268,104 @@ public sealed class LinuxStartupService : IStartupService
         }
     }
 
-    public Task<bool> SetHelperStartupEnabledAsync(bool enable)
+    public async Task<bool> SetHelperStartupEnabledAsync(bool enable)
     {
+        if (_helperManager is null)
+        {
+            Log.Error("Cannot change helper auto-start: helper process manager is unavailable");
+            return false;
+        }
+
         try
         {
+            var uid = LinuxHelperProcessManager.GetCurrentUid();
+            var instance = $"{HelperServiceName}@{uid}.service";
+
             if (enable)
             {
-                var helperPath = GetHelperPath();
-                if (string.IsNullOrEmpty(helperPath) || !File.Exists(helperPath))
+                // Ensure the hardened system template + polkit policy are present.
+                // This is a one-time pkexec password prompt — acceptable because the
+                // user is explicitly opting in to elevated auto-start.
+                if (!File.Exists(SystemTemplatePath))
                 {
-                    Log.Error("Helper executable not found at: {Path}", helperPath);
-                    return Task.FromResult(false);
+                    if (!await _helperManager.EnsureRegisteredAsync().ConfigureAwait(false))
+                    {
+                        Log.Error("Failed to install system elevation template unit");
+                        return false;
+                    }
                 }
 
-                // Create the systemd user service file
-                if (!EnsureServiceFileExists(helperPath))
-                {
-                    return Task.FromResult(false);
-                }
-
-                // Enable the service for auto-start at login
-                var result = RunCommand("systemctl", $"--user enable {HelperServiceName}");
+                // Enabling a system unit requires root, hence pkexec.
+                var result = RunCommand(
+                    "/usr/bin/pkexec", $"/usr/bin/systemctl enable {instance}");
                 if (result == 0)
                 {
-                    Log.Information("Enabled helper for auto-start via systemd user service");
-                    return Task.FromResult(true);
+                    Log.Information("Enabled helper auto-start via system unit {Instance}", instance);
+                    return true;
                 }
 
-                Log.Error("Failed to enable helper systemd service (exit code: {Code})", result);
-                return Task.FromResult(false);
+                Log.Error("Failed to enable helper system unit {Instance} (exit code: {Code})", instance, result);
+                return false;
             }
             else
             {
-                RunCommand("systemctl", $"--user disable {HelperServiceName}");
+                // Disable + stop the per-user instance. Do NOT uninstall the
+                // template — other users on this machine may still rely on it.
+                var disableResult = RunCommand(
+                    "/usr/bin/pkexec", $"/usr/bin/systemctl disable {instance}");
+                RunCommand("/usr/bin/pkexec", $"/usr/bin/systemctl stop {instance}");
 
-                // Remove the service file
-                var servicePath = GetServiceFilePath();
-                if (File.Exists(servicePath))
+                if (disableResult == 0)
                 {
-                    File.Delete(servicePath);
+                    Log.Information("Disabled helper auto-start ({Instance})", instance);
+                    return true;
                 }
 
-                RunCommand("systemctl", "--user daemon-reload");
-
-                Log.Information("Disabled helper auto-start");
-                return Task.FromResult(true);
+                Log.Warning("Failed to disable helper system unit {Instance} (exit code: {Code})", instance, disableResult);
+                return false;
             }
         }
         catch (Exception ex)
         {
             Log.Error(ex, "Failed to set helper startup");
-            return Task.FromResult(false);
+            return false;
         }
     }
 
-    public Task<bool> EnsureHelperStartupPathUpdatedAsync()
+    public async Task<bool> EnsureHelperStartupPathUpdatedAsync()
     {
         try
         {
-            var servicePath = GetServiceFilePath();
-            if (!File.Exists(servicePath))
+            if (!File.Exists(SystemTemplatePath))
             {
-                // Service not installed, nothing to update
-                return Task.FromResult(true);
+                // Template not installed, nothing to update.
+                return true;
             }
 
-            var helperPath = GetHelperPath();
-            if (string.IsNullOrEmpty(helperPath))
-            {
-                Log.Warning("Could not determine helper executable path");
-                return Task.FromResult(false);
-            }
-
-            var content = File.ReadAllText(servicePath);
+            var helperPath = Path.Combine(AppContext.BaseDirectory, HelperExecutableName);
+            var content = File.ReadAllText(SystemTemplatePath);
             var expectedExecStart = $"ExecStart={helperPath}";
 
             if (content.Contains(expectedExecStart, StringComparison.Ordinal))
             {
-                return Task.FromResult(true);
+                return true;
             }
 
-            Log.Information("Updating helper systemd service path to: {Path}", helperPath);
+            Log.Information("Helper system template ExecStart is stale; reinstalling for path: {Path}", helperPath);
 
-            // Rewrite the service file with updated path
-            if (!EnsureServiceFileExists(helperPath))
+            // The template lives under /etc and is root-owned, so a rewrite must
+            // go through the manager's elevated install path.
+            if (_helperManager is LinuxHelperProcessManager linuxManager)
             {
-                return Task.FromResult(false);
+                return await linuxManager.InstallService().ConfigureAwait(false);
             }
 
-            RunCommand("systemctl", "--user daemon-reload");
-
-            Log.Information("Helper service path updated successfully");
-            return Task.FromResult(true);
+            Log.Error("Helper startup path is stale but no Linux helper manager is available to repair it");
+            return false;
         }
         catch (Exception ex)
         {
             Log.Error(ex, "Failed to ensure helper startup path is updated");
-            return Task.FromResult(false);
-        }
-    }
-
-    private static string GetHelperPath() =>
-        Path.Combine(AppContext.BaseDirectory, HelperExecutableName);
-
-    private static string GetServiceFilePath()
-    {
-        var serviceDir = Path.Combine(
-            Environment.GetFolderPath(Environment.SpecialFolder.UserProfile),
-            ".config", "systemd", "user");
-        return Path.Combine(serviceDir, HelperServiceFileName);
-    }
-
-    private bool EnsureServiceFileExists(string helperPath)
-    {
-        try
-        {
-            var servicePath = GetServiceFilePath();
-            var serviceDir = Path.GetDirectoryName(servicePath)!;
-            Directory.CreateDirectory(serviceDir);
-
-            var serviceContent = $"""
-                [Unit]
-                Description=WireBound Elevation Helper
-                After=network.target
-
-                [Service]
-                Type=simple
-                ExecStart={helperPath}
-                Restart=on-failure
-                RestartSec=5
-                Environment=DOTNET_SYSTEM_GLOBALIZATION_INVARIANT=1
-
-                [Install]
-                WantedBy=default.target
-                """;
-
-            File.WriteAllText(servicePath, serviceContent);
-            RunCommand("systemctl", "--user daemon-reload");
-            return true;
-        }
-        catch (Exception ex)
-        {
-            Log.Error(ex, "Failed to create helper service file");
             return false;
         }
     }

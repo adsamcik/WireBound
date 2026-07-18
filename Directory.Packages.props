@@ -35,7 +35,7 @@
     <PackageVersion Include="Serilog.Sinks.File" Version="7.0.0" />
 
     <!-- IPC -->
-    <PackageVersion Include="MessagePack" Version="3.1.4" />
+    <PackageVersion Include="MessagePack" Version="3.1.8" />
 
     <!-- Auto-update -->
     <PackageVersion Include="Velopack" Version="0.0.1298" />

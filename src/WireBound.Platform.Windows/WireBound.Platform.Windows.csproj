@@ -27,6 +27,7 @@
 
   <ItemGroup>
     <PackageReference Include="ManagedNativeWifi" />
+    <PackageReference Include="MessagePack" />
     <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" />
     <PackageReference Include="Serilog" />
     <PackageReference Include="System.Diagnostics.PerformanceCounter" />

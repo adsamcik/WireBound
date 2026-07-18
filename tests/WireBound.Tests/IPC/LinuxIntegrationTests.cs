@@ -309,7 +309,11 @@ public class LinuxIntegrationTests : IDisposable
     {
         var socketPath = CreateTempSocketPath();
 
-        using var server = new ElevationServer();
+        // The default IClientIdentityVerifier confines /proc/<pid>/exe to a
+        // real production install layout ("<AppContext.BaseDirectory>/WireBound"),
+        // which the test host binary never matches. Use the same test-only
+        // pass-through verifier as the other ElevationServer handler tests.
+        using var server = new ElevationServer(new PassThroughClientIdentityVerifier());
         var secret = (byte[])typeof(ElevationServer)
             .GetField("_secret", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance)!
             .GetValue(server)!;

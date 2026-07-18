@@ -1,6 +1,8 @@
 #pragma warning disable CA1416
 
 using System.Net.Sockets;
+using System.Security.Cryptography;
+using System.Text;
 using WireBound.Elevation.Linux;
 using WireBound.IPC;
 using WireBound.IPC.Messages;
@@ -372,6 +374,19 @@ public class LinuxIntegrationTests : IDisposable
         var authResult = IpcTransport.DeserializePayload<AuthenticateResponse>(authResponse!.Payload);
         authResult.Success.Should().BeTrue();
         authResult.SessionId.Should().NotBeNullOrEmpty();
+
+        // Mutual auth: verify the server's signature is bound to OUR nonce,
+        // exactly as a real client does in LinuxHelperConnection.ConnectAsync.
+        // Without this check a broken/unbound server signature would fail
+        // every real client while this lifecycle test kept passing.
+        var expectedServerSig = HmacAuthenticator.SignServerResponse(
+            authResult.SessionId ?? string.Empty,
+            authResult.ExpiresAtUtc,
+            challenge.Nonce,
+            secret);
+        CryptographicOperations.FixedTimeEquals(
+            Encoding.UTF8.GetBytes(expectedServerSig),
+            Encoding.UTF8.GetBytes(authResult.ServerSignature)).Should().BeTrue();
 
         // Step 2: Request connection stats
         var statsRequest = new IpcMessage

@@ -197,8 +197,8 @@
       },
       "LiveChartsCore": {
         "type": "Transitive",
-        "resolved": "2.0.0-rc6.1",
-        "contentHash": "yaeFXCpH7AspjMKzXNdfr1Ikg06Dm+a4XRW/8wBtHAa/TEVJLY8yBsG6pNpjrPk+FpRaSImlNYw7pv298W1XPw=="
+        "resolved": "2.0.5",
+        "contentHash": "cbGiOyGxO+fsWLvrQ4R6Rd8QHfkRGyhxyD6nBSk8/ZwKKtU+vWSqlC4ESgwKSUbrzvK8ooU/yfFJpjHXzPd+vA=="
       },
       "MessagePack.Annotations": {
         "type": "Transitive",
@@ -736,7 +736,7 @@
           "Avalonia.Fonts.Inter": "[12.1.0, )",
           "Avalonia.Themes.Fluent": "[12.1.0, )",
           "CommunityToolkit.Mvvm": "[8.4.2, )",
-          "LiveChartsCore.SkiaSharpView.Avalonia": "[2.0.0-rc6.1, )",
+          "LiveChartsCore.SkiaSharpView.Avalonia": "[2.0.5, )",
           "Microsoft.EntityFrameworkCore.Sqlite": "[10.0.9, )",
           "Microsoft.Extensions.Hosting": "[10.0.9, )",
           "Microsoft.Extensions.Logging.Debug": "[10.0.9, )",
@@ -869,23 +869,23 @@
       "LiveChartsCore.SkiaSharpView": {
         "type": "CentralTransitive",
         "requested": "[2.0.0-rc6.1, )",
-        "resolved": "2.0.0-rc6.1",
-        "contentHash": "FU+0uIxL3xR631+4aN296L+M3f6qWrIEUJr8+SSmcGVVa27iB0+ko55IRInZGdYlmaR+8mRTPAXObXT6/1EMDQ==",
+        "resolved": "2.0.5",
+        "contentHash": "YgRhisuVev2RocHqq7d9juSBGBlMLKYQA5ijEuD/sWeV39dCBInBK4RSfqBYTuNNWs5Fe+NA+F0TCIWJ2t1Cew==",
         "dependencies": {
-          "LiveChartsCore": "2.0.0-rc6.1",
+          "LiveChartsCore": "2.0.5",
           "SkiaSharp": "2.88.9",
           "SkiaSharp.HarfBuzz": "2.88.9"
         }
       },
       "LiveChartsCore.SkiaSharpView.Avalonia": {
         "type": "CentralTransitive",
-        "requested": "[2.0.0-rc6.1, )",
-        "resolved": "2.0.0-rc6.1",
-        "contentHash": "r5KIlmOWKCYznnNsED3G5V1kRaq4dVxxcfvMfgt9YKsjyDPD1ARVSJJimARQ2C6Zlavk9JqZohrAm4sQA4T4Lg==",
+        "requested": "[2.0.5, )",
+        "resolved": "2.0.5",
+        "contentHash": "gwqV/H5EWhk8KIwc8/4sdPVjsdJ5RpOC5Pfmd1lKIYltCntJQeZTcn1kC4mKykN+eU+BlT0W/grA3xioXdP7iA==",
         "dependencies": {
           "Avalonia": "11.0.0",
           "Avalonia.Skia": "11.0.0",
-          "LiveChartsCore.SkiaSharpView": "2.0.0-rc6.1"
+          "LiveChartsCore.SkiaSharpView": "2.0.5"
         }
       },
       "ManagedNativeWifi": {

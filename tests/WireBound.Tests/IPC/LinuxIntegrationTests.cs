@@ -332,12 +332,20 @@ public class LinuxIntegrationTests : IDisposable
 
         var serverTask = server.HandleClientAsync(serverStream, Environment.ProcessId, cts.Token);
 
-        // Step 1: Authenticate
+        // Step 0: the server sends a Challenge (with a fresh nonce) as soon as
+        // the connection opens, before it will accept any Authenticate request.
+        var challengeMsg = await IpcTransport.ReceiveAsync(clientStream);
+        challengeMsg.Should().NotBeNull();
+        challengeMsg!.Type.Should().Be(MessageType.Challenge);
+        var challenge = IpcTransport.DeserializePayload<ChallengeMessage>(challengeMsg.Payload);
+
+        // Step 1: Authenticate — signature binds pid + own image hash + the
+        // server-issued nonce (see LinuxHelperConnection.ConnectAsync).
         var pid = Environment.ProcessId;
-        var timestamp = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
-        var signature = HmacAuthenticator.Sign(pid, timestamp, secret);
         var executablePath = Environment.ProcessPath
             ?? throw new InvalidOperationException("Current executable path is unavailable.");
+        var imageHash = ClientImageHasher.HashFile(executablePath);
+        var signature = HmacAuthenticator.SignWithNonce(pid, imageHash, challenge.Nonce, secret);
 
         var authRequest = new IpcMessage
         {
@@ -346,9 +354,11 @@ public class LinuxIntegrationTests : IDisposable
             Payload = IpcTransport.SerializePayload(new AuthenticateRequest
             {
                 ClientPid = pid,
-                Timestamp = timestamp,
+                Timestamp = DateTimeOffset.UtcNow.ToUnixTimeSeconds(),
                 Signature = signature,
-                ExecutablePath = executablePath
+                ExecutablePath = executablePath,
+                ClientImageHash = imageHash,
+                Nonce = challenge.Nonce
             })
         };
 

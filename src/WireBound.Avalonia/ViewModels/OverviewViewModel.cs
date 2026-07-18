@@ -873,8 +873,8 @@ public sealed partial class OverviewViewModel : ObservableObject, IRecipient<Mem
                     >= 75 => "WbAdapterWifi4",
                     >= 50 => "WbAdapterWifi3",
                     >= 25 => "WbAdapterWifi2",
-                    > 0   => "WbAdapterWifi1",
-                    _     => "WbAdapterWifi4"
+                    > 0 => "WbAdapterWifi1",
+                    _ => "WbAdapterWifi4"
                 };
             case NetworkAdapterType.Ethernet:
                 return "WbAdapterEthernet";

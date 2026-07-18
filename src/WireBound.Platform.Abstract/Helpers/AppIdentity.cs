@@ -47,11 +47,29 @@ public static class AppIdentity
     /// file name (without extension) when an executable path is known and
     /// falling back to the supplied process name otherwise.
     /// </summary>
+    /// <remarks>
+    /// Executable paths reaching this helper always originate from Windows
+    /// process APIs (e.g. <c>WindowsElevatedProcessNetworkProvider</c>), so
+    /// they are always backslash-separated Windows paths regardless of the
+    /// OS this code happens to run/test on. <see cref="Path.GetFileNameWithoutExtension"/>
+    /// only recognizes <c>\</c> as a separator on Windows, so it must not be
+    /// used here directly - doing so previously left the full path unstripped
+    /// on Linux (including in CI).
+    /// </remarks>
     public static string ResolveDisplayName(string? executablePath, string processName)
     {
         if (!string.IsNullOrEmpty(executablePath))
         {
-            var fileName = Path.GetFileNameWithoutExtension(executablePath);
+            var lastSeparator = executablePath.LastIndexOfAny(['\\', '/']);
+            var fileNameWithExtension = lastSeparator >= 0
+                ? executablePath[(lastSeparator + 1)..]
+                : executablePath;
+
+            var lastDot = fileNameWithExtension.LastIndexOf('.');
+            var fileName = lastDot > 0
+                ? fileNameWithExtension[..lastDot]
+                : fileNameWithExtension;
+
             if (!string.IsNullOrEmpty(fileName))
             {
                 return fileName;

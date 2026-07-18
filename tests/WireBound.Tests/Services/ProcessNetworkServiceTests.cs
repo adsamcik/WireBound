@@ -171,18 +171,18 @@ public class ProcessNetworkServiceTests : IDisposable
 
     private static ConnectionStats Conn(int processId, string processName = "", int localPort = 5000,
         long bytesSent = 0, long bytesReceived = 0) => new()
-    {
-        Protocol = "TCP",
-        LocalAddress = "127.0.0.1",
-        LocalPort = localPort,
-        RemoteAddress = "127.0.0.1",
-        RemotePort = 8080,
-        ProcessId = processId,
-        ProcessName = processName,
-        BytesSent = bytesSent,
-        BytesReceived = bytesReceived,
-        HasByteCounters = true
-    };
+        {
+            Protocol = "TCP",
+            LocalAddress = "127.0.0.1",
+            LocalPort = localPort,
+            RemoteAddress = "127.0.0.1",
+            RemotePort = 8080,
+            ProcessId = processId,
+            ProcessName = processName,
+            BytesSent = bytesSent,
+            BytesReceived = bytesReceived,
+            HasByteCounters = true
+        };
 
     [Test]
     public async Task GetConnectionStatsAsync_HelperConnected_AttributesPreExistingFromOsTable()

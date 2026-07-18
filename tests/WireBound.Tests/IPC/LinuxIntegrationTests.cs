@@ -1,6 +1,8 @@
 #pragma warning disable CA1416
 
 using System.Net.Sockets;
+using System.Security.Cryptography;
+using System.Text;
 using WireBound.Elevation.Linux;
 using WireBound.IPC;
 using WireBound.IPC.Messages;
@@ -309,7 +311,11 @@ public class LinuxIntegrationTests : IDisposable
     {
         var socketPath = CreateTempSocketPath();
 
-        using var server = new ElevationServer();
+        // The default IClientIdentityVerifier confines /proc/<pid>/exe to a
+        // real production install layout ("<AppContext.BaseDirectory>/WireBound"),
+        // which the test host binary never matches. Use the same test-only
+        // pass-through verifier as the other ElevationServer handler tests.
+        using var server = new ElevationServer(new PassThroughClientIdentityVerifier());
         var secret = (byte[])typeof(ElevationServer)
             .GetField("_secret", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance)!
             .GetValue(server)!;
@@ -332,12 +338,20 @@ public class LinuxIntegrationTests : IDisposable
 
         var serverTask = server.HandleClientAsync(serverStream, Environment.ProcessId, cts.Token);
 
-        // Step 1: Authenticate
+        // Step 0: the server sends a Challenge (with a fresh nonce) as soon as
+        // the connection opens, before it will accept any Authenticate request.
+        var challengeMsg = await IpcTransport.ReceiveAsync(clientStream);
+        challengeMsg.Should().NotBeNull();
+        challengeMsg!.Type.Should().Be(MessageType.Challenge);
+        var challenge = IpcTransport.DeserializePayload<ChallengeMessage>(challengeMsg.Payload);
+
+        // Step 1: Authenticate — signature binds pid + own image hash + the
+        // server-issued nonce (see LinuxHelperConnection.ConnectAsync).
         var pid = Environment.ProcessId;
-        var timestamp = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
-        var signature = HmacAuthenticator.Sign(pid, timestamp, secret);
         var executablePath = Environment.ProcessPath
             ?? throw new InvalidOperationException("Current executable path is unavailable.");
+        var imageHash = ClientImageHasher.HashFile(executablePath);
+        var signature = HmacAuthenticator.SignWithNonce(pid, imageHash, challenge.Nonce, secret);
 
         var authRequest = new IpcMessage
         {
@@ -346,9 +360,11 @@ public class LinuxIntegrationTests : IDisposable
             Payload = IpcTransport.SerializePayload(new AuthenticateRequest
             {
                 ClientPid = pid,
-                Timestamp = timestamp,
+                Timestamp = DateTimeOffset.UtcNow.ToUnixTimeSeconds(),
                 Signature = signature,
-                ExecutablePath = executablePath
+                ExecutablePath = executablePath,
+                ClientImageHash = imageHash,
+                Nonce = challenge.Nonce
             })
         };
 
@@ -358,6 +374,19 @@ public class LinuxIntegrationTests : IDisposable
         var authResult = IpcTransport.DeserializePayload<AuthenticateResponse>(authResponse!.Payload);
         authResult.Success.Should().BeTrue();
         authResult.SessionId.Should().NotBeNullOrEmpty();
+
+        // Mutual auth: verify the server's signature is bound to OUR nonce,
+        // exactly as a real client does in LinuxHelperConnection.ConnectAsync.
+        // Without this check a broken/unbound server signature would fail
+        // every real client while this lifecycle test kept passing.
+        var expectedServerSig = HmacAuthenticator.SignServerResponse(
+            authResult.SessionId ?? string.Empty,
+            authResult.ExpiresAtUtc,
+            challenge.Nonce,
+            secret);
+        CryptographicOperations.FixedTimeEquals(
+            Encoding.UTF8.GetBytes(expectedServerSig),
+            Encoding.UTF8.GetBytes(authResult.ServerSignature)).Should().BeTrue();
 
         // Step 2: Request connection stats
         var statsRequest = new IpcMessage

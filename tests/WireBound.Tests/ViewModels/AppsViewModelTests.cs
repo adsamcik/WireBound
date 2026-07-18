@@ -80,7 +80,7 @@ public class AppsViewModelTests : IAsyncDisposable
 
         // Act
         viewModel.SearchText = "fox";
-        await Task.Delay(400);
+        await WaitForAsync(() => viewModel.Apps.Count == 1);
 
         // Assert
         viewModel.Apps.Should().ContainSingle();
@@ -88,7 +88,7 @@ public class AppsViewModelTests : IAsyncDisposable
 
         // Act
         viewModel.SearchText = "";
-        await Task.Delay(400);
+        await WaitForAsync(() => viewModel.Apps.Count == 3);
 
         // Assert
         viewModel.Apps.Should().HaveCount(3);
@@ -425,6 +425,22 @@ public class AppsViewModelTests : IAsyncDisposable
                 Arg.Any<DateOnly>(),
                 Arg.Any<CancellationToken>())
             .Returns(Task.FromResult<IReadOnlyList<TopDestinationEntry>>(entries));
+    }
+
+    /// <summary>
+    /// Polls <paramref name="condition"/> until it is true or a timeout
+    /// elapses, instead of a fixed <c>Task.Delay</c>. The SearchText filter
+    /// is applied via a 200ms debounce (see <c>AppsViewModel.DebouncedRecomputeAsync</c>);
+    /// a fixed delay left too little margin on slower/loaded CI runners and
+    /// made this test flaky there even though it always passed locally.
+    /// </summary>
+    private static async Task WaitForAsync(Func<bool> condition, int timeoutMs = 5000)
+    {
+        var deadline = DateTime.UtcNow.AddMilliseconds(timeoutMs);
+        while (!condition() && DateTime.UtcNow < deadline)
+        {
+            await Task.Delay(25);
+        }
     }
 
     private static AppOverview CreateApp(

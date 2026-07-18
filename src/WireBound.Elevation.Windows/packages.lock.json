@@ -4,9 +4,9 @@
     "net10.0": {
       "Microsoft.Diagnostics.Tracing.TraceEvent": {
         "type": "Direct",
-        "requested": "[3.1.30, )",
-        "resolved": "3.1.30",
-        "contentHash": "87DUtWHbLA+IFiO6R/dixDrYZa55xmBkZZAK7RowXRvY64O3AJBYjMnAtamf+QhVJ9ZzKHrXCbZpS5Tw2iog6g==",
+        "requested": "[3.2.5, )",
+        "resolved": "3.2.5",
+        "contentHash": "dVHew6DC1WpSrG2fUKg8bLvhr5/9mug41MJtcws4fKLJ4V9Kd2610PYg0mFd837YvJwvwWTYQlGBbWvRZHs2mg==",
         "dependencies": {
           "Microsoft.Diagnostics.NETCore.Client": "0.2.510501",
           "System.Reflection.TypeExtensions": "4.7.0"
@@ -14,15 +14,15 @@
       },
       "Microsoft.DotNet.ILCompiler": {
         "type": "Direct",
-        "requested": "[10.0.4, )",
-        "resolved": "10.0.4",
-        "contentHash": "tjoEJBbnn4duaUJ+akWmIe4jTsIN4zZt92wynr5UAWj+HgoQLQI0kV5twx0j1k5cL19WMQw/wT7T1h8pOLZYkg=="
+        "requested": "[10.0.3, )",
+        "resolved": "10.0.3",
+        "contentHash": "H9kuN7egYzW5JAn5CMK8uJdJDVnPEDpZHzjOXyz1iAgvxNgVSoAiTNkCBeY2jaXcHlruF5fRUrZoUHUHXftDDA=="
       },
       "Microsoft.NET.ILLink.Tasks": {
         "type": "Direct",
-        "requested": "[10.0.4, )",
-        "resolved": "10.0.4",
-        "contentHash": "CCx8ojW3mOL150/LnP0DK7qpMrJEt6xxNCmJFKoX89v1h0FwpsEHqennowGPYDxp6zIkIO4f9PxynjOeLF+1zw=="
+        "requested": "[10.0.3, )",
+        "resolved": "10.0.3",
+        "contentHash": "0B6nZyCHWXnvmlB559oduOspVdNOnpNXPjhpWVMovLPAsDVG7A4jJR9rzECf67JUzxP8/ee/wA8clwIzJcWNFA=="
       },
       "Serilog": {
         "type": "Direct",

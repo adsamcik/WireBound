@@ -771,7 +771,7 @@
       "WireBound.Elevation": {
         "type": "Project",
         "dependencies": {
-          "Microsoft.Diagnostics.Tracing.TraceEvent": "[3.1.30, )",
+          "Microsoft.Diagnostics.Tracing.TraceEvent": "[3.2.5, )",
           "Serilog": "[4.3.0, )",
           "Serilog.Sinks.File": "[7.0.0, )",
           "WireBound.IPC": "[1.0.0, )"
@@ -907,9 +907,9 @@
       },
       "Microsoft.Diagnostics.Tracing.TraceEvent": {
         "type": "CentralTransitive",
-        "requested": "[3.1.30, )",
-        "resolved": "3.1.30",
-        "contentHash": "87DUtWHbLA+IFiO6R/dixDrYZa55xmBkZZAK7RowXRvY64O3AJBYjMnAtamf+QhVJ9ZzKHrXCbZpS5Tw2iog6g==",
+        "requested": "[3.2.5, )",
+        "resolved": "3.2.5",
+        "contentHash": "dVHew6DC1WpSrG2fUKg8bLvhr5/9mug41MJtcws4fKLJ4V9Kd2610PYg0mFd837YvJwvwWTYQlGBbWvRZHs2mg==",
         "dependencies": {
           "Microsoft.Diagnostics.NETCore.Client": "0.2.510501",
           "System.Reflection.TypeExtensions": "4.7.0"

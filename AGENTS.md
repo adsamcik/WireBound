@@ -50,7 +50,7 @@ dotnet run --project tests/WireBound.Tests/WireBound.Tests.csproj
 - **Architecture**: MVVM with CommunityToolkit.Mvvm 8.4.0
 - **DI**: Microsoft.Extensions.DependencyInjection 10.0.2
 - **Database**: SQLite with Entity Framework Core 10.0.2
-- **Charts**: LiveChartsCore.SkiaSharpView.Avalonia 2.0.0-rc6.1
+- **Charts**: LiveChartsCore.SkiaSharpView.Avalonia 2.0.5
 - **Logging**: Serilog 4.3.0 (file sink, daily rolling, 14-day retention)
 - **Testing**: TUnit, NSubstitute, AwesomeAssertions, EF Core InMemory
 

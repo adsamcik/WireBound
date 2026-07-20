@@ -1,352 +1,386 @@
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Time.Testing;
 using WireBound.Avalonia.ViewModels;
+using WireBound.Core;
+using WireBound.Core.Helpers;
+using WireBound.Core.Models;
 using WireBound.Core.Services;
-using WireBound.Platform.Abstract.Services;
 using WireBound.Tests.Fixtures;
 
 namespace WireBound.Tests.ViewModels;
 
+/// <summary>
+/// Tests the page-scoped live process monitor. The process sampler is deliberately
+/// pull-based, so the important contract here is that the Apps route is the only
+/// owner that requests snapshots.
+/// </summary>
 public class AppsViewModelTests : IAsyncDisposable
 {
+    private const long Kibibyte = 1024;
+    private const long Mebibyte = 1024 * Kibibyte;
+
     private readonly IUiDispatcher _dispatcher = new SynchronousDispatcher();
-    private readonly IAppOverviewService _appOverviewService;
-    private readonly IElevationService _elevationService;
+    private readonly FakeTimeProvider _timeProvider = new();
+    private readonly IProcessUsageService _processUsageService;
     private readonly INavigationService _navigationService;
     private readonly ILogger<AppsViewModel> _logger;
     private readonly List<AppsViewModel> _createdViewModels = [];
+    private string _currentRoute = Routes.Overview;
 
     public AppsViewModelTests()
     {
-        _appOverviewService = Substitute.For<IAppOverviewService>();
-        _elevationService = Substitute.For<IElevationService>();
+        _processUsageService = Substitute.For<IProcessUsageService>();
         _navigationService = Substitute.For<INavigationService>();
         _logger = Substitute.For<ILogger<AppsViewModel>>();
 
-        SetupDefaultMocks();
+        _navigationService.CurrentView.Returns(_ => _currentRoute);
+        ConfigureCapture();
     }
 
     [Test]
-    public async Task InitializeAsync_LoadsAppsFromService()
+    public async Task Constructor_WhenRouteIsNotApps_DoesNotCaptureOrStartTimer()
     {
         // Arrange
-        var apps = new[]
-        {
-            CreateApp("firefox", "Firefox", "firefox.exe", "Browsers", bytesReceived: 1024, bytesSent: 512),
-            CreateApp("code", "Visual Studio Code", "Code.exe", "Development", bytesReceived: 2048, bytesSent: 1024),
-            CreateApp("terminal", "Terminal", "wt.exe", "System", bytesReceived: 3072, bytesSent: 1536)
-        };
+        ConfigureCapture(CreateSnapshot(processId: 101, processName: "code"));
 
         // Act
-        var viewModel = await CreateInitializedViewModelAsync(apps);
-
-        // Assert
-        viewModel.Apps.Should().HaveCount(3);
-        viewModel.AppCount.Should().Be(3);
-        viewModel.TotalDownload.Should().Be("6.00 KB");
-        viewModel.TotalUpload.Should().Be("3.00 KB");
-    }
-
-    [Test]
-    public async Task AvailableCategories_DerivedFromLoadedApps()
-    {
-        // Arrange
-        var apps = new[]
-        {
-            CreateApp("firefox", "Firefox", "firefox.exe", "Browsers"),
-            CreateApp("code", "Visual Studio Code", "Code.exe", "Development"),
-            CreateApp("chrome", "Chrome", "chrome.exe", "Browsers"),
-            CreateApp("unknown", "Unknown", "unknown.exe", "")
-        };
-
-        // Act
-        var viewModel = await CreateInitializedViewModelAsync(apps);
-
-        // Assert
-        viewModel.AvailableCategories.Should().ContainInOrder("All", "Browsers", "Development");
-        viewModel.AvailableCategories.Should().HaveCount(3);
-    }
-
-    [Test]
-    public async Task SearchText_FiltersByAppNameOrProcessName()
-    {
-        // Arrange
-        var apps = new[]
-        {
-            CreateApp("firefox", "Firefox", "firefox.exe", "Browsers", bytesReceived: 300),
-            CreateApp("chrome", "Chrome", "chrome.exe", "Browsers", bytesReceived: 200),
-            CreateApp("code", "Visual Studio Code", "Code.exe", "Development", bytesReceived: 100)
-        };
-        var viewModel = await CreateInitializedViewModelAsync(apps);
-
-        // Act
-        viewModel.SearchText = "fox";
-        await Task.Delay(400);
-
-        // Assert
-        viewModel.Apps.Should().ContainSingle();
-        viewModel.Apps[0].AppName.Should().Be("Firefox");
-
-        // Act
-        viewModel.SearchText = "";
-        await Task.Delay(400);
-
-        // Assert
-        viewModel.Apps.Should().HaveCount(3);
-    }
-
-    [Test]
-    public async Task SelectedCategory_FiltersList()
-    {
-        // Arrange
-        var apps = new[]
-        {
-            CreateApp("firefox", "Firefox", "firefox.exe", "Browsers", bytesReceived: 300),
-            CreateApp("chrome", "Chrome", "chrome.exe", "Browsers", bytesReceived: 200),
-            CreateApp("code", "Visual Studio Code", "Code.exe", "Development", bytesReceived: 100)
-        };
-        var viewModel = await CreateInitializedViewModelAsync(apps);
-
-        // Act
-        viewModel.SelectedCategory = "Browsers";
-
-        // Assert
-        viewModel.Apps.Should().HaveCount(2);
-        viewModel.Apps.Should().OnlyContain(app => app.CategoryName == "Browsers");
-
-        // Act
-        viewModel.SelectedCategory = "All";
-
-        // Assert
-        viewModel.Apps.Should().HaveCount(3);
-    }
-
-    [Test]
-    public async Task ToggleSort_FirstClick_SortsDescendingByColumn()
-    {
-        // Arrange — the VM default sort is TotalBytes descending, so test the
-        // "switch to a different column" path by toggling on Name instead.
-        var apps = new[]
-        {
-            CreateApp("small", "Small", "small.exe", "System", bytesReceived: 100),
-            CreateApp("large", "Large", "large.exe", "System", bytesReceived: 500),
-            CreateApp("middle", "Middle", "middle.exe", "System", bytesReceived: 300)
-        };
-        var viewModel = await CreateInitializedViewModelAsync(apps);
-
-        // Act
-        viewModel.ToggleSortCommand.Execute(AppsSortColumn.Name);
-
-        // Assert
-        viewModel.SortColumn.Should().Be(AppsSortColumn.Name);
-        viewModel.SortDescending.Should().BeTrue();
-        viewModel.Apps[0].AppName.Should().Be("Small");
-        viewModel.Apps[2].AppName.Should().Be("Large");
-    }
-
-    [Test]
-    public async Task ToggleSort_SecondClickSameColumn_FlipsDirection()
-    {
-        // Arrange
-        var apps = new[]
-        {
-            CreateApp("alpha", "Alpha", "alpha.exe", "System"),
-            CreateApp("bravo", "Bravo", "bravo.exe", "System"),
-            CreateApp("charlie", "Charlie", "charlie.exe", "System")
-        };
-        var viewModel = await CreateInitializedViewModelAsync(apps);
-
-        // Act
-        viewModel.ToggleSortCommand.Execute(AppsSortColumn.Name);
-        var descending = viewModel.Apps.Select(app => app.AppName).ToArray();
-        viewModel.ToggleSortCommand.Execute(AppsSortColumn.Name);
-        var ascending = viewModel.Apps.Select(app => app.AppName).ToArray();
-
-        // Assert
-        descending.Should().Equal("Charlie", "Bravo", "Alpha");
-        ascending.Should().Equal("Alpha", "Bravo", "Charlie");
-    }
-
-    [Test]
-    public async Task ToggleSort_DifferentColumn_ResetsToDescending()
-    {
-        // Arrange
-        var apps = new[]
-        {
-            CreateApp("alpha", "Alpha", "alpha.exe", "System", bytesReceived: 100),
-            CreateApp("bravo", "Bravo", "bravo.exe", "System", bytesReceived: 500),
-            CreateApp("charlie", "Charlie", "charlie.exe", "System", bytesReceived: 300)
-        };
-        var viewModel = await CreateInitializedViewModelAsync(apps);
-        viewModel.ToggleSortCommand.Execute(AppsSortColumn.Name);
-        viewModel.ToggleSortCommand.Execute(AppsSortColumn.Name);
-
-        // Act
-        viewModel.ToggleSortCommand.Execute(AppsSortColumn.BytesReceived);
-
-        // Assert
-        viewModel.SortDescending.Should().BeTrue();
-        viewModel.Apps.Select(app => app.AppName).Should().Equal("Bravo", "Charlie", "Alpha");
-    }
-
-    [Test]
-    public async Task SelectAppAsync_PopulatesDetailDrawer()
-    {
-        // Arrange
-        var app = CreateApp("firefox", "Firefox", "firefox.exe", "Browsers");
-        var networkHistory = CreateNetworkHistory(5);
-        var resourceHistory = CreateResourceHistory(5);
-        var topDestinations = CreateTopDestinations(3);
-        SetupOverview(app);
-        SetupNetworkHistory(networkHistory);
-        SetupResourceHistory(resourceHistory);
-        SetupTopDestinations(topDestinations);
         var viewModel = CreateViewModel();
-        await viewModel.InitializationTask;
-
-        // Act
-        await viewModel.SelectAppCommand.ExecuteAsync(app);
+        await Task.Yield();
 
         // Assert
-        viewModel.IsDetailOpen.Should().BeTrue();
-        viewModel.SelectedApp.Should().BeSameAs(app);
-        viewModel.NetworkHistorySeries.Should().NotBeEmpty();
-        viewModel.CpuHistorySeries.Should().NotBeEmpty();
-        viewModel.RamHistorySeries.Should().NotBeEmpty();
-        viewModel.TopDestinations.Should().HaveCount(3);
+        viewModel.IsPageActive.Should().BeFalse();
+        viewModel.ProcessItems.Should().BeEmpty();
+        await _processUsageService.DidNotReceive().CaptureAsync(Arg.Any<CancellationToken>());
+
+        // Advancing a fake clock makes this a deterministic assertion that the
+        // inactive page did not leave a background timer behind.
+        _timeProvider.Advance(TimeSpan.FromMinutes(1));
+        await Task.Yield();
+        await _processUsageService.DidNotReceive().CaptureAsync(Arg.Any<CancellationToken>());
     }
 
     [Test]
-    public async Task CloseDetail_ClearsSelectionAndCharts()
+    public async Task Constructor_WhenAppsRouteIsCurrent_CapturesInitialSnapshot()
     {
         // Arrange
-        var app = CreateApp("firefox", "Firefox", "firefox.exe", "Browsers");
-        SetupOverview(app);
-        SetupNetworkHistory(CreateNetworkHistory(5));
-        SetupResourceHistory(CreateResourceHistory(5));
-        SetupTopDestinations(CreateTopDestinations(3));
+        _currentRoute = Routes.Apps;
+        var captureStarted = ConfigureCaptureWithSignal(
+            CreateSnapshot(processId: 101, processName: "code", cpuPercent: 8.5, hasCpuSample: true));
+
+        // Act
         var viewModel = CreateViewModel();
-        await viewModel.InitializationTask;
-        await viewModel.SelectAppCommand.ExecuteAsync(app);
-
-        // Act
-        viewModel.CloseDetailCommand.Execute(null);
+        await captureStarted.Task.WaitAsync(TimeSpan.FromSeconds(1));
+        await Task.Yield();
 
         // Assert
-        viewModel.IsDetailOpen.Should().BeFalse();
-        viewModel.SelectedApp.Should().BeNull();
-        viewModel.NetworkHistorySeries.Should().BeEmpty();
-        viewModel.CpuHistorySeries.Should().BeEmpty();
-        viewModel.RamHistorySeries.Should().BeEmpty();
-        viewModel.TopDestinations.Should().BeEmpty();
+        viewModel.IsPageActive.Should().BeTrue();
+        viewModel.IsLoading.Should().BeFalse();
+        viewModel.ProcessCount.Should().Be(1);
+        viewModel.ProcessItems.Should().ContainSingle();
+        await _processUsageService.Received(1).CaptureAsync(Arg.Any<CancellationToken>());
     }
 
     [Test]
-    public async Task HelperDisconnected_SetsRequiresElevationAndByteTrackingLimited()
+    public async Task NavigationAway_CancelsInFlightCapture_AndStopsPeriodicCapture()
     {
         // Arrange
-        _elevationService.IsElevationSupported.Returns(true);
-        _elevationService.IsHelperConnected.Returns(true);
-        _elevationService.RequiresElevationFor(ElevatedFeature.PerProcessNetworkMonitoring).Returns(true);
-        var viewModel = await CreateInitializedViewModelAsync();
+        _currentRoute = Routes.Apps;
+        var captureStarted = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var captureCancelled = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var pendingCapture = new TaskCompletionSource<IReadOnlyList<ProcessUsageSnapshot>>(
+            TaskCreationOptions.RunContinuationsAsynchronously);
+
+        _processUsageService.CaptureAsync(Arg.Any<CancellationToken>())
+            .Returns(callInfo =>
+            {
+                var token = callInfo.Arg<CancellationToken>();
+                token.Register(() =>
+                {
+                    captureCancelled.TrySetResult();
+                    pendingCapture.TrySetCanceled(token);
+                });
+                captureStarted.TrySetResult();
+                return pendingCapture.Task;
+            });
+
+        var viewModel = CreateViewModel();
+        await captureStarted.Task.WaitAsync(TimeSpan.FromSeconds(1));
 
         // Act
-        _elevationService.IsHelperConnected.Returns(false);
-        _elevationService.HelperConnectionStateChanged += Raise.Event<EventHandler<HelperConnectionStateChangedEventArgs>>(
-            _elevationService,
-            new HelperConnectionStateChangedEventArgs(false, "Disconnected"));
+        NavigateTo(Routes.Overview);
+        await captureCancelled.Task.WaitAsync(TimeSpan.FromSeconds(1));
+        await Task.Yield();
 
         // Assert
-        viewModel.RequiresElevation.Should().BeTrue();
-        viewModel.IsByteTrackingLimited.Should().BeTrue();
+        viewModel.IsPageActive.Should().BeFalse();
+
+        _processUsageService.ClearReceivedCalls();
+        _timeProvider.Advance(TimeSpan.FromMinutes(1));
+        await Task.Yield();
+        await _processUsageService.DidNotReceive().CaptureAsync(Arg.Any<CancellationToken>());
     }
 
     [Test]
-    public async Task HelperConnected_ClearsRequiresElevationAndByteTrackingLimited()
+    public async Task NavigationBackToApps_ResumesWithOneFreshCapture()
     {
         // Arrange
-        _elevationService.IsElevationSupported.Returns(true);
-        _elevationService.IsHelperConnected.Returns(false);
-        _elevationService.RequiresElevationFor(ElevatedFeature.PerProcessNetworkMonitoring).Returns(true);
-        var viewModel = await CreateInitializedViewModelAsync();
+        _currentRoute = Routes.Apps;
+        var captureCount = 0;
+        var secondCaptureStarted = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        _processUsageService.CaptureAsync(Arg.Any<CancellationToken>())
+            .Returns(_ =>
+            {
+                captureCount++;
+                if (captureCount == 2)
+                {
+                    secondCaptureStarted.TrySetResult();
+                }
+
+                IReadOnlyList<ProcessUsageSnapshot> result =
+                [
+                    CreateSnapshot(
+                        processId: captureCount == 1 ? 101 : 202,
+                        processName: captureCount == 1 ? "first" : "resumed")
+                ];
+                return Task.FromResult(result);
+            });
+
+        var viewModel = CreateViewModel();
+        await WaitUntilAsync(() => captureCount == 1);
 
         // Act
-        _elevationService.IsHelperConnected.Returns(true);
-        _elevationService.HelperConnectionStateChanged += Raise.Event<EventHandler<HelperConnectionStateChangedEventArgs>>(
-            _elevationService,
-            new HelperConnectionStateChangedEventArgs(true, "Connected"));
+        NavigateTo(Routes.Overview);
+        NavigateTo(Routes.Apps);
+        await secondCaptureStarted.Task.WaitAsync(TimeSpan.FromSeconds(1));
+        await Task.Yield();
 
         // Assert
-        viewModel.RequiresElevation.Should().BeFalse();
-        viewModel.IsByteTrackingLimited.Should().BeFalse();
+        captureCount.Should().Be(2);
+        viewModel.IsPageActive.Should().BeTrue();
+        viewModel.ProcessItems.Should().ContainSingle();
+        viewModel.ProcessItems[0].ProcessId.Should().Be(202);
     }
 
     [Test]
-    public async Task IsInitialLoading_FalseAfterFirstLoad()
+    public async Task Capture_MapsProcessSnapshotIntoDisplayAndSummaryMetrics()
     {
-        // Arrange & Act
-        var viewModel = await CreateInitializedViewModelAsync(
-            CreateApp("firefox", "Firefox", "firefox.exe", "Browsers"));
+        // Arrange
+        _currentRoute = Routes.Apps;
+        var chromeMemory = 512 * Mebibyte;
+        var workerMemory = 64 * Mebibyte;
+        var chromeDownload = 2 * Mebibyte;
+        var chromeUpload = 128 * Kibibyte;
+        ConfigureCapture(
+            CreateSnapshot(
+                processId: 101,
+                processName: "chrome",
+                executablePath: "/opt/chrome/chrome",
+                privateBytes: chromeMemory,
+                workingSetBytes: chromeMemory,
+                cpuPercent: 12.5,
+                hasCpuSample: true,
+                downloadSpeedBps: chromeDownload,
+                uploadSpeedBps: chromeUpload,
+                sessionBytesReceived: 9 * Mebibyte,
+                sessionBytesSent: 3 * Mebibyte,
+                hasNetworkStats: true),
+            CreateSnapshot(
+                processId: 102,
+                processName: "worker",
+                executablePath: "/opt/worker/worker",
+                privateBytes: workerMemory,
+                workingSetBytes: workerMemory,
+                cpuPercent: 2.5,
+                hasCpuSample: true));
+
+        var viewModel = CreateViewModel();
+        await WaitUntilAsync(() => viewModel.ProcessItems.Count == 2);
 
         // Assert
-        viewModel.IsInitialLoading.Should().BeFalse();
+        var chrome = viewModel.ProcessItems.Single(item => item.ProcessId == 101);
+        chrome.DisplayName.Should().Be("chrome");
+        chrome.ProcessName.Should().Be("chrome");
+        chrome.ExecutablePath.Should().Be("/opt/chrome/chrome");
+        chrome.CpuDisplay.Should().Be("12.5%");
+        chrome.MemoryDisplay.Should().Be(ByteFormatter.FormatBytes(chromeMemory));
+        chrome.DownloadDisplay.Should().Be(ByteFormatter.FormatSpeed(chromeDownload));
+        chrome.UploadDisplay.Should().Be(ByteFormatter.FormatSpeed(chromeUpload));
+        chrome.SessionTotalDisplay.Should().Be(ByteFormatter.FormatBytes(12 * Mebibyte));
+        chrome.HasCpuSample.Should().BeTrue();
+        chrome.HasNetworkStats.Should().BeTrue();
+
+        viewModel.ProcessCount.Should().Be(2);
+        viewModel.TotalCpu.Should().Be("15.0%");
+        viewModel.TotalMemory.Should().Be(ByteFormatter.FormatBytes(chromeMemory + workerMemory));
+        viewModel.TotalDownloadSpeed.Should().Be(ByteFormatter.FormatSpeed(chromeDownload));
+        viewModel.TotalUploadSpeed.Should().Be(ByteFormatter.FormatSpeed(chromeUpload));
+    }
+
+    [Test]
+    public async Task Filters_CanHideSystemProcesses_AndApplySearchLocally()
+    {
+        // Arrange
+        _currentRoute = Routes.Apps;
+        ConfigureCapture(
+            CreateSnapshot(processId: 4, processName: "System", executablePath: string.Empty),
+            CreateSnapshot(processId: 101, processName: "chrome", executablePath: "/opt/chrome/chrome"),
+            CreateSnapshot(processId: 202, processName: "code", executablePath: "/opt/code/code"));
+
+        var viewModel = CreateViewModel();
+        await WaitUntilAsync(() => viewModel.ProcessCount == 3);
+
+        // Assert - the total tracks the full snapshot and system processes can
+        // be included for a complete Task Manager-style view.
+        viewModel.ShowSystemProcesses.Should().BeTrue();
+        viewModel.ProcessItems.Select(item => item.ProcessId).Should().BeEquivalentTo(new[] { 4, 101, 202 });
+
+        // Act
+        viewModel.ShowSystemProcesses = false;
+
+        // Assert
+        viewModel.ProcessItems.Select(item => item.ProcessId).Should().BeEquivalentTo(new[] { 101, 202 });
+
+        // Act
+        viewModel.SearchText = "202";
+
+        // Assert
+        viewModel.ProcessItems.Should().ContainSingle();
+        viewModel.ProcessItems[0].ProcessName.Should().Be("code");
+        await _processUsageService.Received(1).CaptureAsync(Arg.Any<CancellationToken>());
+    }
+
+    [Test]
+    public async Task ToggleSortCommand_SortsByNameThenNetworkDownload()
+    {
+        // Arrange
+        _currentRoute = Routes.Apps;
+        ConfigureCapture(
+            CreateSnapshot(processId: 1, processName: "zulu", executablePath: "/opt/zulu/zulu", downloadSpeedBps: 1 * Mebibyte),
+            CreateSnapshot(processId: 2, processName: "alpha", executablePath: "/opt/alpha/alpha", downloadSpeedBps: 3 * Mebibyte),
+            CreateSnapshot(processId: 3, processName: "bravo", executablePath: "/opt/bravo/bravo", downloadSpeedBps: 2 * Mebibyte));
+
+        var viewModel = CreateViewModel();
+        await WaitUntilAsync(() => viewModel.ProcessItems.Count == 3);
+
+        // Act
+        viewModel.ToggleSortCommand.Execute(ProcessUsageSortColumn.Name);
+
+        // Assert
+        viewModel.SortColumn.Should().Be(ProcessUsageSortColumn.Name);
+        viewModel.SortDescending.Should().BeFalse();
+        viewModel.ProcessItems.Select(item => item.ProcessName)
+            .Should().Equal("alpha", "bravo", "zulu");
+
+        // Act
+        viewModel.ToggleSortCommand.Execute(ProcessUsageSortColumn.Download);
+
+        // Assert
+        viewModel.SortColumn.Should().Be(ProcessUsageSortColumn.Download);
+        viewModel.SortDescending.Should().BeTrue();
+        viewModel.ProcessItems.Select(item => item.ProcessName)
+            .Should().Equal("alpha", "bravo", "zulu");
+    }
+
+    [Test]
+    public async Task RefreshCommand_WhenPageActive_ReplacesTheSnapshot()
+    {
+        // Arrange
+        _currentRoute = Routes.Apps;
+        var snapshots = new Queue<IReadOnlyList<ProcessUsageSnapshot>>(
+        [
+            [CreateSnapshot(processId: 101, processName: "before")],
+            [CreateSnapshot(processId: 202, processName: "after")]
+        ]);
+        _processUsageService.CaptureAsync(Arg.Any<CancellationToken>())
+            .Returns(_ => Task.FromResult(snapshots.Dequeue()));
+
+        var viewModel = CreateViewModel();
+        await WaitUntilAsync(() => viewModel.ProcessItems.SingleOrDefault()?.ProcessId == 101);
+        _processUsageService.ClearReceivedCalls();
 
         // Act
         await viewModel.RefreshCommand.ExecuteAsync(null);
 
         // Assert
-        viewModel.IsInitialLoading.Should().BeFalse();
+        viewModel.ProcessItems.Should().ContainSingle();
+        viewModel.ProcessItems[0].ProcessId.Should().Be(202);
+        await _processUsageService.Received(1).CaptureAsync(Arg.Any<CancellationToken>());
     }
 
     [Test]
-    public async Task Refresh_DoesNotResetIsInitialLoading()
+    public async Task Refresh_WithUnchangedVisibleOrder_UpdatesRowsWithoutResettingTheVirtualizedCollection()
     {
         // Arrange
-        var viewModel = await CreateInitializedViewModelAsync();
-        var refreshStarted = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
-        var refreshCompleted = new TaskCompletionSource<IReadOnlyList<AppOverview>>(TaskCreationOptions.RunContinuationsAsynchronously);
-        _appOverviewService.GetOverviewAsync(Arg.Any<DateOnly>(), Arg.Any<DateOnly>(), Arg.Any<CancellationToken>())
-            .Returns(_ =>
+        _currentRoute = Routes.Apps;
+        var snapshots = new Queue<IReadOnlyList<ProcessUsageSnapshot>>(
+        [
+            [
+                CreateSnapshot(processId: 101, processName: "alpha", cpuPercent: 5, hasCpuSample: true),
+                CreateSnapshot(processId: 202, processName: "bravo", cpuPercent: 2, hasCpuSample: true)
+            ],
+            [
+                CreateSnapshot(processId: 101, processName: "alpha", cpuPercent: 8, hasCpuSample: true),
+                CreateSnapshot(processId: 202, processName: "bravo", cpuPercent: 3, hasCpuSample: true)
+            ]
+        ]);
+        _processUsageService.CaptureAsync(Arg.Any<CancellationToken>())
+            .Returns(_ => Task.FromResult(snapshots.Dequeue()));
+
+        var viewModel = CreateViewModel();
+        await WaitUntilAsync(() => viewModel.ProcessItems.Count == 2);
+        var alpha = viewModel.ProcessItems.Single(item => item.ProcessId == 101);
+        var collectionResets = 0;
+        viewModel.ProcessItems.CollectionChanged += (_, eventArgs) =>
+        {
+            if (eventArgs.Action == System.Collections.Specialized.NotifyCollectionChangedAction.Reset)
             {
-                refreshStarted.TrySetResult();
-                return refreshCompleted.Task;
-            });
+                collectionResets++;
+            }
+        };
 
         // Act
-        var refreshTask = viewModel.RefreshCommand.ExecuteAsync(null);
-        await refreshStarted.Task;
+        await viewModel.RefreshCommand.ExecuteAsync(null);
 
         // Assert
-        viewModel.IsInitialLoading.Should().BeFalse();
-
-        // Act
-        refreshCompleted.SetResult([]);
-        await refreshTask;
-
-        // Assert
-        viewModel.IsInitialLoading.Should().BeFalse();
+        collectionResets.Should().Be(0);
+        viewModel.ProcessItems.Single(item => item.ProcessId == 101).Should().BeSameAs(alpha);
+        alpha.CpuDisplay.Should().Be("8.0%");
     }
 
     [Test]
-    public async Task Dispose_UnsubscribesFromEvents()
+    public async Task CaptureFailure_ClearsLoadingStateAndLeavesRefreshAvailable()
     {
         // Arrange
-        _elevationService.IsElevationSupported.Returns(true);
-        _elevationService.IsHelperConnected.Returns(true);
-        _elevationService.RequiresElevationFor(ElevatedFeature.PerProcessNetworkMonitoring).Returns(true);
-        var viewModel = await CreateInitializedViewModelAsync();
-        viewModel.RequiresElevation.Should().BeFalse();
-        viewModel.IsByteTrackingLimited.Should().BeFalse();
+        _currentRoute = Routes.Apps;
+        _processUsageService.CaptureAsync(Arg.Any<CancellationToken>())
+            .Returns(Task.FromException<IReadOnlyList<ProcessUsageSnapshot>>(new InvalidOperationException("provider unavailable")));
+
+        // Act
+        var viewModel = CreateViewModel();
+        await WaitUntilAsync(() => !viewModel.IsLoading);
+
+        // Assert
+        viewModel.CaptureError.Should().Be("Couldn’t refresh process usage. Try again.");
+        viewModel.LastUpdatedLabel.Should().Be(viewModel.CaptureError);
+        viewModel.RefreshCommand.CanExecute(null).Should().BeTrue();
+    }
+
+    [Test]
+    public async Task Dispose_UnsubscribesFromNavigation_AndCannotRestartCapture()
+    {
+        // Arrange
+        ConfigureCapture(CreateSnapshot(processId: 101, processName: "code"));
+        var viewModel = CreateViewModel();
 
         // Act
         viewModel.Dispose();
-        _elevationService.IsHelperConnected.Returns(false);
-        _elevationService.HelperConnectionStateChanged += Raise.Event<EventHandler<HelperConnectionStateChangedEventArgs>>(
-            _elevationService,
-            new HelperConnectionStateChangedEventArgs(false, "Disconnected"));
+        NavigateTo(Routes.Apps);
+        _timeProvider.Advance(TimeSpan.FromMinutes(1));
+        await Task.Yield();
 
         // Assert
-        viewModel.RequiresElevation.Should().BeFalse();
-        viewModel.IsByteTrackingLimited.Should().BeFalse();
+        viewModel.IsPageActive.Should().BeFalse();
+        await _processUsageService.DidNotReceive().CaptureAsync(Arg.Any<CancellationToken>());
     }
 
     public ValueTask DisposeAsync()
@@ -356,128 +390,89 @@ public class AppsViewModelTests : IAsyncDisposable
             viewModel.Dispose();
         }
 
+        _createdViewModels.Clear();
         return ValueTask.CompletedTask;
-    }
-
-    private void SetupDefaultMocks()
-    {
-        _elevationService.IsElevationSupported.Returns(true);
-        _elevationService.IsHelperConnected.Returns(true);
-        _elevationService.RequiresElevationFor(Arg.Any<ElevatedFeature>()).Returns(false);
-
-        SetupOverview();
-        SetupNetworkHistory();
-        SetupResourceHistory();
-        SetupTopDestinations();
     }
 
     private AppsViewModel CreateViewModel()
     {
         var viewModel = new AppsViewModel(
             _dispatcher,
-            _appOverviewService,
-            _elevationService,
+            _processUsageService,
             _navigationService,
-            _logger);
+            logger: _logger,
+            timeProvider: _timeProvider);
         _createdViewModels.Add(viewModel);
         return viewModel;
     }
 
-    private async Task<AppsViewModel> CreateInitializedViewModelAsync(params AppOverview[] apps)
+    private void NavigateTo(string route)
     {
-        SetupOverview(apps);
-        var viewModel = CreateViewModel();
-        await viewModel.InitializationTask;
-        return viewModel;
+        _currentRoute = route;
+        _navigationService.NavigationChanged += Raise.Event<Action<string>>(route);
     }
 
-    private void SetupOverview(params AppOverview[] apps)
+    private void ConfigureCapture(params ProcessUsageSnapshot[] snapshots)
     {
-        _appOverviewService.GetOverviewAsync(Arg.Any<DateOnly>(), Arg.Any<DateOnly>(), Arg.Any<CancellationToken>())
-            .Returns(Task.FromResult<IReadOnlyList<AppOverview>>(apps));
+        _processUsageService.CaptureAsync(Arg.Any<CancellationToken>())
+            .Returns(Task.FromResult<IReadOnlyList<ProcessUsageSnapshot>>(snapshots));
     }
 
-    private void SetupNetworkHistory(params AppNetworkHistoryPoint[] points)
+    private TaskCompletionSource ConfigureCaptureWithSignal(params ProcessUsageSnapshot[] snapshots)
     {
-        _appOverviewService.GetNetworkHistoryAsync(
-                Arg.Any<string>(),
-                Arg.Any<DateOnly>(),
-                Arg.Any<DateOnly>(),
-                Arg.Any<CancellationToken>())
-            .Returns(Task.FromResult<IReadOnlyList<AppNetworkHistoryPoint>>(points));
+        var started = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        _processUsageService.CaptureAsync(Arg.Any<CancellationToken>())
+            .Returns(_ =>
+            {
+                started.TrySetResult();
+                return Task.FromResult<IReadOnlyList<ProcessUsageSnapshot>>(snapshots);
+            });
+        return started;
     }
 
-    private void SetupResourceHistory(params AppResourceHistoryPoint[] points)
+    private static async Task WaitUntilAsync(Func<bool> condition)
     {
-        _appOverviewService.GetResourceHistoryAsync(
-                Arg.Any<string>(),
-                Arg.Any<DateOnly>(),
-                Arg.Any<DateOnly>(),
-                Arg.Any<CancellationToken>())
-            .Returns(Task.FromResult<IReadOnlyList<AppResourceHistoryPoint>>(points));
+        for (var attempt = 0; attempt < 20; attempt++)
+        {
+            if (condition())
+            {
+                return;
+            }
+
+            await Task.Yield();
+        }
+
+        condition().Should().BeTrue("the asynchronous process snapshot should have completed");
     }
 
-    private void SetupTopDestinations(params TopDestinationEntry[] entries)
-    {
-        _appOverviewService.GetTopDestinationsAsync(
-                Arg.Any<int>(),
-                Arg.Any<DateOnly>(),
-                Arg.Any<DateOnly>(),
-                Arg.Any<CancellationToken>())
-            .Returns(Task.FromResult<IReadOnlyList<TopDestinationEntry>>(entries));
-    }
-
-    private static AppOverview CreateApp(
-        string appIdentifier,
-        string appName,
+    private static ProcessUsageSnapshot CreateSnapshot(
+        int processId,
         string processName,
-        string categoryName,
-        long bytesReceived = 0,
-        long bytesSent = 0,
-        double avgCpuPercent = 0,
-        long avgPrivateBytes = 0,
-        int hoursActive = 1)
+        string executablePath = "/opt/app/app",
+        long privateBytes = 0,
+        long? workingSetBytes = null,
+        double cpuPercent = 0,
+        bool hasCpuSample = false,
+        long downloadSpeedBps = 0,
+        long uploadSpeedBps = 0,
+        long sessionBytesReceived = 0,
+        long sessionBytesSent = 0,
+        bool hasNetworkStats = false)
     {
-        var now = DateTime.Now;
-        return new AppOverview(
-            appIdentifier,
-            appName,
-            processName,
-            $@"C:\Apps\{processName}",
-            categoryName,
-            bytesReceived,
-            bytesSent,
-            PeakDownloadSpeed: 0,
-            PeakUploadSpeed: 0,
-            avgCpuPercent,
-            MaxCpuPercent: avgCpuPercent,
-            avgPrivateBytes,
-            PeakPrivateBytes: avgPrivateBytes,
-            FirstSeen: now.AddHours(-hoursActive),
-            LastSeen: now,
-            hoursActive);
-    }
-
-    private static AppNetworkHistoryPoint[] CreateNetworkHistory(int count)
-    {
-        var start = DateTime.Now.AddHours(-count);
-        return Enumerable.Range(0, count)
-            .Select(index => new AppNetworkHistoryPoint(start.AddHours(index), (index + 1) * 1024, (index + 1) * 512))
-            .ToArray();
-    }
-
-    private static AppResourceHistoryPoint[] CreateResourceHistory(int count)
-    {
-        var start = DateTime.Now.AddHours(-count);
-        return Enumerable.Range(0, count)
-            .Select(index => new AppResourceHistoryPoint(start.AddHours(index), 10 + index, (index + 1) * 1_048_576))
-            .ToArray();
-    }
-
-    private static TopDestinationEntry[] CreateTopDestinations(int count)
-    {
-        return Enumerable.Range(1, count)
-            .Select(index => new TopDestinationEntry($"192.0.2.{index}", $"host-{index}.example", 443, "TCP", index * 2048, index * 4096))
-            .ToArray();
+        return new ProcessUsageSnapshot
+        {
+            ProcessId = processId,
+            ProcessName = processName,
+            ExecutablePath = executablePath,
+            PrivateBytes = privateBytes,
+            WorkingSetBytes = workingSetBytes ?? privateBytes,
+            CpuPercent = cpuPercent,
+            HasCpuSample = hasCpuSample,
+            DownloadSpeedBps = downloadSpeedBps,
+            UploadSpeedBps = uploadSpeedBps,
+            SessionBytesReceived = sessionBytesReceived,
+            SessionBytesSent = sessionBytesSent,
+            HasNetworkStats = hasNetworkStats
+        };
     }
 }

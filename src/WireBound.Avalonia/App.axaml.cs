@@ -300,6 +300,10 @@ public partial class App : Application
         // Register per-app network tracking service (adapts platform providers)
         services.AddSingleton<IProcessNetworkService, ProcessNetworkService>();
 
+        // Register pull-based per-PID usage sampling for the on-demand process page.
+        // The service owns no background timer and never changes network-monitor ownership.
+        services.AddSingleton<IProcessUsageService, ProcessUsageService>();
+
         // Register system monitoring service (CPU, RAM)
         services.AddSingleton<ISystemMonitorService, SystemMonitorService>();
 
@@ -416,14 +420,9 @@ public partial class App : Application
             await pollingService.StartAsync(CancellationToken.None);
             Log.Information("Background polling service started");
 
-            // Eagerly construct AppsViewModel so its live-CPU sampling timer
-            // starts running at app startup, not on first navigation to Apps.
-            // Without this, users who land on (and stay on) Overview never get
-            // a populated Apps tab when they finally visit it — and worse,
-            // they see "—" placeholders for ~10s after navigation because the
-            // 60s rolling window starts empty. Singleton lifetime means this
-            // is a one-shot cost.
-            _ = _serviceProvider!.GetRequiredService<AppsViewModel>();
+            // AppsViewModel is deliberately resolved lazily by ViewFactory.
+            // Its process sampler is page-scoped, so constructing it here would
+            // enumerate every process even when the user never opens Apps.
         }
         catch (Exception ex)
         {

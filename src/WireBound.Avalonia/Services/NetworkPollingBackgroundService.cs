@@ -20,7 +20,6 @@ public sealed class NetworkPollingBackgroundService : BackgroundService, INetwor
     private readonly ISystemHistoryService _systemHistory;
     private readonly IDataPersistenceService _persistence;
     private readonly IProcessNetworkService? _processNetworkService;
-    private readonly IResourceInsightsService? _resourceInsights;
     private readonly ITrayIconService _trayIcon;
     private readonly ILogger<NetworkPollingBackgroundService> _logger;
     private volatile int _pollIntervalMs = DefaultPollIntervalMs;
@@ -30,7 +29,6 @@ public sealed class NetworkPollingBackgroundService : BackgroundService, INetwor
     private readonly Stopwatch _snapshotFlushStopwatch = new();
     private readonly Stopwatch _systemStatsAggregationStopwatch = new();
     private readonly Stopwatch _retentionCleanupStopwatch = new();
-    private readonly Stopwatch _liveResourcePollStopwatch = new();
     private readonly List<(long download, long upload, DateTime time)> _snapshotBuffer = new(SnapshotBufferCapacity);
     private readonly List<(double cpu, double memory, long diskRead, long diskWrite, double diskActivity, DateTime time)> _systemSnapshotBuffer = new(SnapshotBufferCapacity);
     private readonly object _snapshotBufferLock = new();
@@ -98,15 +96,6 @@ public sealed class NetworkPollingBackgroundService : BackgroundService, INetwor
     private const int SystemStatsAggregationIntervalMinutes = 5;
 
     /// <summary>
-    /// How often to poll per-app resource usage to feed
-    /// <see cref="IResourceInsightsService.GetRollingCpuByApp(TimeSpan)"/>.
-    /// 5 seconds = 12 samples per 60-second window — a good rolling-average
-    /// resolution without the overhead of enumerating every process on the
-    /// system each second.
-    /// </summary>
-    private const int LiveResourcePollIntervalSeconds = 5;
-
-    /// <summary>
     /// Interval between data retention cleanup runs (once per hour is sufficient).
     /// </summary>
     private const int RetentionCleanupIntervalMinutes = 60;
@@ -163,7 +152,6 @@ public sealed class NetworkPollingBackgroundService : BackgroundService, INetwor
         ITrayIconService trayIcon,
         ILogger<NetworkPollingBackgroundService> logger,
         IProcessNetworkService? processNetworkService = null,
-        IResourceInsightsService? resourceInsights = null,
         IProcessResourceProvider? processResourceProvider = null)
     {
         _networkMonitor = networkMonitor;
@@ -173,7 +161,6 @@ public sealed class NetworkPollingBackgroundService : BackgroundService, INetwor
         _processNetworkService = processNetworkService;
         _trayIcon = trayIcon;
         _logger = logger;
-        _resourceInsights = resourceInsights;
         _processResourceProvider = processResourceProvider;
     }
 
@@ -217,7 +204,6 @@ public sealed class NetworkPollingBackgroundService : BackgroundService, INetwor
         _snapshotFlushStopwatch.Start();
         _systemStatsAggregationStopwatch.Start();
         _retentionCleanupStopwatch.Start();
-        _liveResourcePollStopwatch.Start();
 
         // Use PeriodicTimer for more consistent timing than Task.Delay
         _timer = new PeriodicTimer(TimeSpan.FromMilliseconds(_pollIntervalMs));
@@ -311,42 +297,11 @@ public sealed class NetworkPollingBackgroundService : BackgroundService, INetwor
                         _snapshotFlushStopwatch.Restart();
                     }
 
-                    // Sample per-app CPU/RAM every ~5s so the Apps tab can show
-                    // a rolling-60s average instead of just the date-range
-                    // historical mean. Calling GetCurrentByAppAsync here also
-                    // refreshes the service's CPU delta baseline — we MUST NOT
-                    // also call it from any other place in the same tick or the
-                    // delta math gets corrupted (see the comment on
-                    // GetCurrentByCategoryAsync in ResourceInsightsService).
-                    if (_resourceInsights != null
-                        && _liveResourcePollStopwatch.Elapsed.TotalSeconds >= LiveResourcePollIntervalSeconds)
-                    {
-                        try
-                        {
-                            await _resourceInsights.GetCurrentByAppAsync(stoppingToken).ConfigureAwait(false);
-                        }
-                        catch (OperationCanceledException)
-                        {
-                            throw;
-                        }
-                        catch (Exception ex)
-                        {
-                            _logger.LogDebug(ex, "Failed to sample live resource usage; will retry next tick.");
-                        }
-                        _liveResourcePollStopwatch.Restart();
-                    }
-
                     // Aggregate system stats periodically (every 5 minutes)
                     if (_systemStatsAggregationStopwatch.Elapsed.TotalMinutes >= SystemStatsAggregationIntervalMinutes)
                     {
                         await _systemHistory.AggregateHourlyAsync().ConfigureAwait(false);
                         await _systemHistory.AggregateDailyAsync().ConfigureAwait(false);
-
-                        // Record per-app resource snapshot for historical trending
-                        if (_resourceInsights != null)
-                        {
-                            await _resourceInsights.RecordSnapshotAsync(stoppingToken).ConfigureAwait(false);
-                        }
 
                         _systemStatsAggregationStopwatch.Restart();
                     }

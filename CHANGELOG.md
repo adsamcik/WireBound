@@ -7,8 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.9.0] - 2026-08-10
+
 ### Added
 
+- **Live Process Monitor** - Apps now show live, per-process CPU and memory usage alongside network activity. Process usage is sampled on demand and exposed through a new core snapshot contract and service.
 - **Uninstall Cleanup Hook (Windows)** - Registers a Velopack `OnBeforeUninstallFastCallback` that removes the Registry `Run` startup entry and the "WireBound Elevation Helper" Task Scheduler task before Add/Remove Programs uninstalls the app, so it no longer leaves stray autostart artifacts behind. Each cleanup step is bounded by an internal timeout to stay safely within Velopack's 30-second fast-exit budget.
 
 ### Fixed
@@ -18,6 +21,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - The release workflow's `build` job runs on `ubuntu-latest` for both matrix legs, so `vpk pack` defaulted to packaging for the host OS (Linux) even for the `win-x64` leg. Fixed by adding explicit `[win]`/`[linux]` platform directives (also applied to `publish.ps1`'s local Velopack packaging).
   - `vpk upload github` lacked `--merge true`, so the second matrix leg's upload was silently rejected once the first leg's upload created a release/draft for the same tag. Fixed by adding `--merge true`.
   - Both matrix legs uploaded to GitHub Releases concurrently, so `--merge true` alone could still race if neither leg saw the release created yet. Fixed by uploading each leg's Velopack output as a build artifact instead, and moving the actual `vpk upload github` calls into the single, sequential `release` job (after `softprops/action-gh-release` creates the release), mirroring the existing zip/tar.gz artifact pattern.
+
+### Dependencies
+
+- Updated all direct NuGet dependencies, including Avalonia 12.1.1, .NET/EF Core 10.0.10, Serilog 4.4.0, Velopack 1.2.0, NSubstitute 6.1.0, and TUnit 1.64.6.
+- Pinned `SQLitePCLRaw.lib.e_sqlite3` to 3.53.3, resolving its high-severity security advisory.
 
 ## [0.8.0] - 2026-07-11
 

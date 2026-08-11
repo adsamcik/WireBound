@@ -43,24 +43,33 @@ if ((Get-Item -LiteralPath $packagePath).Length -le 0) {
     throw "The full package is empty: $packagePath"
 }
 
-$expectedExecutable = if ($Runtime -eq "win-x64") { "WireBound.exe" } else { "WireBound" }
-$expectedElevationExecutable = if ($Runtime -eq "win-x64") { "WireBound.Elevation.exe" } else { "wirebound-elevation" }
 $archive = [System.IO.Compression.ZipFile]::OpenRead($packagePath)
 try {
-    $containsMainExecutable = $archive.Entries | Where-Object {
-        [System.IO.Path]::GetFileName($_.FullName) -eq $expectedExecutable
-    } | Select-Object -First 1
+    if ($Runtime -eq "win-x64") {
+        $containsMainExecutable = $archive.Entries | Where-Object {
+            [System.IO.Path]::GetFileName($_.FullName) -eq "WireBound.exe"
+        } | Select-Object -First 1
 
-    if (-not $containsMainExecutable) {
-        throw "The package does not contain $expectedExecutable."
+        if (-not $containsMainExecutable) {
+            throw "The package does not contain WireBound.exe."
+        }
+
+        $containsElevationExecutable = $archive.Entries | Where-Object {
+            [System.IO.Path]::GetFileName($_.FullName) -eq "WireBound.Elevation.exe"
+        } | Select-Object -First 1
+
+        if (-not $containsElevationExecutable) {
+            throw "The package does not contain WireBound.Elevation.exe."
+        }
     }
+    else {
+        $containsPackagedAppImage = $archive.Entries | Where-Object {
+            $_.FullName -eq "lib/app/WireBound.AppImage" -and $_.Length -gt 0
+        } | Select-Object -First 1
 
-    $containsElevationExecutable = $archive.Entries | Where-Object {
-        [System.IO.Path]::GetFileName($_.FullName) -eq $expectedElevationExecutable
-    } | Select-Object -First 1
-
-    if (-not $containsElevationExecutable) {
-        throw "The package does not contain $expectedElevationExecutable."
+        if (-not $containsPackagedAppImage) {
+            throw "The Linux full package does not contain a non-empty lib/app/WireBound.AppImage."
+        }
     }
 }
 finally {

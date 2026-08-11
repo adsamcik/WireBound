@@ -79,7 +79,10 @@ jobs:
         run: dotnet format WireBound.slnx --verify-no-changes --verbosity diagnostic --exclude-diagnostics TUnit0018 CA1416 IL2046 IL2026 IL3050
 
   publish-validation:
-    runs-on: ubuntu-latest
+    runs-on: ${{ matrix.os }}
+    defaults:
+      run:
+        shell: bash
     needs: build-and-test
     strategy:
       fail-fast: false
@@ -87,8 +90,10 @@ jobs:
         include:
           - runtime: linux-x64
             name: Linux
+            os: ubuntu-latest
           - runtime: win-x64
             name: Windows
+            os: windows-latest
     
     steps:
       - name: Checkout repository
@@ -115,9 +120,14 @@ jobs:
             --self-contained true \
             --output ./publish/${{ matrix.runtime }}
 
-      - name: Publish Helper
+      - name: Publish elevation helper
         run: |
-          dotnet publish src/WireBound.Helper/WireBound.Helper.csproj \
+          if [ "${{ matrix.runtime }}" = "win-x64" ]; then
+            helper_project="src/WireBound.Elevation.Windows/WireBound.Elevation.Windows.csproj"
+          else
+            helper_project="src/WireBound.Elevation.Linux/WireBound.Elevation.Linux.csproj"
+          fi
+          dotnet publish "$helper_project" \
             --configuration Release \
             --runtime ${{ matrix.runtime }} \
             --self-contained true \
@@ -146,6 +156,46 @@ jobs:
           echo "📊 Build Summary (${{ matrix.name }}):"
           echo "   Files: $FILE_COUNT"
           echo "   Total Size: $TOTAL_SIZE"
+
+          "$OUTPUT_DIR/$EXE_NAME" --startup-check
+
+      - name: Restore pinned Velopack CLI
+        run: dotnet tool restore
+
+      - name: Package Windows installer
+        if: matrix.runtime == 'win-x64'
+        run: |
+          dotnet tool run vpk -- '[win]' pack -u WireBound -v 0.0.${{ github.run_number }} \
+            -p ./publish/${{ matrix.runtime }} \
+            -o ./velopack/${{ matrix.runtime }} \
+            -e WireBound.exe \
+            --channel ${{ matrix.runtime }} \
+            --packTitle WireBound \
+            --packAuthors WireBound \
+            --icon ./src/WireBound.Avalonia/Assets/wirebound.ico \
+            --instWelcome ./installer/windows/welcome.txt \
+            --instReadme ./installer/windows/readme.md \
+            --instConclusion ./installer/windows/conclusion.txt
+
+      - name: Package Linux AppImage
+        if: matrix.runtime == 'linux-x64'
+        run: |
+          dotnet tool run vpk -- '[linux]' pack -u WireBound -v 0.0.${{ github.run_number }} \
+            -p ./publish/${{ matrix.runtime }} \
+            -o ./velopack/${{ matrix.runtime }} \
+            -e WireBound \
+            --channel ${{ matrix.runtime }} \
+            --packTitle WireBound \
+            --packAuthors WireBound \
+            --icon ./src/WireBound.Avalonia/Assets/wirebound-512.png
+
+      - name: Validate Velopack package
+        shell: pwsh
+        run: >
+          ./scripts/test-velopack-package.ps1
+          -OutputDirectory ./velopack/${{ matrix.runtime }}
+          -Runtime ${{ matrix.runtime }}
+          -Version 0.0.${{ github.run_number }}
 
   aot-validation:
     needs: build-and-test
@@ -218,3 +268,5 @@ jobs:
           echo "📊 AOT Build Summary (${{ matrix.name }}):"
           echo "   Files: $FILE_COUNT"
           echo "   Total Size: $TOTAL_SIZE"
+
+          "$OUTPUT_DIR/${{ matrix.exe }}" --startup-check

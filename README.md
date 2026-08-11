@@ -12,6 +12,16 @@ A privacy-focused, cross-platform network traffic and system monitoring applicat
 - **Privacy First**: All data stays local - no cloud, no telemetry
 - **Cross-Platform**: Runs on Windows and Linux with platform-specific implementations
 
+## Installation
+
+Download the latest version from [GitHub Releases](https://github.com/adsamcik/WireBound/releases/latest).
+
+- **Windows:** use `WireBound-win-x64-Setup.exe` (recommended). It installs per-user and enables reliable in-app updates.
+- **Linux:** use the `WireBound-linux-x64.AppImage` and mark it executable.
+- ZIP and TAR.GZ downloads are portable builds. They can notify you about updates, but updates must be installed manually.
+
+See [Installation and Updates](docs/INSTALLATION.md) for upgrade, repair, uninstall, and data-preservation guidance.
+
 ## Technology Stack
 
 - **.NET 10** - Latest .NET framework
@@ -150,7 +160,7 @@ The elevation helper processes (`WireBound.Elevation.Windows`, `WireBound.Elevat
 
 - [ ] Elevated helper process for accurate per-app byte tracking
 - [ ] Light/Dark theme toggle
-- [ ] Auto-update notifications
+- [x] Auto-update notifications
 - [ ] Responsive layout for various window sizes
 - [ ] Package manager distribution (choco, apt)
 

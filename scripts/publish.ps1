@@ -151,8 +151,28 @@ if ($SelfContained -or $Aot) {
 if ($LASTEXITCODE -ne 0) { throw "Elevation helper build failed" }
 Write-Success "Elevation helper published"
 
-# Create archive
 $targetIsWindows = $Runtime.StartsWith("win")
+$hostIsWindows = [System.Runtime.InteropServices.RuntimeInformation]::IsOSPlatform(
+    [System.Runtime.InteropServices.OSPlatform]::Windows)
+$hostIsLinux = [System.Runtime.InteropServices.RuntimeInformation]::IsOSPlatform(
+    [System.Runtime.InteropServices.OSPlatform]::Linux)
+$canRunStartupCheck = ($targetIsWindows -and $hostIsWindows) -or (-not $targetIsWindows -and $hostIsLinux)
+
+if ($canRunStartupCheck) {
+    $publishedExecutableName = if ($targetIsWindows) { "WireBound.exe" } else { "WireBound" }
+    $publishedExecutablePath = Join-Path $portableOutput $publishedExecutableName
+
+    Write-Step "Running published startup compatibility check..."
+    & $publishedExecutablePath --startup-check
+    if ($LASTEXITCODE -ne 0) {
+        throw "Published startup compatibility check failed with exit code $LASTEXITCODE"
+    }
+    Write-Success "Published startup compatibility check passed"
+} else {
+    Write-Warning "Startup compatibility check deferred because $Runtime cannot run on this host"
+}
+
+# Create archive
 $archiveExt = if ($targetIsWindows) { "zip" } else { "tar.gz" }
 $aotSuffix = if ($Aot) { "-aot" } else { "" }
 $archivePath = Join-Path $OutputDir "WireBound-$Version-$Runtime$aotSuffix.$archiveExt"
@@ -179,40 +199,55 @@ Write-Success "Archive created: $archivePath"
 if ($Velopack) {
     Write-Step "Creating Velopack package..."
 
-    # Check for vpk CLI
-    $vpkPath = Get-Command vpk -ErrorAction SilentlyContinue
-    if (-not $vpkPath) {
-        Write-Warning "vpk CLI not found. Install with: dotnet tool install -g vpk"
-        Write-Warning "Skipping Velopack packaging"
-    } else {
-        $velopackOutput = Join-Path $OutputDir "velopack" $Runtime
-        New-Item -ItemType Directory -Path $velopackOutput -Force | Out-Null
-
-        $exeName = if ($targetIsWindows) { "WireBound.exe" } else { "WireBound" }
-        # An explicit platform directive is required for vpk to package for a
-        # target OS other than the current host (e.g. building linux-x64
-        # packages from Windows), and is harmless when it matches the host.
-        $vpkDirective = if ($targetIsWindows) { "[win]" } else { "[linux]" }
-
-        $vpkArgs = @(
-            $vpkDirective,
-            "pack",
-            "-u", "WireBound",
-            "-v", $Version,
-            "-p", $portableOutput,
-            "-o", $velopackOutput,
-            "-e", $exeName,
-            "--channel", $Runtime
-        )
-
-        & vpk @vpkArgs
-
-        if ($LASTEXITCODE -ne 0) {
-            Write-Warning "Velopack packaging failed (non-fatal)"
-        } else {
-            Write-Success "Velopack package created in $velopackOutput"
-        }
+    & dotnet tool restore
+    if ($LASTEXITCODE -ne 0) {
+        throw "Failed to restore the pinned Velopack CLI"
     }
+
+    $velopackOutput = Join-Path $OutputDir "velopack" $Runtime
+    New-Item -ItemType Directory -Path $velopackOutput -Force | Out-Null
+
+    $exeName = if ($targetIsWindows) { "WireBound.exe" } else { "WireBound" }
+    # An explicit platform directive is required for vpk to package for a
+    # target OS other than the current host (e.g. building linux-x64
+    # packages from Windows), and is harmless when it matches the host.
+    $vpkDirective = if ($targetIsWindows) { "[win]" } else { "[linux]" }
+
+    $vpkArgs = @(
+        $vpkDirective,
+        "pack",
+        "-u", "WireBound",
+        "-v", $Version,
+        "-p", $portableOutput,
+        "-o", $velopackOutput,
+        "-e", $exeName,
+        "--channel", $Runtime,
+        "--packTitle", "WireBound",
+        "--packAuthors", "WireBound"
+    )
+
+    if ($targetIsWindows) {
+        $vpkArgs += @(
+            "--icon", "$PSScriptRoot/../src/WireBound.Avalonia/Assets/wirebound.ico",
+            "--instWelcome", "$PSScriptRoot/../installer/windows/welcome.txt",
+            "--instReadme", "$PSScriptRoot/../installer/windows/readme.md",
+            "--instConclusion", "$PSScriptRoot/../installer/windows/conclusion.txt"
+        )
+    } else {
+        $vpkArgs += "--icon", "$PSScriptRoot/../src/WireBound.Avalonia/Assets/wirebound-512.png"
+    }
+
+    & dotnet tool run vpk -- @vpkArgs
+
+    if ($LASTEXITCODE -ne 0) {
+        throw "Velopack packaging failed with exit code $LASTEXITCODE"
+    }
+
+    & "$PSScriptRoot/test-velopack-package.ps1" `
+        -OutputDirectory $velopackOutput `
+        -Runtime $Runtime `
+        -Version $Version
+    Write-Success "Velopack package created and validated in $velopackOutput"
 }
 
 # Summary
@@ -233,8 +268,12 @@ Write-Host ""
 # Platform-specific instructions
 if ($targetIsWindows) {
     Write-Host "📋 To install (Windows):"
-    Write-Host "   1. Extract the ZIP file"
-    Write-Host "   2. Run WireBound.exe"
+    if ($Velopack) {
+        Write-Host "   Recommended: run the *-Setup.exe from $(Join-Path $OutputDir 'velopack' $Runtime)"
+        Write-Host "   Portable: extract the ZIP file and run WireBound.exe"
+    } else {
+        Write-Host "   Extract the ZIP file and run WireBound.exe"
+    }
 } elseif ($Runtime.StartsWith("linux")) {
     Write-Host "📋 To install (Linux):"
     Write-Host "   1. Extract: tar -xzf $($archive.Name)"

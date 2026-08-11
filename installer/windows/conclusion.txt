@@ -1,0 +1,3 @@
+WireBound is ready to use.
+
+You can manage updates from Settings. Application updates preserve your monitoring history and settings.

@@ -1,0 +1,72 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        x:Class="WireBound.Avalonia.Views.WelcomeWindow"
+        x:CompileBindings="False"
+        Title="Welcome to WireBound"
+        Icon="avares://WireBound/Assets/wirebound.ico"
+        Width="520" Height="470"
+        MinWidth="440" MinHeight="420"
+        CanResize="False"
+        WindowStartupLocation="CenterOwner"
+        Background="{StaticResource BackgroundBrush}"
+        AutomationProperties.Name="Welcome to WireBound dialog">
+
+    <Border Margin="32" CornerRadius="8">
+        <DockPanel>
+            <Button DockPanel.Dock="Bottom"
+                    Content="Start Monitoring"
+                    HorizontalAlignment="Right"
+                    Margin="0,20,0,0"
+                    Padding="24,8"
+                    Click="OnStartMonitoringClick"
+                    Classes="Accent"
+                    AutomationProperties.Name="Start Monitoring" />
+
+            <StackPanel Spacing="18">
+                <StackPanel Orientation="Horizontal" Spacing="14">
+                    <Image Source="avares://WireBound/Assets/wirebound-128.png"
+                           Width="56" Height="56"
+                           Stretch="Uniform"
+                           AutomationProperties.Name="WireBound logo" />
+                    <StackPanel VerticalAlignment="Center" Spacing="3">
+                        <TextBlock Text="Welcome to WireBound"
+                                   FontSize="24"
+                                   FontWeight="SemiBold"
+                                   Foreground="{StaticResource PrimaryTextBrush}" />
+                        <TextBlock Text="Private network and system monitoring, ready to go"
+                                   Classes="Caption" />
+                    </StackPanel>
+                </StackPanel>
+
+                <Border Background="{StaticResource AccentBgTintBrush}"
+                        CornerRadius="10" Padding="14">
+                    <TextBlock Text="Your monitoring history stays on this computer. WireBound has no cloud account and sends no telemetry."
+                               TextWrapping="Wrap"
+                               Foreground="{StaticResource SecondaryTextBrush}" />
+                </Border>
+
+                <StackPanel Spacing="12">
+                    <TextBlock Text="A few useful things to know"
+                               Classes="CardTitle" />
+
+                    <Grid ColumnDefinitions="22,*" RowDefinitions="Auto,Auto,Auto" RowSpacing="10">
+                        <TextBlock Text="1" Foreground="{StaticResource AccentBrush}" FontWeight="SemiBold" />
+                        <TextBlock Grid.Column="1"
+                                   Text="WireBound starts monitoring immediately with safe, non-elevated system APIs."
+                                   TextWrapping="Wrap" />
+
+                        <TextBlock Grid.Row="1" Text="2" Foreground="{StaticResource AccentBrush}" FontWeight="SemiBold" />
+                        <TextBlock Grid.Row="1" Grid.Column="1"
+                                   Text="Accurate per-application tracking can use an optional elevated helper; WireBound asks only when you enable it."
+                                   TextWrapping="Wrap" />
+
+                        <TextBlock Grid.Row="2" Text="3" Foreground="{StaticResource AccentBrush}" FontWeight="SemiBold" />
+                        <TextBlock Grid.Row="2" Grid.Column="1"
+                                   Text="Updates download from GitHub and are installed from Settings with Restart &amp; Install."
+                                   TextWrapping="Wrap" />
+                    </Grid>
+                </StackPanel>
+            </StackPanel>
+        </DockPanel>
+    </Border>
+</Window>

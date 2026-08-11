@@ -233,6 +233,10 @@ public sealed class WindowsStartupService : IStartupService
             }
             else
             {
+                // Deleting a scheduled task does not reliably terminate an
+                // instance it already started. End it first so its executable
+                // no longer locks the Velopack installation directory.
+                _ = StopHelperStartupTaskAsync();
                 var result = RunSchtasksElevated($"/Delete /TN \"{HelperTaskFullName}\" /F");
                 if (result == 0)
                 {
@@ -252,6 +256,32 @@ public sealed class WindowsStartupService : IStartupService
         catch (Exception ex)
         {
             Log.Error(ex, "Failed to set helper startup");
+            return Task.FromResult(false);
+        }
+    }
+
+    /// <summary>
+    /// Stops a running scheduled elevation helper without showing UI or
+    /// requiring a UAC prompt. This is safe to call from Velopack's 15-second
+    /// pre-update hook.
+    /// </summary>
+    public Task<bool> StopHelperStartupTaskAsync()
+    {
+        try
+        {
+            var result = RunSchtasks($"/End /TN \"{HelperTaskFullName}\"", timeoutMs: 5000);
+            if (result == 0)
+            {
+                Log.Information("Stopped the running elevation helper scheduled task");
+                return Task.FromResult(true);
+            }
+
+            Log.Debug("No running elevation helper task to stop (exit code: {Code})", result);
+            return Task.FromResult(false);
+        }
+        catch (Exception ex)
+        {
+            Log.Debug(ex, "Failed to stop the elevation helper scheduled task");
             return Task.FromResult(false);
         }
     }
@@ -324,7 +354,7 @@ public sealed class WindowsStartupService : IStartupService
     private static string GetHelperPath() =>
         Path.Combine(AppContext.BaseDirectory, HelperExecutableName);
 
-    private static int RunSchtasks(string arguments)
+    private static int RunSchtasks(string arguments, int timeoutMs = 10000)
     {
         var startInfo = new ProcessStartInfo
         {
@@ -337,7 +367,11 @@ public sealed class WindowsStartupService : IStartupService
         };
 
         using var process = Process.Start(startInfo)!;
-        process.WaitForExit(10000);
+        if (!process.WaitForExit(timeoutMs))
+        {
+            process.Kill();
+            return -1;
+        }
         return process.ExitCode;
     }
 

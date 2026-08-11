@@ -3,13 +3,14 @@ using System.Drawing;
 using System.Drawing.Imaging;
 using System.Runtime.Versioning;
 using Microsoft.Extensions.Logging;
+using WireBound.Platform.Abstract.Helpers;
 using WireBound.Platform.Abstract.Services;
 
 namespace WireBound.Platform.Windows.Services;
 
 /// <summary>
 /// Extracts the small executable icon associated with a Windows binary and
-/// caches the result as a PNG under <c>%LocalAppData%/WireBound/app-icons/</c>.
+/// caches the result as a PNG under <c>%LocalAppData%/WireBoundData/app-icons/</c>.
 /// Each <c>AppIdentifier</c> is extracted at most once per session; the cached
 /// file persists across runs so subsequent loads of the Apps tab are immediate.
 /// </summary>
@@ -41,10 +42,7 @@ public sealed class WindowsAppIconService : IAppIconService
     public WindowsAppIconService(ILogger<WindowsAppIconService>? logger = null)
     {
         _logger = logger;
-        _cacheDirectory = Path.Combine(
-            Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
-            "WireBound",
-            "app-icons");
+        _cacheDirectory = AppDataPaths.GetPath("app-icons");
     }
 
     public Task<string?> GetIconPathAsync(

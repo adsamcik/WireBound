@@ -235,7 +235,7 @@
                         <controls:WbIcon IconKey="WbActionSearch" Width="16" Height="16" VerticalAlignment="Center" Margin="0,0,12,0" />
                         <TextBox Grid.Column="1"
                                  Text="{Binding SearchText}"
-                                 Watermark="Search by IP, hostname, or process..."
+                                 PlaceholderText="Search by IP, hostname, or process..."
                                  Classes="SearchBox"
                                  AutomationProperties.Name="Search Connections"
                                  AutomationProperties.HelpText="Filter connections by IP address, hostname, or process name" />

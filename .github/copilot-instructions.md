@@ -12,10 +12,10 @@ Cross-platform network traffic and system monitoring app. .NET 10, Avalonia UI, 
 | Technology | Version | Purpose |
 |-----------|---------|---------|
 | .NET | 10.0 (SDK 10.0.102) | Runtime |
-| Avalonia | 11.3.11 | Cross-platform UI |
+| Avalonia | 12.1.1 | Cross-platform UI |
 | CommunityToolkit.Mvvm | 8.4.0 | MVVM source generators |
 | EF Core SQLite | 10.0.2 | Local database |
-| LiveChartsCore | 2.0.5 | Real-time charts |
+| LiveChartsCore | 2.1.0-dev-798 | Real-time charts (Avalonia 12 adapter) |
 | Serilog | 4.3.0 | Structured logging |
 | TUnit | latest | Test framework |
 | NSubstitute | latest | Mocking |

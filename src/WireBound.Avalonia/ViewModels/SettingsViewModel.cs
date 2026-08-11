@@ -5,6 +5,7 @@ using System.Collections.ObjectModel;
 using System.Diagnostics;
 using WireBound.Core.Models;
 using WireBound.Core.Services;
+using WireBound.Platform.Abstract.Helpers;
 using WireBound.Platform.Abstract.Services;
 using IStartupService = WireBound.Platform.Abstract.Services.IStartupService;
 using StartupState = WireBound.Platform.Abstract.Services.StartupState;
@@ -172,6 +173,8 @@ public sealed partial class SettingsViewModel : ObservableObject, IDisposable
     private bool _autoDownloadUpdates = true;
 
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(CanDownloadUpdate))]
+    [NotifyPropertyChangedFor(nameof(RequiresManualUpdate))]
     private bool _updateAvailable;
 
     [ObservableProperty]
@@ -181,24 +184,56 @@ public sealed partial class SettingsViewModel : ObservableObject, IDisposable
     private string? _updateUrl;
 
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(CanDownloadUpdate))]
+    [NotifyPropertyChangedFor(nameof(RequiresManualUpdate))]
+    private UpdateCheckResult? _pendingUpdate;
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(CanDownloadUpdate))]
+    [NotifyPropertyChangedFor(nameof(InstallationModeText))]
+    [NotifyCanExecuteChangedFor(nameof(CheckForUpdateManuallyCommand))]
     private bool _isUpdateSupported;
 
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(CanDownloadUpdate))]
+    [NotifyCanExecuteChangedFor(nameof(CheckForUpdateManuallyCommand))]
     private bool _isDownloading;
 
     [ObservableProperty]
     private int _downloadProgress;
 
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(CanDownloadUpdate))]
     private bool _isReadyToRestart;
 
     [ObservableProperty]
     private string? _updateError;
 
-    /// <summary>
-    /// The pending update check result (holds native Velopack info for download/apply).
-    /// </summary>
-    public UpdateCheckResult? PendingUpdate { get; set; }
+    [ObservableProperty]
+    [NotifyCanExecuteChangedFor(nameof(CheckForUpdateManuallyCommand))]
+    private bool _isCheckingForUpdates;
+
+    [ObservableProperty]
+    [NotifyCanExecuteChangedFor(nameof(CheckForUpdateManuallyCommand))]
+    private bool _isInstallingUpdate;
+
+    [ObservableProperty]
+    private string _updateStatusMessage = "Updates have not been checked yet.";
+
+    public string CurrentVersion => _updateService.CurrentVersion;
+
+    public string InstallationModeText => IsUpdateSupported
+        ? "Installed version · automatic updates supported"
+        : "Portable version · use the installer to update";
+
+    public bool CanDownloadUpdate =>
+        UpdateAvailable &&
+        PendingUpdate?.CanInstallInApp == true &&
+        !IsDownloading &&
+        !IsReadyToRestart;
+
+    public bool RequiresManualUpdate =>
+        UpdateAvailable && PendingUpdate?.CanInstallInApp != true;
 
     [ObservableProperty]
     private bool _isElevated;
@@ -321,7 +356,16 @@ public sealed partial class SettingsViewModel : ObservableObject, IDisposable
     }
     partial void OnChartUpdateIntervalMsChanged(int value) => ScheduleAutoSave();
     partial void OnDefaultInsightsPeriodChanged(string value) => ScheduleAutoSave();
-    partial void OnCheckForUpdatesChanged(bool value) => ScheduleAutoSave();
+    partial void OnCheckForUpdatesChanged(bool value)
+    {
+        if (!_isLoading)
+        {
+            UpdateStatusMessage = value
+                ? "Automatic update checks are enabled."
+                : "Automatic update checks are off. You can still use Check Now.";
+        }
+        ScheduleAutoSave();
+    }
     partial void OnAutoDownloadUpdatesChanged(bool value) => ScheduleAutoSave();
 
     partial void OnMemoryAlertsEnabledChanged(bool value) => MarkMemoryAlertsDirty();
@@ -581,6 +625,17 @@ public sealed partial class SettingsViewModel : ObservableObject, IDisposable
             CheckForUpdates = settings.CheckForUpdates;
             AutoDownloadUpdates = settings.AutoDownloadUpdates;
             IsUpdateSupported = _updateService.IsUpdateSupported;
+            OnPropertyChanged(nameof(CurrentVersion));
+
+            if (!CheckForUpdates)
+            {
+                UpdateStatusMessage = "Automatic update checks are off. You can still use Check Now.";
+            }
+
+            if (_updateService.PreparedUpdate is { } preparedUpdate)
+            {
+                SetAvailableUpdate(preparedUpdate, readyToRestart: true);
+            }
 
             // Memory Alerts
             MemoryAlertsEnabled = settings.MemoryAlertsEnabled;
@@ -990,10 +1045,7 @@ public sealed partial class SettingsViewModel : ObservableObject, IDisposable
 
         try
         {
-            var sourceDb = Path.Combine(
-                Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
-                "WireBound",
-                "wirebound.db");
+            var sourceDb = AppDataPaths.GetPath("wirebound.db");
 
             if (!File.Exists(sourceDb))
             {
@@ -1050,10 +1102,11 @@ public sealed partial class SettingsViewModel : ObservableObject, IDisposable
     [RelayCommand]
     private async Task DownloadUpdateAsync()
     {
-        if (PendingUpdate is null || IsDownloading) return;
+        if (!CanDownloadUpdate || PendingUpdate is null) return;
 
         IsDownloading = true;
         UpdateError = null;
+        UpdateStatusMessage = $"Downloading WireBound v{PendingUpdate.Version}…";
         DownloadProgress = 0;
 
         var oldCts = _downloadCts;
@@ -1069,18 +1122,22 @@ public sealed partial class SettingsViewModel : ObservableObject, IDisposable
                 _downloadCts.Token);
 
             IsReadyToRestart = true;
-            IsDownloading = false;
+            UpdateStatusMessage = $"WireBound v{PendingUpdate.Version} is ready to install.";
             _logger?.LogInformation("Update downloaded, ready to restart");
         }
         catch (OperationCanceledException)
         {
             _logger?.LogInformation("Update download cancelled by user");
-            IsDownloading = false;
+            UpdateStatusMessage = "Update download cancelled. You can resume it at any time.";
         }
         catch (Exception ex)
         {
-            UpdateError = $"Download failed: {ex.Message}";
+            UpdateError = $"The update couldn't be downloaded. Check your connection and try again. ({ex.Message})";
+            UpdateStatusMessage = "Update download failed.";
             _logger?.LogError(ex, "Failed to download update");
+        }
+        finally
+        {
             IsDownloading = false;
         }
     }
@@ -1092,42 +1149,78 @@ public sealed partial class SettingsViewModel : ObservableObject, IDisposable
     }
 
     [RelayCommand]
-    private void ApplyUpdateAndRestart()
+    private async Task ApplyUpdateAndRestartAsync()
     {
-        if (PendingUpdate is null) return;
+        if (PendingUpdate is null || !IsReadyToRestart || IsInstallingUpdate) return;
 
         try
         {
+            IsInstallingUpdate = true;
+            UpdateError = null;
+            UpdateStatusMessage = "Saving your settings, then restarting to install the update…";
+            await SaveAsync();
             _updateService.ApplyUpdateAndRestart(PendingUpdate);
         }
         catch (Exception ex)
         {
-            UpdateError = $"Update failed: {ex.Message}";
+            IsInstallingUpdate = false;
+            UpdateError = $"The update couldn't be installed. Your current version is unchanged. ({ex.Message})";
+            UpdateStatusMessage = "Update installation failed.";
             _logger?.LogError(ex, "Failed to apply update and restart");
         }
     }
 
-    [RelayCommand]
+    private bool CanCheckForUpdates => !IsCheckingForUpdates && !IsDownloading && !IsInstallingUpdate;
+
+    [RelayCommand(CanExecute = nameof(CanCheckForUpdates))]
     private async Task CheckForUpdateManuallyAsync()
     {
+        IsCheckingForUpdates = true;
         try
         {
             UpdateError = null;
+            UpdateStatusMessage = "Checking for updates…";
             var update = await _updateService.CheckForUpdateAsync();
+            IsUpdateSupported = _updateService.IsUpdateSupported;
             if (update is not null)
             {
-                UpdateAvailable = true;
-                LatestVersion = update.Version;
-                UpdateUrl = update.ReleaseNotesUrl;
-                PendingUpdate = update;
-                IsUpdateSupported = _updateService.IsUpdateSupported;
+                SetAvailableUpdate(update);
+            }
+            else
+            {
+                UpdateAvailable = false;
+                LatestVersion = null;
+                UpdateUrl = null;
+                PendingUpdate = null;
+                IsReadyToRestart = false;
+                UpdateStatusMessage = $"WireBound v{CurrentVersion} is up to date.";
             }
         }
         catch (Exception ex)
         {
-            UpdateError = $"Check failed: {ex.Message}";
+            UpdateError = $"Couldn't check for updates. Check your connection and try again. ({ex.Message})";
+            UpdateStatusMessage = "The update check did not complete.";
             _logger?.LogError(ex, "Manual update check failed");
         }
+        finally
+        {
+            IsCheckingForUpdates = false;
+        }
+    }
+
+    internal void SetAvailableUpdate(UpdateCheckResult update, bool readyToRestart = false)
+    {
+        PendingUpdate = update;
+        UpdateAvailable = true;
+        LatestVersion = update.Version;
+        UpdateUrl = update.ReleaseNotesUrl;
+        IsReadyToRestart = readyToRestart;
+        UpdateError = null;
+        UpdateStatusMessage = readyToRestart
+            ? $"WireBound v{update.Version} is downloaded and ready to install."
+            : update.CanInstallInApp
+                ? $"WireBound v{update.Version} is available."
+                : $"WireBound v{update.Version} is available from the download page.";
     }
 
     /// <summary>

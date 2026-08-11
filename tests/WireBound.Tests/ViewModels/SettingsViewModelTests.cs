@@ -62,6 +62,9 @@ public class SettingsViewModelTests : IAsyncDisposable
         _elevationService.IsHelperConnected.Returns(false);
         _elevationService.RequiresElevation.Returns(true);
         _elevationService.IsElevationSupported.Returns(true);
+
+        // Setup update service
+        _updateService.CurrentVersion.Returns("0.9.0");
     }
 
     private static AppSettings CreateDefaultSettings()
@@ -986,8 +989,8 @@ public class SettingsViewModelTests : IAsyncDisposable
         // Wait for async initialization to complete
         await viewModel.InitializationTask;
 
-        var update = new UpdateCheckResult("1.0.0", "https://example.com", null, null);
-        viewModel.PendingUpdate = update;
+        var update = new UpdateCheckResult("1.0.0", "https://example.com", null, new object(), CanInstallInApp: true);
+        viewModel.SetAvailableUpdate(update);
 
         // Act
         await viewModel.DownloadUpdateCommand.ExecuteAsync(null);
@@ -1007,8 +1010,8 @@ public class SettingsViewModelTests : IAsyncDisposable
         // Wait for async initialization to complete
         await viewModel.InitializationTask;
 
-        var update = new UpdateCheckResult("1.0.0", "https://example.com", null, null);
-        viewModel.PendingUpdate = update;
+        var update = new UpdateCheckResult("1.0.0", "https://example.com", null, new object(), CanInstallInApp: true);
+        viewModel.SetAvailableUpdate(update);
         _updateService.DownloadUpdateAsync(Arg.Any<UpdateCheckResult>(), Arg.Any<Action<int>?>(), Arg.Any<CancellationToken>())
             .Returns(Task.FromException(new Exception("Network error")));
 
@@ -1029,7 +1032,7 @@ public class SettingsViewModelTests : IAsyncDisposable
         // Wait for async initialization to complete
         await viewModel.InitializationTask;
 
-        var update = new UpdateCheckResult("2.0.0", "https://example.com/release", DateTimeOffset.UtcNow, null);
+        var update = new UpdateCheckResult("2.0.0", "https://example.com/release", DateTimeOffset.UtcNow, new object(), CanInstallInApp: true);
         _updateService.CheckForUpdateAsync(Arg.Any<CancellationToken>()).Returns(update);
         _updateService.IsUpdateSupported.Returns(true);
 
@@ -1058,6 +1061,7 @@ public class SettingsViewModelTests : IAsyncDisposable
 
         // Assert
         viewModel.UpdateAvailable.Should().BeFalse();
+        viewModel.UpdateStatusMessage.Should().Be("WireBound v0.9.0 is up to date.");
     }
 
     [Test]
@@ -1069,10 +1073,69 @@ public class SettingsViewModelTests : IAsyncDisposable
         await viewModel.InitializationTask;
 
         // Act
-        viewModel.ApplyUpdateAndRestartCommand.Execute(null);
+        await viewModel.ApplyUpdateAndRestartCommand.ExecuteAsync(null);
 
         // Assert
         _updateService.DidNotReceive().ApplyUpdateAndRestart(Arg.Any<UpdateCheckResult>());
+    }
+
+    [Test]
+    public async Task DownloadUpdateCommand_WhenManualInstallerIsRequired_DoesNotDownload()
+    {
+        var viewModel = CreateViewModel();
+        await viewModel.InitializationTask;
+        var update = new UpdateCheckResult("1.0.0", "https://example.com", null, null, CanInstallInApp: false);
+        viewModel.SetAvailableUpdate(update);
+
+        await viewModel.DownloadUpdateCommand.ExecuteAsync(null);
+
+        viewModel.RequiresManualUpdate.Should().BeTrue();
+        viewModel.CanDownloadUpdate.Should().BeFalse();
+        await _updateService.DidNotReceive().DownloadUpdateAsync(
+            Arg.Any<UpdateCheckResult>(), Arg.Any<Action<int>?>(), Arg.Any<CancellationToken>());
+    }
+
+    [Test]
+    public async Task CheckForUpdateManuallyCommand_WhenCheckFails_ShowsFailureInsteadOfUpToDate()
+    {
+        var viewModel = CreateViewModel();
+        await viewModel.InitializationTask;
+        _updateService.CheckForUpdateAsync(Arg.Any<CancellationToken>())
+            .Returns(Task.FromException<UpdateCheckResult?>(new HttpRequestException("offline")));
+
+        await viewModel.CheckForUpdateManuallyCommand.ExecuteAsync(null);
+
+        viewModel.UpdateAvailable.Should().BeFalse();
+        viewModel.UpdateError.Should().Contain("offline");
+        viewModel.UpdateStatusMessage.Should().Be("The update check did not complete.");
+    }
+
+    [Test]
+    public async Task LoadSettings_WhenUpdateIsPrepared_ShowsReadyToInstall()
+    {
+        var update = new UpdateCheckResult("1.0.0", "https://example.com", null, new object(), CanInstallInApp: true);
+        _updateService.PreparedUpdate.Returns(update);
+
+        var viewModel = CreateViewModel();
+        await viewModel.InitializationTask;
+
+        viewModel.PendingUpdate.Should().Be(update);
+        viewModel.IsReadyToRestart.Should().BeTrue();
+        viewModel.UpdateStatusMessage.Should().Contain("ready to install");
+    }
+
+    [Test]
+    public async Task ApplyUpdateAndRestartCommand_WhenReady_SavesSettingsBeforeApplying()
+    {
+        var viewModel = CreateViewModel();
+        await viewModel.InitializationTask;
+        var update = new UpdateCheckResult("1.0.0", "https://example.com", null, new object(), CanInstallInApp: true);
+        viewModel.SetAvailableUpdate(update, readyToRestart: true);
+
+        await viewModel.ApplyUpdateAndRestartCommand.ExecuteAsync(null);
+
+        await _persistence.Received().SaveSettingsAsync(Arg.Any<AppSettings>());
+        _updateService.Received(1).ApplyUpdateAndRestart(update);
     }
 
     [Test]

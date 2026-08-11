@@ -101,6 +101,9 @@ public partial class App : Application
             // Check for updates (non-blocking, privacy-safe)
             await CheckForUpdatesAsync();
 
+            // Give first-time installed users a short, useful orientation.
+            await ShowWelcomeIfFirstRunAsync(mainWindow);
+
             // Show What's New dialog if this is a post-update restart
             await ShowWhatsNewIfUpdatedAsync(mainWindow);
         }
@@ -525,6 +528,7 @@ public partial class App : Application
 
     private async Task CheckForUpdatesAsync()
     {
+        SettingsViewModel? settingsVm = null;
         try
         {
             var settingsRepository = _serviceProvider!.GetRequiredService<ISettingsRepository>();
@@ -532,16 +536,18 @@ public partial class App : Application
             if (!settings.CheckForUpdates) return;
 
             var updateService = _serviceProvider!.GetRequiredService<IUpdateService>();
-            var update = await updateService.CheckForUpdateAsync();
-            if (update is null) return;
+            settingsVm = _serviceProvider!.GetRequiredService<SettingsViewModel>();
+            var preparedUpdate = updateService.PreparedUpdate;
+            var update = preparedUpdate ?? await updateService.CheckForUpdateAsync();
+            if (update is null)
+            {
+                settingsVm.UpdateStatusMessage = $"WireBound v{updateService.CurrentVersion} is up to date.";
+                return;
+            }
 
             // Populate SettingsViewModel with update info
-            var settingsVm = _serviceProvider!.GetRequiredService<SettingsViewModel>();
-            settingsVm.UpdateAvailable = true;
-            settingsVm.LatestVersion = update.Version;
-            settingsVm.UpdateUrl = update.ReleaseNotesUrl;
-            settingsVm.PendingUpdate = update;
             settingsVm.IsUpdateSupported = updateService.IsUpdateSupported;
+            settingsVm.SetAvailableUpdate(update, readyToRestart: preparedUpdate is not null);
             Log.Information("Update available: {Version}", update.Version);
 
             // Send nav badge message
@@ -559,7 +565,7 @@ public partial class App : Application
             });
 
             // Auto-download if enabled, supported, and not on metered network
-            if (settings.AutoDownloadUpdates && updateService.IsUpdateSupported)
+            if (preparedUpdate is null && settings.AutoDownloadUpdates && update.CanInstallInApp)
             {
                 try
                 {
@@ -567,7 +573,7 @@ public partial class App : Application
                     if (!await costProvider.IsMeteredAsync())
                     {
                         await updateService.DownloadUpdateAsync(update);
-                        settingsVm.IsReadyToRestart = true;
+                        settingsVm.SetAvailableUpdate(update, readyToRestart: true);
                         Log.Information("Update auto-downloaded, ready to restart");
                     }
                     else
@@ -583,6 +589,10 @@ public partial class App : Application
         }
         catch (Exception ex)
         {
+            if (settingsVm is not null)
+            {
+                settingsVm.UpdateStatusMessage = "Automatic update check couldn't complete. Use Check Now to retry.";
+            }
             Log.Warning(ex, "Update check failed");
         }
     }
@@ -612,6 +622,23 @@ public partial class App : Application
         {
             Log.Warning(ex, "Failed to show What's New dialog");
         }
+    }
+
+    private static async Task ShowWelcomeIfFirstRunAsync(MainWindow mainWindow)
+    {
+        if (Environment.GetEnvironmentVariable("WIREBOUND_FIRST_RUN") != "1")
+        {
+            return;
+        }
+
+        Environment.SetEnvironmentVariable("WIREBOUND_FIRST_RUN", null);
+        await Dispatcher.UIThread.InvokeAsync(() =>
+        {
+            var welcomeWindow = new WelcomeWindow();
+            welcomeWindow.ShowDialog(mainWindow);
+        });
+
+        Log.Information("Showed first-install welcome dialog");
     }
 
     private static async Task<string> FetchReleaseNotesAsync(string version)

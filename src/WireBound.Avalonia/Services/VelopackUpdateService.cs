@@ -42,8 +42,26 @@ public sealed partial class VelopackUpdateService : IUpdateService
     public bool IsUpdateSupported => _updateManager.IsInstalled;
 
     /// <inheritdoc />
-    public string CurrentVersion =>
-        Assembly.GetEntryAssembly()?.GetName().Version?.ToString(3) ?? "0.0.0";
+    public string CurrentVersion => _updateManager.CurrentVersion?.ToString()
+        ?? Assembly.GetEntryAssembly()?.GetName().Version?.ToString(3)
+        ?? "0.0.0";
+
+    /// <inheritdoc />
+    public UpdateCheckResult? PreparedUpdate
+    {
+        get
+        {
+            var prepared = _updateManager.UpdatePendingRestart;
+            return prepared is null
+                ? null
+                : new UpdateCheckResult(
+                    prepared.Version.ToString(),
+                    GetReleaseUrl(prepared.Version.ToString()),
+                    null,
+                    prepared,
+                    CanInstallInApp: true);
+        }
+    }
 
     /// <inheritdoc />
     public async Task<UpdateCheckResult?> CheckForUpdateAsync(CancellationToken cancellationToken = default)
@@ -60,14 +78,24 @@ public sealed partial class VelopackUpdateService : IUpdateService
 
             return new UpdateCheckResult(
                 info.TargetFullRelease.Version.ToString(),
-                $"https://github.com/{Owner}/{Repo}/releases/tag/v{info.TargetFullRelease.Version}",
+                GetReleaseUrl(info.TargetFullRelease.Version.ToString()),
                 null,
-                info);
+                info,
+                CanInstallInApp: true);
         }
         catch (Exception ex)
         {
             Log.Warning(ex, "Velopack update check failed, falling back to GitHub API");
-            return await CheckGitHubApiAsync(cancellationToken);
+            try
+            {
+                return await CheckGitHubApiAsync(cancellationToken);
+            }
+            catch (Exception fallbackException)
+            {
+                throw new InvalidOperationException(
+                    "WireBound could not reach its update service. Check your connection and try again.",
+                    new AggregateException(ex, fallbackException));
+            }
         }
     }
 
@@ -76,6 +104,9 @@ public sealed partial class VelopackUpdateService : IUpdateService
     {
         if (!IsUpdateSupported)
             throw new InvalidOperationException("In-app updates are not supported in portable mode.");
+
+        if (!update.CanInstallInApp)
+            throw new InvalidOperationException("This update must be installed from the release download page.");
 
         if (update.NativeUpdateInfo is not UpdateInfo info)
             throw new ArgumentException("Invalid update info — expected Velopack UpdateInfo.", nameof(update));
@@ -89,10 +120,20 @@ public sealed partial class VelopackUpdateService : IUpdateService
         if (!IsUpdateSupported)
             throw new InvalidOperationException("In-app updates are not supported in portable mode.");
 
-        if (update.NativeUpdateInfo is not UpdateInfo info)
-            throw new ArgumentException("Invalid update info — expected Velopack UpdateInfo.", nameof(update));
+        if (!update.CanInstallInApp)
+            throw new InvalidOperationException("This update must be installed from the release download page.");
 
-        _updateManager.ApplyUpdatesAndRestart(info);
+        switch (update.NativeUpdateInfo)
+        {
+            case UpdateInfo info:
+                _updateManager.ApplyUpdatesAndRestart(info);
+                break;
+            case VelopackAsset prepared:
+                _updateManager.ApplyUpdatesAndRestart(prepared);
+                break;
+            default:
+                throw new ArgumentException("Invalid update information.", nameof(update));
+        }
     }
 
     /// <summary>
@@ -100,33 +141,31 @@ public sealed partial class VelopackUpdateService : IUpdateService
     /// </summary>
     private async Task<UpdateCheckResult?> CheckGitHubApiAsync(CancellationToken cancellationToken)
     {
-        try
+        using var response = await HttpClient.GetAsync(GitHubApiUrl, cancellationToken);
+        response.EnsureSuccessStatusCode();
+        var json = await response.Content.ReadAsStringAsync(cancellationToken);
+        var release = JsonSerializer.Deserialize(json, VelopackJsonContext.Default.GitHubRelease)
+            ?? throw new InvalidDataException("GitHub returned an invalid release response.");
+
+        var latestVersion = release.TagName.TrimStart('v');
+        if (!Version.TryParse(latestVersion, out var latest) ||
+            !Version.TryParse(CurrentVersion, out var current))
         {
-            var response = await HttpClient.GetAsync(GitHubApiUrl, cancellationToken);
-            response.EnsureSuccessStatusCode();
-            var json = await response.Content.ReadAsStringAsync(cancellationToken);
-            var release = JsonSerializer.Deserialize(json, VelopackJsonContext.Default.GitHubRelease);
-            if (release is null) return null;
-
-            var latestVersion = release.TagName.TrimStart('v');
-            if (!Version.TryParse(latestVersion, out var latest) ||
-                !Version.TryParse(CurrentVersion, out var current))
-                return null;
-
-            if (latest <= current) return null;
-
-            return new UpdateCheckResult(
-                latestVersion,
-                release.HtmlUrl,
-                release.PublishedAt,
-                null); // No native info for portable mode
+            throw new InvalidDataException("The release version could not be parsed.");
         }
-        catch (Exception ex)
-        {
-            Log.Warning(ex, "Failed to check for updates via GitHub API");
-            return null;
-        }
+
+        if (latest <= current) return null;
+
+        return new UpdateCheckResult(
+            latestVersion,
+            release.HtmlUrl,
+            release.PublishedAt,
+            null,
+            CanInstallInApp: false);
     }
+
+    private static string GetReleaseUrl(string version) =>
+        $"https://github.com/{Owner}/{Repo}/releases/tag/v{version}";
 
     private record GitHubRelease(
         [property: JsonPropertyName("tag_name")] string TagName,

@@ -1,15 +1,14 @@
 using System.Runtime.Versioning;
 using Serilog;
 using WireBound.Elevation.Linux;
+using WireBound.Platform.Abstract.Helpers;
 
 [assembly: SupportedOSPlatform("linux")]
 
 Log.Logger = new LoggerConfiguration()
     .MinimumLevel.Information()
     .WriteTo.File(
-        Path.Combine(
-            Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
-            "WireBound", "elevation.log"),
+        AppDataPaths.GetPath("elevation.log"),
         rollingInterval: RollingInterval.Day,
         retainedFileCountLimit: 3)
     .CreateLogger();

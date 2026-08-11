@@ -17,7 +17,7 @@ namespace WireBound.Platform.Abstract.Services;
 /// </para>
 /// <para>
 /// Returned paths are absolute file-system paths to PNG files written under
-/// <c>%LocalAppData%/WireBound/app-icons/</c> (or the platform equivalent).
+/// <c>%LocalAppData%/WireBoundData/app-icons/</c> (or the platform equivalent).
 /// Callers may load them via any standard image API.
 /// </para>
 /// </remarks>

@@ -19,8 +19,8 @@ This document describes how to build and publish WireBound releases.
 # Build with Velopack installer (requires vpk CLI)
 .\scripts\publish.ps1 -Version "1.0.0" -Velopack
 
-# Install vpk CLI
-dotnet tool install -g vpk
+# Restore the repository-pinned vpk CLI
+dotnet tool restore
 ```
 
 ### Creating a Release
@@ -58,8 +58,8 @@ You can trigger a release manually:
 
 | Format | Platform | File | Auto-Update |
 |--------|----------|------|-------------|
-| Velopack Installer | Windows x64 | `WireBound-Setup.exe` | ✅ In-app |
-| Velopack AppImage | Linux x64 | `WireBound.AppImage` | ✅ In-app |
+| Velopack Installer | Windows x64 | `WireBound-win-x64-Setup.exe` | ✅ In-app |
+| Velopack AppImage | Linux x64 | `WireBound-linux-x64.AppImage` | ✅ In-app |
 | Portable ZIP | Windows x64 | `WireBound-<ver>-win-x64.zip` | ❌ Check-and-notify |
 | Portable TAR.GZ | Linux x64 | `WireBound-<ver>-linux-x64.tar.gz` | ❌ Check-and-notify |
 
@@ -107,9 +107,11 @@ Versions are set in:
 
 ### Windows
 
-1. Download `WireBound-<version>-win-x64.zip`
-2. Extract to any folder
-3. Run `WireBound.exe`
+1. Download `WireBound-win-x64-Setup.exe` (recommended)
+2. Run Setup
+3. Use the in-app update card for future releases
+
+The `WireBound-<version>-win-x64.zip` archive is the portable alternative. Extract it and run `WireBound.exe`; portable builds require manual updates.
 
 ### Linux
 
@@ -158,6 +160,7 @@ sudo apt install libx11-6 libice6 libsm6
 - [ ] Update version numbers in project files
 - [ ] Update `CHANGELOG.md` with release notes
 - [ ] Test the build locally with `scripts/publish.ps1`
+- [ ] Confirm `scripts/test-velopack-package.ps1` passes for both runtime packages
 - [ ] Commit changes and create version tag
 - [ ] Verify GitHub Actions build succeeds for all platforms
 - [ ] Test downloaded artifacts on each platform

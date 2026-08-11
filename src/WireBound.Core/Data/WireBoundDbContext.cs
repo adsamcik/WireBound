@@ -1,6 +1,7 @@
 using System.Diagnostics.CodeAnalysis;
 using Microsoft.EntityFrameworkCore;
 using WireBound.Core.Models;
+using WireBound.Platform.Abstract.Helpers;
 
 namespace WireBound.Core.Data;
 
@@ -50,10 +51,7 @@ public sealed class WireBoundDbContext : DbContext
         if (optionsBuilder.IsConfigured)
             return;
 
-        var dbPath = Path.Combine(
-            Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
-            "WireBound",
-            "wirebound.db");
+        var dbPath = AppDataPaths.GetPath("wirebound.db");
 
         // Ensure directory exists
         var dbDirectory = Path.GetDirectoryName(dbPath)!;

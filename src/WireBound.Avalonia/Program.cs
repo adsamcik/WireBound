@@ -1,11 +1,14 @@
 using Avalonia;
+using LiveChartsCore.SkiaSharpView.Avalonia;
 using Serilog;
 using Serilog.Events;
 using System;
+using System.Runtime.InteropServices;
 using System.Runtime.Versioning;
 using System.Threading;
 using System.Threading.Tasks;
 using Velopack;
+using WireBound.Platform.Abstract.Helpers;
 using WireBound.Platform.Windows.Services;
 
 namespace WireBound.Avalonia;
@@ -13,6 +16,8 @@ namespace WireBound.Avalonia;
 class Program
 {
     private const string MutexName = "WireBound-SingleInstance-A3F8D2E1";
+    private const string StartupCheckArgument = "--startup-check";
+    private const uint ErrorMessageBox = 0x00000010;
 
     // Initialization code. Don't use any Avalonia, third-party APIs or any
     // SynchronizationContext-reliant code before AppMain is called: things aren't initialized
@@ -23,6 +28,10 @@ class Program
         // Velopack lifecycle hooks — MUST be the very first line.
         // Safe no-op when not installed via Velopack (portable/dev mode).
         var velopackApp = VelopackApp.Build()
+            .OnFirstRun(_ =>
+            {
+                Environment.SetEnvironmentVariable("WIREBOUND_FIRST_RUN", "1");
+            })
             .OnRestarted(v =>
             {
                 // Flag for showing What's New dialog after update restart
@@ -33,7 +42,7 @@ class Program
         // other platforms) — guard it so the CA1416 platform-compatibility analyzer is satisfied.
         if (OperatingSystem.IsWindows())
         {
-            velopackApp.OnBeforeUninstallFastCallback(_ => CleanupWindowsStartupArtifacts());
+            ConfigureWindowsVelopackHooks(velopackApp);
         }
 
         velopackApp.Run();
@@ -44,6 +53,15 @@ class Program
         // which is the realistic bypass of the IPC identity check.
         ProcessMitigations.ApplyEarly();
 
+        // Release validation executes this from the published output. Constructing
+        // the first chart catches binary incompatibilities between Avalonia and
+        // LiveCharts without opening a window or touching the user's data.
+        if (Array.Exists(args, arg => string.Equals(arg, StartupCheckArgument, StringComparison.OrdinalIgnoreCase)))
+        {
+            Environment.ExitCode = RunStartupCheck();
+            return;
+        }
+
         // Single-instance enforcement — exit immediately if another instance is running
         using var mutex = new Mutex(true, MutexName, out var createdNew);
         if (!createdNew)
@@ -53,9 +71,8 @@ class Program
         }
 
         // Configure Serilog early
-        var logPath = Path.Combine(
-            Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
-            "WireBound", "logs", "wirebound-.log");
+        AppDataPaths.MigrateLegacyPersistentData();
+        var logPath = AppDataPaths.GetPath("logs", "wirebound-.log");
 
         Log.Logger = new LoggerConfiguration()
 #if DEBUG
@@ -88,14 +105,60 @@ class Program
         catch (Exception ex)
         {
             Log.Fatal(ex, "Application crashed");
-            Console.Error.WriteLine($"FATAL: {ex}");
-            throw;
+            ReportFatalStartupError(ex, logPath);
+            Environment.ExitCode = 1;
         }
         finally
         {
             Log.CloseAndFlush();
         }
     }
+
+    private static int RunStartupCheck()
+    {
+        try
+        {
+            _ = new CartesianChart();
+            Console.Out.WriteLine("WireBound startup compatibility check passed.");
+            return 0;
+        }
+        catch (Exception ex)
+        {
+            Console.Error.WriteLine($"WireBound startup compatibility check failed: {ex}");
+            return 1;
+        }
+    }
+
+    private static void ReportFatalStartupError(Exception exception, string logPath)
+    {
+        var logDirectory = Path.GetDirectoryName(logPath) ?? logPath;
+        var message = $"WireBound couldn't start.\n\n{exception.GetType().Name}: {exception.Message}\n\n" +
+                      $"Details were written to the logs in:\n{logDirectory}";
+
+        Console.Error.WriteLine(message);
+
+        if (!OperatingSystem.IsWindows())
+        {
+            return;
+        }
+
+        try
+        {
+            ShowWindowsErrorMessage(message);
+        }
+        catch
+        {
+            // The log and stderr still contain the startup error if the native
+            // message box cannot be displayed (for example in a headless session).
+        }
+    }
+
+    [SupportedOSPlatform("windows")]
+    private static void ShowWindowsErrorMessage(string message) =>
+        _ = MessageBox(IntPtr.Zero, message, "WireBound couldn't start", ErrorMessageBox);
+
+    [DllImport("user32.dll", CharSet = CharSet.Unicode, SetLastError = true)]
+    private static extern int MessageBox(IntPtr windowHandle, string text, string caption, uint type);
 
     // Avalonia configuration, don't remove; also used by visual designer.
     public static AppBuilder BuildAvaloniaApp()
@@ -115,9 +178,18 @@ class Program
     /// so failures here are swallowed silently rather than logged.
     /// </remarks>
     [SupportedOSPlatform("windows")]
+    private static void ConfigureWindowsVelopackHooks(VelopackApp velopackApp)
+    {
+        velopackApp.OnBeforeUpdateFastCallback(_ => StopWindowsElevationHelper());
+        velopackApp.OnBeforeUninstallFastCallback(_ => CleanupWindowsStartupArtifacts());
+    }
+
+    [SupportedOSPlatform("windows")]
     private static void CleanupWindowsStartupArtifacts()
     {
         var startupService = new WindowsStartupService();
+
+        StopWindowsElevationHelper(startupService);
 
         // Each call is bounded well under Velopack's 30-second OnBeforeUninstallFastCallback
         // hard limit (after which it force-exits the process) — a slow/pending UAC prompt on
@@ -125,6 +197,18 @@ class Program
         RunWithTimeout(() => startupService.SetStartupEnabledAsync(false), TimeSpan.FromSeconds(5));
         RunWithTimeout(() => startupService.SetHelperStartupEnabledAsync(false), TimeSpan.FromSeconds(20));
     }
+
+    /// <summary>
+    /// Stops the scheduled elevated helper before Velopack replaces the current
+    /// application directory. Deleting a scheduled task alone does not reliably
+    /// release a currently running elevated process's file handles.
+    /// </summary>
+    [SupportedOSPlatform("windows")]
+    private static void StopWindowsElevationHelper() => StopWindowsElevationHelper(new WindowsStartupService());
+
+    [SupportedOSPlatform("windows")]
+    private static void StopWindowsElevationHelper(WindowsStartupService startupService) =>
+        RunWithTimeout(startupService.StopHelperStartupTaskAsync, TimeSpan.FromSeconds(5));
 
     private static void RunWithTimeout(Func<Task<bool>> action, TimeSpan timeout)
     {

@@ -1,13 +1,12 @@
 using Serilog;
 using WireBound.Helper;
+using WireBound.Platform.Abstract.Helpers;
 
 // Configure logging to a dedicated helper log file
 Log.Logger = new LoggerConfiguration()
     .MinimumLevel.Information()
     .WriteTo.File(
-        Path.Combine(
-            Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
-            "WireBound", "helper.log"),
+        AppDataPaths.GetPath("helper.log"),
         rollingInterval: RollingInterval.Day,
         retainedFileCountLimit: 3)
     .CreateLogger();

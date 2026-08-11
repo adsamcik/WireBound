@@ -3,6 +3,7 @@ using System.Security;
 using System.Security.AccessControl;
 using System.Security.Cryptography;
 using System.Security.Principal;
+using WireBound.Platform.Abstract.Helpers;
 
 namespace WireBound.IPC.Security;
 
@@ -17,13 +18,12 @@ public static class SecretManager
 
     /// <summary>
     /// Gets the platform-appropriate path for the secret file.
-    /// Windows: %LOCALAPPDATA%\WireBound\.elevation-secret
+    /// Windows: %LOCALAPPDATA%\WireBoundData\.elevation-secret
     /// Linux:   ~/.local/share/WireBound/.elevation-secret
     /// </summary>
     public static string GetSecretFilePath()
     {
-        var appData = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
-        return Path.Combine(appData, "WireBound", SecretFileName);
+        return AppDataPaths.GetPath(SecretFileName);
     }
 
     /// <summary>

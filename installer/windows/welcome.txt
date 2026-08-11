@@ -1,0 +1,5 @@
+Welcome to WireBound Setup
+
+WireBound is a privacy-focused network and system monitor. All monitoring history and settings stay on this computer.
+
+Setup installs WireBound for your Windows account and enables reliable in-app updates.

@@ -29,6 +29,12 @@ public interface IUpdateService
     /// Gets the currently installed application version.
     /// </summary>
     string CurrentVersion { get; }
+
+    /// <summary>
+    /// Gets an update that was already downloaded during a previous session and
+    /// only needs an application restart to be installed.
+    /// </summary>
+    UpdateCheckResult? PreparedUpdate { get; }
 }
 
 /// <summary>
@@ -39,4 +45,5 @@ public record UpdateCheckResult(
     string Version,
     string? ReleaseNotesUrl,
     DateTimeOffset? PublishedAt,
-    object? NativeUpdateInfo);
+    object? NativeUpdateInfo,
+    bool CanInstallInApp = false);

@@ -7,6 +7,37 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.9.1] - 2026-08-11
+
+### Added
+
+- **First-Install Welcome** - Installed builds now open with a concise privacy, elevation-helper, and update overview.
+- **Installer Validation** - CI and release builds validate the channel manifest, full package, platform launcher, main executable, and elevation helper before artifacts can be published.
+- **Published Startup Check** - CI, release builds, and local native-platform publishing construct a dashboard chart from the published executable to catch runtime dependency incompatibilities before packaging.
+- **Installation Guide** - Added user-facing clean-install, update, repair, v0.9.0 recovery, and uninstall guidance.
+
+### Changed
+
+- **Update Experience** - Settings now distinguishes checking, up-to-date, available, downloading, ready-to-install, manual-download, and failure states; prepared updates survive app restarts and settings are saved before installation.
+- **Branded Setup** - Windows Setup now includes WireBound metadata, icon, welcome text, repair/data-safety guidance, and a completion message. The Windows installer and Linux AppImage are the recommended release downloads.
+- **Reproducible Packaging** - The Velopack CLI is repository-pinned, Windows packages build on Windows, Linux packages build on Linux, and releases remain private drafts until both update channels upload successfully.
+
+### Fixed
+
+- **Installer/Data Directory Collision** - Persistent database, logs, icon cache, and elevation secret now live in `WireBoundData`, separate from Velopack's `WireBound` application directory. Legacy data is staged and copied without overwriting existing data.
+- **Update File Locks** - The elevated scheduled helper is explicitly stopped before Windows update and uninstall operations.
+- **Incomplete Release Successes** - Velopack pack, artifact, and upload failures are no longer ignored by local publishing or GitHub Actions.
+- **Missing Release Helper** - Release packages now contain the platform-specific `WireBound.Elevation` executable that the application actually launches instead of the legacy generic helper.
+- **Update Fallback State** - A GitHub release-page fallback can no longer be presented as an in-app installable update, and failed checks no longer display as "up to date."
+- **Avalonia/LiveCharts Compatibility** - Upgraded to Avalonia 12.1.1 together with the Avalonia-12-compatible LiveCharts 2.1 adapter, fixing the v0.9.0 startup crash caused by mixing Avalonia 12 with the Avalonia 11 chart adapter.
+- **Visible Startup Failures** - Fatal Windows startup errors now show an actionable message with the log location instead of silently disappearing.
+
+### Dependencies
+
+- Updated Microsoft/EF packages to 10.0.11, NSubstitute to 6.2.0, and TUnit to 1.64.13.
+- Updated Avalonia to 12.1.1 and LiveCharts to `2.1.0-dev-798`, the currently available Avalonia 12 adapter. LiveCharts remains prerelease until its stable 2.1 package is published.
+- Pinned `Tmds.DBus.Protocol` 0.94.2, avoiding the vulnerable transitive DBus version.
+
 ## [0.9.0] - 2026-08-10
 
 ### Added

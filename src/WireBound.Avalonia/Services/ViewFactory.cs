@@ -36,7 +36,7 @@ public sealed class ViewFactory : IViewFactory
     private Control CreateOverviewView()
     {
         var view = _serviceProvider.GetRequiredService<OverviewView>();
-        view.DataContext = _serviceProvider.GetRequiredService<OverviewViewModel>();
+        view.DataContext = _serviceProvider.GetRequiredService<DashboardViewModel>();
         return view;
     }
 

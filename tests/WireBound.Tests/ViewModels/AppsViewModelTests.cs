@@ -10,9 +10,8 @@ using WireBound.Tests.Fixtures;
 namespace WireBound.Tests.ViewModels;
 
 /// <summary>
-/// Tests the page-scoped live process monitor. The process sampler is deliberately
-/// pull-based, so the important contract here is that the Apps route is the only
-/// owner that requests snapshots.
+/// Tests the surface-scoped live process monitor. The process sampler is deliberately
+/// pull-based and runs only for the unified dashboard and Processes surfaces.
 /// </summary>
 public class AppsViewModelTests : IAsyncDisposable
 {
@@ -38,9 +37,10 @@ public class AppsViewModelTests : IAsyncDisposable
     }
 
     [Test]
-    public async Task Constructor_WhenRouteIsNotApps_DoesNotCaptureOrStartTimer()
+    public async Task Constructor_WhenRouteHasNoProcessSurface_DoesNotCaptureOrStartTimer()
     {
         // Arrange
+        _currentRoute = Routes.Connections;
         ConfigureCapture(CreateSnapshot(processId: 101, processName: "code"));
 
         // Act
@@ -81,6 +81,25 @@ public class AppsViewModelTests : IAsyncDisposable
     }
 
     [Test]
+    public async Task Constructor_WhenOverviewIsCurrent_CapturesDashboardContributors()
+    {
+        // Arrange
+        _currentRoute = Routes.Overview;
+        var captureStarted = ConfigureCaptureWithSignal(
+            CreateSnapshot(processId: 101, processName: "code", cpuPercent: 8.5, hasCpuSample: true));
+
+        // Act
+        var viewModel = CreateViewModel();
+        await captureStarted.Task.WaitAsync(TimeSpan.FromSeconds(1));
+        await Task.Yield();
+
+        // Assert
+        viewModel.IsPageActive.Should().BeTrue();
+        viewModel.ProcessItems.Should().ContainSingle();
+        await _processUsageService.Received(1).CaptureAsync(Arg.Any<CancellationToken>());
+    }
+
+    [Test]
     public async Task NavigationAway_CancelsInFlightCapture_AndStopsPeriodicCapture()
     {
         // Arrange
@@ -107,7 +126,7 @@ public class AppsViewModelTests : IAsyncDisposable
         await captureStarted.Task.WaitAsync(TimeSpan.FromSeconds(1));
 
         // Act
-        NavigateTo(Routes.Overview);
+        NavigateTo(Routes.Settings);
         await captureCancelled.Task.WaitAsync(TimeSpan.FromSeconds(1));
         await Task.Yield();
 
@@ -149,7 +168,7 @@ public class AppsViewModelTests : IAsyncDisposable
         await WaitUntilAsync(() => captureCount == 1);
 
         // Act
-        NavigateTo(Routes.Overview);
+        NavigateTo(Routes.Settings);
         NavigateTo(Routes.Apps);
         await secondCaptureStarted.Task.WaitAsync(TimeSpan.FromSeconds(1));
         await Task.Yield();
@@ -369,6 +388,7 @@ public class AppsViewModelTests : IAsyncDisposable
     public async Task Dispose_UnsubscribesFromNavigation_AndCannotRestartCapture()
     {
         // Arrange
+        _currentRoute = Routes.Connections;
         ConfigureCapture(CreateSnapshot(processId: 101, processName: "code"));
         var viewModel = CreateViewModel();
 

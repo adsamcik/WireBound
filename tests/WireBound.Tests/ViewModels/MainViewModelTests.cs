@@ -53,7 +53,7 @@ public class MainViewModelTests : IAsyncDisposable
         using var viewModel = CreateViewModel();
 
         // Assert
-        viewModel.NavigationItems.Should().HaveCount(7);
+        viewModel.NavigationItems.Should().HaveCount(3);
     }
 
     [Test]
@@ -66,12 +66,8 @@ public class MainViewModelTests : IAsyncDisposable
         var routes = viewModel.NavigationItems.Select(x => x.Route).ToList();
         routes.Should().Equal(
             Routes.Overview,
-            Routes.Charts,
             Routes.Apps,
-            Routes.Connections,
-            Routes.System,
-            Routes.History,
-            Routes.Settings);
+            Routes.Connections);
     }
 
     [Test]
@@ -146,16 +142,16 @@ public class MainViewModelTests : IAsyncDisposable
     {
         // Arrange
         using var viewModel = CreateViewModel();
-        var chartsItem = viewModel.NavigationItems.First(x => x.Route == Routes.Charts);
+        var processesItem = viewModel.NavigationItems.First(x => x.Route == Routes.Apps);
 
         // Clear received calls from constructor
         _navigationService.ClearReceivedCalls();
 
         // Act
-        viewModel.SelectedNavigationItem = chartsItem;
+        viewModel.SelectedNavigationItem = processesItem;
 
         // Assert
-        _navigationService.Received(1).NavigateTo(Routes.Charts);
+        _navigationService.Received(1).NavigateTo(Routes.Apps);
     }
 
     [Test]
@@ -213,6 +209,35 @@ public class MainViewModelTests : IAsyncDisposable
         // Assert
         viewModel.CurrentView.Should().Be(newView);
         _viewFactory.Received().CreateView(Routes.Settings);
+    }
+
+    [Test]
+    public void ResourceDrillDown_KeepsOverviewNavigationSelected()
+    {
+        using var viewModel = CreateViewModel();
+        _viewFactory.CreateView(Routes.System).Returns(Substitute.For<Control>());
+
+        _navigationService.NavigationChanged += Raise.Event<Action<string>>(Routes.System);
+
+        viewModel.IsOverviewSelected.Should().BeTrue();
+        viewModel.IsDashboardRoute.Should().BeFalse();
+        viewModel.SelectedNavigationItem.Should().NotBeNull();
+        viewModel.SelectedNavigationItem!.Route.Should().Be(Routes.Overview);
+    }
+
+    [Test]
+    public void UpdateBadge_MovesToTopBarAndClearsWhenSettingsOpens()
+    {
+        using var viewModel = CreateViewModel();
+        _viewFactory.CreateView(Routes.Settings).Returns(Substitute.For<Control>());
+
+        viewModel.Receive(new UpdateAvailableMessage("1.2.3"));
+        viewModel.SettingsHasBadge.Should().BeTrue();
+
+        _navigationService.NavigationChanged += Raise.Event<Action<string>>(Routes.Settings);
+
+        viewModel.SettingsHasBadge.Should().BeFalse();
+        viewModel.IsSettingsSelected.Should().BeTrue();
     }
 
     [Test]

@@ -348,6 +348,7 @@ public partial class App : Application
 
         // Register ViewModels
         services.AddSingleton<MainViewModel>();
+        services.AddSingleton<DashboardViewModel>();
         services.AddSingleton<OverviewViewModel>();
         services.AddSingleton<ChartsViewModel>();
         services.AddSingleton<SettingsViewModel>();
@@ -423,9 +424,8 @@ public partial class App : Application
             await pollingService.StartAsync(CancellationToken.None);
             Log.Information("Background polling service started");
 
-            // AppsViewModel is deliberately resolved lazily by ViewFactory.
-            // Its process sampler is page-scoped, so constructing it here would
-            // enumerate every process even when the user never opens Apps.
+            // Process sampling is owned by AppsViewModel and is activated only
+            // while the unified dashboard or Processes page is visible.
         }
         catch (Exception ex)
         {

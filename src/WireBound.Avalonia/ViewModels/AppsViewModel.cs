@@ -10,10 +10,9 @@ using WireBound.Core.Services;
 namespace WireBound.Avalonia.ViewModels;
 
 /// <summary>
-/// Page-scoped Task Manager-style monitor for currently running processes.
-/// The timer is disabled until the Apps route is visible and is stopped as
-/// soon as the user navigates away, so process enumeration never becomes an
-/// always-on application cost.
+/// Task Manager-style monitor for currently running processes. Sampling is
+/// active while either the unified dashboard or the full Processes page is
+/// visible, and stops for every other route.
 /// </summary>
 public sealed partial class AppsViewModel : ObservableObject, IDisposable
 {
@@ -112,7 +111,7 @@ public sealed partial class AppsViewModel : ObservableObject, IDisposable
         _navigationService = navigationService;
         _logger = logger;
 
-        IsPageActive = _navigationService.CurrentView == Routes.Apps;
+        IsPageActive = IsProcessSurface(_navigationService.CurrentView);
         _refreshTimer = (timeProvider ?? TimeProvider.System).CreateTimer(
             static state => ((AppsViewModel)state!).OnRefreshTimerTick(),
             this,
@@ -125,7 +124,7 @@ public sealed partial class AppsViewModel : ObservableObject, IDisposable
 
     private void OnNavigationChanged(string route)
     {
-        var shouldBeActive = route == Routes.Apps;
+        var shouldBeActive = IsProcessSurface(route);
         if (shouldBeActive == IsPageActive)
         {
             return;
@@ -162,6 +161,26 @@ public sealed partial class AppsViewModel : ObservableObject, IDisposable
         // the route is active.
         return RequestRefreshAsync();
     }
+
+    /// <summary>
+    /// Applies a deterministic resource sort for dashboard contributor lists
+    /// without emulating repeated header clicks.
+    /// </summary>
+    public void SetSort(ProcessUsageSortColumn column, bool descending)
+    {
+        if (_disposed)
+        {
+            return;
+        }
+
+        SortColumn = column;
+        SortDescending = descending;
+        NotifySortGlyphsChanged();
+        RebuildVisibleItems();
+    }
+
+    private static bool IsProcessSurface(string route) =>
+        route is Routes.Overview or Routes.Apps;
 
     private void Deactivate()
     {

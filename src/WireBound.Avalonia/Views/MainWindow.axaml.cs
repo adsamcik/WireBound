@@ -4,7 +4,7 @@ namespace WireBound.Avalonia.Views;
 
 public partial class MainWindow : Window
 {
-    private bool _isNavCollapsed;
+    private bool _usesCompactViewControls;
 
     public MainWindow()
     {
@@ -14,25 +14,18 @@ public partial class MainWindow : Window
 
     private void OnSizeChanged(object? sender, SizeChangedEventArgs e)
     {
-        var shouldCollapse = e.NewSize.Width < 1200;
-        if (shouldCollapse == _isNavCollapsed) return;
-        _isNavCollapsed = shouldCollapse;
+        var useCompactControls = e.NewSize.Width < 1120;
+        if (useCompactControls == _usesCompactViewControls) return;
+        _usesCompactViewControls = useCompactControls;
 
-        var rootGrid = this.FindControl<Grid>("RootGrid");
-        if (rootGrid is null || rootGrid.ColumnDefinitions.Count == 0) return;
+        if (this.FindControl<StackPanel>("ExpandedFilterControls") is { } expanded)
+        {
+            expanded.IsVisible = !useCompactControls;
+        }
 
-        rootGrid.ColumnDefinitions[0].Width = shouldCollapse
-            ? new GridLength(64)
-            : new GridLength(240);
-
-        SetNavElementVisibility(!shouldCollapse);
-    }
-
-    private void SetNavElementVisibility(bool visible)
-    {
-        if (this.FindControl<TextBlock>("StatusText") is { } status)
-            status.IsVisible = visible;
-        if (this.FindControl<TextBlock>("VersionText") is { } version)
-            version.IsVisible = visible;
+        if (this.FindControl<Button>("CompactViewButton") is { } compact)
+        {
+            compact.IsVisible = useCompactControls;
+        }
     }
 }

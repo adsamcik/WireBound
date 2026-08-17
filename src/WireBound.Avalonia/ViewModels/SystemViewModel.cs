@@ -38,7 +38,8 @@ public sealed partial class SystemViewModel : ObservableObject, IDisposable
     private CancellationTokenSource? _historicalLoadCts;
     private bool _disposed;
     private bool _isViewActive;
-    private const int MaxHistoryPoints = 60; // 1 minute of data at 1 point/second
+    private const int MaxBufferedHistoryPoints = 3600;
+    private int _liveWindowPointLimit = 60;
 
     // Buffer for system stats (keeps data even when view is not active)
     private readonly CircularBuffer<(DateTime Timestamp, double CpuPercent, double MemoryPercent, long DiskReadBps, long DiskWriteBps, double DiskActivityPercent)> _statsBuffer = new(3600);
@@ -293,7 +294,7 @@ public sealed partial class SystemViewModel : ObservableObject, IDisposable
         _systemSnapshotRepository = systemSnapshotRepository;
         _systemHistory = systemHistory;
         _logger = logger;
-        _isViewActive = navigationService.CurrentView == Routes.System;
+        _isViewActive = IsSystemSurface(navigationService.CurrentView);
 
         // Initialize default dates for historical analysis
         CustomEndDate = DateTimeOffset.Now;
@@ -342,7 +343,7 @@ public sealed partial class SystemViewModel : ObservableObject, IDisposable
     private void OnNavigationChanged(string route)
     {
         var wasActive = _isViewActive;
-        _isViewActive = route == Routes.System;
+        _isViewActive = IsSystemSurface(route);
 
         if (_isViewActive && !wasActive)
         {
@@ -381,7 +382,7 @@ public sealed partial class SystemViewModel : ObservableObject, IDisposable
     private void RefreshChartsFromBuffer()
     {
         var bufferData = _statsBuffer.ToArray();
-        var startIndex = Math.Max(0, bufferData.Length - MaxHistoryPoints);
+        var startIndex = Math.Max(0, bufferData.Length - _liveWindowPointLimit);
 
         var cpuPoints = new DateTimePoint[bufferData.Length - startIndex];
         var memPoints = new DateTimePoint[bufferData.Length - startIndex];
@@ -501,8 +502,24 @@ public sealed partial class SystemViewModel : ObservableObject, IDisposable
     {
         points.Add(new DateTimePoint(timestamp, value));
 
-        // Keep only the last MaxHistoryPoints
-        ChartCollectionHelper.TrimToMaxCount(points, MaxHistoryPoints);
+        // Keep only the points required by the selected dashboard window.
+        ChartCollectionHelper.TrimToMaxCount(points, _liveWindowPointLimit);
+    }
+
+    private static bool IsSystemSurface(string route) =>
+        route is Routes.Overview or Routes.System;
+
+    /// <summary>
+    /// Updates the live chart window while retaining the one-hour circular
+    /// buffer used to restore a longer range immediately.
+    /// </summary>
+    public void SetLiveWindow(TimeSpan window)
+    {
+        _liveWindowPointLimit = Math.Clamp(
+            (int)Math.Ceiling(window.TotalSeconds),
+            60,
+            MaxBufferedHistoryPoints);
+        _dispatcher.Post(RefreshChartsFromBuffer);
     }
 
     private static ISeries[] CreateLineSeries(

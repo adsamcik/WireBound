@@ -13,10 +13,10 @@
             <!-- Header -->
             <StackPanel Spacing="4">
                 <TextBlock Text="Settings" Classes="PageTitle" />
-                <TextBlock Text="Configure monitoring options" Classes="Subtitle" />
+                <TextBlock Text="Configure startup, monitoring, display, alerts, and data" Classes="Subtitle" />
             </StackPanel>
 
-            <!-- Network Settings -->
+            <!-- Network Monitoring -->
             <Border Classes="ElevatedCard">
                 <StackPanel Spacing="24">
                     
@@ -25,8 +25,8 @@
                             <controls:WbIcon IconKey="WbAdapterGeneric" Width="20" Height="20" />
                         </Border>
                         <StackPanel VerticalAlignment="Center">
-                            <TextBlock Text="Monitoring Settings" Classes="SectionHeader" />
-                            <TextBlock Text="Configure how network data is collected" Classes="Caption" />
+                            <TextBlock Text="Network Monitoring" Classes="SectionHeader" />
+                            <TextBlock Text="Choose what WireBound measures and how often" Classes="Caption" />
                         </StackPanel>
                     </StackPanel>
                     
@@ -133,7 +133,7 @@
                 </StackPanel>
             </Border>
 
-            <!-- Application Settings -->
+            <!-- Startup and Tray -->
             <Border Classes="ElevatedCard">
                 <StackPanel Spacing="24">
                     
@@ -142,27 +142,10 @@
                             <controls:WbIcon IconKey="WbEntityApp" Width="20" Height="20" />
                         </Border>
                         <StackPanel VerticalAlignment="Center">
-                            <TextBlock Text="Application Settings" Classes="SectionHeader" />
-                            <TextBlock Text="Startup and behavior options" Classes="Caption" />
+                            <TextBlock Text="Startup &amp; Tray" Classes="SectionHeader" />
+                            <TextBlock Text="Control launch behavior and background access" Classes="Caption" />
                         </StackPanel>
                     </StackPanel>
-                    
-                    <!-- Theme -->
-                    <Border Background="{StaticResource BorderSubtleBrush}" CornerRadius="12" Padding="16">
-                        <Grid ColumnDefinitions="*, Auto">
-                            <StackPanel Spacing="4">
-                                <TextBlock Text="Theme" Classes="CardTitle" />
-                                <TextBlock Text="Choose between dark, light, or system theme" Classes="Caption" />
-                            </StackPanel>
-                            <ComboBox Grid.Column="1"
-                                      ItemsSource="{Binding ThemeOptions}"
-                                      SelectedItem="{Binding SelectedTheme}"
-                                      MinWidth="140"
-                                      VerticalAlignment="Center"
-                                      AutomationProperties.Name="Theme selector"
-                                      AutomationProperties.HelpText="Choose the application color theme" />
-                        </Grid>
-                    </Border>
                     
                     <!-- Start with Windows -->
                     <Border Background="{StaticResource BorderSubtleBrush}" CornerRadius="12" Padding="16">
@@ -190,6 +173,21 @@
                                           VerticalAlignment="Center"
                                           AutomationProperties.Name="Start with Windows"
                                           AutomationProperties.HelpText="Launch WireBound automatically when Windows starts" />
+                        </Grid>
+                    </Border>
+
+                    <!-- Start Minimized -->
+                    <Border Background="{StaticResource BorderSubtleBrush}" CornerRadius="12" Padding="16">
+                        <Grid ColumnDefinitions="*, Auto">
+                            <StackPanel Spacing="4">
+                                <TextBlock Text="Start Minimized" Classes="CardTitle" />
+                                <TextBlock Text="Launch directly into the system tray" Classes="Caption" />
+                            </StackPanel>
+                            <ToggleSwitch Grid.Column="1"
+                                          IsChecked="{Binding StartMinimized}"
+                                          VerticalAlignment="Center"
+                                          AutomationProperties.Name="Start Minimized"
+                                          AutomationProperties.HelpText="Start the application minimized to the system tray" />
                         </Grid>
                     </Border>
                     
@@ -255,21 +253,22 @@
                         </Grid>
                     </Border>
 
-                    <!-- Start Minimized -->
-                    <Border Background="{StaticResource BorderSubtleBrush}" CornerRadius="12" Padding="16">
-                        <Grid ColumnDefinitions="*, Auto">
-                            <StackPanel Spacing="4">
-                                <TextBlock Text="Start Minimized" Classes="CardTitle" />
-                                <TextBlock Text="Start the application minimized to system tray" Classes="Caption" />
-                            </StackPanel>
-                            <ToggleSwitch Grid.Column="1"
-                                          IsChecked="{Binding StartMinimized}"
-                                          VerticalAlignment="Center"
-                                          AutomationProperties.Name="Start Minimized"
-                                          AutomationProperties.HelpText="Start the application minimized to the system tray" />
-                        </Grid>
-                    </Border>
-                    
+                </StackPanel>
+            </Border>
+
+            <!-- Updates -->
+            <Border Classes="ElevatedCard">
+                <StackPanel Spacing="24">
+                    <StackPanel Orientation="Horizontal" Spacing="12">
+                        <Border Background="{StaticResource SuccessBgTintBrush}" CornerRadius="8" Width="40" Height="40">
+                            <controls:WbIcon IconKey="WbActionRefresh" Width="20" Height="20" />
+                        </Border>
+                        <StackPanel VerticalAlignment="Center">
+                            <TextBlock Text="Updates" Classes="SectionHeader" />
+                            <TextBlock Text="Check, download, and install new versions" Classes="Caption" />
+                        </StackPanel>
+                    </StackPanel>
+
                     <!-- Check for Updates -->
                     <Border Background="{StaticResource BorderSubtleBrush}" CornerRadius="12" Padding="16">
                         <Grid ColumnDefinitions="*, Auto">
@@ -407,7 +406,7 @@
                 </StackPanel>
             </Border>
 
-            <!-- Dashboard Customization -->
+            <!-- Appearance and Dashboard -->
             <Border Classes="ElevatedCard">
                 <StackPanel Spacing="24">
                     
@@ -416,10 +415,27 @@
                             <controls:WbIcon IconKey="WbMetricAnalytics" Width="20" Height="20" />
                         </Border>
                         <StackPanel VerticalAlignment="Center">
-                            <TextBlock Text="Dashboard Customization" Classes="SectionHeader" />
-                            <TextBlock Text="Customize dashboard appearance and behavior" Classes="Caption" />
+                            <TextBlock Text="Appearance &amp; Dashboard" Classes="SectionHeader" />
+                            <TextBlock Text="Choose the app theme and dashboard defaults" Classes="Caption" />
                         </StackPanel>
                     </StackPanel>
+
+                    <!-- Theme -->
+                    <Border Background="{StaticResource BorderSubtleBrush}" CornerRadius="12" Padding="16">
+                        <Grid ColumnDefinitions="*, Auto">
+                            <StackPanel Spacing="4">
+                                <TextBlock Text="Theme" Classes="CardTitle" />
+                                <TextBlock Text="Choose between dark, light, or system theme" Classes="Caption" />
+                            </StackPanel>
+                            <ComboBox Grid.Column="1"
+                                      ItemsSource="{Binding ThemeOptions}"
+                                      SelectedItem="{Binding SelectedTheme}"
+                                      MinWidth="140"
+                                      VerticalAlignment="Center"
+                                      AutomationProperties.Name="Theme selector"
+                                      AutomationProperties.HelpText="Choose the application color theme" />
+                        </Grid>
+                    </Border>
                     
                     <!-- Show System Metrics in Header -->
                     <Border Background="{StaticResource BorderSubtleBrush}" CornerRadius="12" Padding="16">
@@ -490,8 +506,8 @@
                             <controls:WbIcon IconKey="WbActionAuto" Width="20" Height="20" />
                         </Border>
                         <StackPanel VerticalAlignment="Center">
-                            <TextBlock Text="Performance" Classes="SectionHeader" />
-                            <TextBlock Text="Optimize application performance" Classes="Caption" />
+                            <TextBlock Text="Sampling &amp; Performance" Classes="SectionHeader" />
+                            <TextBlock Text="Balance chart responsiveness and resource use" Classes="Caption" />
                         </StackPanel>
                     </StackPanel>
                     
@@ -540,8 +556,8 @@
                             <controls:WbIcon IconKey="WbMetricInsight" Width="20" Height="20" />
                         </Border>
                         <StackPanel VerticalAlignment="Center">
-                            <TextBlock Text="Insights Page" Classes="SectionHeader" />
-                            <TextBlock Text="Configure insights and analytics display" Classes="Caption" />
+                            <TextBlock Text="Insights" Classes="SectionHeader" />
+                            <TextBlock Text="Choose the default analytics time period" Classes="Caption" />
                         </StackPanel>
                     </StackPanel>
                     

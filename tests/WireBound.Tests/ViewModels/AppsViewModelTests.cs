@@ -251,12 +251,18 @@ public class AppsViewModelTests : IAsyncDisposable
         // Assert - the total tracks the full snapshot and system processes can
         // be included for a complete Task Manager-style view.
         viewModel.ShowSystemProcesses.Should().BeTrue();
+        viewModel.IsAllProcessesScope.Should().BeTrue();
+        viewModel.IsUserProcessesScope.Should().BeFalse();
+        viewModel.HasActiveProcessFilter.Should().BeFalse();
         viewModel.ProcessItems.Select(item => item.ProcessId).Should().BeEquivalentTo(new[] { 4, 101, 202 });
 
         // Act
-        viewModel.ShowSystemProcesses = false;
+        viewModel.ShowUserProcessesCommand.Execute(null);
 
         // Assert
+        viewModel.IsAllProcessesScope.Should().BeFalse();
+        viewModel.IsUserProcessesScope.Should().BeTrue();
+        viewModel.HasActiveProcessFilter.Should().BeTrue();
         viewModel.ProcessItems.Select(item => item.ProcessId).Should().BeEquivalentTo(new[] { 101, 202 });
 
         // Act
@@ -265,6 +271,16 @@ public class AppsViewModelTests : IAsyncDisposable
         // Assert
         viewModel.ProcessItems.Should().ContainSingle();
         viewModel.ProcessItems[0].ProcessName.Should().Be("code");
+        viewModel.HasSearchText.Should().BeTrue();
+
+        // Act - the command bar can reset both controls without another capture.
+        viewModel.ClearSearchCommand.Execute(null);
+        viewModel.ShowAllProcessesCommand.Execute(null);
+
+        // Assert
+        viewModel.HasSearchText.Should().BeFalse();
+        viewModel.HasActiveProcessFilter.Should().BeFalse();
+        viewModel.ProcessItems.Select(item => item.ProcessId).Should().BeEquivalentTo(new[] { 4, 101, 202 });
         await _processUsageService.Received(1).CaptureAsync(Arg.Any<CancellationToken>());
     }
 
@@ -287,6 +303,8 @@ public class AppsViewModelTests : IAsyncDisposable
         // Assert
         viewModel.SortColumn.Should().Be(ProcessUsageSortColumn.Name);
         viewModel.SortDescending.Should().BeFalse();
+        viewModel.IsNameSort.Should().BeTrue();
+        viewModel.IsCpuSort.Should().BeFalse();
         viewModel.ProcessItems.Select(item => item.ProcessName)
             .Should().Equal("alpha", "bravo", "zulu");
 
@@ -296,6 +314,8 @@ public class AppsViewModelTests : IAsyncDisposable
         // Assert
         viewModel.SortColumn.Should().Be(ProcessUsageSortColumn.Download);
         viewModel.SortDescending.Should().BeTrue();
+        viewModel.IsNameSort.Should().BeFalse();
+        viewModel.IsDownloadSort.Should().BeTrue();
         viewModel.ProcessItems.Select(item => item.ProcessName)
             .Should().Equal("alpha", "bravo", "zulu");
     }

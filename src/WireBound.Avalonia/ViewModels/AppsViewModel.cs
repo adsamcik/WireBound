@@ -66,6 +66,14 @@ public sealed partial class AppsViewModel : ObservableObject, IDisposable
 
     public bool HasVisibleProcesses => VisibleProcessCount > 0;
 
+    public bool HasSearchText => !string.IsNullOrWhiteSpace(SearchText);
+
+    public bool HasActiveProcessFilter => HasSearchText || !ShowSystemProcesses;
+
+    public bool IsAllProcessesScope => ShowSystemProcesses;
+
+    public bool IsUserProcessesScope => !ShowSystemProcesses;
+
     [ObservableProperty]
     private string _totalCpu = "—";
 
@@ -98,6 +106,12 @@ public sealed partial class AppsViewModel : ObservableObject, IDisposable
     public string MemorySortGlyph => GetSortGlyph(ProcessUsageSortColumn.Memory);
     public string DownloadSortGlyph => GetSortGlyph(ProcessUsageSortColumn.Download);
     public string UploadSortGlyph => GetSortGlyph(ProcessUsageSortColumn.Upload);
+
+    public bool IsNameSort => SortColumn == ProcessUsageSortColumn.Name;
+    public bool IsCpuSort => SortColumn == ProcessUsageSortColumn.Cpu;
+    public bool IsMemorySort => SortColumn == ProcessUsageSortColumn.Memory;
+    public bool IsDownloadSort => SortColumn == ProcessUsageSortColumn.Download;
+    public bool IsUploadSort => SortColumn == ProcessUsageSortColumn.Upload;
 
     public AppsViewModel(
         IUiDispatcher dispatcher,
@@ -338,11 +352,32 @@ public sealed partial class AppsViewModel : ObservableObject, IDisposable
         RebuildVisibleItems();
     }
 
-    partial void OnSearchTextChanged(string value) => RebuildVisibleItems();
-    partial void OnShowSystemProcessesChanged(bool value) => RebuildVisibleItems();
+    partial void OnSearchTextChanged(string value)
+    {
+        OnPropertyChanged(nameof(HasSearchText));
+        OnPropertyChanged(nameof(HasActiveProcessFilter));
+        RebuildVisibleItems();
+    }
+
+    partial void OnShowSystemProcessesChanged(bool value)
+    {
+        OnPropertyChanged(nameof(IsAllProcessesScope));
+        OnPropertyChanged(nameof(IsUserProcessesScope));
+        OnPropertyChanged(nameof(HasActiveProcessFilter));
+        RebuildVisibleItems();
+    }
     partial void OnLastUpdatedChanged(DateTime? value) => OnPropertyChanged(nameof(LastUpdatedLabel));
     partial void OnCaptureErrorChanged(string? value) => OnPropertyChanged(nameof(LastUpdatedLabel));
     partial void OnVisibleProcessCountChanged(int value) => OnPropertyChanged(nameof(HasVisibleProcesses));
+
+    [RelayCommand]
+    private void ClearSearch() => SearchText = string.Empty;
+
+    [RelayCommand]
+    private void ShowAllProcesses() => ShowSystemProcesses = true;
+
+    [RelayCommand]
+    private void ShowUserProcesses() => ShowSystemProcesses = false;
 
     [RelayCommand]
     private void ToggleSort(ProcessUsageSortColumn column)
@@ -441,6 +476,11 @@ public sealed partial class AppsViewModel : ObservableObject, IDisposable
         OnPropertyChanged(nameof(MemorySortGlyph));
         OnPropertyChanged(nameof(DownloadSortGlyph));
         OnPropertyChanged(nameof(UploadSortGlyph));
+        OnPropertyChanged(nameof(IsNameSort));
+        OnPropertyChanged(nameof(IsCpuSort));
+        OnPropertyChanged(nameof(IsMemorySort));
+        OnPropertyChanged(nameof(IsDownloadSort));
+        OnPropertyChanged(nameof(IsUploadSort));
     }
 
     public void Dispose()

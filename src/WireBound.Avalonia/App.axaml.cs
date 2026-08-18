@@ -52,7 +52,7 @@ public partial class App : Application
         if (ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop)
         {
             // Create main window with navigation
-            var mainViewModel = _serviceProvider.GetRequiredService<MainViewModel>();
+            var mainViewModel = _serviceProvider!.GetRequiredService<MainViewModel>();
             var mainWindow = new MainWindow
             {
                 DataContext = mainViewModel
@@ -80,6 +80,20 @@ public partial class App : Application
         {
             // Ensure startup entry points to current executable (handles updates that change install path)
             await EnsureStartupPathUpdatedAsync();
+
+            // A missing or invalid helper auto-start registration is a user
+            // decision, not a launch-time elevation event. Surface the choice
+            // inside the app and never trigger UAC/pkexec from this check.
+            try
+            {
+                var mainViewModel = _serviceProvider!.GetRequiredService<MainViewModel>();
+                await mainViewModel.CheckHelperStartupConfigurationAsync();
+            }
+            catch (Exception ex)
+            {
+                // Configuration advice must never prevent monitoring startup.
+                Log.Warning(ex, "Could not evaluate helper auto-start configuration");
+            }
 
             // Try to silently connect to / start an existing auto-started helper.
             // This MUST run before the first per-process query but does not block
@@ -400,15 +414,6 @@ public partial class App : Application
                 Log.Warning("Failed to ensure startup path is updated");
             }
 
-            // Also update the helper startup path if registered
-            if (startupService.IsHelperStartupSupported)
-            {
-                var helperResult = await startupService.EnsureHelperStartupPathUpdatedAsync();
-                if (!helperResult)
-                {
-                    Log.Warning("Failed to ensure helper startup path is updated");
-                }
-            }
         }
         catch (Exception ex)
         {

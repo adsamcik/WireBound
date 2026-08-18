@@ -90,6 +90,13 @@ public class AppSettings
     public bool StartHelperWithSystem { get; set; } = false;
 
     /// <summary>
+    /// Whether the user has already been shown the in-app decision for the
+    /// current missing or invalid helper auto-start registration. This avoids
+    /// repeating setup prompts on every launch.
+    /// </summary>
+    public bool HelperStartupIssuePrompted { get; set; } = false;
+
+    /// <summary>
     /// Number of days to retain per-app usage data (0 = indefinite)
     /// </summary>
     public int AppDataRetentionDays { get; set; } = 0;

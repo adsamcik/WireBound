@@ -2,7 +2,9 @@ using Avalonia.Controls;
 using WireBound.Avalonia.Services;
 using WireBound.Avalonia.ViewModels;
 using WireBound.Core;
+using WireBound.Core.Models;
 using WireBound.Core.Services;
+using WireBound.Platform.Abstract.Services;
 
 namespace WireBound.Tests.ViewModels;
 
@@ -15,6 +17,9 @@ public class MainViewModelTests : IAsyncDisposable
     private readonly IViewFactory _viewFactory;
     private readonly INetworkMonitorService _networkMonitor;
     private readonly ITrayIconService _trayIconService;
+    private readonly IStartupService _startupService;
+    private readonly ISettingsRepository _settingsRepository;
+    private readonly IHelperProcessManager _helperProcessManager;
     private readonly List<MainViewModel> _createdViewModels = [];
 
     public MainViewModelTests()
@@ -23,6 +28,9 @@ public class MainViewModelTests : IAsyncDisposable
         _viewFactory = Substitute.For<IViewFactory>();
         _networkMonitor = Substitute.For<INetworkMonitorService>();
         _trayIconService = Substitute.For<ITrayIconService>();
+        _startupService = Substitute.For<IStartupService>();
+        _settingsRepository = Substitute.For<ISettingsRepository>();
+        _helperProcessManager = Substitute.For<IHelperProcessManager>();
 
         SetupDefaultMocks();
     }
@@ -31,6 +39,8 @@ public class MainViewModelTests : IAsyncDisposable
     {
         // Setup view factory to return a substitute control as the view
         _viewFactory.CreateView(Arg.Any<string>()).Returns(args => Substitute.For<Control>());
+        _settingsRepository.GetSettingsAsync().Returns(new AppSettings());
+        _helperProcessManager.ValidateRegistrationAsync().Returns(HelperValidationResult.Valid());
     }
 
     private MainViewModel CreateViewModel()
@@ -39,7 +49,10 @@ public class MainViewModelTests : IAsyncDisposable
             _navigationService,
             _viewFactory,
             _networkMonitor,
-            _trayIconService);
+            _trayIconService,
+            _startupService,
+            _settingsRepository,
+            _helperProcessManager);
         _createdViewModels.Add(vm);
         return vm;
     }
@@ -131,6 +144,80 @@ public class MainViewModelTests : IAsyncDisposable
         // Assert
         viewModel.Version.Should().StartWith("v");
         viewModel.Version.Should().NotContain("+"); // Should not contain metadata
+    }
+
+    #endregion
+
+    #region Helper Startup Decision Tests
+
+    [Test]
+    public async Task HelperStartupCheck_WhenRegistrationIsMissing_ShowsOneTimeInAppDecision()
+    {
+        var settings = new AppSettings { StartHelperWithSystem = true };
+        _startupService.IsHelperStartupSupported.Returns(true);
+        _startupService.IsHelperStartupEnabledAsync().Returns(false);
+        _settingsRepository.GetSettingsAsync().Returns(settings);
+        using var viewModel = CreateViewModel();
+
+        await viewModel.CheckHelperStartupConfigurationAsync();
+
+        viewModel.IsHelperStartupDecisionVisible.Should().BeTrue();
+        settings.HelperStartupIssuePrompted.Should().BeTrue();
+        await _startupService.DidNotReceive().SetHelperStartupEnabledAsync(Arg.Any<bool>());
+    }
+
+    [Test]
+    public async Task HelperStartupCheck_WhenIssueWasAlreadyShown_StaysQuiet()
+    {
+        _startupService.IsHelperStartupSupported.Returns(true);
+        _startupService.IsHelperStartupEnabledAsync().Returns(false);
+        _settingsRepository.GetSettingsAsync().Returns(new AppSettings
+        {
+            StartHelperWithSystem = true,
+            HelperStartupIssuePrompted = true
+        });
+        using var viewModel = CreateViewModel();
+
+        await viewModel.CheckHelperStartupConfigurationAsync();
+
+        viewModel.IsHelperStartupDecisionVisible.Should().BeFalse();
+    }
+
+    [Test]
+    public async Task SetUpHelperStartup_OnlyElevatesAfterExplicitInAppAction()
+    {
+        var settings = new AppSettings { StartHelperWithSystem = true };
+        _startupService.IsHelperStartupSupported.Returns(true);
+        _startupService.IsHelperStartupEnabledAsync().Returns(false);
+        _startupService.SetHelperStartupEnabledAsync(true).Returns(true);
+        _settingsRepository.GetSettingsAsync().Returns(settings);
+        using var viewModel = CreateViewModel();
+        await viewModel.CheckHelperStartupConfigurationAsync();
+
+        await viewModel.SetUpHelperStartupCommand.ExecuteAsync(null);
+
+        await _startupService.Received(1).SetHelperStartupEnabledAsync(true);
+        settings.StartHelperWithSystem.Should().BeTrue();
+        settings.HelperStartupIssuePrompted.Should().BeFalse();
+        viewModel.IsHelperStartupDecisionVisible.Should().BeFalse();
+    }
+
+    [Test]
+    public async Task DisableHelperStartup_WhenRegistrationIsMissing_DoesNotRequestElevation()
+    {
+        var settings = new AppSettings { StartHelperWithSystem = true };
+        _startupService.IsHelperStartupSupported.Returns(true);
+        _startupService.IsHelperStartupEnabledAsync().Returns(false);
+        _settingsRepository.GetSettingsAsync().Returns(settings);
+        using var viewModel = CreateViewModel();
+        await viewModel.CheckHelperStartupConfigurationAsync();
+
+        await viewModel.DisableHelperStartupCommand.ExecuteAsync(null);
+
+        await _startupService.DidNotReceive().SetHelperStartupEnabledAsync(false);
+        settings.StartHelperWithSystem.Should().BeFalse();
+        settings.HelperStartupIssuePrompted.Should().BeFalse();
+        viewModel.IsHelperStartupDecisionVisible.Should().BeFalse();
     }
 
     #endregion

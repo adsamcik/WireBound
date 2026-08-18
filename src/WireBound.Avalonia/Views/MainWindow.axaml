@@ -18,28 +18,22 @@
     </Design.DataContext>
 
     <Window.Styles>
-        <Style Selector="Border.BottomNavCard">
-            <Setter Property="MinWidth" Value="132" />
-            <Setter Property="Height" Value="58" />
-            <Setter Property="Background" Value="{StaticResource RailBackgroundBrush}" />
+        <Style Selector="Button.HeaderNavCard">
+            <Setter Property="MinWidth" Value="122" />
+            <Setter Property="Height" Value="42" />
+            <Setter Property="Padding" Value="14,9" />
+            <Setter Property="Background" Value="Transparent" />
             <Setter Property="BorderBrush" Value="{StaticResource BorderBrush}" />
             <Setter Property="BorderThickness" Value="1" />
-            <Setter Property="CornerRadius" Value="9" />
-            <Setter Property="BoxShadow" Value="0 4 14 0 #40000000" />
-        </Style>
-        <Style Selector="Border.BottomNavCard.selected">
-            <Setter Property="Background" Value="{StaticResource SelectionBgBrush}" />
-            <Setter Property="BorderBrush" Value="{StaticResource DownloadBrush}" />
-        </Style>
-        <Style Selector="Border.BottomNavCard Button">
-            <Setter Property="Background" Value="Transparent" />
-            <Setter Property="BorderThickness" Value="0" />
-            <Setter Property="CornerRadius" Value="9" />
-            <Setter Property="Padding" Value="16,11" />
+            <Setter Property="CornerRadius" Value="8" />
             <Setter Property="HorizontalContentAlignment" Value="Center" />
         </Style>
-        <Style Selector="Border.BottomNavCard Button:pointerover /template/ ContentPresenter">
+        <Style Selector="Button.HeaderNavCard:pointerover /template/ ContentPresenter">
             <Setter Property="Background" Value="{StaticResource FlyoutItemHoverColor}" />
+        </Style>
+        <Style Selector="Button.HeaderNavCard.selected /template/ ContentPresenter">
+            <Setter Property="Background" Value="{StaticResource SelectionBgBrush}" />
+            <Setter Property="BorderBrush" Value="{StaticResource DownloadBrush}" />
         </Style>
         <Style Selector="Button.HeaderAction">
             <Setter Property="Width" Value="40" />
@@ -63,18 +57,37 @@
                 BorderBrush="{StaticResource BorderBrush}"
                 BorderThickness="0,0,0,1">
             <Grid Margin="22,0" ColumnDefinitions="Auto,*,Auto" ColumnSpacing="16">
-                <StackPanel Orientation="Horizontal" Spacing="12" VerticalAlignment="Center">
-                    <Border Width="34" Height="34"
-                            Background="{StaticResource DownloadBgTintBrush}"
-                            BorderBrush="{StaticResource DownloadBrush}"
-                            BorderThickness="1"
-                            CornerRadius="8">
-                        <controls:WbIcon IconKey="WbBrandWireBound" Width="22" Height="22" />
-                    </Border>
-                    <StackPanel VerticalAlignment="Center">
-                        <TextBlock Text="WireBound" FontSize="18" FontWeight="SemiBold" />
-                        <TextBlock Text="{Binding Version}" Classes="Caption" />
-                    </StackPanel>
+                <StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+                    <Button Classes="HeaderNavCard"
+                            Classes.selected="{Binding IsOverviewSelected}"
+                            Command="{Binding NavigateToCommand}"
+                            CommandParameter="{x:Static core:Routes.Overview}"
+                            AutomationProperties.Name="Open Overview">
+                        <StackPanel Orientation="Horizontal" Spacing="8">
+                            <controls:WbIcon IconKey="WbNavOverview" Width="18" Height="18" />
+                            <TextBlock Text="Overview" VerticalAlignment="Center" />
+                        </StackPanel>
+                    </Button>
+                    <Button Classes="HeaderNavCard"
+                            Classes.selected="{Binding IsProcessesSelected}"
+                            Command="{Binding NavigateToCommand}"
+                            CommandParameter="{x:Static core:Routes.Apps}"
+                            AutomationProperties.Name="Open Processes">
+                        <StackPanel Orientation="Horizontal" Spacing="8">
+                            <controls:WbIcon IconKey="WbNavApps" Width="18" Height="18" />
+                            <TextBlock Text="Processes" VerticalAlignment="Center" />
+                        </StackPanel>
+                    </Button>
+                    <Button Classes="HeaderNavCard"
+                            Classes.selected="{Binding IsConnectionsSelected}"
+                            Command="{Binding NavigateToCommand}"
+                            CommandParameter="{x:Static core:Routes.Connections}"
+                            AutomationProperties.Name="Open Connections">
+                        <StackPanel Orientation="Horizontal" Spacing="8">
+                            <controls:WbIcon IconKey="WbNavConnections" Width="18" Height="18" />
+                            <TextBlock Text="Connections" VerticalAlignment="Center" />
+                        </StackPanel>
+                    </Button>
                 </StackPanel>
 
                 <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="12" VerticalAlignment="Center">
@@ -163,49 +176,11 @@
                         AutomationProperties.HelpText="Displays the selected monitoring surface" />
 
         <Grid Grid.Row="3"
+              IsVisible="{Binding IsDashboardRoute}"
               Margin="24,10,24,16"
-              ColumnDefinitions="Auto,*,Auto"
+              ColumnDefinitions="*,Auto"
               ColumnSpacing="16">
-            <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="10">
-                <Border Classes="BottomNavCard"
-                        Classes.selected="{Binding IsOverviewSelected}">
-                    <Button Command="{Binding NavigateToCommand}"
-                            CommandParameter="{x:Static core:Routes.Overview}"
-                            AutomationProperties.Name="Open Overview">
-                        <StackPanel Orientation="Horizontal" Spacing="10">
-                            <controls:WbIcon IconKey="WbNavOverview" Width="21" Height="21" />
-                            <TextBlock Text="Overview" VerticalAlignment="Center" />
-                        </StackPanel>
-                    </Button>
-                </Border>
-
-                <Border Classes="BottomNavCard"
-                        Classes.selected="{Binding IsProcessesSelected}">
-                    <Button Command="{Binding NavigateToCommand}"
-                            CommandParameter="{x:Static core:Routes.Apps}"
-                            AutomationProperties.Name="Open Processes">
-                        <StackPanel Orientation="Horizontal" Spacing="10">
-                            <controls:WbIcon IconKey="WbNavApps" Width="21" Height="21" />
-                            <TextBlock Text="Processes" VerticalAlignment="Center" />
-                        </StackPanel>
-                    </Button>
-                </Border>
-
-                <Border Classes="BottomNavCard"
-                        Classes.selected="{Binding IsConnectionsSelected}">
-                    <Button Command="{Binding NavigateToCommand}"
-                            CommandParameter="{x:Static core:Routes.Connections}"
-                            AutomationProperties.Name="Open Connections">
-                        <StackPanel Orientation="Horizontal" Spacing="10">
-                            <controls:WbIcon IconKey="WbNavConnections" Width="21" Height="21" />
-                            <TextBlock Text="Connections" VerticalAlignment="Center" />
-                        </StackPanel>
-                    </Button>
-                </Border>
-            </StackPanel>
-
-            <Border Grid.Column="2"
-                    IsVisible="{Binding IsDashboardRoute}"
+            <Border Grid.Column="1"
                     Height="58"
                     Background="{StaticResource RailBackgroundBrush}"
                     BorderBrush="{StaticResource BorderBrush}"

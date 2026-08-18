@@ -14,7 +14,7 @@ public partial class OverviewView : UserControl
 
     private void OnSizeChanged(object? sender, SizeChangedEventArgs e)
     {
-        var shouldBeNarrow = e.NewSize.Width < 920;
+        var shouldBeNarrow = e.NewSize.Width < 1240;
         if (shouldBeNarrow == _isNarrow) return;
         _isNarrow = shouldBeNarrow;
 

@@ -146,11 +146,12 @@ a subtle edge, not a blue outline. Charts sit in a quieter nested chart well.
 Contributor entries are individual tonal row objects rather than divider-only
 spreadsheet rows.
 
-### Floating view toolbar
+### Contextual view toolbar
 
-Time range, signal, process scope, and contextual filters form a single floating
-toolbar. It stays anchored to the lower edge, uses a 22 px container, and groups
-controls by effect. Compact layouts collapse it to one clearly labeled action.
+Time range, signal, and process scope sit immediately above the chart they
+affect. Infrequent contextual choices, such as network adapter, open in a
+popover so they do not displace monitoring content. View controls never reserve
+a separate footer row.
 
 ### Process workspace
 
@@ -183,17 +184,20 @@ state and a separate direction glyph. Rows are 52 px and virtualized.
 ## Responsive behavior
 
 - Wide: activity and contributors are side by side at roughly 2.2:1.
-- Below 920 px: contributors move below the chart.
+- Below 1240 px: contributors move below the chart so controls and data keep
+  useful width.
 - Process and connection tables preserve a finite vertical viewport and share
   one horizontal scroll position between header and rows.
-- Floating controls collapse before content or data becomes illegible.
+- Contextual controls stay with the chart and wrap into the wider stacked layout
+  before content or data becomes illegible.
 
 ## Implementation sources
 
 - Colors and brushes: `src/WireBound.Avalonia/Styles/Colors.axaml`
 - Shared component styles: `src/WireBound.Avalonia/Styles/Styles.axaml`
 - Chart colors: `src/WireBound.Core/Helpers/ChartColors.cs`
-- Header and floating controls: `src/WireBound.Avalonia/Views/MainWindow.axaml`
+- Header navigation: `src/WireBound.Avalonia/Views/MainWindow.axaml`
+- Contextual view controls: `src/WireBound.Avalonia/Views/OverviewView.axaml`
 - Unified dashboard: `src/WireBound.Avalonia/Views/OverviewView.axaml`
 
 New components should use these tokens instead of embedding new hex values.

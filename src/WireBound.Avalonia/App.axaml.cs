@@ -61,8 +61,14 @@ public partial class App : Application
 
             desktop.ShutdownRequested += OnShutdownRequested;
 
+            // --show-window is a one-launch review/debug override. It keeps the
+            // saved StartMinimized preference intact while ensuring Avalonia owns
+            // the complete show/activate lifecycle for this window.
+            var forceWindowVisible = desktop.Args?.Any(arg =>
+                string.Equals(arg, "--show-window", StringComparison.OrdinalIgnoreCase)) == true;
+
             // Fire and forget async initialization - avoids blocking UI thread
-            _ = InitializeAsyncServicesAsync(mainWindow);
+            _ = InitializeAsyncServicesAsync(mainWindow, forceWindowVisible);
 
             Log.Information("WireBound Avalonia application started successfully");
         }
@@ -74,7 +80,7 @@ public partial class App : Application
     /// Handles all async initialization to avoid blocking the UI thread.
     /// Uses fire-and-forget pattern with proper error handling.
     /// </summary>
-    private async Task InitializeAsyncServicesAsync(MainWindow mainWindow)
+    private async Task InitializeAsyncServicesAsync(MainWindow mainWindow, bool forceWindowVisible)
     {
         try
         {
@@ -107,7 +113,7 @@ public partial class App : Application
             await ApplyThemeFromSettingsAsync();
 
             // Check if we should start minimized
-            await ApplyStartMinimizedSettingAsync(mainWindow);
+            await ApplyStartMinimizedSettingAsync(mainWindow, forceWindowVisible);
 
             // Start background services
             await StartBackgroundServicesAsync();
@@ -503,9 +509,15 @@ public partial class App : Application
         }
     }
 
-    private async Task ApplyStartMinimizedSettingAsync(MainWindow mainWindow)
+    private async Task ApplyStartMinimizedSettingAsync(MainWindow mainWindow, bool forceWindowVisible)
     {
         if (_serviceProvider is null) return;
+
+        if (forceWindowVisible)
+        {
+            Log.Information("Start-minimized preference bypassed for this launch");
+            return;
+        }
 
         try
         {

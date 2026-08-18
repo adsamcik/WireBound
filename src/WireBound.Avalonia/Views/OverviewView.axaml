@@ -56,11 +56,27 @@
             <Setter Property="Padding" Value="12,10" />
             <Setter Property="Margin" Value="0,0,0,8" />
         </Style>
+        <Style Selector="ComboBox.ViewControl">
+            <Setter Property="Height" Value="40" />
+            <Setter Property="MinHeight" Value="40" />
+            <Setter Property="Background" Value="{StaticResource SurfaceVariantBrush}" />
+            <Setter Property="BorderBrush" Value="{StaticResource GlassBorderBrush}" />
+            <Setter Property="CornerRadius" Value="12" />
+        </Style>
+        <Style Selector="Button.ViewControl">
+            <Setter Property="Height" Value="40" />
+            <Setter Property="MinHeight" Value="40" />
+            <Setter Property="Padding" Value="11,8" />
+            <Setter Property="Background" Value="{StaticResource SurfaceVariantBrush}" />
+            <Setter Property="BorderBrush" Value="{StaticResource GlassBorderBrush}" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="CornerRadius" Value="12" />
+        </Style>
     </UserControl.Styles>
 
     <ScrollViewer VerticalScrollBarVisibility="Auto"
                   HorizontalScrollBarVisibility="Disabled">
-    <Grid Margin="20" MinHeight="610" RowDefinitions="Auto,Auto,*" RowSpacing="14">
+    <Grid Margin="20" MinHeight="610" RowDefinitions="Auto,*" RowSpacing="14">
         <Border Grid.Row="0"
                 Background="{StaticResource SurfaceVariantBrush}"
                 BorderBrush="{StaticResource GlassBorderBrush}"
@@ -149,35 +165,8 @@
             </Grid>
         </Border>
 
-        <Border Grid.Row="1"
-                IsVisible="{Binding IsFilterPanelVisible}"
-                Background="{StaticResource SurfaceElevatedBrush}"
-                BorderBrush="{StaticResource GlassBorderBrush}"
-                BorderThickness="1"
-                CornerRadius="18"
-                Padding="12,8"
-                AutomationProperties.Name="Dashboard filters">
-            <Grid ColumnDefinitions="Auto,*" ColumnSpacing="12">
-                <TextBlock Text="Network adapter" FontWeight="SemiBold" VerticalAlignment="Center" />
-                <ComboBox Grid.Column="1"
-                          ItemsSource="{Binding Network.Adapters}"
-                          SelectedItem="{Binding Network.SelectedAdapter}"
-                          MinWidth="260"
-                          AutomationProperties.Name="Network adapter">
-                    <ComboBox.ItemTemplate>
-                        <DataTemplate x:DataType="vm:AdapterDisplayItem">
-                            <StackPanel Orientation="Horizontal" Spacing="8">
-                                <controls:WbIcon IconKey="{Binding TypeIconKey}" Width="15" Height="15" />
-                                <TextBlock Text="{Binding DisplayName}" />
-                            </StackPanel>
-                        </DataTemplate>
-                    </ComboBox.ItemTemplate>
-                </ComboBox>
-            </Grid>
-        </Border>
-
         <Grid x:Name="DashboardContentGrid"
-              Grid.Row="2"
+              Grid.Row="1"
               ColumnDefinitions="2.2*,*"
               RowDefinitions="*"
               ColumnSpacing="14">
@@ -189,7 +178,7 @@
                     CornerRadius="26"
                     Padding="22"
                     BoxShadow="0 10 28 0 #26000000">
-                <Grid RowDefinitions="Auto,*" RowSpacing="14">
+                <Grid RowDefinitions="Auto,Auto,*" RowSpacing="12">
                     <Grid Grid.Row="0" ColumnDefinitions="*,Auto" ColumnSpacing="16">
                         <StackPanel Spacing="4">
                             <TextBlock Text="LIVE ACTIVITY" Classes="MetricLabel" FontSize="10" Foreground="{StaticResource PrimaryBrush}" />
@@ -199,6 +188,7 @@
                         <Button Grid.Column="1"
                                 Classes="Ghost ToolbarButton"
                                 Command="{Binding OpenResourceDetailsCommand}"
+                                ToolTip.Tip="Open resource details"
                                 AutomationProperties.Name="Open focused resource details">
                             <StackPanel Orientation="Horizontal" Spacing="8">
                                 <controls:WbIcon IconKey="WbMetricAnalytics" Width="16" Height="16" />
@@ -207,7 +197,83 @@
                         </Button>
                     </Grid>
 
-                    <Border Grid.Row="1"
+                    <Grid Grid.Row="1" ColumnDefinitions="Auto,*,Auto" ColumnSpacing="12">
+                        <TextBlock Text="VIEW"
+                                   Classes="MetricLabel"
+                                   FontSize="10"
+                                   VerticalAlignment="Center" />
+                        <StackPanel Grid.Column="2"
+                                    Orientation="Horizontal"
+                                    Spacing="8"
+                                    AutomationProperties.Name="Chart view controls">
+                            <ComboBox Classes="ViewControl"
+                                      Width="84"
+                                      ItemsSource="{Binding TimeRangeOptions}"
+                                      SelectedItem="{Binding SelectedTimeRangeOption}"
+                                      ToolTip.Tip="Time range"
+                                      AutomationProperties.Name="Time range">
+                                <ComboBox.ItemTemplate>
+                                    <DataTemplate x:DataType="vm:TimeRangeDisplayItem">
+                                        <TextBlock Text="{Binding Label}" />
+                                    </DataTemplate>
+                                </ComboBox.ItemTemplate>
+                            </ComboBox>
+                            <ComboBox Classes="ViewControl"
+                                      Width="136"
+                                      IsVisible="{Binding HasSignalChoices}"
+                                      ItemsSource="{Binding SignalOptions}"
+                                      SelectedItem="{Binding SelectedSignal}"
+                                      ToolTip.Tip="Metric shown on the chart"
+                                      AutomationProperties.Name="Resource signal" />
+                            <ComboBox Classes="ViewControl"
+                                      Width="132"
+                                      IsVisible="{Binding HasProcessAttribution}"
+                                      ItemsSource="{Binding ProcessScopeOptions}"
+                                      SelectedItem="{Binding SelectedProcessScope}"
+                                      ToolTip.Tip="Processes included in attribution"
+                                      AutomationProperties.Name="Process scope" />
+                            <Button Classes="ViewControl"
+                                    IsVisible="{Binding HasContextFilters}"
+                                    ToolTip.Tip="Choose network adapter"
+                                    AutomationProperties.Name="Choose network adapter">
+                                <Button.Flyout>
+                                    <Flyout Placement="BottomEdgeAlignedRight">
+                                        <Border MinWidth="320"
+                                                Padding="14"
+                                                Background="{StaticResource SurfaceElevatedBrush}"
+                                                BorderBrush="{StaticResource GlassBorderBrush}"
+                                                BorderThickness="1"
+                                                CornerRadius="16">
+                                            <StackPanel Spacing="10">
+                                                <StackPanel Spacing="2">
+                                                    <TextBlock Text="Network adapter" FontWeight="SemiBold" />
+                                                    <TextBlock Text="Limit live activity to one interface." Classes="Caption" />
+                                                </StackPanel>
+                                                <ComboBox ItemsSource="{Binding Network.Adapters}"
+                                                          SelectedItem="{Binding Network.SelectedAdapter}"
+                                                          AutomationProperties.Name="Network adapter">
+                                                    <ComboBox.ItemTemplate>
+                                                        <DataTemplate x:DataType="vm:AdapterDisplayItem">
+                                                            <StackPanel Orientation="Horizontal" Spacing="8">
+                                                                <controls:WbIcon IconKey="{Binding TypeIconKey}" Width="15" Height="15" />
+                                                                <TextBlock Text="{Binding DisplayName}" />
+                                                            </StackPanel>
+                                                        </DataTemplate>
+                                                    </ComboBox.ItemTemplate>
+                                                </ComboBox>
+                                            </StackPanel>
+                                        </Border>
+                                    </Flyout>
+                                </Button.Flyout>
+                                <StackPanel Orientation="Horizontal" Spacing="7">
+                                    <controls:WbIcon IconKey="WbActionTune" Width="15" Height="15" />
+                                    <TextBlock Text="Adapter" />
+                                </StackPanel>
+                            </Button>
+                        </StackPanel>
+                    </Grid>
+
+                    <Border Grid.Row="2"
                             MinHeight="300"
                             Background="{StaticResource SurfaceVariantBrush}"
                             CornerRadius="20"
@@ -255,12 +321,32 @@
                     CornerRadius="26"
                     Padding="20"
                     BoxShadow="0 10 28 0 #26000000">
-                <Grid RowDefinitions="Auto,*,Auto" RowSpacing="12">
-                    <StackPanel Grid.Row="0" Spacing="4">
-                        <TextBlock Text="RESOURCE IMPACT" Classes="MetricLabel" FontSize="10" Foreground="{StaticResource PrimaryBrush}" />
-                        <TextBlock Text="{Binding ContributorsTitle}" FontSize="19" FontWeight="SemiBold" />
-                        <TextBlock Text="{Binding ContributorsSubtitle}" Classes="Caption" />
-                    </StackPanel>
+                <Grid RowDefinitions="Auto,*" RowSpacing="12">
+                    <Grid Grid.Row="0" ColumnDefinitions="*,Auto" ColumnSpacing="12">
+                        <StackPanel Spacing="4">
+                            <TextBlock Text="RESOURCE IMPACT" Classes="MetricLabel" FontSize="10" Foreground="{StaticResource PrimaryBrush}" />
+                            <TextBlock Text="{Binding ContributorsTitle}" FontSize="19" FontWeight="SemiBold" />
+                            <TextBlock Text="{Binding ContributorsSubtitle}" Classes="Caption" />
+                        </StackPanel>
+                        <Button Grid.Column="1"
+                                Classes="Ghost ToolbarButton"
+                                Command="{Binding OpenProcessesCommand}"
+                                IsVisible="{Binding !IsDiskFocus}"
+                                ToolTip.Tip="Open Processes sorted by this resource"
+                                AutomationProperties.Name="Open Processes sorted by focused resource">
+                            <StackPanel Orientation="Horizontal" Spacing="7">
+                                <controls:WbIcon IconKey="WbNavApps" Width="15" Height="15" />
+                                <TextBlock Text="View all" />
+                            </StackPanel>
+                        </Button>
+                        <Button Grid.Column="1"
+                                Classes="Ghost ToolbarButton"
+                                Command="{Binding OpenResourceDetailsCommand}"
+                                IsVisible="{Binding IsDiskFocus}"
+                                AutomationProperties.Name="Open Disk details">
+                            <TextBlock Text="View details" />
+                        </Button>
+                    </Grid>
 
                     <Grid Grid.Row="1">
                         <ListBox Classes="ContributorList"
@@ -343,27 +429,6 @@
                         </StackPanel>
                     </Grid>
 
-                    <Button Grid.Row="2"
-                            Classes="Secondary ToolbarButton"
-                            HorizontalAlignment="Stretch"
-                            HorizontalContentAlignment="Center"
-                            Command="{Binding OpenProcessesCommand}"
-                            IsVisible="{Binding !IsDiskFocus}"
-                            AutomationProperties.Name="Open Processes sorted by focused resource">
-                        <StackPanel Orientation="Horizontal" Spacing="8">
-                            <controls:WbIcon IconKey="WbNavApps" Width="16" Height="16" />
-                            <TextBlock Text="Open Processes" />
-                        </StackPanel>
-                    </Button>
-                    <Button Grid.Row="2"
-                            Classes="Secondary ToolbarButton"
-                            HorizontalAlignment="Stretch"
-                            HorizontalContentAlignment="Center"
-                            Command="{Binding OpenResourceDetailsCommand}"
-                            IsVisible="{Binding IsDiskFocus}"
-                            AutomationProperties.Name="Open Disk details">
-                        <TextBlock Text="Open Disk details" />
-                    </Button>
                 </Grid>
             </Border>
         </Grid>

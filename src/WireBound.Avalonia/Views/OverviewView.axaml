@@ -37,9 +37,6 @@
             <Setter Property="Background" Value="{StaticResource DiskBgTintBrush}" />
             <Setter Property="BorderBrush" Value="{StaticResource DiskBrush}" />
         </Style>
-        <Style Selector="Button.ResourceCard.automatic.active /template/ ContentPresenter">
-            <Setter Property="Background" Value="{StaticResource SelectionBgBrush}" />
-        </Style>
         <Style Selector="ListBox.ContributorList">
             <Setter Property="Background" Value="Transparent" />
             <Setter Property="BorderThickness" Value="0" />
@@ -64,23 +61,8 @@
                 CornerRadius="10"
                 Padding="6"
                 AutomationProperties.Name="Resource focus">
-            <Grid ColumnDefinitions="148,*,*,*,*" ColumnSpacing="6">
+            <Grid ColumnDefinitions="*,*,*,*" ColumnSpacing="6">
                 <Button Grid.Column="0"
-                        Classes="ResourceCard automatic"
-                        Classes.active="{Binding IsAutomaticFocus}"
-                        Command="{Binding EnableAutomaticFocusCommand}"
-                        AutomationProperties.Name="Choose resource automatically"
-                        AutomationProperties.HelpText="Focuses the resource that most needs attention">
-                    <StackPanel Orientation="Horizontal" Spacing="10" VerticalAlignment="Center">
-                        <controls:WbIcon IconKey="WbActionAuto" Width="20" Height="20" />
-                        <StackPanel>
-                            <TextBlock Text="Automatic" FontSize="14" FontWeight="SemiBold" />
-                            <TextBlock Text="Best signal" Classes="Caption" />
-                        </StackPanel>
-                    </StackPanel>
-                </Button>
-
-                <Button Grid.Column="1"
                         Classes="ResourceCard network"
                         Classes.selected="{Binding IsNetworkFocus}"
                         Command="{Binding SelectResourceCommand}"
@@ -98,7 +80,7 @@
                     </Grid>
                 </Button>
 
-                <Button Grid.Column="2"
+                <Button Grid.Column="1"
                         Classes="ResourceCard cpu"
                         Classes.selected="{Binding IsCpuFocus}"
                         Command="{Binding SelectResourceCommand}"
@@ -113,7 +95,7 @@
                     </Grid>
                 </Button>
 
-                <Button Grid.Column="3"
+                <Button Grid.Column="2"
                         Classes="ResourceCard memory"
                         Classes.selected="{Binding IsMemoryFocus}"
                         Command="{Binding SelectResourceCommand}"
@@ -123,16 +105,15 @@
                         <controls:WbIcon IconKey="WbEntityMemory" Width="26" Height="26" VerticalAlignment="Center" />
                         <StackPanel Grid.Column="1" Spacing="2">
                             <TextBlock Text="Memory" Foreground="{StaticResource MemoryBrush}" FontWeight="SemiBold" />
-                            <TextBlock Classes="Caption">
-                                <Run Text="{Binding System.MemoryUsed}" />
-                                <Run Text=" / " />
-                                <Run Text="{Binding System.MemoryTotal}" />
-                            </TextBlock>
+                            <StackPanel Orientation="Horizontal" Spacing="8">
+                                <TextBlock Text="{Binding System.MemoryUsageFormatted}" Classes="Caption" />
+                                <TextBlock Text="{Binding System.MemoryUsed, StringFormat='{}{0} used'}" Classes="Caption" />
+                            </StackPanel>
                         </StackPanel>
                     </Grid>
                 </Button>
 
-                <Button Grid.Column="4"
+                <Button Grid.Column="3"
                         Classes="ResourceCard disk"
                         Classes.selected="{Binding IsDiskFocus}"
                         Command="{Binding SelectResourceCommand}"
@@ -160,10 +141,9 @@
                 CornerRadius="8"
                 Padding="12,8"
                 AutomationProperties.Name="Dashboard filters">
-            <Grid ColumnDefinitions="Auto,Auto,*,Auto" ColumnSpacing="12">
-                <TextBlock Text="View filters" FontWeight="SemiBold" VerticalAlignment="Center" />
+            <Grid ColumnDefinitions="Auto,*" ColumnSpacing="12">
+                <TextBlock Text="Network adapter" FontWeight="SemiBold" VerticalAlignment="Center" />
                 <ComboBox Grid.Column="1"
-                          IsVisible="{Binding IsNetworkFocus}"
                           ItemsSource="{Binding Network.Adapters}"
                           SelectedItem="{Binding Network.SelectedAdapter}"
                           MinWidth="260"
@@ -177,11 +157,6 @@
                         </DataTemplate>
                     </ComboBox.ItemTemplate>
                 </ComboBox>
-                <CheckBox Grid.Column="3"
-                          Content="Include system processes"
-                          IsChecked="{Binding Processes.ShowSystemProcesses}"
-                          VerticalAlignment="Center"
-                          AutomationProperties.Name="Include system processes" />
             </Grid>
         </Border>
 
@@ -197,7 +172,7 @@
                     BorderThickness="1"
                     CornerRadius="10"
                     Padding="20">
-                <Grid RowDefinitions="Auto,*,Auto" RowSpacing="14">
+                <Grid RowDefinitions="Auto,*" RowSpacing="14">
                     <Grid Grid.Row="0" ColumnDefinitions="*,Auto" ColumnSpacing="16">
                         <StackPanel Spacing="4">
                             <TextBlock Text="{Binding FocusTitle}" FontSize="20" FontWeight="SemiBold" />
@@ -245,16 +220,6 @@
                                             AutomationProperties.Name="Disk activity chart" />
                     </Grid>
 
-                    <Border Grid.Row="2"
-                            BorderBrush="{StaticResource DividerBrush}"
-                            BorderThickness="0,1,0,0"
-                            Padding="0,12,0,0">
-                        <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="10">
-                            <Ellipse Width="8" Height="8" Fill="{StaticResource SuccessBrush}" VerticalAlignment="Center" />
-                            <TextBlock Grid.Column="1" Text="Live sampling" Classes="Caption" VerticalAlignment="Center" />
-                            <TextBlock Grid.Column="2" Text="{Binding CurrentMetric}" FontSize="13" FontWeight="SemiBold" VerticalAlignment="Center" />
-                        </Grid>
-                    </Border>
                 </Grid>
             </Border>
 
@@ -268,13 +233,14 @@
                 <Grid RowDefinitions="Auto,*,Auto" RowSpacing="12">
                     <StackPanel Grid.Row="0" Spacing="4">
                         <TextBlock Text="{Binding ContributorsTitle}" FontSize="17" FontWeight="SemiBold" />
-                        <TextBlock Text="Processes ranked by the focused signal" Classes="Caption" />
+                        <TextBlock Text="{Binding ContributorsSubtitle}" Classes="Caption" />
                     </StackPanel>
 
                     <Grid Grid.Row="1">
                         <ListBox Classes="ContributorList"
                                  IsVisible="{Binding IsNetworkFocus}"
-                                 ItemsSource="{Binding Processes.ProcessItems}"
+                                 ItemsSource="{Binding TopContributors}"
+                                 MaxHeight="330"
                                  AutomationProperties.Name="Processes using the most network bandwidth">
                             <ListBox.ItemTemplate>
                                 <DataTemplate x:DataType="vm:ProcessUsageDisplayItem">
@@ -296,7 +262,8 @@
 
                         <ListBox Classes="ContributorList"
                                  IsVisible="{Binding IsCpuFocus}"
-                                 ItemsSource="{Binding Processes.ProcessItems}"
+                                 ItemsSource="{Binding TopContributors}"
+                                 MaxHeight="330"
                                  AutomationProperties.Name="Processes using the most CPU">
                             <ListBox.ItemTemplate>
                                 <DataTemplate x:DataType="vm:ProcessUsageDisplayItem">
@@ -315,7 +282,8 @@
 
                         <ListBox Classes="ContributorList"
                                  IsVisible="{Binding IsMemoryFocus}"
-                                 ItemsSource="{Binding Processes.ProcessItems}"
+                                 ItemsSource="{Binding TopContributors}"
+                                 MaxHeight="330"
                                  AutomationProperties.Name="Processes using the most memory">
                             <ListBox.ItemTemplate>
                                 <DataTemplate x:DataType="vm:ProcessUsageDisplayItem">

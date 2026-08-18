@@ -1,4 +1,5 @@
 using System.Collections.ObjectModel;
+using System.Collections.Specialized;
 using System.ComponentModel;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
@@ -15,6 +16,7 @@ namespace WireBound.Avalonia.ViewModels;
 /// </summary>
 public sealed partial class DashboardViewModel : ObservableObject, IDisposable
 {
+    private const int DashboardContributorLimit = 5;
     private const string AllProcesses = "All processes";
     private const string UserProcesses = "User processes";
 
@@ -37,8 +39,8 @@ public sealed partial class DashboardViewModel : ObservableObject, IDisposable
         UpdateSignalOptions();
         ApplyProcessSort();
 
-        System.PropertyChanged += OnSystemPropertyChanged;
-        Network.PropertyChanged += OnNetworkPropertyChanged;
+        Processes.PropertyChanged += OnProcessesPropertyChanged;
+        Processes.ProcessItems.CollectionChanged += OnProcessItemsChanged;
     }
 
     public OverviewViewModel Network { get; }
@@ -56,9 +58,6 @@ public sealed partial class DashboardViewModel : ObservableObject, IDisposable
     private DashboardResource _selectedResource = DashboardResource.Network;
 
     [ObservableProperty]
-    private bool _isAutomaticFocus = true;
-
-    [ObservableProperty]
     private TimeRangeDisplayItem _selectedTimeRangeOption;
 
     [ObservableProperty]
@@ -74,6 +73,35 @@ public sealed partial class DashboardViewModel : ObservableObject, IDisposable
     public bool IsCpuFocus => SelectedResource == DashboardResource.Cpu;
     public bool IsMemoryFocus => SelectedResource == DashboardResource.Memory;
     public bool IsDiskFocus => SelectedResource == DashboardResource.Disk;
+    public bool HasSignalChoices => IsNetworkFocus || IsDiskFocus;
+    public bool HasContextFilters => IsNetworkFocus;
+    public bool HasProcessAttribution => !IsDiskFocus;
+
+    /// <summary>
+    /// Keeps the dashboard scannable. The full, searchable process inventory is
+    /// available from the Processes drill-down.
+    /// </summary>
+    public IReadOnlyList<ProcessUsageDisplayItem> TopContributors =>
+        Processes.ProcessItems.Take(DashboardContributorLimit).ToArray();
+
+    public string ContributorsSubtitle
+    {
+        get
+        {
+            if (Processes.IsLoading)
+            {
+                return "Collecting the first process sample…";
+            }
+
+            var count = Processes.VisibleProcessCount;
+            return count switch
+            {
+                0 => "No matching processes in the current scope",
+                <= DashboardContributorLimit => $"{count} active {(count == 1 ? "process" : "processes")}, ranked by this resource",
+                _ => $"Top {DashboardContributorLimit} of {count} processes right now"
+            };
+        }
+    }
 
     public string FocusTitle => SelectedResource switch
     {
@@ -99,14 +127,6 @@ public sealed partial class DashboardViewModel : ObservableObject, IDisposable
         _ => "Network consumers"
     };
 
-    public string CurrentMetric => SelectedResource switch
-    {
-        DashboardResource.Cpu => System.CpuUsageFormatted,
-        DashboardResource.Memory => $"{System.MemoryUsed} / {System.MemoryTotal}",
-        DashboardResource.Disk => $"↓ {System.DiskRead}  ↑ {System.DiskWrite}",
-        _ => $"↓ {Network.DownloadSpeed}  ↑ {Network.UploadSpeed}"
-    };
-
     public IEnumerable<ISeries> NetworkSeries => SelectedSignal switch
     {
         "Download" => Network.ChartSeries.Where(series => series.Name == "Download"),
@@ -124,15 +144,7 @@ public sealed partial class DashboardViewModel : ObservableObject, IDisposable
     [RelayCommand]
     private void SelectResource(DashboardResource resource)
     {
-        IsAutomaticFocus = false;
         SelectedResource = resource;
-    }
-
-    [RelayCommand]
-    private void EnableAutomaticFocus()
-    {
-        IsAutomaticFocus = true;
-        SelectAutomaticResource();
     }
 
     [RelayCommand]
@@ -152,6 +164,11 @@ public sealed partial class DashboardViewModel : ObservableObject, IDisposable
 
     partial void OnSelectedResourceChanged(DashboardResource value)
     {
+        if (!IsNetworkFocus)
+        {
+            IsFilterPanelVisible = false;
+        }
+
         UpdateSignalOptions();
         ApplyProcessSort();
         NotifyFocusProperties();
@@ -175,46 +192,17 @@ public sealed partial class DashboardViewModel : ObservableObject, IDisposable
         Processes.ShowSystemProcesses = value == AllProcesses;
     }
 
-    private void OnSystemPropertyChanged(object? sender, PropertyChangedEventArgs e)
+    private void OnProcessesPropertyChanged(object? sender, PropertyChangedEventArgs e)
     {
-        if (e.PropertyName is nameof(SystemViewModel.CpuUsageFormatted)
-            or nameof(SystemViewModel.MemoryUsed)
-            or nameof(SystemViewModel.MemoryTotal)
-            or nameof(SystemViewModel.DiskRead)
-            or nameof(SystemViewModel.DiskWrite))
+        if (e.PropertyName is nameof(AppsViewModel.VisibleProcessCount)
+            or nameof(AppsViewModel.IsLoading))
         {
-            OnPropertyChanged(nameof(CurrentMetric));
-        }
-
-        if (IsAutomaticFocus && e.PropertyName is nameof(SystemViewModel.CpuUsagePercent)
-            or nameof(SystemViewModel.MemoryUsagePercent)
-            or nameof(SystemViewModel.DiskActivityPercent))
-        {
-            SelectAutomaticResource();
+            OnPropertyChanged(nameof(ContributorsSubtitle));
         }
     }
 
-    private void OnNetworkPropertyChanged(object? sender, PropertyChangedEventArgs e)
-    {
-        if (e.PropertyName is nameof(OverviewViewModel.DownloadSpeed)
-            or nameof(OverviewViewModel.UploadSpeed))
-        {
-            OnPropertyChanged(nameof(CurrentMetric));
-        }
-    }
-
-    private void SelectAutomaticResource()
-    {
-        var next = System.MemoryUsagePercent >= 85
-            ? DashboardResource.Memory
-            : System.CpuUsagePercent >= 85
-                ? DashboardResource.Cpu
-                : System.DiskActivityPercent >= 85
-                    ? DashboardResource.Disk
-                    : DashboardResource.Network;
-
-        SelectedResource = next;
-    }
+    private void OnProcessItemsChanged(object? sender, NotifyCollectionChangedEventArgs e) =>
+        OnPropertyChanged(nameof(TopContributors));
 
     private void UpdateSignalOptions()
     {
@@ -254,10 +242,12 @@ public sealed partial class DashboardViewModel : ObservableObject, IDisposable
         OnPropertyChanged(nameof(IsCpuFocus));
         OnPropertyChanged(nameof(IsMemoryFocus));
         OnPropertyChanged(nameof(IsDiskFocus));
+        OnPropertyChanged(nameof(HasSignalChoices));
+        OnPropertyChanged(nameof(HasContextFilters));
+        OnPropertyChanged(nameof(HasProcessAttribution));
         OnPropertyChanged(nameof(FocusTitle));
         OnPropertyChanged(nameof(FocusSubtitle));
         OnPropertyChanged(nameof(ContributorsTitle));
-        OnPropertyChanged(nameof(CurrentMetric));
         OnPropertyChanged(nameof(NetworkSeries));
         OnPropertyChanged(nameof(DiskSeries));
     }
@@ -266,8 +256,8 @@ public sealed partial class DashboardViewModel : ObservableObject, IDisposable
     {
         if (_disposed) return;
         _disposed = true;
-        System.PropertyChanged -= OnSystemPropertyChanged;
-        Network.PropertyChanged -= OnNetworkPropertyChanged;
+        Processes.PropertyChanged -= OnProcessesPropertyChanged;
+        Processes.ProcessItems.CollectionChanged -= OnProcessItemsChanged;
     }
 }
 

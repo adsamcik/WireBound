@@ -186,20 +186,23 @@
                             </ComboBox.ItemTemplate>
                         </ComboBox>
                         <ComboBox Width="150"
+                                  IsVisible="{Binding Dashboard.HasSignalChoices}"
                                   ItemsSource="{Binding Dashboard.SignalOptions}"
                                   SelectedItem="{Binding Dashboard.SelectedSignal}"
                                   AutomationProperties.Name="Resource signal" />
                         <ComboBox Width="142"
+                                  IsVisible="{Binding Dashboard.HasProcessAttribution}"
                                   ItemsSource="{Binding Dashboard.ProcessScopeOptions}"
                                   SelectedItem="{Binding Dashboard.SelectedProcessScope}"
                                   AutomationProperties.Name="Process scope" />
                         <Button Classes="Secondary ToolbarButton"
+                                IsVisible="{Binding Dashboard.HasContextFilters}"
                                 Padding="12,8"
                                 Command="{Binding Dashboard.ToggleFiltersCommand}"
-                                AutomationProperties.Name="Toggle dashboard filters">
+                                AutomationProperties.Name="Choose network adapter">
                             <StackPanel Orientation="Horizontal" Spacing="7">
                                 <controls:WbIcon IconKey="WbActionTune" Width="15" Height="15" />
-                                <TextBlock Text="Filters" />
+                                <TextBlock Text="Adapter" />
                             </StackPanel>
                         </Button>
                     </StackPanel>

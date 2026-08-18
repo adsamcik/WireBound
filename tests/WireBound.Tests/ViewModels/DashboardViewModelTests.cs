@@ -47,24 +47,42 @@ public sealed class DashboardViewModelTests : IAsyncDisposable
 
         dashboard.SelectResourceCommand.Execute(DashboardResource.Memory);
 
-        dashboard.IsAutomaticFocus.Should().BeFalse();
         dashboard.IsMemoryFocus.Should().BeTrue();
         dashboard.FocusTitle.Should().Be("Memory activity");
         dashboard.SignalOptions.Should().Equal("Used memory");
+        dashboard.HasSignalChoices.Should().BeFalse();
         dashboard.Processes.SortColumn.Should().Be(ProcessUsageSortColumn.Memory);
         dashboard.Processes.SortDescending.Should().BeTrue();
     }
 
     [Test]
-    public void AutomaticFocus_SelectsResourceWithActionablePressure()
+    public void ResourceFocus_RemainsWhereTheUserPutIt_WhenPressureChanges()
     {
-        _systemMonitor.GetCurrentStats().Returns(CreateSystemStats(cpu: 30, memory: 91, disk: 20));
         var dashboard = CreateDashboard();
+        dashboard.SelectResourceCommand.Execute(DashboardResource.Cpu);
 
-        dashboard.EnableAutomaticFocusCommand.Execute(null);
+        _systemMonitor.StatsUpdated += Raise.Event<EventHandler<SystemStats>>(
+            this,
+            CreateSystemStats(cpu: 30, memory: 91, disk: 20));
 
-        dashboard.IsAutomaticFocus.Should().BeTrue();
-        dashboard.SelectedResource.Should().Be(DashboardResource.Memory);
+        dashboard.SelectedResource.Should().Be(DashboardResource.Cpu);
+    }
+
+    [Test]
+    public void TopContributors_IsCappedForTheDashboard()
+    {
+        var dashboard = CreateDashboard();
+        for (var index = 0; index < 8; index++)
+        {
+            dashboard.Processes.ProcessItems.Add(new ProcessUsageDisplayItem(new ProcessUsageSnapshot
+            {
+                ProcessId = index + 1,
+                ProcessName = $"process-{index + 1}",
+                WorkingSetBytes = 800 - index
+            }));
+        }
+
+        dashboard.TopContributors.Should().HaveCount(5);
     }
 
     [Test]

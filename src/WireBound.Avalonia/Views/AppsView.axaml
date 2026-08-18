@@ -4,7 +4,7 @@
              xmlns:vm="using:WireBound.Avalonia.ViewModels"
              x:Class="WireBound.Avalonia.Views.AppsView"
              x:DataType="vm:AppsViewModel"
-             Background="{StaticResource BackgroundBrush}"
+             Background="Transparent"
              AutomationProperties.Name="Processes">
 
     <UserControl.Styles>

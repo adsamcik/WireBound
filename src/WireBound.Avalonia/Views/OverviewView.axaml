@@ -5,18 +5,19 @@
              xmlns:controls="using:WireBound.Avalonia.Controls"
              x:Class="WireBound.Avalonia.Views.OverviewView"
              x:DataType="vm:DashboardViewModel"
-             Background="{StaticResource BackgroundBrush}"
+             Background="Transparent"
              AutomationProperties.Name="Unified resource dashboard">
 
     <UserControl.Styles>
         <Style Selector="Button.ResourceCard">
-            <Setter Property="MinHeight" Value="70" />
-            <Setter Property="Padding" Value="14,10" />
+            <Setter Property="MinHeight" Value="82" />
+            <Setter Property="Padding" Value="14,12" />
             <Setter Property="HorizontalContentAlignment" Value="Stretch" />
             <Setter Property="Background" Value="Transparent" />
             <Setter Property="BorderBrush" Value="Transparent" />
             <Setter Property="BorderThickness" Value="1" />
-            <Setter Property="CornerRadius" Value="8" />
+            <Setter Property="CornerRadius" Value="20" />
+            <Setter Property="Cursor" Value="Hand" />
         </Style>
         <Style Selector="Button.ResourceCard:pointerover /template/ ContentPresenter">
             <Setter Property="Background" Value="{StaticResource FlyoutItemHoverColor}" />
@@ -49,17 +50,24 @@
         <Style Selector="ListBox.ContributorList ListBoxItem /template/ ContentPresenter">
             <Setter Property="Background" Value="Transparent" />
         </Style>
+        <Style Selector="Border.ContributorRow">
+            <Setter Property="Background" Value="{StaticResource SurfaceVariantBrush}" />
+            <Setter Property="CornerRadius" Value="14" />
+            <Setter Property="Padding" Value="12,10" />
+            <Setter Property="Margin" Value="0,0,0,8" />
+        </Style>
     </UserControl.Styles>
 
     <ScrollViewer VerticalScrollBarVisibility="Auto"
                   HorizontalScrollBarVisibility="Disabled">
-    <Grid Margin="24" MinHeight="610" RowDefinitions="Auto,Auto,*" RowSpacing="16">
+    <Grid Margin="20" MinHeight="610" RowDefinitions="Auto,Auto,*" RowSpacing="14">
         <Border Grid.Row="0"
-                Background="{StaticResource RailBackgroundBrush}"
-                BorderBrush="{StaticResource BorderBrush}"
+                Background="{StaticResource SurfaceVariantBrush}"
+                BorderBrush="{StaticResource GlassBorderBrush}"
                 BorderThickness="1"
-                CornerRadius="10"
+                CornerRadius="26"
                 Padding="6"
+                BoxShadow="0 8 24 0 #22000000"
                 AutomationProperties.Name="Resource focus">
             <Grid ColumnDefinitions="*,*,*,*" ColumnSpacing="6">
                 <Button Grid.Column="0"
@@ -69,12 +77,14 @@
                         CommandParameter="{x:Static vm:DashboardResource.Network}"
                         AutomationProperties.Name="Focus Network resource">
                     <Grid ColumnDefinitions="Auto,*" ColumnSpacing="12">
-                        <controls:WbIcon IconKey="WbNavLive" Width="26" Height="26" VerticalAlignment="Center" />
+                        <Border Width="44" Height="44" CornerRadius="15" Background="{StaticResource DownloadBgTintBrush}">
+                            <controls:WbIcon IconKey="WbNavLive" Width="22" Height="22" VerticalAlignment="Center" />
+                        </Border>
                         <StackPanel Grid.Column="1" Spacing="2">
-                            <TextBlock Text="Network" Foreground="{StaticResource DownloadBrush}" FontWeight="SemiBold" />
+                            <TextBlock Text="Network" FontSize="15" FontWeight="SemiBold" />
                             <StackPanel Orientation="Horizontal" Spacing="8">
-                                <TextBlock Text="{Binding Network.DownloadSpeed, StringFormat='↓ {0}'}" Classes="Caption" />
-                                <TextBlock Text="{Binding Network.UploadSpeed, StringFormat='↑ {0}'}" Classes="Caption" />
+                                <TextBlock Text="{Binding Network.DownloadSpeed, StringFormat='↓ {0}'}" FontSize="12" Foreground="{StaticResource DownloadBrush}" />
+                                <TextBlock Text="{Binding Network.UploadSpeed, StringFormat='↑ {0}'}" FontSize="12" Foreground="{StaticResource UploadBrush}" />
                             </StackPanel>
                         </StackPanel>
                     </Grid>
@@ -87,10 +97,12 @@
                         CommandParameter="{x:Static vm:DashboardResource.Cpu}"
                         AutomationProperties.Name="Focus CPU resource">
                     <Grid ColumnDefinitions="Auto,*" ColumnSpacing="12">
-                        <controls:WbIcon IconKey="WbEntityCpu" Width="26" Height="26" VerticalAlignment="Center" />
+                        <Border Width="44" Height="44" CornerRadius="15" Background="{StaticResource CpuBgTintBrush}">
+                            <controls:WbIcon IconKey="WbEntityCpu" Width="22" Height="22" VerticalAlignment="Center" />
+                        </Border>
                         <StackPanel Grid.Column="1" Spacing="2">
-                            <TextBlock Text="CPU" Foreground="{StaticResource CpuBrush}" FontWeight="SemiBold" />
-                            <TextBlock Text="{Binding System.CpuUsageFormatted}" Classes="Caption" />
+                            <TextBlock Text="CPU" FontSize="15" FontWeight="SemiBold" />
+                            <TextBlock Text="{Binding System.CpuUsageFormatted}" FontSize="12" Foreground="{StaticResource CpuBrush}" />
                         </StackPanel>
                     </Grid>
                 </Button>
@@ -102,11 +114,13 @@
                         CommandParameter="{x:Static vm:DashboardResource.Memory}"
                         AutomationProperties.Name="Focus Memory resource">
                     <Grid ColumnDefinitions="Auto,*" ColumnSpacing="12">
-                        <controls:WbIcon IconKey="WbEntityMemory" Width="26" Height="26" VerticalAlignment="Center" />
+                        <Border Width="44" Height="44" CornerRadius="15" Background="{StaticResource MemoryBgTintBrush}">
+                            <controls:WbIcon IconKey="WbEntityMemory" Width="22" Height="22" VerticalAlignment="Center" />
+                        </Border>
                         <StackPanel Grid.Column="1" Spacing="2">
-                            <TextBlock Text="Memory" Foreground="{StaticResource MemoryBrush}" FontWeight="SemiBold" />
+                            <TextBlock Text="Memory" FontSize="15" FontWeight="SemiBold" />
                             <StackPanel Orientation="Horizontal" Spacing="8">
-                                <TextBlock Text="{Binding System.MemoryUsageFormatted}" Classes="Caption" />
+                                <TextBlock Text="{Binding System.MemoryUsageFormatted}" FontSize="12" Foreground="{StaticResource MemoryBrush}" />
                                 <TextBlock Text="{Binding System.MemoryUsed, StringFormat='{}{0} used'}" Classes="Caption" />
                             </StackPanel>
                         </StackPanel>
@@ -120,11 +134,13 @@
                         CommandParameter="{x:Static vm:DashboardResource.Disk}"
                         AutomationProperties.Name="Focus Disk resource">
                     <Grid ColumnDefinitions="Auto,*" ColumnSpacing="12">
-                        <controls:WbIcon IconKey="WbNavSystem" Tint="{StaticResource DiskBrush}" Width="26" Height="26" VerticalAlignment="Center" />
+                        <Border Width="44" Height="44" CornerRadius="15" Background="{StaticResource DiskBgTintBrush}">
+                            <controls:WbIcon IconKey="WbNavSystem" Tint="{StaticResource DiskBrush}" Width="22" Height="22" VerticalAlignment="Center" />
+                        </Border>
                         <StackPanel Grid.Column="1" Spacing="2">
-                            <TextBlock Text="Disk" Foreground="{StaticResource DiskBrush}" FontWeight="SemiBold" />
+                            <TextBlock Text="Disk" FontSize="15" FontWeight="SemiBold" />
                             <StackPanel Orientation="Horizontal" Spacing="8">
-                                <TextBlock Text="{Binding System.DiskRead, StringFormat='↓ {0}'}" Classes="Caption" />
+                                <TextBlock Text="{Binding System.DiskRead, StringFormat='↓ {0}'}" FontSize="12" Foreground="{StaticResource DiskBrush}" />
                                 <TextBlock Text="{Binding System.DiskWrite, StringFormat='↑ {0}'}" Classes="Caption" />
                             </StackPanel>
                         </StackPanel>
@@ -135,10 +151,10 @@
 
         <Border Grid.Row="1"
                 IsVisible="{Binding IsFilterPanelVisible}"
-                Background="{StaticResource RailBackgroundBrush}"
-                BorderBrush="{StaticResource BorderBrush}"
+                Background="{StaticResource SurfaceElevatedBrush}"
+                BorderBrush="{StaticResource GlassBorderBrush}"
                 BorderThickness="1"
-                CornerRadius="8"
+                CornerRadius="18"
                 Padding="12,8"
                 AutomationProperties.Name="Dashboard filters">
             <Grid ColumnDefinitions="Auto,*" ColumnSpacing="12">
@@ -167,19 +183,21 @@
               ColumnSpacing="14">
             <Border x:Name="ActivityPanel"
                     Grid.Column="0"
-                    Background="{StaticResource RailBackgroundBrush}"
-                    BorderBrush="{StaticResource BorderBrush}"
+                    Background="{StaticResource DashboardPanelBrush}"
+                    BorderBrush="{StaticResource GlassBorderBrush}"
                     BorderThickness="1"
-                    CornerRadius="10"
-                    Padding="20">
+                    CornerRadius="26"
+                    Padding="22"
+                    BoxShadow="0 10 28 0 #26000000">
                 <Grid RowDefinitions="Auto,*" RowSpacing="14">
                     <Grid Grid.Row="0" ColumnDefinitions="*,Auto" ColumnSpacing="16">
                         <StackPanel Spacing="4">
-                            <TextBlock Text="{Binding FocusTitle}" FontSize="20" FontWeight="SemiBold" />
+                            <TextBlock Text="LIVE ACTIVITY" Classes="MetricLabel" FontSize="10" Foreground="{StaticResource PrimaryBrush}" />
+                            <TextBlock Text="{Binding FocusTitle}" FontSize="22" FontWeight="SemiBold" />
                             <TextBlock Text="{Binding FocusSubtitle}" Classes="Subtitle" />
                         </StackPanel>
                         <Button Grid.Column="1"
-                                Classes="Secondary ToolbarButton"
+                                Classes="Ghost ToolbarButton"
                                 Command="{Binding OpenResourceDetailsCommand}"
                                 AutomationProperties.Name="Open focused resource details">
                             <StackPanel Orientation="Horizontal" Spacing="8">
@@ -189,7 +207,12 @@
                         </Button>
                     </Grid>
 
-                    <Grid Grid.Row="1" MinHeight="300">
+                    <Border Grid.Row="1"
+                            MinHeight="300"
+                            Background="{StaticResource SurfaceVariantBrush}"
+                            CornerRadius="20"
+                            Padding="8,14,8,4">
+                    <Grid>
                         <lvc:CartesianChart IsVisible="{Binding IsNetworkFocus}"
                                             Series="{Binding NetworkSeries}"
                                             XAxes="{Binding Network.ChartXAxes}"
@@ -201,14 +224,14 @@
                                             Series="{Binding System.CpuSeries}"
                                             XAxes="{Binding System.CpuXAxes}"
                                             YAxes="{Binding System.CpuYAxes}"
-                                            LegendPosition="Bottom"
+                                            LegendPosition="Hidden"
                                             AnimationsSpeed="0:0:0.15"
                                             AutomationProperties.Name="CPU activity chart" />
                         <lvc:CartesianChart IsVisible="{Binding IsMemoryFocus}"
                                             Series="{Binding System.MemorySeries}"
                                             XAxes="{Binding System.MemoryXAxes}"
                                             YAxes="{Binding System.MemoryYAxes}"
-                                            LegendPosition="Bottom"
+                                            LegendPosition="Hidden"
                                             AnimationsSpeed="0:0:0.15"
                                             AutomationProperties.Name="Memory activity chart" />
                         <lvc:CartesianChart IsVisible="{Binding IsDiskFocus}"
@@ -219,20 +242,23 @@
                                             AnimationsSpeed="0:0:0.15"
                                             AutomationProperties.Name="Disk activity chart" />
                     </Grid>
+                    </Border>
 
                 </Grid>
             </Border>
 
             <Border x:Name="CausePanel"
                     Grid.Column="1"
-                    Background="{StaticResource RailBackgroundBrush}"
-                    BorderBrush="{StaticResource BorderBrush}"
+                    Background="{StaticResource DashboardPanelBrush}"
+                    BorderBrush="{StaticResource GlassBorderBrush}"
                     BorderThickness="1"
-                    CornerRadius="10"
-                    Padding="18">
+                    CornerRadius="26"
+                    Padding="20"
+                    BoxShadow="0 10 28 0 #26000000">
                 <Grid RowDefinitions="Auto,*,Auto" RowSpacing="12">
                     <StackPanel Grid.Row="0" Spacing="4">
-                        <TextBlock Text="{Binding ContributorsTitle}" FontSize="17" FontWeight="SemiBold" />
+                        <TextBlock Text="RESOURCE IMPACT" Classes="MetricLabel" FontSize="10" Foreground="{StaticResource PrimaryBrush}" />
+                        <TextBlock Text="{Binding ContributorsTitle}" FontSize="19" FontWeight="SemiBold" />
                         <TextBlock Text="{Binding ContributorsSubtitle}" Classes="Caption" />
                     </StackPanel>
 
@@ -240,17 +266,19 @@
                         <ListBox Classes="ContributorList"
                                  IsVisible="{Binding IsNetworkFocus}"
                                  ItemsSource="{Binding TopContributors}"
-                                 MaxHeight="330"
                                  AutomationProperties.Name="Processes using the most network bandwidth">
                             <ListBox.ItemTemplate>
                                 <DataTemplate x:DataType="vm:ProcessUsageDisplayItem">
-                                    <Border BorderBrush="{StaticResource DividerBrush}" BorderThickness="0,0,0,1" Padding="4,11">
-                                        <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12">
-                                            <StackPanel>
+                                    <Border Classes="ContributorRow">
+                                        <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="10">
+                                            <Border Width="32" Height="32" CornerRadius="10" Background="{StaticResource DownloadBgTintBrush}" VerticalAlignment="Center">
+                                                <controls:WbIcon IconKey="WbEntityApp" Width="16" Height="16" />
+                                            </Border>
+                                            <StackPanel Grid.Column="1" VerticalAlignment="Center">
                                                 <TextBlock Text="{Binding DisplayName}" TextTrimming="CharacterEllipsis" FontWeight="SemiBold" />
                                                 <TextBlock Text="{Binding ProcessIdLabel}" Classes="Caption" />
                                             </StackPanel>
-                                            <StackPanel Grid.Column="1" HorizontalAlignment="Right">
+                                            <StackPanel Grid.Column="2" HorizontalAlignment="Right" VerticalAlignment="Center">
                                                 <TextBlock Text="{Binding DownloadDisplay, StringFormat='↓ {0}'}" Foreground="{StaticResource DownloadBrush}" HorizontalAlignment="Right" />
                                                 <TextBlock Text="{Binding UploadDisplay, StringFormat='↑ {0}'}" Foreground="{StaticResource UploadBrush}" HorizontalAlignment="Right" />
                                             </StackPanel>
@@ -263,17 +291,19 @@
                         <ListBox Classes="ContributorList"
                                  IsVisible="{Binding IsCpuFocus}"
                                  ItemsSource="{Binding TopContributors}"
-                                 MaxHeight="330"
                                  AutomationProperties.Name="Processes using the most CPU">
                             <ListBox.ItemTemplate>
                                 <DataTemplate x:DataType="vm:ProcessUsageDisplayItem">
-                                    <Border BorderBrush="{StaticResource DividerBrush}" BorderThickness="0,0,0,1" Padding="4,11">
-                                        <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12">
-                                            <StackPanel>
+                                    <Border Classes="ContributorRow">
+                                        <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="10">
+                                            <Border Width="32" Height="32" CornerRadius="10" Background="{StaticResource CpuBgTintBrush}" VerticalAlignment="Center">
+                                                <controls:WbIcon IconKey="WbEntityApp" Width="16" Height="16" />
+                                            </Border>
+                                            <StackPanel Grid.Column="1" VerticalAlignment="Center">
                                                 <TextBlock Text="{Binding DisplayName}" TextTrimming="CharacterEllipsis" FontWeight="SemiBold" />
                                                 <TextBlock Text="{Binding ProcessIdLabel}" Classes="Caption" />
                                             </StackPanel>
-                                            <TextBlock Grid.Column="1" Text="{Binding CpuDisplay}" Foreground="{StaticResource CpuBrush}" FontWeight="SemiBold" VerticalAlignment="Center" />
+                                            <TextBlock Grid.Column="2" Text="{Binding CpuDisplay}" Foreground="{StaticResource CpuBrush}" FontWeight="SemiBold" VerticalAlignment="Center" />
                                         </Grid>
                                     </Border>
                                 </DataTemplate>
@@ -283,17 +313,19 @@
                         <ListBox Classes="ContributorList"
                                  IsVisible="{Binding IsMemoryFocus}"
                                  ItemsSource="{Binding TopContributors}"
-                                 MaxHeight="330"
                                  AutomationProperties.Name="Processes using the most memory">
                             <ListBox.ItemTemplate>
                                 <DataTemplate x:DataType="vm:ProcessUsageDisplayItem">
-                                    <Border BorderBrush="{StaticResource DividerBrush}" BorderThickness="0,0,0,1" Padding="4,11">
-                                        <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12">
-                                            <StackPanel>
+                                    <Border Classes="ContributorRow">
+                                        <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="10">
+                                            <Border Width="32" Height="32" CornerRadius="10" Background="{StaticResource MemoryBgTintBrush}" VerticalAlignment="Center">
+                                                <controls:WbIcon IconKey="WbEntityApp" Width="16" Height="16" />
+                                            </Border>
+                                            <StackPanel Grid.Column="1" VerticalAlignment="Center">
                                                 <TextBlock Text="{Binding DisplayName}" TextTrimming="CharacterEllipsis" FontWeight="SemiBold" />
                                                 <TextBlock Text="{Binding ProcessIdLabel}" Classes="Caption" />
                                             </StackPanel>
-                                            <TextBlock Grid.Column="1" Text="{Binding MemoryDisplay}" Foreground="{StaticResource MemoryBrush}" FontWeight="SemiBold" VerticalAlignment="Center" />
+                                            <TextBlock Grid.Column="2" Text="{Binding MemoryDisplay}" Foreground="{StaticResource MemoryBrush}" FontWeight="SemiBold" VerticalAlignment="Center" />
                                         </Grid>
                                     </Border>
                                 </DataTemplate>

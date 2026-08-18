@@ -533,8 +533,8 @@ public sealed partial class SystemViewModel : ObservableObject, IDisposable
             {
                 Name = name,
                 Values = points,
-                Fill = new SolidColorPaint(color.WithAlpha(50)),
-                Stroke = new SolidColorPaint(color, 2),
+                Fill = new SolidColorPaint(color.WithAlpha(28)),
+                Stroke = new SolidColorPaint(color, 2.25f),
                 GeometryFill = null,
                 GeometryStroke = null,
                 GeometrySize = 0,
@@ -555,7 +555,7 @@ public sealed partial class SystemViewModel : ObservableObject, IDisposable
             {
                 Name = "Read",
                 Values = readPoints,
-                Fill = new SolidColorPaint(ChartColors.DiskReadColor.WithAlpha(40)),
+                Fill = new SolidColorPaint(ChartColors.DiskReadColor.WithAlpha(24)),
                 Stroke = new SolidColorPaint(ChartColors.DiskReadColor, 2),
                 GeometryFill = null,
                 GeometryStroke = null,
@@ -568,7 +568,7 @@ public sealed partial class SystemViewModel : ObservableObject, IDisposable
             {
                 Name = "Write",
                 Values = writePoints,
-                Fill = new SolidColorPaint(ChartColors.DiskWriteColor.WithAlpha(40)),
+                Fill = new SolidColorPaint(ChartColors.DiskWriteColor.WithAlpha(20)),
                 Stroke = new SolidColorPaint(ChartColors.DiskWriteColor, 2),
                 GeometryFill = null,
                 GeometryStroke = null,
@@ -601,8 +601,7 @@ public sealed partial class SystemViewModel : ObservableObject, IDisposable
         [
             new Axis
             {
-                Name = name,
-                NamePaint = new SolidColorPaint(ChartColors.AxisNameColor),
+                Name = null,
                 MinLimit = 0,
                 MaxLimit = 100,
                 LabelsPaint = new SolidColorPaint(ChartColors.AxisLabelColor),
@@ -619,8 +618,7 @@ public sealed partial class SystemViewModel : ObservableObject, IDisposable
         [
             new Axis
             {
-                Name = name,
-                NamePaint = new SolidColorPaint(ChartColors.AxisNameColor),
+                Name = null,
                 MinLimit = 0,
                 LabelsPaint = new SolidColorPaint(ChartColors.AxisLabelColor),
                 TextSize = 11,

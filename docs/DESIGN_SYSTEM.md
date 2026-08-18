@@ -1,239 +1,199 @@
-# WireBound Design System v2.0
+# WireBound Design System v3.0
 
-## Design Vision: "Fluid Data"
+## Signal & Flow
 
-WireBound's redesign embodies the concept of **data flowing through digital wires**. The visual language combines deep, oceanic colors with subtle glassmorphism effects, creating a premium monitoring experience that feels both modern and functional.
+WireBound is a technical monitoring tool that should feel calm under pressure.
+Its interface uses restrained, desktop-native structure for routine work and
+expressive color only where it improves interpretation.
 
----
+The system combines two complementary influences:
 
-## Color Palette: "Deep Ocean"
+- Material 3 Expressive contributes purposeful color, contrasting shape,
+  generous selected states, and containment that directs attention.
+- Fluent 2 contributes compact desktop density, neutral command surfaces,
+  clear interaction states, and restrained elevation.
 
-### Primary Colors
+WireBound does not reproduce either system. The resulting language is called
+**Signal & Flow**: quiet infrastructure with vivid, meaningful signals.
 
-| Role | Color | Hex | Usage |
-|------|-------|-----|-------|
-| Background | Deep Navy | `#0D1321` | Main app background |
-| Surface | Ocean Blue | `#1D2D44` | Cards, panels, elevated surfaces |
-| Surface Elevated | Slate | `#3E5C76` | Hover states, elevated cards |
+## Principles
 
-### Brand & Activity Colors
+### 1. Data is the expression
 
-| Role | Color | Hex | Usage |
-|------|-------|-----|-------|
-| Download | Electric Cyan | `#00E5FF` | Download speeds, primary actions |
-| Download Glow | Bright Cyan | `#00D4FF` | Chart lines, accents |
-| Upload | Coral Orange | `#FF6B35` | Upload speeds (high contrast) |
-| Upload Alt | Mint Green | `#00FF88` | Alternative for charts |
+Resource colors belong to measurements, selected state, and status. Labels,
+panel outlines, and ordinary navigation remain neutral. A screen showing all
+four resource colors at once should still feel calm.
 
-### Text Colors
+### 2. Tonal depth before borders
 
-| Role | Color | Hex | Usage |
-|------|-------|-----|-------|
-| Primary Text | Warm White | `#F0EBD8` | Headlines, important data |
-| Secondary Text | Soft Gray | `#A0A8B8` | Labels, descriptions |
-| Muted Text | Dim Gray | `#6B7280` | Timestamps, hints |
+Hierarchy comes from a small ramp of neutral surfaces. Borders are used only
+when adjacent surfaces would otherwise merge, for keyboard focus, or for a
+selected resource. Avoid drawing a bright rectangle around every region.
 
-### Status Colors
+### 3. Shape communicates role
 
-| Role | Color | Hex | Usage |
-|------|-------|-----|-------|
-| Success | Mint | `#00C9A7` | Active status, success states |
-| Warning | Amber | `#FFB627` | Alerts, cautions |
-| Error | Coral Red | `#F45B69` | Errors, disconnected |
+- 12–14 px: compact inputs and row objects
+- 18–20 px: toolbars, resource controls, and secondary containers
+- 24–28 px: primary dashboard panels and floating surfaces
+- pill: status, mutually exclusive choices, and compact primary actions
 
-### Surface & Border Colors
+Varying shape establishes hierarchy. Do not give every object the same radius.
 
-| Role | Color | Hex | Usage |
-|------|-------|-----|-------|
-| Card Background | Deep Blue (60%) | `#990F3460` | Glass card backgrounds |
-| Card Border | Soft White | `#20FFFFFF` | Subtle glass borders |
-| Divider | Ocean Dark | `#2A3A5E` | Separators, lines |
-| Rail Background | True Dark | `#0A0E14` | Navigation rail |
+### 4. Density follows the task
 
----
+Dashboards may breathe around interpretation. Tables and process lists are
+dense because comparison is their primary job. A decorative surface must never
+reduce the useful list viewport without adding information or action.
+
+### 5. Motion confirms; it does not perform
+
+Use short state transitions for hover, selection, filtering, and navigation.
+Do not automatically switch resource focus or animate continuously around live
+data. Monitoring should remain visually stable while values change.
+
+## Color system
+
+### Neutral surfaces
+
+| Token | Value | Role |
+|---|---:|---|
+| Background | `#0B1017` | Base canvas |
+| Rail | `#0E151E` | Header and app chrome |
+| Surface | `#121A24` | Standard contained region |
+| Card | `#141E29` | Primary content panel |
+| Surface variant | `#161F2A` | Toolbars, chart wells, grouped controls |
+| Elevated | `#1B2633` | Floating toolbar, hover, transient emphasis |
+| Border | `#263342` | Focus and necessary separation |
+| Divider | `#202B37` | Low-contrast row separation |
+
+The app backdrop uses a very subtle navy gradient. Content surfaces stay mostly
+opaque for performance, legibility, and cross-platform consistency. Acrylic is
+reserved for transient UI where the platform can render it reliably.
+
+### Text
+
+| Token | Value | Role |
+|---|---:|---|
+| Primary | `#F4F7FA` | Titles, values, names |
+| Secondary | `#B2BDCA` | Descriptions and ordinary labels |
+| Muted | `#7C8998` | Timestamps, metadata, inactive state |
+
+### Resource signals
+
+| Resource | Signal | Tint use |
+|---|---:|---|
+| Network / download | `#66D7E5` | Selection, chart line, throughput |
+| Upload | `#F0A384` | Upload values and secondary network series |
+| CPU | `#83A9F9` | CPU selection and chart line |
+| Memory | `#F08BBE` | Memory selection and chart line |
+| Disk | `#F2C66D` | Disk selection and chart line |
+| Success | `#68D6AE` | Healthy live state |
+| Error | `#FF8A9A` | Failure and destructive warning |
+
+Resource colors have similar perceived brightness so focus does not jump simply
+because one resource is selected. Each has a translucent tint token for filled
+selection and icon containers.
+
+### Color rules
+
+- Prefer primary text for resource names; use resource color on the icon,
+  measured value, or selected container.
+- Color is never the only indication of state. Pair it with text, shape, an
+  icon, or a directional marker.
+- One primary action per region. Equal-priority actions use neutral fills.
+- Avoid neon glows. A selected resource may use one colored stroke plus a tonal
+  fill; unselected cards do not receive colored outlines.
 
 ## Typography
 
-### Font Stack
-- **Primary:** Segoe UI Variable (Windows 11 native)
-- **Monospace:** Cascadia Mono (for technical data)
+WireBound uses Inter through Avalonia for consistent cross-platform metrics.
+Segoe UI Variable may be used by native Windows surfaces.
 
-### Scale
+| Style | Size | Weight | Use |
+|---|---:|---|---|
+| Page title | 30 | Semibold | Rare full-page headings |
+| Panel title | 19–22 | Semibold | Primary dashboard regions |
+| Section title | 18 | Semibold | Secondary sections |
+| Body | 14 | Regular | General content |
+| Compact body | 13 | Regular/Semibold | Tables and toolbars |
+| Caption | 12 | Regular | Metadata |
+| Eyebrow | 10–11 | Semibold | Short contextual labels |
 
-| Style | Weight | Size | Line Height | Usage |
-|-------|--------|------|-------------|-------|
-| Display | SemiBold | 48px | 1.1 | Hero speed numbers |
-| Title 1 | Bold | 32px | 1.2 | Page headers |
-| Title 2 | SemiBold | 24px | 1.3 | Section headers |
-| Title 3 | SemiBold | 18px | 1.4 | Card headers |
-| Body | Regular | 14px | 1.5 | General text |
-| Caption | Medium | 12px | 1.4 | Labels, metadata |
-| Micro | Regular | 11px | 1.3 | Timestamps |
+Technical values use tabular alignment where possible. Uppercase is limited to
+short eyebrows and table headings; never uppercase paragraphs or actions.
 
----
+## Components
 
-## Component Specifications
+### Header navigation
 
-### 1. Glass Card
+Primary destinations form one contained group in the header. The selected item
+uses a filled tonal state; unselected items remain borderless. Monitoring status
+is a separate pill and settings is a circular icon action.
 
-A frosted glass container for content groupings.
+### Resource selector
 
-**Properties:**
-- Background: `#990F3460` (semi-transparent deep blue)
-- Border: 1px `#20FFFFFF`
-- Border Radius: 16px
-- Padding: 24px (large), 20px (medium), 16px (small)
-- Shadow: `0 4px 20px #20000000`
+The four resources live in one 26 px container. Each resource is a full-card
+target with a 44 px tinted icon tile and current value. Only the selected card
+receives a resource-colored border and stronger fill.
 
-**Hover State:**
-- TranslateY: -2px
-- Shadow increases: `0 8px 30px #30000000`
-- Border brightness: +5%
+Resource focus changes only through explicit user action. It never rotates
+automatically in response to load.
 
-### 2. Navigation Rail
+### Primary dashboard panels
 
-Collapsible sidebar with wire/node visual metaphor.
+Activity and contributors are sibling 26 px panels. They use low elevation and
+a subtle edge, not a blue outline. Charts sit in a quieter nested chart well.
+Contributor entries are individual tonal row objects rather than divider-only
+spreadsheet rows.
 
-**States:**
-- Collapsed: 64px width (icons only)
-- Expanded: 240px width (icons + labels)
+### Floating view toolbar
 
-**Visual Elements:**
-- Vertical wire line: 2px `#2A3A5E`
-- Node circles: 8px diameter at each menu item
-- Active node: Filled `#00E5FF` with glow
-- Inactive node: Hollow `#3E5C76`
+Time range, signal, process scope, and contextual filters form a single floating
+toolbar. It stays anchored to the lower edge, uses a 22 px container, and groups
+controls by effect. Compact layouts collapse it to one clearly labeled action.
 
-### 3. Speed Metric Card
+### Process workspace
 
-Enhanced display for download/upload speeds.
+Search, scope, refresh, and sort belong to the process table surface. Sortable
+headers use the entire 40 px header cell as their target with persistent selected
+state and a separate direction glyph. Rows are 52 px and virtualized.
 
-**Layout:**
-- Direction icon (animated arrow)
-- Speed value (48px, gradient text)
-- Unit label (12px, secondary)
-- Mini sparkline (60-second history)
-- Progress bar showing % of peak
+## Charts
 
-**Colors:**
-- Download gradient: `#00E5FF` → `#00D4FF`
-- Upload gradient: `#FF6B35` → `#FF8C5A`
+- Use a 2–2.25 px resource-colored line.
+- Use a low-opacity fill so spikes remain readable without coloring the panel.
+- Grid lines are quieter than labels; labels are quieter than the series.
+- Hide a legend when the chart has only one series and the panel title already
+  names it.
+- Avoid large vertical axis titles in live dashboard charts. Units belong in
+  tick labels or a compact contextual label.
+- Never allow an unbounded contributor list or chart series to expand the
+  dashboard indefinitely.
 
-### 4. Status Indicator
+## Interaction and accessibility
 
-Animated pulse showing monitoring state.
+- Minimum compact desktop target: 40 px. Prefer 44 px for primary controls.
+- Every icon-only action has a tooltip and `AutomationProperties.Name`.
+- Selected state combines fill or outline with an accessible control state.
+- Text contrast targets WCAG AA; icons target at least 3:1 against their surface.
+- Keyboard focus must remain visible independently of resource color.
+- Respect reduced-motion and performance settings by removing decorative
+  transitions, shadows, and blur before removing information.
 
-**States:**
-- Active: Green (`#00C9A7`) with pulsing animation
-- Idle: Amber (`#FFB627`) with slow fade
-- Error: Red (`#F45B69`) with fast blink
+## Responsive behavior
 
-**Animation:**
-- Scale: 1.0 → 1.3 → 1.0
-- Opacity: 1.0 → 0.6 → 1.0
-- Duration: 1.5s loop
+- Wide: activity and contributors are side by side at roughly 2.2:1.
+- Below 920 px: contributors move below the chart.
+- Process and connection tables preserve a finite vertical viewport and share
+  one horizontal scroll position between header and rows.
+- Floating controls collapse before content or data becomes illegible.
 
-### 5. Bento Grid Layout
+## Implementation sources
 
-Responsive dashboard grid system.
+- Colors and brushes: `src/WireBound.Avalonia/Styles/Colors.axaml`
+- Shared component styles: `src/WireBound.Avalonia/Styles/Styles.axaml`
+- Chart colors: `src/WireBound.Core/Helpers/ChartColors.cs`
+- Header and floating controls: `src/WireBound.Avalonia/Views/MainWindow.axaml`
+- Unified dashboard: `src/WireBound.Avalonia/Views/OverviewView.axaml`
 
-**Breakpoints:**
-- Wide (≥1200px): 3-column bento
-- Medium (800-1199px): 2-column grid
-- Narrow (<800px): Single column stack
-
-**Grid Template (Wide):**
-```
-┌────────────────────┬───────────────┐
-│   Download Gauge   │   Session     │
-│      (2×1)         │   Stats (1×2) │
-├────────────────────┤               │
-│   Upload Gauge     │               │
-│      (2×1)         ├───────────────┤
-├────────────────────┴───────────────┤
-│         Live Chart (3×1)           │
-└────────────────────────────────────┘
-```
-
----
-
-## Animation Guidelines
-
-### Micro-interactions
-
-| Element | Trigger | Animation | Duration | Easing |
-|---------|---------|-----------|----------|--------|
-| Card | Hover | Lift + glow | 200ms | ease-out |
-| Speed value | Update | Counter roll | 300ms | ease-out-quart |
-| Chart point | Add | Fade + rise | 200ms | ease-out |
-| Page | Navigate | Slide + fade | 300ms | ease-in-out-cubic |
-| Status dot | Loop | Pulse scale | 1500ms | sin-in-out |
-
-### Performance Mode
-When enabled, disable:
-- Blur effects
-- Complex shadows
-- Background animations
-
----
-
-## Iconography
-
-### Navigation Icons (Unicode/Emoji fallback)
-- Dashboard: 📊 or custom SVG
-- Live Chart: 📈 or custom SVG
-- Applications: 📱 or custom SVG
-- History: 📅 or custom SVG
-- Settings: ⚙️ or custom SVG
-
-### Activity Icons
-- Download: ↓ (styled arrow)
-- Upload: ↑ (styled arrow)
-- Network: 🌐 (globe)
-- Wire: Custom flowing wire SVG
-
----
-
-## Spacing Scale
-
-| Token | Value | Usage |
-|-------|-------|-------|
-| xs | 4px | Tight spacing |
-| sm | 8px | Related elements |
-| md | 16px | Section spacing |
-| lg | 24px | Major sections |
-| xl | 32px | Page padding |
-| 2xl | 48px | Hero spacing |
-
----
-
-## Visual Metaphors
-
-### "WireBound" Identity
-The name suggests connectivity—being bound to the network. Visual reinforcement:
-
-1. **Wire traces**: Subtle line patterns in backgrounds
-2. **Node connections**: Menu items connected by lines
-3. **Data flow**: Chart lines with glowing trails
-4. **Pulse animations**: Heartbeat-like status indicators
-
-### Background Treatment
-- Subtle radial gradient from center
-- Optional: Faint circuit trace pattern overlay
-- Color: `#0D1321` → `#151F2E` gradient
-
----
-
-## Implementation Checklist
-
-- [x] Document design system
-- [ ] Update Colors.xaml with new palette
-- [ ] Update Styles.xaml with glass components
-- [ ] Create NavigationRailView control
-- [ ] Create SpeedMetricCard control
-- [ ] Create StatusIndicator control
-- [ ] Redesign DashboardPage layout
-- [ ] Redesign ChartsPage layout
-- [ ] Add animations with Avalonia animations
-- [ ] Test responsive breakpoints
-- [ ] Performance optimization pass
+New components should use these tokens instead of embedding new hex values.

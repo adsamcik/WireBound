@@ -50,39 +50,39 @@
     <!-- ═══════════════════════════════════════════════════════════════════ -->
 
     <Style Selector="Border.Card">
-        <Setter Property="Background" Value="{StaticResource CardBrush}" />
-        <Setter Property="CornerRadius" Value="16" />
+        <Setter Property="Background" Value="{StaticResource DashboardPanelBrush}" />
+        <Setter Property="CornerRadius" Value="24" />
         <Setter Property="BorderBrush" Value="{StaticResource GlassBorderBrush}" />
         <Setter Property="BorderThickness" Value="1" />
         <Setter Property="Padding" Value="24" />
-        <Setter Property="BoxShadow" Value="0 4 20 0 #4D000000" />
+        <Setter Property="BoxShadow" Value="0 8 24 0 #26000000" />
     </Style>
     
     <Style Selector="Border.ElevatedCard">
-        <Setter Property="Background" Value="{StaticResource SurfaceBrush}" />
-        <Setter Property="CornerRadius" Value="20" />
+        <Setter Property="Background" Value="{StaticResource SurfaceElevatedBrush}" />
+        <Setter Property="CornerRadius" Value="28" />
         <Setter Property="BorderBrush" Value="{StaticResource GlassBorderBrush}" />
         <Setter Property="BorderThickness" Value="1" />
         <Setter Property="Padding" Value="28" />
-        <Setter Property="BoxShadow" Value="0 8 30 0 #66000000" />
+        <Setter Property="BoxShadow" Value="0 12 32 0 #33000000" />
     </Style>
     
     <Style Selector="Border.CompactCard">
         <Setter Property="Background" Value="{StaticResource CardBrush}" />
-        <Setter Property="CornerRadius" Value="12" />
+        <Setter Property="CornerRadius" Value="18" />
         <Setter Property="BorderBrush" Value="{StaticResource GlassBorderBrush}" />
         <Setter Property="BorderThickness" Value="1" />
         <Setter Property="Padding" Value="16" />
-        <Setter Property="BoxShadow" Value="0 2 12 0 #40000000" />
+        <Setter Property="BoxShadow" Value="0 4 16 0 #24000000" />
     </Style>
     
     <Style Selector="Border.AccentCard">
         <Setter Property="Background" Value="{StaticResource CardBrush}" />
-        <Setter Property="CornerRadius" Value="16" />
-        <Setter Property="BorderBrush" Value="{StaticResource PrimaryBrush}" />
+        <Setter Property="CornerRadius" Value="24" />
+        <Setter Property="BorderBrush" Value="{StaticResource SelectionBorderBrush}" />
         <Setter Property="BorderThickness" Value="1" />
         <Setter Property="Padding" Value="24" />
-        <Setter Property="BoxShadow" Value="0 0 24 0 #8000E5FF" />
+        <Setter Property="BoxShadow" Value="0 8 28 0 #30000000" />
     </Style>
 
     <!-- ═══════════════════════════════════════════════════════════════════ -->
@@ -90,14 +90,14 @@
     <!-- ═══════════════════════════════════════════════════════════════════ -->
     
     <Style Selector="TextBlock.PageTitle">
-        <Setter Property="FontSize" Value="32" />
-        <Setter Property="FontWeight" Value="Bold" />
+        <Setter Property="FontSize" Value="30" />
+        <Setter Property="FontWeight" Value="SemiBold" />
         <Setter Property="Foreground" Value="{StaticResource PrimaryTextBrush}" />
     </Style>
     
     <Style Selector="TextBlock.SectionHeader">
         <Setter Property="FontSize" Value="18" />
-        <Setter Property="FontWeight" Value="Bold" />
+        <Setter Property="FontWeight" Value="SemiBold" />
         <Setter Property="Foreground" Value="{StaticResource PrimaryTextBrush}" />
         <Setter Property="LetterSpacing" Value="0.3" />
     </Style>
@@ -153,26 +153,37 @@
 
     <Style Selector="Button.Primary">
         <Setter Property="Background" Value="{StaticResource ButtonBackgroundBrush}" />
-        <Setter Property="Foreground" Value="White" />
+        <Setter Property="Foreground" Value="{StaticResource OnPrimaryBrush}" />
         <Setter Property="FontSize" Value="14" />
-        <Setter Property="FontWeight" Value="Bold" />
-        <Setter Property="Padding" Value="24,14" />
-        <Setter Property="CornerRadius" Value="12" />
+        <Setter Property="FontWeight" Value="SemiBold" />
+        <Setter Property="Padding" Value="20,12" />
+        <Setter Property="MinHeight" Value="44" />
+        <Setter Property="CornerRadius" Value="999" />
         <Setter Property="Cursor" Value="Hand" />
     </Style>
     
     <Style Selector="Button.Primary:pointerover /template/ ContentPresenter">
         <Setter Property="Background" Value="{StaticResource ButtonHoverColor}" />
+        <Setter Property="TextElement.Foreground" Value="{StaticResource OnPrimaryBrush}" />
+    </Style>
+
+    <Style Selector="Button.Primary TextBlock">
+        <Setter Property="Foreground" Value="{StaticResource OnPrimaryBrush}" />
     </Style>
     
     <Style Selector="Button.Secondary">
         <Setter Property="Background" Value="{StaticResource SecondaryButtonBackgroundBrush}" />
         <Setter Property="Foreground" Value="{StaticResource PrimaryTextBrush}" />
         <Setter Property="FontSize" Value="13" />
-        <Setter Property="FontWeight" Value="Bold" />
-        <Setter Property="Padding" Value="20,12" />
-        <Setter Property="CornerRadius" Value="10" />
+        <Setter Property="FontWeight" Value="SemiBold" />
+        <Setter Property="Padding" Value="16,10" />
+        <Setter Property="MinHeight" Value="40" />
+        <Setter Property="CornerRadius" Value="14" />
         <Setter Property="Cursor" Value="Hand" />
+    </Style>
+
+    <Style Selector="Button.Secondary:pointerover /template/ ContentPresenter">
+        <Setter Property="Background" Value="{StaticResource SecondaryButtonHoverColor}" />
     </Style>
     
     <Style Selector="Button.Warning">
@@ -204,12 +215,16 @@
     
     <Style Selector="Button.Ghost">
         <Setter Property="Background" Value="Transparent" />
-        <Setter Property="Foreground" Value="{StaticResource PrimaryBrush}" />
+        <Setter Property="Foreground" Value="{StaticResource SecondaryTextBrush}" />
         <Setter Property="FontSize" Value="14" />
         <Setter Property="FontWeight" Value="Bold" />
         <Setter Property="Padding" Value="16,10" />
-        <Setter Property="CornerRadius" Value="8" />
+        <Setter Property="CornerRadius" Value="12" />
         <Setter Property="Cursor" Value="Hand" />
+    </Style>
+
+    <Style Selector="Button.Ghost:pointerover /template/ ContentPresenter">
+        <Setter Property="Background" Value="{StaticResource FlyoutItemHoverBrush}" />
     </Style>
 
     <!-- ═══════════════════════════════════════════════════════════════════ -->
@@ -254,7 +269,7 @@
 
     <Style Selector="Button.ToolbarButton">
         <Setter Property="MinHeight" Value="40" />
-        <Setter Property="Padding" Value="14,10" />
+        <Setter Property="Padding" Value="14,9" />
         <Setter Property="FontSize" Value="13" />
         <Setter Property="FontWeight" Value="SemiBold" />
     </Style>
@@ -267,10 +282,10 @@
     <!-- ═══════════════════════════════════════════════════════════════════ -->
 
     <Style Selector="Border.SubtleCard">
-        <Setter Property="Background" Value="{StaticResource SurfaceBrush}" />
-        <Setter Property="BorderBrush" Value="{StaticResource BorderSubtleBrush}" />
+        <Setter Property="Background" Value="{StaticResource SurfaceVariantBrush}" />
+        <Setter Property="BorderBrush" Value="{StaticResource GlassBorderBrush}" />
         <Setter Property="BorderThickness" Value="1" />
-        <Setter Property="CornerRadius" Value="12" />
+        <Setter Property="CornerRadius" Value="18" />
         <Setter Property="Padding" Value="16" />
     </Style>
 
@@ -293,11 +308,11 @@
     </Style>
 
     <Style Selector="TextBox">
-        <Setter Property="Background" Value="{StaticResource SurfaceBrush}" />
+        <Setter Property="Background" Value="{StaticResource SurfaceVariantBrush}" />
         <Setter Property="Foreground" Value="{StaticResource PrimaryTextBrush}" />
         <Setter Property="BorderBrush" Value="{StaticResource BorderBrush}" />
         <Setter Property="BorderThickness" Value="1" />
-        <Setter Property="CornerRadius" Value="8" />
+        <Setter Property="CornerRadius" Value="14" />
         <Setter Property="Padding" Value="12,8" />
         <Setter Property="FontSize" Value="14" />
         <Setter Property="SelectionBrush" Value="{StaticResource PrimaryBrush}" />
@@ -308,19 +323,19 @@
          Without these the inner PART_BorderElement shows the system accent (orange
          on Windows light/contrast themes) regardless of our outer BorderBrush. -->
     <Style Selector="TextBox /template/ Border#PART_BorderElement">
-        <Setter Property="Background" Value="{StaticResource SurfaceBrush}" />
+        <Setter Property="Background" Value="{StaticResource SurfaceVariantBrush}" />
         <Setter Property="BorderBrush" Value="{StaticResource BorderBrush}" />
         <Setter Property="BorderThickness" Value="1" />
-        <Setter Property="CornerRadius" Value="8" />
+        <Setter Property="CornerRadius" Value="14" />
     </Style>
     <Style Selector="TextBox:pointerover /template/ Border#PART_BorderElement">
-        <Setter Property="Background" Value="{StaticResource SurfaceBrush}" />
+        <Setter Property="Background" Value="{StaticResource SurfaceVariantBrush}" />
         <Setter Property="BorderBrush" Value="{StaticResource BorderBrush}" />
     </Style>
     <Style Selector="TextBox:focus /template/ Border#PART_BorderElement">
-        <Setter Property="Background" Value="{StaticResource SurfaceBrush}" />
+        <Setter Property="Background" Value="{StaticResource SurfaceVariantBrush}" />
         <Setter Property="BorderBrush" Value="{StaticResource PrimaryBrush}" />
-        <Setter Property="BorderThickness" Value="1" />
+        <Setter Property="BorderThickness" Value="2" />
     </Style>
 
     <Style Selector="TextBox:focus">
@@ -328,11 +343,11 @@
     </Style>
 
     <Style Selector="ComboBox">
-        <Setter Property="Background" Value="{StaticResource SurfaceBrush}" />
+        <Setter Property="Background" Value="{StaticResource SurfaceVariantBrush}" />
         <Setter Property="Foreground" Value="{StaticResource PrimaryTextBrush}" />
         <Setter Property="BorderBrush" Value="{StaticResource BorderBrush}" />
         <Setter Property="BorderThickness" Value="1" />
-        <Setter Property="CornerRadius" Value="8" />
+        <Setter Property="CornerRadius" Value="14" />
         <Setter Property="Padding" Value="12,8" />
         <Setter Property="FontSize" Value="14" />
     </Style>

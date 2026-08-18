@@ -278,7 +278,7 @@ public partial class MiniSparkline : UserControl
             }
             else
             {
-                StrokeColor = new SolidColorBrush(Color.Parse("#00E5FF"));
+                StrokeColor = new SolidColorBrush(Color.Parse("#66D7E5"));
             }
         }
 

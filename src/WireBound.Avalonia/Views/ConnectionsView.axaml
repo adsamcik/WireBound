@@ -4,7 +4,7 @@
              xmlns:controls="using:WireBound.Avalonia.Controls"
              x:Class="WireBound.Avalonia.Views.ConnectionsView"
              x:DataType="vm:ConnectionsViewModel"
-             Background="{StaticResource BackgroundBrush}"
+             Background="Transparent"
              AutomationProperties.Name="Connections View">
 
     <UserControl.Styles>

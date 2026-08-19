@@ -222,9 +222,15 @@ public class AppsViewModelTests : IAsyncDisposable
         chrome.ExecutablePath.Should().Be("/opt/chrome/chrome");
         chrome.CpuDisplay.Should().Be("12.5%");
         chrome.MemoryDisplay.Should().Be(ByteFormatter.FormatBytes(chromeMemory));
+        chrome.PrivateMemoryDisplay.Should().Be(ByteFormatter.FormatBytes(chromeMemory));
         chrome.DownloadDisplay.Should().Be(ByteFormatter.FormatSpeed(chromeDownload));
         chrome.UploadDisplay.Should().Be(ByteFormatter.FormatSpeed(chromeUpload));
+        chrome.SessionDownloadDisplay.Should().Be(ByteFormatter.FormatBytes(9 * Mebibyte));
+        chrome.SessionUploadDisplay.Should().Be(ByteFormatter.FormatBytes(3 * Mebibyte));
         chrome.SessionTotalDisplay.Should().Be(ByteFormatter.FormatBytes(12 * Mebibyte));
+        chrome.ProcessTypeLabel.Should().Be("User process");
+        chrome.ExecutablePathDisplay.Should().Be("/opt/chrome/chrome");
+        chrome.NetworkTelemetryLabel.Should().Be("Live process attribution");
         chrome.HasCpuSample.Should().BeTrue();
         chrome.HasNetworkStats.Should().BeTrue();
 
@@ -384,6 +390,81 @@ public class AppsViewModelTests : IAsyncDisposable
         collectionResets.Should().Be(0);
         viewModel.ProcessItems.Single(item => item.ProcessId == 101).Should().BeSameAs(alpha);
         alpha.CpuDisplay.Should().Be("8.0%");
+    }
+
+    [Test]
+    public async Task Refresh_WhenLiveSortOrderChanges_KeepsSelectedProcessAnchoredWithoutReset()
+    {
+        // Arrange
+        _currentRoute = Routes.Apps;
+        var snapshots = new Queue<IReadOnlyList<ProcessUsageSnapshot>>(
+        [
+            [
+                CreateSnapshot(processId: 101, processName: "alpha", cpuPercent: 20, hasCpuSample: true),
+                CreateSnapshot(processId: 202, processName: "bravo", cpuPercent: 10, hasCpuSample: true)
+            ],
+            [
+                CreateSnapshot(processId: 101, processName: "alpha", cpuPercent: 1, hasCpuSample: true),
+                CreateSnapshot(processId: 202, processName: "bravo", cpuPercent: 40, hasCpuSample: true)
+            ]
+        ]);
+        _processUsageService.CaptureAsync(Arg.Any<CancellationToken>())
+            .Returns(_ => Task.FromResult(snapshots.Dequeue()));
+
+        var viewModel = CreateViewModel();
+        await WaitUntilAsync(() => viewModel.ProcessItems.Count == 2);
+        var alpha = viewModel.ProcessItems[0];
+        viewModel.SelectedProcess = alpha;
+        var collectionResets = 0;
+        viewModel.ProcessItems.CollectionChanged += (_, eventArgs) =>
+        {
+            if (eventArgs.Action == System.Collections.Specialized.NotifyCollectionChangedAction.Reset)
+            {
+                collectionResets++;
+            }
+        };
+
+        // Act
+        await viewModel.RefreshCommand.ExecuteAsync(null);
+
+        // Assert - values continue updating, but the inspected row and keyboard
+        // focus target do not chase the newly highest CPU consumer.
+        collectionResets.Should().Be(0);
+        viewModel.SelectedProcess.Should().BeSameAs(alpha);
+        viewModel.ProcessItems[0].Should().BeSameAs(alpha);
+        alpha.CpuDisplay.Should().Be("1.0%");
+        viewModel.HasSelectedProcess.Should().BeTrue();
+
+        // The inspector can be dismissed without mutating the process list.
+        viewModel.CloseProcessDetailsCommand.Execute(null);
+        viewModel.SelectedProcess.Should().BeNull();
+        viewModel.HasSelectedProcess.Should().BeFalse();
+    }
+
+    [Test]
+    public async Task Refresh_WhenSelectedProcessExits_ClosesItsDetails()
+    {
+        // Arrange
+        _currentRoute = Routes.Apps;
+        var snapshots = new Queue<IReadOnlyList<ProcessUsageSnapshot>>(
+        [
+            [CreateSnapshot(processId: 101, processName: "before")],
+            [CreateSnapshot(processId: 202, processName: "after")]
+        ]);
+        _processUsageService.CaptureAsync(Arg.Any<CancellationToken>())
+            .Returns(_ => Task.FromResult(snapshots.Dequeue()));
+
+        var viewModel = CreateViewModel();
+        await WaitUntilAsync(() => viewModel.ProcessItems.SingleOrDefault()?.ProcessId == 101);
+        viewModel.SelectedProcess = viewModel.ProcessItems[0];
+
+        // Act
+        await viewModel.RefreshCommand.ExecuteAsync(null);
+
+        // Assert
+        viewModel.SelectedProcess.Should().BeNull();
+        viewModel.HasSelectedProcess.Should().BeFalse();
+        viewModel.ProcessItems.Should().ContainSingle(item => item.ProcessId == 202);
     }
 
     [Test]

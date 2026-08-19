@@ -257,7 +257,10 @@
 
                 <!-- Header and rows share one horizontal viewport, so their
                      repeated column definitions remain aligned when narrow. -->
-                <ScrollViewer Grid.Row="1"
+                <Grid Grid.Row="1"
+                      MinHeight="0"
+                      ColumnDefinitions="*,Auto">
+                <ScrollViewer Grid.Column="0"
                               MinHeight="0"
                               HorizontalScrollBarVisibility="Auto"
                               VerticalScrollBarVisibility="Disabled">
@@ -351,6 +354,7 @@
                      virtualization remains active. -->
                     <Grid Grid.Row="1" MinHeight="0">
                         <ListBox ItemsSource="{Binding ProcessItems}"
+                                 SelectedItem="{Binding SelectedProcess, Mode=TwoWay}"
                                  SelectionMode="Single"
                                  Background="Transparent"
                                  BorderThickness="0"
@@ -369,6 +373,7 @@
                                     <Setter Property="Padding" Value="0" />
                                     <Setter Property="Margin" Value="0" />
                                     <Setter Property="Background" Value="Transparent" />
+                                    <Setter Property="Cursor" Value="Hand" />
                                 </Style>
                                 <Style Selector="ListBoxItem:selected /template/ ContentPresenter#PART_ContentPresenter">
                                     <Setter Property="Background" Value="Transparent" />
@@ -388,7 +393,7 @@
                                             Height="52"
                                             ToolTip.Tip="{Binding ExecutablePath}"
                                             AutomationProperties.Name="{Binding DisplayName}"
-                                            AutomationProperties.HelpText="{Binding ExecutablePath}">
+                                            AutomationProperties.HelpText="Select to inspect live process details">
                                         <Border.Styles>
                                             <Style Selector="Border:pointerover">
                                                 <Setter Property="Background" Value="{StaticResource FlyoutItemHoverBrush}" />
@@ -516,6 +521,147 @@
                     </Grid>
                     </Grid>
                 </ScrollViewer>
+
+                <Border Grid.Column="1"
+                        Width="360"
+                        IsVisible="{Binding HasSelectedProcess}"
+                        Background="{StaticResource SurfaceElevatedBrush}"
+                        BorderBrush="{StaticResource DividerBrush}"
+                        BorderThickness="1,0,0,0"
+                        Padding="18"
+                        AutomationProperties.Name="Selected process details">
+                    <Grid RowDefinitions="Auto,Auto,*" RowSpacing="14">
+                        <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="11">
+                            <Border Width="40"
+                                    Height="40"
+                                    CornerRadius="11"
+                                    Background="{StaticResource AccentBgTintBrush}">
+                                <controls:WbIcon IconKey="WbEntityApp" Width="19" Height="19" />
+                            </Border>
+                            <StackPanel Grid.Column="1" Spacing="2" VerticalAlignment="Center">
+                                <TextBlock Text="{Binding SelectedProcess.DisplayName}"
+                                           FontSize="17"
+                                           FontWeight="SemiBold"
+                                           TextTrimming="CharacterEllipsis" />
+                                <StackPanel Orientation="Horizontal" Spacing="6">
+                                    <TextBlock Text="{Binding SelectedProcess.ProcessIdLabel}" Classes="Caption" />
+                                    <TextBlock Text="•" Classes="Caption" />
+                                    <TextBlock Text="{Binding SelectedProcess.ProcessTypeLabel}" Classes="Caption" />
+                                </StackPanel>
+                            </StackPanel>
+                            <Button Grid.Column="2"
+                                    Classes="Ghost"
+                                    Width="36"
+                                    Height="36"
+                                    Padding="0"
+                                    Command="{Binding CloseProcessDetailsCommand}"
+                                    ToolTip.Tip="Close process details"
+                                    AutomationProperties.Name="Close process details">
+                                <TextBlock Text="×" FontSize="20" FontWeight="Normal" />
+                            </Button>
+                        </Grid>
+
+                        <Border Grid.Row="1"
+                                Height="1"
+                                Background="{StaticResource DividerBrush}" />
+
+                        <ScrollViewer Grid.Row="2"
+                                      VerticalScrollBarVisibility="Auto"
+                                      HorizontalScrollBarVisibility="Disabled">
+                            <StackPanel Spacing="16">
+                                <StackPanel Spacing="6">
+                                    <TextBlock Text="EXECUTABLE" Classes="MetricLabel" FontSize="10" />
+                                    <Border Background="{StaticResource SurfaceVariantBrush}"
+                                            CornerRadius="12"
+                                            Padding="11,9">
+                                        <TextBlock Text="{Binding SelectedProcess.ExecutablePathDisplay}"
+                                                   Classes="Caption"
+                                                   TextWrapping="Wrap" />
+                                    </Border>
+                                </StackPanel>
+
+                                <StackPanel Spacing="8">
+                                    <TextBlock Text="LIVE RESOURCES" Classes="MetricLabel" FontSize="10" />
+                                    <Grid ColumnDefinitions="*,*"
+                                          RowDefinitions="Auto,Auto"
+                                          ColumnSpacing="8"
+                                          RowSpacing="8">
+                                        <Border Background="{StaticResource CpuBgTintBrush}" CornerRadius="12" Padding="11,9">
+                                            <StackPanel Spacing="2">
+                                                <TextBlock Text="CPU" Classes="Caption" />
+                                                <TextBlock Text="{Binding SelectedProcess.CpuDisplay}"
+                                                           FontSize="17"
+                                                           FontWeight="SemiBold"
+                                                           Foreground="{StaticResource CpuBrush}" />
+                                            </StackPanel>
+                                        </Border>
+                                        <Border Grid.Column="1" Background="{StaticResource MemoryBgTintBrush}" CornerRadius="12" Padding="11,9">
+                                            <StackPanel Spacing="2">
+                                                <TextBlock Text="WORKING SET" Classes="Caption" />
+                                                <TextBlock Text="{Binding SelectedProcess.MemoryDisplay}"
+                                                           FontSize="17"
+                                                           FontWeight="SemiBold"
+                                                           Foreground="{StaticResource MemoryBrush}"
+                                                           TextTrimming="CharacterEllipsis" />
+                                            </StackPanel>
+                                        </Border>
+                                        <Border Grid.Row="1" Grid.ColumnSpan="2" Background="{StaticResource SurfaceVariantBrush}" CornerRadius="12" Padding="11,9">
+                                            <Grid ColumnDefinitions="*,Auto">
+                                                <TextBlock Text="Private memory" Classes="Caption" />
+                                                <TextBlock Grid.Column="1"
+                                                           Text="{Binding SelectedProcess.PrivateMemoryDisplay}"
+                                                           FontWeight="SemiBold" />
+                                            </Grid>
+                                        </Border>
+                                    </Grid>
+                                </StackPanel>
+
+                                <StackPanel Spacing="8">
+                                    <Grid ColumnDefinitions="*,Auto">
+                                        <TextBlock Text="NETWORK" Classes="MetricLabel" FontSize="10" VerticalAlignment="Center" />
+                                        <TextBlock Grid.Column="1"
+                                                   Text="{Binding SelectedProcess.NetworkTelemetryLabel}"
+                                                   Classes="Caption"
+                                                   FontSize="10" />
+                                    </Grid>
+                                    <Grid ColumnDefinitions="*,*" ColumnSpacing="8">
+                                        <Border Background="{StaticResource DownloadBgTintBrush}" CornerRadius="12" Padding="11,9">
+                                            <StackPanel Spacing="2">
+                                                <TextBlock Text="DOWNLOAD" Classes="Caption" />
+                                                <TextBlock Text="{Binding SelectedProcess.DownloadDisplay}"
+                                                           FontSize="16"
+                                                           FontWeight="SemiBold"
+                                                           Foreground="{StaticResource DownloadBrush}" />
+                                            </StackPanel>
+                                        </Border>
+                                        <Border Grid.Column="1" Background="{StaticResource UploadBgTintBrush}" CornerRadius="12" Padding="11,9">
+                                            <StackPanel Spacing="2">
+                                                <TextBlock Text="UPLOAD" Classes="Caption" />
+                                                <TextBlock Text="{Binding SelectedProcess.UploadDisplay}"
+                                                           FontSize="16"
+                                                           FontWeight="SemiBold"
+                                                           Foreground="{StaticResource UploadBrush}" />
+                                            </StackPanel>
+                                        </Border>
+                                    </Grid>
+                                    <Border Background="{StaticResource SurfaceVariantBrush}" CornerRadius="12" Padding="11,9">
+                                        <Grid ColumnDefinitions="*,Auto" RowDefinitions="Auto,Auto" RowSpacing="5">
+                                            <TextBlock Text="Session received" Classes="Caption" />
+                                            <TextBlock Grid.Column="1" Text="{Binding SelectedProcess.SessionDownloadDisplay}" FontWeight="SemiBold" />
+                                            <TextBlock Grid.Row="1" Text="Session sent" Classes="Caption" />
+                                            <TextBlock Grid.Row="1" Grid.Column="1" Text="{Binding SelectedProcess.SessionUploadDisplay}" FontWeight="SemiBold" />
+                                        </Grid>
+                                    </Border>
+                                </StackPanel>
+
+                                <TextBlock Text="Values update with the live process snapshot."
+                                           Classes="Caption"
+                                           TextWrapping="Wrap" />
+                            </StackPanel>
+                        </ScrollViewer>
+                    </Grid>
+                </Border>
+                </Grid>
             </Grid>
         </Border>
     </Grid>

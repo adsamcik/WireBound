@@ -342,6 +342,52 @@
         <Setter Property="BorderBrush" Value="{StaticResource PrimaryBrush}" />
     </Style>
 
+    <!-- NumericUpDown contains a private TextBox. The global TextBox treatment
+         must not draw a second rounded border inside the spinner; the outer
+         ButtonSpinner owns the complete field chrome and its button dividers. -->
+    <Style Selector="NumericUpDown">
+        <Setter Property="Background" Value="{StaticResource SurfaceVariantBrush}" />
+        <Setter Property="Foreground" Value="{StaticResource PrimaryTextBrush}" />
+        <Setter Property="BorderBrush" Value="{StaticResource BorderBrush}" />
+        <Setter Property="BorderThickness" Value="1" />
+        <Setter Property="CornerRadius" Value="14" />
+        <Setter Property="MinHeight" Value="40" />
+        <Setter Property="Padding" Value="12,8" />
+        <Setter Property="FontSize" Value="14" />
+    </Style>
+
+    <Style Selector="NumericUpDown TextBox">
+        <Setter Property="Background" Value="Transparent" />
+        <Setter Property="BorderBrush" Value="Transparent" />
+        <Setter Property="BorderThickness" Value="0" />
+        <Setter Property="CornerRadius" Value="0" />
+    </Style>
+
+    <Style Selector="NumericUpDown TextBox /template/ Border#PART_BorderElement">
+        <Setter Property="Background" Value="Transparent" />
+        <Setter Property="BorderBrush" Value="Transparent" />
+        <Setter Property="BorderThickness" Value="0" />
+        <Setter Property="CornerRadius" Value="0" />
+    </Style>
+
+    <Style Selector="NumericUpDown TextBox:disabled /template/ Border#PART_BorderElement">
+        <Setter Property="Background" Value="Transparent" />
+        <Setter Property="BorderBrush" Value="Transparent" />
+        <Setter Property="BorderThickness" Value="0" />
+    </Style>
+
+    <Style Selector="NumericUpDown /template/ ButtonSpinner#PART_Spinner /template/ RepeatButton#PART_DecreaseButton /template/ ContentPresenter#PART_ContentPresenter">
+        <Setter Property="CornerRadius" Value="0,13,13,0" />
+    </Style>
+
+    <Style Selector="NumericUpDown:disabled /template/ ButtonSpinner#PART_Spinner /template/ RepeatButton /template/ ContentPresenter#PART_ContentPresenter">
+        <Setter Property="Background" Value="Transparent" />
+    </Style>
+
+    <Style Selector="NumericUpDown:focus-within /template/ ButtonSpinner#PART_Spinner">
+        <Setter Property="BorderBrush" Value="{StaticResource PrimaryBrush}" />
+    </Style>
+
     <Style Selector="ComboBox">
         <Setter Property="Background" Value="{StaticResource SurfaceVariantBrush}" />
         <Setter Property="Foreground" Value="{StaticResource PrimaryTextBrush}" />

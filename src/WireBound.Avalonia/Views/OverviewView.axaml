@@ -90,6 +90,7 @@
                         Command="{Binding SelectResourceCommand}"
                         CommandParameter="{x:Static vm:DashboardResource.Cpu}"
                         AutomationProperties.Name="Focus CPU resource">
+                    <Border CornerRadius="17" ClipToBounds="True">
                     <Grid RowDefinitions="*,Auto">
                     <Grid Margin="13,11,13,0" RowDefinitions="Auto,Auto,Auto" RowSpacing="3">
                         <Grid Grid.Row="0" ColumnDefinitions="Auto,*,Auto" ColumnSpacing="7">
@@ -118,6 +119,7 @@
                                                 MaxPoints="36"
                                                 AutomationProperties.Name="Recent CPU activity" />
                     </Grid>
+                    </Border>
                 </Button>
 
                 <Button Grid.Column="1"
@@ -126,6 +128,7 @@
                         Command="{Binding SelectResourceCommand}"
                         CommandParameter="{x:Static vm:DashboardResource.Memory}"
                         AutomationProperties.Name="Focus Memory resource">
+                    <Border CornerRadius="17" ClipToBounds="True">
                     <Grid RowDefinitions="*,Auto">
                     <Grid Margin="13,11,13,0" RowDefinitions="Auto,Auto,Auto" RowSpacing="3">
                         <Grid Grid.Row="0" ColumnDefinitions="Auto,*,Auto" ColumnSpacing="7">
@@ -154,6 +157,7 @@
                                                 MaxPoints="36"
                                                 AutomationProperties.Name="Recent memory activity" />
                     </Grid>
+                    </Border>
                 </Button>
 
                 <Button Grid.Column="2"
@@ -162,6 +166,7 @@
                         Command="{Binding SelectResourceCommand}"
                         CommandParameter="{x:Static vm:DashboardResource.Disk}"
                         AutomationProperties.Name="Focus Disk resource">
+                    <Border CornerRadius="17" ClipToBounds="True">
                     <Grid RowDefinitions="*,Auto">
                     <Grid Margin="13,11,13,0" RowDefinitions="Auto,Auto,Auto" RowSpacing="3">
                         <Grid Grid.Row="0" ColumnDefinitions="Auto,*,Auto" ColumnSpacing="7">
@@ -190,6 +195,7 @@
                                                 MaxPoints="36"
                                                 AutomationProperties.Name="Recent disk read activity" />
                     </Grid>
+                    </Border>
                 </Button>
 
                 <Button Grid.Column="3"
@@ -198,6 +204,7 @@
                         Command="{Binding SelectResourceCommand}"
                         CommandParameter="{x:Static vm:DashboardResource.Network}"
                         AutomationProperties.Name="Focus Network resource">
+                    <Border CornerRadius="17" ClipToBounds="True">
                     <Grid RowDefinitions="*,Auto">
                     <Grid Margin="13,11,13,0" RowDefinitions="Auto,Auto,Auto" RowSpacing="3">
                         <Grid Grid.Row="0" ColumnDefinitions="Auto,*,Auto" ColumnSpacing="7">
@@ -226,6 +233,7 @@
                                                 MaxPoints="36"
                                                 AutomationProperties.Name="Recent network download activity" />
                     </Grid>
+                    </Border>
                 </Button>
         </Grid>
 

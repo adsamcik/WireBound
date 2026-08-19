@@ -132,9 +132,10 @@ is a separate pill and settings is a circular icon action.
 
 ### Resource selector
 
-The four resources live in one 26 px container. Each resource is a full-card
-target with a 44 px tinted icon tile and current value. Only the selected card
-receives a resource-colored border and stronger fill.
+The four resources are equal sibling summary cards. Each card presents one
+primary current value, one supporting measurement, and a lightweight recent
+sparkline. The whole card is the target; only the selected resource receives a
+resource-colored border and stronger fill.
 
 Resource focus changes only through explicit user action. It never rotates
 automatically in response to load.

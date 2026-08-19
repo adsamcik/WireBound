@@ -5,6 +5,7 @@ using System.Collections.Specialized;
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Media;
+using LiveChartsCore.Defaults;
 
 namespace WireBound.Avalonia.Controls;
 
@@ -128,7 +129,7 @@ public partial class MiniSparkline : UserControl
 
     /// <summary>
     /// Gets or sets the data values to display in the sparkline.
-    /// Supports any IList containing numeric values (double, int, float, etc.).
+    /// Supports any IList containing numeric values or LiveCharts DateTimePoint values.
     /// </summary>
     public IList? Values
     {
@@ -417,6 +418,7 @@ public partial class MiniSparkline : UserControl
                 decimal m => (double)m,
                 short s => s,
                 byte b => b,
+                DateTimePoint point => point.Value,
                 _ => null
             };
 

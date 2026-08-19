@@ -10,15 +10,16 @@
 
     <UserControl.Styles>
         <Style Selector="Button.ResourceCard">
-            <Setter Property="MinHeight" Value="82" />
-            <Setter Property="Padding" Value="14,12" />
+            <Setter Property="MinHeight" Value="112" />
+            <Setter Property="Padding" Value="13,11" />
             <Setter Property="HorizontalAlignment" Value="Stretch" />
             <Setter Property="VerticalAlignment" Value="Stretch" />
             <Setter Property="HorizontalContentAlignment" Value="Stretch" />
-            <Setter Property="Background" Value="Transparent" />
-            <Setter Property="BorderBrush" Value="Transparent" />
+            <Setter Property="VerticalContentAlignment" Value="Stretch" />
+            <Setter Property="Background" Value="{StaticResource DashboardPanelBrush}" />
+            <Setter Property="BorderBrush" Value="{StaticResource GlassBorderBrush}" />
             <Setter Property="BorderThickness" Value="1" />
-            <Setter Property="CornerRadius" Value="20" />
+            <Setter Property="CornerRadius" Value="18" />
             <Setter Property="Cursor" Value="Hand" />
         </Style>
         <Style Selector="Button.ResourceCard:pointerover /template/ ContentPresenter">
@@ -79,32 +80,40 @@
     <ScrollViewer VerticalScrollBarVisibility="Auto"
                   HorizontalScrollBarVisibility="Disabled">
     <Grid Margin="20" MinHeight="610" RowDefinitions="Auto,*" RowSpacing="14">
-        <Border Grid.Row="0"
-                Background="{StaticResource SurfaceVariantBrush}"
-                BorderBrush="{StaticResource GlassBorderBrush}"
-                BorderThickness="1"
-                CornerRadius="26"
-                Padding="6"
-                BoxShadow="0 8 24 0 #22000000"
-                AutomationProperties.Name="Resource focus">
-            <Grid ColumnDefinitions="*,*,*,*" ColumnSpacing="6">
+        <Grid Grid.Row="0"
+              ColumnDefinitions="*,*,*,*"
+              ColumnSpacing="10"
+              AutomationProperties.Name="Resource summaries">
                 <Button Grid.Column="0"
                         Classes="ResourceCard network"
                         Classes.selected="{Binding IsNetworkFocus}"
                         Command="{Binding SelectResourceCommand}"
                         CommandParameter="{x:Static vm:DashboardResource.Network}"
                         AutomationProperties.Name="Focus Network resource">
-                    <Grid ColumnDefinitions="Auto,*" ColumnSpacing="12">
-                        <Border Width="44" Height="44" CornerRadius="15" Background="{StaticResource DownloadBgTintBrush}">
-                            <controls:WbIcon IconKey="WbNavLive" Width="22" Height="22" VerticalAlignment="Center" />
-                        </Border>
-                        <StackPanel Grid.Column="1" Spacing="2">
-                            <TextBlock Text="Network" FontSize="15" FontWeight="SemiBold" />
-                            <StackPanel Orientation="Horizontal" Spacing="8">
-                                <TextBlock Text="{Binding Network.DownloadSpeed, StringFormat='↓ {0}'}" FontSize="12" Foreground="{StaticResource DownloadBrush}" />
-                                <TextBlock Text="{Binding Network.UploadSpeed, StringFormat='↑ {0}'}" FontSize="12" Foreground="{StaticResource UploadBrush}" />
-                            </StackPanel>
+                    <Grid RowDefinitions="Auto,Auto,Auto,*" RowSpacing="3">
+                        <Grid Grid.Row="0" ColumnDefinitions="Auto,*,Auto" ColumnSpacing="7">
+                            <controls:WbIcon IconKey="WbNavLive" Width="16" Height="16" />
+                            <TextBlock Grid.Column="1" Text="Network" FontSize="12" FontWeight="SemiBold" Foreground="{StaticResource DownloadBrush}" />
+                            <TextBlock Grid.Column="2" Text="›" FontSize="18" Foreground="{StaticResource MutedTextBrush}" Margin="0,-4,0,0" />
+                        </Grid>
+                        <StackPanel Grid.Row="1" Orientation="Horizontal" Spacing="6">
+                            <TextBlock Text="{Binding Network.DownloadSpeed}" FontSize="17" FontWeight="SemiBold" />
+                            <TextBlock Text="down" Classes="Caption" VerticalAlignment="Bottom" Margin="0,0,0,2" />
                         </StackPanel>
+                        <StackPanel Grid.Row="2" Orientation="Horizontal" Spacing="5">
+                            <TextBlock Text="{Binding Network.UploadSpeed, StringFormat='↑ {0}'}" Classes="Caption" Foreground="{StaticResource UploadBrush}" />
+                            <TextBlock Text="upload" Classes="Caption" />
+                        </StackPanel>
+                        <controls:MiniSparkline Grid.Row="3"
+                                                Height="22"
+                                                Margin="0,4,0,0"
+                                                HorizontalAlignment="Stretch"
+                                                Values="{Binding Network.DownloadSparklineValues}"
+                                                StrokeColor="{StaticResource DownloadBrush}"
+                                                FillColor="{StaticResource DownloadBgTintBrush}"
+                                                StrokeThickness="1.6"
+                                                MaxPoints="36"
+                                                AutomationProperties.Name="Recent network download activity" />
                     </Grid>
                 </Button>
 
@@ -114,14 +123,30 @@
                         Command="{Binding SelectResourceCommand}"
                         CommandParameter="{x:Static vm:DashboardResource.Cpu}"
                         AutomationProperties.Name="Focus CPU resource">
-                    <Grid ColumnDefinitions="Auto,*" ColumnSpacing="12">
-                        <Border Width="44" Height="44" CornerRadius="15" Background="{StaticResource CpuBgTintBrush}">
-                            <controls:WbIcon IconKey="WbEntityCpu" Width="22" Height="22" VerticalAlignment="Center" />
-                        </Border>
-                        <StackPanel Grid.Column="1" Spacing="2">
-                            <TextBlock Text="CPU" FontSize="15" FontWeight="SemiBold" />
-                            <TextBlock Text="{Binding System.CpuUsageFormatted}" FontSize="12" Foreground="{StaticResource CpuBrush}" />
+                    <Grid RowDefinitions="Auto,Auto,Auto,*" RowSpacing="3">
+                        <Grid Grid.Row="0" ColumnDefinitions="Auto,*,Auto" ColumnSpacing="7">
+                            <controls:WbIcon IconKey="WbEntityCpu" Width="16" Height="16" />
+                            <TextBlock Grid.Column="1" Text="CPU" FontSize="12" FontWeight="SemiBold" Foreground="{StaticResource CpuBrush}" />
+                            <TextBlock Grid.Column="2" Text="›" FontSize="18" Foreground="{StaticResource MutedTextBrush}" Margin="0,-4,0,0" />
+                        </Grid>
+                        <StackPanel Grid.Row="1" Orientation="Horizontal" Spacing="6">
+                            <TextBlock Text="{Binding System.CpuUsageFormatted}" FontSize="17" FontWeight="SemiBold" />
+                            <TextBlock Text="utilized" Classes="Caption" VerticalAlignment="Bottom" Margin="0,0,0,2" />
                         </StackPanel>
+                        <TextBlock Grid.Row="2"
+                                   Text="{Binding System.ProcessorCount, StringFormat='{}{0} logical processors'}"
+                                   Classes="Caption"
+                                   TextTrimming="CharacterEllipsis" />
+                        <controls:MiniSparkline Grid.Row="3"
+                                                Height="22"
+                                                Margin="0,4,0,0"
+                                                HorizontalAlignment="Stretch"
+                                                Values="{Binding System.CpuHistoryPoints}"
+                                                StrokeColor="{StaticResource CpuBrush}"
+                                                FillColor="{StaticResource CpuBgTintBrush}"
+                                                StrokeThickness="1.6"
+                                                MaxPoints="36"
+                                                AutomationProperties.Name="Recent CPU activity" />
                     </Grid>
                 </Button>
 
@@ -131,17 +156,30 @@
                         Command="{Binding SelectResourceCommand}"
                         CommandParameter="{x:Static vm:DashboardResource.Memory}"
                         AutomationProperties.Name="Focus Memory resource">
-                    <Grid ColumnDefinitions="Auto,*" ColumnSpacing="12">
-                        <Border Width="44" Height="44" CornerRadius="15" Background="{StaticResource MemoryBgTintBrush}">
-                            <controls:WbIcon IconKey="WbEntityMemory" Width="22" Height="22" VerticalAlignment="Center" />
-                        </Border>
-                        <StackPanel Grid.Column="1" Spacing="2">
-                            <TextBlock Text="Memory" FontSize="15" FontWeight="SemiBold" />
-                            <StackPanel Orientation="Horizontal" Spacing="8">
-                                <TextBlock Text="{Binding System.MemoryUsageFormatted}" FontSize="12" Foreground="{StaticResource MemoryBrush}" />
-                                <TextBlock Text="{Binding System.MemoryUsed, StringFormat='{}{0} used'}" Classes="Caption" />
-                            </StackPanel>
+                    <Grid RowDefinitions="Auto,Auto,Auto,*" RowSpacing="3">
+                        <Grid Grid.Row="0" ColumnDefinitions="Auto,*,Auto" ColumnSpacing="7">
+                            <controls:WbIcon IconKey="WbEntityMemory" Width="16" Height="16" />
+                            <TextBlock Grid.Column="1" Text="Memory" FontSize="12" FontWeight="SemiBold" Foreground="{StaticResource MemoryBrush}" />
+                            <TextBlock Grid.Column="2" Text="›" FontSize="18" Foreground="{StaticResource MutedTextBrush}" Margin="0,-4,0,0" />
+                        </Grid>
+                        <StackPanel Grid.Row="1" Orientation="Horizontal" Spacing="6">
+                            <TextBlock Text="{Binding System.MemoryUsed}" FontSize="17" FontWeight="SemiBold" />
+                            <TextBlock Text="used" Classes="Caption" VerticalAlignment="Bottom" Margin="0,0,0,2" />
                         </StackPanel>
+                        <StackPanel Grid.Row="2" Orientation="Horizontal" Spacing="5">
+                            <TextBlock Text="{Binding System.MemoryUsageFormatted}" Classes="Caption" Foreground="{StaticResource MemoryBrush}" />
+                            <TextBlock Text="{Binding System.MemoryTotal, StringFormat='of {0}'}" Classes="Caption" TextTrimming="CharacterEllipsis" />
+                        </StackPanel>
+                        <controls:MiniSparkline Grid.Row="3"
+                                                Height="22"
+                                                Margin="0,4,0,0"
+                                                HorizontalAlignment="Stretch"
+                                                Values="{Binding System.MemoryHistoryPoints}"
+                                                StrokeColor="{StaticResource MemoryBrush}"
+                                                FillColor="{StaticResource MemoryBgTintBrush}"
+                                                StrokeThickness="1.6"
+                                                MaxPoints="36"
+                                                AutomationProperties.Name="Recent memory activity" />
                     </Grid>
                 </Button>
 
@@ -151,21 +189,33 @@
                         Command="{Binding SelectResourceCommand}"
                         CommandParameter="{x:Static vm:DashboardResource.Disk}"
                         AutomationProperties.Name="Focus Disk resource">
-                    <Grid ColumnDefinitions="Auto,*" ColumnSpacing="12">
-                        <Border Width="44" Height="44" CornerRadius="15" Background="{StaticResource DiskBgTintBrush}">
-                            <controls:WbIcon IconKey="WbNavSystem" Tint="{StaticResource DiskBrush}" Width="22" Height="22" VerticalAlignment="Center" />
-                        </Border>
-                        <StackPanel Grid.Column="1" Spacing="2">
-                            <TextBlock Text="Disk" FontSize="15" FontWeight="SemiBold" />
-                            <StackPanel Orientation="Horizontal" Spacing="8">
-                                <TextBlock Text="{Binding System.DiskRead, StringFormat='↓ {0}'}" FontSize="12" Foreground="{StaticResource DiskBrush}" />
-                                <TextBlock Text="{Binding System.DiskWrite, StringFormat='↑ {0}'}" Classes="Caption" />
-                            </StackPanel>
+                    <Grid RowDefinitions="Auto,Auto,Auto,*" RowSpacing="3">
+                        <Grid Grid.Row="0" ColumnDefinitions="Auto,*,Auto" ColumnSpacing="7">
+                            <controls:WbIcon IconKey="WbNavSystem" Tint="{StaticResource DiskBrush}" Width="16" Height="16" />
+                            <TextBlock Grid.Column="1" Text="Disk" FontSize="12" FontWeight="SemiBold" Foreground="{StaticResource DiskBrush}" />
+                            <TextBlock Grid.Column="2" Text="›" FontSize="18" Foreground="{StaticResource MutedTextBrush}" Margin="0,-4,0,0" />
+                        </Grid>
+                        <StackPanel Grid.Row="1" Orientation="Horizontal" Spacing="6">
+                            <TextBlock Text="{Binding System.DiskRead}" FontSize="17" FontWeight="SemiBold" />
+                            <TextBlock Text="read" Classes="Caption" VerticalAlignment="Bottom" Margin="0,0,0,2" />
                         </StackPanel>
+                        <StackPanel Grid.Row="2" Orientation="Horizontal" Spacing="5">
+                            <TextBlock Text="{Binding System.DiskWrite, StringFormat='↑ {0}'}" Classes="Caption" Foreground="{StaticResource DiskBrush}" />
+                            <TextBlock Text="write" Classes="Caption" />
+                        </StackPanel>
+                        <controls:MiniSparkline Grid.Row="3"
+                                                Height="22"
+                                                Margin="0,4,0,0"
+                                                HorizontalAlignment="Stretch"
+                                                Values="{Binding System.DiskReadHistoryPoints}"
+                                                StrokeColor="{StaticResource DiskBrush}"
+                                                FillColor="{StaticResource DiskBgTintBrush}"
+                                                StrokeThickness="1.6"
+                                                MaxPoints="36"
+                                                AutomationProperties.Name="Recent disk read activity" />
                     </Grid>
                 </Button>
-            </Grid>
-        </Border>
+        </Grid>
 
         <Grid x:Name="DashboardContentGrid"
               Grid.Row="1"

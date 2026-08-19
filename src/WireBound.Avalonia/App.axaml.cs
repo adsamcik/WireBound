@@ -52,7 +52,7 @@ public partial class App : Application
         if (ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop)
         {
             // Create main window with navigation
-            var mainViewModel = _serviceProvider.GetRequiredService<MainViewModel>();
+            var mainViewModel = _serviceProvider!.GetRequiredService<MainViewModel>();
             var mainWindow = new MainWindow
             {
                 DataContext = mainViewModel
@@ -61,8 +61,14 @@ public partial class App : Application
 
             desktop.ShutdownRequested += OnShutdownRequested;
 
+            // --show-window is a one-launch review/debug override. It keeps the
+            // saved StartMinimized preference intact while ensuring Avalonia owns
+            // the complete show/activate lifecycle for this window.
+            var forceWindowVisible = desktop.Args?.Any(arg =>
+                string.Equals(arg, "--show-window", StringComparison.OrdinalIgnoreCase)) == true;
+
             // Fire and forget async initialization - avoids blocking UI thread
-            _ = InitializeAsyncServicesAsync(mainWindow);
+            _ = InitializeAsyncServicesAsync(mainWindow, forceWindowVisible);
 
             Log.Information("WireBound Avalonia application started successfully");
         }
@@ -74,12 +80,26 @@ public partial class App : Application
     /// Handles all async initialization to avoid blocking the UI thread.
     /// Uses fire-and-forget pattern with proper error handling.
     /// </summary>
-    private async Task InitializeAsyncServicesAsync(MainWindow mainWindow)
+    private async Task InitializeAsyncServicesAsync(MainWindow mainWindow, bool forceWindowVisible)
     {
         try
         {
             // Ensure startup entry points to current executable (handles updates that change install path)
             await EnsureStartupPathUpdatedAsync();
+
+            // A missing or invalid helper auto-start registration is a user
+            // decision, not a launch-time elevation event. Surface the choice
+            // inside the app and never trigger UAC/pkexec from this check.
+            try
+            {
+                var mainViewModel = _serviceProvider!.GetRequiredService<MainViewModel>();
+                await mainViewModel.CheckHelperStartupConfigurationAsync();
+            }
+            catch (Exception ex)
+            {
+                // Configuration advice must never prevent monitoring startup.
+                Log.Warning(ex, "Could not evaluate helper auto-start configuration");
+            }
 
             // Try to silently connect to / start an existing auto-started helper.
             // This MUST run before the first per-process query but does not block
@@ -93,7 +113,7 @@ public partial class App : Application
             await ApplyThemeFromSettingsAsync();
 
             // Check if we should start minimized
-            await ApplyStartMinimizedSettingAsync(mainWindow);
+            await ApplyStartMinimizedSettingAsync(mainWindow, forceWindowVisible);
 
             // Start background services
             await StartBackgroundServicesAsync();
@@ -348,6 +368,7 @@ public partial class App : Application
 
         // Register ViewModels
         services.AddSingleton<MainViewModel>();
+        services.AddSingleton<DashboardViewModel>();
         services.AddSingleton<OverviewViewModel>();
         services.AddSingleton<ChartsViewModel>();
         services.AddSingleton<SettingsViewModel>();
@@ -399,15 +420,6 @@ public partial class App : Application
                 Log.Warning("Failed to ensure startup path is updated");
             }
 
-            // Also update the helper startup path if registered
-            if (startupService.IsHelperStartupSupported)
-            {
-                var helperResult = await startupService.EnsureHelperStartupPathUpdatedAsync();
-                if (!helperResult)
-                {
-                    Log.Warning("Failed to ensure helper startup path is updated");
-                }
-            }
         }
         catch (Exception ex)
         {
@@ -423,9 +435,8 @@ public partial class App : Application
             await pollingService.StartAsync(CancellationToken.None);
             Log.Information("Background polling service started");
 
-            // AppsViewModel is deliberately resolved lazily by ViewFactory.
-            // Its process sampler is page-scoped, so constructing it here would
-            // enumerate every process even when the user never opens Apps.
+            // Process sampling is owned by AppsViewModel and is activated only
+            // while the unified dashboard or Processes page is visible.
         }
         catch (Exception ex)
         {
@@ -498,9 +509,15 @@ public partial class App : Application
         }
     }
 
-    private async Task ApplyStartMinimizedSettingAsync(MainWindow mainWindow)
+    private async Task ApplyStartMinimizedSettingAsync(MainWindow mainWindow, bool forceWindowVisible)
     {
         if (_serviceProvider is null) return;
+
+        if (forceWindowVisible)
+        {
+            Log.Information("Start-minimized preference bypassed for this launch");
+            return;
+        }
 
         try
         {

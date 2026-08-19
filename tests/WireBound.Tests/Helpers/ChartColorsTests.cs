@@ -14,16 +14,16 @@ public class ChartColorsTests
     // ═══════════════════════════════════════════════════════════════════════
 
     [Test]
-    public void DownloadColor_ShouldReturnValidElectricCyan()
+    public void DownloadColor_ShouldReturnSignalCyan()
     {
         // Act
         var color = ChartColors.DownloadColor;
 
         // Assert
         color.Should().NotBe(SKColor.Empty);
-        color.Red.Should().Be(0);
-        color.Green.Should().Be(229);
-        color.Blue.Should().Be(255);
+        color.Red.Should().Be(102);
+        color.Green.Should().Be(215);
+        color.Blue.Should().Be(229);
         color.Alpha.Should().Be(255);
     }
 
@@ -50,16 +50,16 @@ public class ChartColorsTests
     }
 
     [Test]
-    public void UploadColor_ShouldReturnValidCoralOrange()
+    public void UploadColor_ShouldReturnWarmCoral()
     {
         // Act
         var color = ChartColors.UploadColor;
 
         // Assert
         color.Should().NotBe(SKColor.Empty);
-        color.Red.Should().Be(255);
-        color.Green.Should().Be(107);
-        color.Blue.Should().Be(53);
+        color.Red.Should().Be(240);
+        color.Green.Should().Be(163);
+        color.Blue.Should().Be(132);
         color.Alpha.Should().Be(255);
     }
 
@@ -90,16 +90,16 @@ public class ChartColorsTests
     // ═══════════════════════════════════════════════════════════════════════
 
     [Test]
-    public void CpuColor_ShouldReturnValidSapphireBlue()
+    public void CpuColor_ShouldReturnPeriwinkleBlue()
     {
         // Act
         var color = ChartColors.CpuColor;
 
         // Assert
         color.Should().NotBe(SKColor.Empty);
-        color.Red.Should().Be(59);
-        color.Green.Should().Be(130);
-        color.Blue.Should().Be(246);
+        color.Red.Should().Be(131);
+        color.Green.Should().Be(169);
+        color.Blue.Should().Be(249);
         color.Alpha.Should().Be(255);
     }
 
@@ -131,12 +131,12 @@ public class ChartColorsTests
         // Act
         var color = ChartColors.MemoryColor;
 
-        // Assert — #EC4899, a warm magenta that stays distinct from CPU blue
+        // Assert — #F08BBE, a warm rose that stays distinct from CPU blue
         // under red-green color blindness (unlike the previous amethyst purple).
         color.Should().NotBe(SKColor.Empty);
-        color.Red.Should().Be(236);
-        color.Green.Should().Be(72);
-        color.Blue.Should().Be(153);
+        color.Red.Should().Be(240);
+        color.Green.Should().Be(139);
+        color.Blue.Should().Be(190);
         color.Alpha.Should().Be(255);
     }
 
@@ -358,7 +358,7 @@ public class ChartColorsTests
     [Test]
     public void MemoryColor_ShouldBeWarmMagenta_NotBlueDominant()
     {
-        // Memory is a warm magenta (#EC4899): red dominates and green is the
+        // Memory is a warm rose (#F08BBE): red dominates and green is the
         // smallest channel. Crucially red > blue keeps it warm so a red-green
         // deficiency can't collapse it toward CPU's blue.
         ChartColors.MemoryColor.Red.Should().BeGreaterThan(ChartColors.MemoryColor.Green);

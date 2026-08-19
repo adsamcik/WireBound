@@ -2,7 +2,9 @@ using Avalonia.Controls;
 using WireBound.Avalonia.Services;
 using WireBound.Avalonia.ViewModels;
 using WireBound.Core;
+using WireBound.Core.Models;
 using WireBound.Core.Services;
+using WireBound.Platform.Abstract.Services;
 
 namespace WireBound.Tests.ViewModels;
 
@@ -15,6 +17,9 @@ public class MainViewModelTests : IAsyncDisposable
     private readonly IViewFactory _viewFactory;
     private readonly INetworkMonitorService _networkMonitor;
     private readonly ITrayIconService _trayIconService;
+    private readonly IStartupService _startupService;
+    private readonly ISettingsRepository _settingsRepository;
+    private readonly IHelperProcessManager _helperProcessManager;
     private readonly List<MainViewModel> _createdViewModels = [];
 
     public MainViewModelTests()
@@ -23,6 +28,9 @@ public class MainViewModelTests : IAsyncDisposable
         _viewFactory = Substitute.For<IViewFactory>();
         _networkMonitor = Substitute.For<INetworkMonitorService>();
         _trayIconService = Substitute.For<ITrayIconService>();
+        _startupService = Substitute.For<IStartupService>();
+        _settingsRepository = Substitute.For<ISettingsRepository>();
+        _helperProcessManager = Substitute.For<IHelperProcessManager>();
 
         SetupDefaultMocks();
     }
@@ -31,6 +39,8 @@ public class MainViewModelTests : IAsyncDisposable
     {
         // Setup view factory to return a substitute control as the view
         _viewFactory.CreateView(Arg.Any<string>()).Returns(args => Substitute.For<Control>());
+        _settingsRepository.GetSettingsAsync().Returns(new AppSettings());
+        _helperProcessManager.ValidateRegistrationAsync().Returns(HelperValidationResult.Valid());
     }
 
     private MainViewModel CreateViewModel()
@@ -39,7 +49,10 @@ public class MainViewModelTests : IAsyncDisposable
             _navigationService,
             _viewFactory,
             _networkMonitor,
-            _trayIconService);
+            _trayIconService,
+            _startupService,
+            _settingsRepository,
+            _helperProcessManager);
         _createdViewModels.Add(vm);
         return vm;
     }
@@ -53,7 +66,7 @@ public class MainViewModelTests : IAsyncDisposable
         using var viewModel = CreateViewModel();
 
         // Assert
-        viewModel.NavigationItems.Should().HaveCount(7);
+        viewModel.NavigationItems.Should().HaveCount(3);
     }
 
     [Test]
@@ -66,12 +79,8 @@ public class MainViewModelTests : IAsyncDisposable
         var routes = viewModel.NavigationItems.Select(x => x.Route).ToList();
         routes.Should().Equal(
             Routes.Overview,
-            Routes.Charts,
             Routes.Apps,
-            Routes.Connections,
-            Routes.System,
-            Routes.History,
-            Routes.Settings);
+            Routes.Connections);
     }
 
     [Test]
@@ -139,6 +148,80 @@ public class MainViewModelTests : IAsyncDisposable
 
     #endregion
 
+    #region Helper Startup Decision Tests
+
+    [Test]
+    public async Task HelperStartupCheck_WhenRegistrationIsMissing_ShowsOneTimeInAppDecision()
+    {
+        var settings = new AppSettings { StartHelperWithSystem = true };
+        _startupService.IsHelperStartupSupported.Returns(true);
+        _startupService.IsHelperStartupEnabledAsync().Returns(false);
+        _settingsRepository.GetSettingsAsync().Returns(settings);
+        using var viewModel = CreateViewModel();
+
+        await viewModel.CheckHelperStartupConfigurationAsync();
+
+        viewModel.IsHelperStartupDecisionVisible.Should().BeTrue();
+        settings.HelperStartupIssuePrompted.Should().BeTrue();
+        await _startupService.DidNotReceive().SetHelperStartupEnabledAsync(Arg.Any<bool>());
+    }
+
+    [Test]
+    public async Task HelperStartupCheck_WhenIssueWasAlreadyShown_StaysQuiet()
+    {
+        _startupService.IsHelperStartupSupported.Returns(true);
+        _startupService.IsHelperStartupEnabledAsync().Returns(false);
+        _settingsRepository.GetSettingsAsync().Returns(new AppSettings
+        {
+            StartHelperWithSystem = true,
+            HelperStartupIssuePrompted = true
+        });
+        using var viewModel = CreateViewModel();
+
+        await viewModel.CheckHelperStartupConfigurationAsync();
+
+        viewModel.IsHelperStartupDecisionVisible.Should().BeFalse();
+    }
+
+    [Test]
+    public async Task SetUpHelperStartup_OnlyElevatesAfterExplicitInAppAction()
+    {
+        var settings = new AppSettings { StartHelperWithSystem = true };
+        _startupService.IsHelperStartupSupported.Returns(true);
+        _startupService.IsHelperStartupEnabledAsync().Returns(false);
+        _startupService.SetHelperStartupEnabledAsync(true).Returns(true);
+        _settingsRepository.GetSettingsAsync().Returns(settings);
+        using var viewModel = CreateViewModel();
+        await viewModel.CheckHelperStartupConfigurationAsync();
+
+        await viewModel.SetUpHelperStartupCommand.ExecuteAsync(null);
+
+        await _startupService.Received(1).SetHelperStartupEnabledAsync(true);
+        settings.StartHelperWithSystem.Should().BeTrue();
+        settings.HelperStartupIssuePrompted.Should().BeFalse();
+        viewModel.IsHelperStartupDecisionVisible.Should().BeFalse();
+    }
+
+    [Test]
+    public async Task DisableHelperStartup_WhenRegistrationIsMissing_DoesNotRequestElevation()
+    {
+        var settings = new AppSettings { StartHelperWithSystem = true };
+        _startupService.IsHelperStartupSupported.Returns(true);
+        _startupService.IsHelperStartupEnabledAsync().Returns(false);
+        _settingsRepository.GetSettingsAsync().Returns(settings);
+        using var viewModel = CreateViewModel();
+        await viewModel.CheckHelperStartupConfigurationAsync();
+
+        await viewModel.DisableHelperStartupCommand.ExecuteAsync(null);
+
+        await _startupService.DidNotReceive().SetHelperStartupEnabledAsync(false);
+        settings.StartHelperWithSystem.Should().BeFalse();
+        settings.HelperStartupIssuePrompted.Should().BeFalse();
+        viewModel.IsHelperStartupDecisionVisible.Should().BeFalse();
+    }
+
+    #endregion
+
     #region Navigation Tests
 
     [Test]
@@ -146,16 +229,16 @@ public class MainViewModelTests : IAsyncDisposable
     {
         // Arrange
         using var viewModel = CreateViewModel();
-        var chartsItem = viewModel.NavigationItems.First(x => x.Route == Routes.Charts);
+        var processesItem = viewModel.NavigationItems.First(x => x.Route == Routes.Apps);
 
         // Clear received calls from constructor
         _navigationService.ClearReceivedCalls();
 
         // Act
-        viewModel.SelectedNavigationItem = chartsItem;
+        viewModel.SelectedNavigationItem = processesItem;
 
         // Assert
-        _navigationService.Received(1).NavigateTo(Routes.Charts);
+        _navigationService.Received(1).NavigateTo(Routes.Apps);
     }
 
     [Test]
@@ -213,6 +296,35 @@ public class MainViewModelTests : IAsyncDisposable
         // Assert
         viewModel.CurrentView.Should().Be(newView);
         _viewFactory.Received().CreateView(Routes.Settings);
+    }
+
+    [Test]
+    public void ResourceDrillDown_KeepsOverviewNavigationSelected()
+    {
+        using var viewModel = CreateViewModel();
+        _viewFactory.CreateView(Routes.System).Returns(Substitute.For<Control>());
+
+        _navigationService.NavigationChanged += Raise.Event<Action<string>>(Routes.System);
+
+        viewModel.IsOverviewSelected.Should().BeTrue();
+        viewModel.IsDashboardRoute.Should().BeFalse();
+        viewModel.SelectedNavigationItem.Should().NotBeNull();
+        viewModel.SelectedNavigationItem!.Route.Should().Be(Routes.Overview);
+    }
+
+    [Test]
+    public void UpdateBadge_MovesToTopBarAndClearsWhenSettingsOpens()
+    {
+        using var viewModel = CreateViewModel();
+        _viewFactory.CreateView(Routes.Settings).Returns(Substitute.For<Control>());
+
+        viewModel.Receive(new UpdateAvailableMessage("1.2.3"));
+        viewModel.SettingsHasBadge.Should().BeTrue();
+
+        _navigationService.NavigationChanged += Raise.Event<Action<string>>(Routes.Settings);
+
+        viewModel.SettingsHasBadge.Should().BeFalse();
+        viewModel.IsSettingsSelected.Should().BeTrue();
     }
 
     [Test]

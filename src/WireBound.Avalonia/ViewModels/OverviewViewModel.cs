@@ -210,6 +210,12 @@ public sealed partial class OverviewViewModel : ObservableObject, IRecipient<Mem
     public ObservableCollection<ISeries> ChartSeries { get; } = [];
 
     /// <summary>
+    /// Recent download samples exposed for lightweight dashboard sparklines.
+    /// The primary chart and sparkline share the same bounded collection.
+    /// </summary>
+    public BatchObservableCollection<DateTimePoint> DownloadSparklineValues => _downloadSpeedPoints;
+
+    /// <summary>
     /// X-axis configuration for the chart
     /// </summary>
     public Axis[] ChartXAxes { get; }

@@ -277,7 +277,7 @@ public sealed class TrayIconService : ITrayIconService
             // Draw background circle
             using var bgPaint = new SKPaint
             {
-                Color = new SKColor(0, 229, 255), // Cyan (#00E5FF)
+                Color = ChartColors.DownloadColor,
                 IsAntialias = true,
                 Style = SKPaintStyle.Fill
             };

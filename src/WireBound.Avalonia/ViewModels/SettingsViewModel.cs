@@ -39,6 +39,7 @@ public sealed partial class SettingsViewModel : ObservableObject, IDisposable
     // actually changed, instead of on every auto-save.
     private bool _lastAppliedStartWithWindows;
     private bool _lastAppliedStartHelperWithSystem;
+    private bool _helperStartupIssuePrompted;
 
     // Last-committed (persisted) memory-alert values. SaveAsync writes these rather
     // than the live editable properties, so an unrelated auto-save does not leak
@@ -331,6 +332,12 @@ public sealed partial class SettingsViewModel : ObservableObject, IDisposable
     partial void OnStartWithWindowsChanged(bool value) => ScheduleAutoSave();
     partial void OnStartHelperWithSystemChanged(bool value)
     {
+        if (!_isLoading)
+        {
+            // A direct user choice begins a new, explicit setup attempt. If a
+            // future configuration incident occurs it may be surfaced once.
+            _helperStartupIssuePrompted = false;
+        }
         ScheduleAutoSave();
         UpdateHelperAutoStartStatus();
     }
@@ -655,6 +662,8 @@ public sealed partial class SettingsViewModel : ObservableObject, IDisposable
             _committedMemoryAlertSustainedSeconds = settings.MemoryAlertSustainedSeconds;
             HasUnsavedMemoryAlertChanges = false;
 
+            _helperStartupIssuePrompted = settings.HelperStartupIssuePrompted;
+
             // Load startup state from OS (not from saved settings)
             await LoadStartupStateAsync();
 
@@ -845,6 +854,7 @@ public sealed partial class SettingsViewModel : ObservableObject, IDisposable
             UseIpHelperApi = UseIpHelperApi,
             IsPerAppTrackingEnabled = IsPerAppTrackingEnabled,
             StartHelperWithSystem = StartHelperWithSystem,
+            HelperStartupIssuePrompted = _helperStartupIssuePrompted,
             MinimizeToTray = MinimizeToTray,
             TrayIconMode = SelectedTrayIconMode,
             TrayTrafficAdapterId = SelectedTrayAdapter?.Id ?? string.Empty,

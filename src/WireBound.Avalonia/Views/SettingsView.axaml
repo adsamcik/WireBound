@@ -7,8 +7,8 @@
              Background="{StaticResource BackgroundBrush}"
              AutomationProperties.Name="Settings View">
 
-    <ScrollViewer Margin="28">
-        <StackPanel Spacing="24">
+    <ScrollViewer>
+        <StackPanel Margin="28" Spacing="24">
             
             <!-- Header -->
             <StackPanel Spacing="4">
@@ -637,7 +637,7 @@
                             </StackPanel>
                             <NumericUpDown Grid.Column="1" Value="{Binding MemoryFreeFloorMb}"
                                            Minimum="512" Maximum="16384" Increment="512" FormatString="0' MB'"
-                                           Width="140" VerticalAlignment="Center"
+                                           Width="160" VerticalAlignment="Center"
                                            AutomationProperties.Name="Free RAM Floor"
                                            AutomationProperties.HelpText="Minimum free RAM threshold in megabytes to prevent false alarms on large machines" />
                         </Grid>

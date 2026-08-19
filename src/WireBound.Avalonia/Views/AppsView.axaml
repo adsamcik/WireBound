@@ -4,510 +4,664 @@
              xmlns:vm="using:WireBound.Avalonia.ViewModels"
              x:Class="WireBound.Avalonia.Views.AppsView"
              x:DataType="vm:AppsViewModel"
-             Background="{StaticResource BackgroundBrush}"
-             AutomationProperties.Name="Apps and processes">
+             Background="Transparent"
+             AutomationProperties.Name="Processes">
 
-    <!--
-        This page deliberately has no outer vertical ScrollViewer. The process
-        table occupies the final star-sized row, giving its ListBox a real
-        viewport so Avalonia can virtualize and recycle its row containers.
-    -->
-    <Grid Margin="24"
-          RowDefinitions="Auto, Auto, Auto, *"
-          RowSpacing="16">
+    <UserControl.Styles>
+        <!-- Scope is a mutually exclusive choice, so it reads as a compact
+             segmented control rather than an unrelated checkbox. -->
+        <Style Selector="ToggleButton.ProcessScope">
+            <Setter Property="Background" Value="Transparent" />
+            <Setter Property="Foreground" Value="{StaticResource SecondaryTextBrush}" />
+            <Setter Property="BorderThickness" Value="0" />
+            <Setter Property="CornerRadius" Value="7" />
+            <Setter Property="Padding" Value="12,7" />
+            <Setter Property="MinHeight" Value="36" />
+            <Setter Property="FontSize" Value="12" />
+            <Setter Property="FontWeight" Value="SemiBold" />
+            <Setter Property="Cursor" Value="Hand" />
+        </Style>
+        <Style Selector="ToggleButton.ProcessScope:pointerover /template/ ContentPresenter">
+            <Setter Property="Background" Value="{StaticResource FlyoutItemHoverBrush}" />
+        </Style>
+        <Style Selector="ToggleButton.ProcessScope:checked">
+            <Setter Property="Foreground" Value="{StaticResource PrimaryBrush}" />
+        </Style>
+        <Style Selector="ToggleButton.ProcessScope:checked /template/ ContentPresenter">
+            <Setter Property="Background" Value="{StaticResource AccentBgTintBrush}" />
+            <Setter Property="BorderBrush" Value="{StaticResource PrimaryBrush}" />
+            <Setter Property="BorderThickness" Value="1" />
+        </Style>
 
-        <!-- Page heading and concise collection state. -->
-        <Grid ColumnDefinitions="*, Auto"
-              ColumnSpacing="16">
-            <StackPanel Spacing="4">
-                <StackPanel Orientation="Horizontal" Spacing="10">
-                    <TextBlock Text="Apps &amp; processes" Classes="PageTitle" />
-                    <Border Background="{StaticResource SuccessBgTintBrush}"
-                            BorderBrush="{StaticResource SuccessBrush}"
-                            BorderThickness="1"
+        <!-- Every header cell is the sort target. Hover and active treatments
+             make the interaction discoverable without a tiny arrow target. -->
+        <Style Selector="Button.SortHeader">
+            <Setter Property="Background" Value="Transparent" />
+            <Setter Property="Foreground" Value="{StaticResource SecondaryTextBrush}" />
+            <Setter Property="BorderThickness" Value="0" />
+            <Setter Property="CornerRadius" Value="7" />
+            <Setter Property="Padding" Value="10,8" />
+            <Setter Property="MinHeight" Value="40" />
+            <Setter Property="FontSize" Value="11" />
+            <Setter Property="FontWeight" Value="Bold" />
+            <Setter Property="Cursor" Value="Hand" />
+            <Setter Property="HorizontalAlignment" Value="Stretch" />
+        </Style>
+        <Style Selector="Button.SortHeader:pointerover /template/ ContentPresenter">
+            <Setter Property="Background" Value="{StaticResource FlyoutItemHoverBrush}" />
+        </Style>
+        <Style Selector="Button.SortHeader.active">
+            <Setter Property="Foreground" Value="{StaticResource PrimaryBrush}" />
+        </Style>
+        <Style Selector="Button.SortHeader.active /template/ ContentPresenter">
+            <Setter Property="Background" Value="{StaticResource AccentBgTintBrush}" />
+            <Setter Property="BorderBrush" Value="{StaticResource SelectionBorderBrush}" />
+            <Setter Property="BorderThickness" Value="1" />
+        </Style>
+    </UserControl.Styles>
+
+    <!-- The process list owns the only vertical scroll viewport. Everything
+         above it is a compact command surface, keeping virtualization intact. -->
+    <Grid Margin="20"
+          RowDefinitions="Auto, *"
+          RowSpacing="10">
+
+        <!-- One concise information band replaces the page introduction,
+             telemetry card, and five separate summary cards. -->
+        <Border Classes="SubtleCard" Padding="14,10">
+            <Grid ColumnDefinitions="Auto, Auto, Auto, Auto, Auto, Auto, *, Auto"
+                  ColumnSpacing="16">
+                <StackPanel Grid.Column="0"
+                            Orientation="Horizontal"
+                            Spacing="10"
+                            VerticalAlignment="Center">
+                    <TextBlock Text="Processes"
+                               FontSize="26"
+                               FontWeight="Bold"
+                               VerticalAlignment="Center" />
+                    <Border Background="{StaticResource AccentBgTintBrush}"
                             CornerRadius="999"
-                            Padding="8,3"
-                            VerticalAlignment="Center"
-                            IsVisible="{Binding IsPageActive}">
-                        <StackPanel Orientation="Horizontal" Spacing="6">
-                            <Ellipse Classes="StatusDot" Width="7" Height="7" />
-                            <TextBlock Text="LIVE"
-                                       FontSize="10"
+                            Padding="8,4"
+                            VerticalAlignment="Center">
+                        <StackPanel Orientation="Horizontal" Spacing="4">
+                            <TextBlock Text="{Binding ProcessCount}"
+                                       FontSize="11"
                                        FontWeight="Bold"
-                                       Foreground="{StaticResource SuccessBrush}" />
+                                       Foreground="{StaticResource PrimaryBrush}" />
+                            <TextBlock Text="running"
+                                       FontSize="11"
+                                       Foreground="{StaticResource PrimaryBrush}" />
                         </StackPanel>
                     </Border>
-                    <Border Background="{StaticResource BorderSubtleBrush}"
-                            CornerRadius="999"
-                            Padding="8,3"
-                            VerticalAlignment="Center"
-                            IsVisible="{Binding !IsPageActive}">
-                        <TextBlock Text="PAUSED"
-                                   FontSize="10"
-                                   FontWeight="Bold"
-                                   Foreground="{StaticResource MutedTextBrush}" />
-                    </Border>
                 </StackPanel>
-                <TextBlock Text="Live CPU, memory, and network usage by running process"
-                           Classes="Subtitle" />
-            </StackPanel>
 
-            <Border Grid.Column="1"
-                    Classes="SubtleCard"
-                    Padding="14,10"
-                    VerticalAlignment="Center"
-                    AutomationProperties.Name="Process telemetry status">
-                <StackPanel Orientation="Horizontal" Spacing="10">
-                    <Ellipse Width="8" Height="8"
-                             Fill="{StaticResource SuccessBrush}"
-                             VerticalAlignment="Center"
-                             IsVisible="{Binding HasNetworkData}" />
-                    <Ellipse Width="8" Height="8"
-                             Fill="{StaticResource MutedTextBrush}"
-                             VerticalAlignment="Center"
-                             IsVisible="{Binding !HasNetworkData}" />
-                    <StackPanel Spacing="1">
-                        <TextBlock Text="Network telemetry"
-                                   FontSize="12"
-                                   FontWeight="SemiBold"
-                                   IsVisible="{Binding HasNetworkData}" />
-                        <TextBlock Text="Waiting for network telemetry"
-                                   FontSize="12"
-                                   FontWeight="SemiBold"
-                                   IsVisible="{Binding !HasNetworkData}" />
-                        <TextBlock Text="{Binding LastUpdatedLabel}" Classes="Caption" />
-                    </StackPanel>
-                </StackPanel>
-            </Border>
-        </Grid>
+                <Border Grid.Column="1"
+                        Width="1"
+                        Height="28"
+                        Background="{StaticResource DividerBrush}"
+                        VerticalAlignment="Center" />
 
-        <!-- Keep the summary intentionally compact: it offers context without
-             taking vertical room away from the virtualized process list. -->
-        <Grid Grid.Row="1"
-              ColumnDefinitions="*, *, *, *, *"
-              ColumnSpacing="12">
-            <Border Grid.Column="0" Classes="CompactCard" Padding="14,12">
-                <StackPanel Spacing="5">
-                    <StackPanel Orientation="Horizontal" Spacing="7">
-                        <controls:WbIcon IconKey="WbEntityApp" Width="14" Height="14" />
-                        <TextBlock Text="PROCESSES" Classes="MetricLabel" FontSize="11" />
-                    </StackPanel>
-                    <TextBlock Text="{Binding ProcessCount}"
-                               FontSize="22"
-                               FontWeight="Bold"
-                               TextTrimming="CharacterEllipsis"
-                               ToolTip.Tip="{Binding ProcessCount}" />
-                </StackPanel>
-            </Border>
-            <Border Grid.Column="1" Classes="CompactCard" Padding="14,12">
-                <StackPanel Spacing="5">
-                    <StackPanel Orientation="Horizontal" Spacing="7">
-                        <controls:WbIcon IconKey="WbEntityCpu" Width="14" Height="14" />
-                        <TextBlock Text="TOTAL CPU" Classes="MetricLabel" FontSize="11" />
-                    </StackPanel>
+                <StackPanel Grid.Column="2" VerticalAlignment="Center" Spacing="1">
+                    <TextBlock Text="CPU" Classes="MetricLabel" FontSize="10" />
                     <TextBlock Text="{Binding TotalCpu}"
-                               FontSize="22"
+                               FontSize="15"
                                FontWeight="Bold"
-                               Foreground="{StaticResource CpuBrush}"
-                               TextTrimming="CharacterEllipsis"
-                               ToolTip.Tip="{Binding TotalCpu}" />
+                               Foreground="{StaticResource CpuBrush}" />
                 </StackPanel>
-            </Border>
-            <Border Grid.Column="2" Classes="CompactCard" Padding="14,12">
-                <StackPanel Spacing="5">
-                    <StackPanel Orientation="Horizontal" Spacing="7">
-                        <controls:WbIcon IconKey="WbEntityMemory" Width="14" Height="14" />
-                        <TextBlock Text="TOTAL MEMORY" Classes="MetricLabel" FontSize="11" />
-                    </StackPanel>
+
+                <StackPanel Grid.Column="3" VerticalAlignment="Center" Spacing="1">
+                    <TextBlock Text="MEMORY" Classes="MetricLabel" FontSize="10" />
                     <TextBlock Text="{Binding TotalMemory}"
-                               FontSize="22"
+                               FontSize="15"
                                FontWeight="Bold"
-                               Foreground="{StaticResource MemoryBrush}"
-                               TextTrimming="CharacterEllipsis"
-                               ToolTip.Tip="{Binding TotalMemory}" />
+                               Foreground="{StaticResource MemoryBrush}" />
                 </StackPanel>
-            </Border>
-            <Border Grid.Column="3" Classes="CompactCard" Padding="14,12">
-                <StackPanel Spacing="5">
-                    <StackPanel Orientation="Horizontal" Spacing="7">
-                        <controls:WbIcon IconKey="WbMetricDownload" Width="14" Height="14" />
-                        <TextBlock Text="DOWNLOAD" Classes="MetricLabel" FontSize="11" />
+
+                <StackPanel Grid.Column="4" VerticalAlignment="Center" Spacing="1">
+                    <StackPanel Orientation="Horizontal" Spacing="5">
+                        <controls:WbIcon IconKey="WbMetricDownload" Width="11" Height="11" />
+                        <TextBlock Text="DOWN" Classes="MetricLabel" FontSize="10" />
                     </StackPanel>
                     <TextBlock Text="{Binding TotalDownloadSpeed}"
-                               FontSize="22"
+                               FontSize="15"
                                FontWeight="Bold"
-                               Foreground="{StaticResource DownloadBrush}"
-                               TextTrimming="CharacterEllipsis"
-                               ToolTip.Tip="{Binding TotalDownloadSpeed}" />
+                               Foreground="{StaticResource DownloadBrush}" />
                 </StackPanel>
-            </Border>
-            <Border Grid.Column="4" Classes="CompactCard" Padding="14,12">
-                <StackPanel Spacing="5">
-                    <StackPanel Orientation="Horizontal" Spacing="7">
-                        <controls:WbIcon IconKey="WbMetricUpload" Width="14" Height="14" />
-                        <TextBlock Text="UPLOAD" Classes="MetricLabel" FontSize="11" />
+
+                <StackPanel Grid.Column="5" VerticalAlignment="Center" Spacing="1">
+                    <StackPanel Orientation="Horizontal" Spacing="5">
+                        <controls:WbIcon IconKey="WbMetricUpload" Width="11" Height="11" />
+                        <TextBlock Text="UP" Classes="MetricLabel" FontSize="10" />
                     </StackPanel>
                     <TextBlock Text="{Binding TotalUploadSpeed}"
-                               FontSize="22"
+                               FontSize="15"
                                FontWeight="Bold"
-                               Foreground="{StaticResource UploadBrush}"
-                               TextTrimming="CharacterEllipsis"
-                               ToolTip.Tip="{Binding TotalUploadSpeed}" />
+                               Foreground="{StaticResource UploadBrush}" />
                 </StackPanel>
-            </Border>
-        </Grid>
 
-        <!-- A single, low-chrome toolbar keeps common actions in reach without
-             turning the live monitor into a filter-heavy historical report. -->
-        <Border Grid.Row="2" Classes="SubtleCard" Padding="12">
-            <Grid ColumnDefinitions="*, Auto, Auto" ColumnSpacing="12">
-                <Border Background="{StaticResource SurfaceBrush}"
-                        BorderBrush="{StaticResource BorderBrush}"
-                        BorderThickness="1"
-                        CornerRadius="8"
-                        MinHeight="40"
-                        Padding="12,0">
-                    <Grid ColumnDefinitions="Auto, *" ColumnSpacing="8">
-                        <controls:WbIcon IconKey="WbActionSearch" Width="16" Height="16" />
-                        <TextBox Grid.Column="1"
-                                 Text="{Binding SearchText}"
-                                 PlaceholderText="Search process name, PID, or path…"
-                                 Background="Transparent"
-                                 BorderThickness="0"
-                                 Padding="0"
-                                 VerticalAlignment="Center"
-                                 MinWidth="220"
-                                 AutomationProperties.Name="Search processes"
-                                 AutomationProperties.HelpText="Filter running processes by display name, process name, process ID, or executable path" />
-                    </Grid>
-                </Border>
-
-                <CheckBox Grid.Column="1"
-                          IsChecked="{Binding ShowSystemProcesses}"
-                          VerticalAlignment="Center"
-                          AutomationProperties.Name="Show system processes"
-                          AutomationProperties.HelpText="Include operating system and background processes in the process list">
-                    <TextBlock Text="Show system" FontSize="13" VerticalAlignment="Center" />
-                </CheckBox>
-
-                <Button Grid.Column="2"
-                        Classes="Secondary ToolbarButton"
-                        Command="{Binding RefreshCommand}"
-                        IsEnabled="{Binding !IsLoading}"
-                        AutomationProperties.Name="Refresh process usage"
-                        AutomationProperties.HelpText="Take a new snapshot of process CPU, memory, and network usage">
-                    <StackPanel Orientation="Horizontal" Spacing="7">
-                        <controls:WbIcon IconKey="WbActionRefresh" Width="14" Height="14" />
-                        <TextBlock Text="Refresh" VerticalAlignment="Center" />
-                    </StackPanel>
-                </Button>
+                <StackPanel Grid.Column="7"
+                            Orientation="Horizontal"
+                            Spacing="8"
+                            VerticalAlignment="Center"
+                            ToolTip.Tip="Network values become available when per-process telemetry is supported">
+                    <ProgressBar IsIndeterminate="True"
+                                 Width="32"
+                                 Height="3"
+                                 IsVisible="{Binding IsLoading}"
+                                 AutomationProperties.Name="Refreshing process usage" />
+                    <Ellipse Width="7"
+                             Height="7"
+                             Fill="{StaticResource SuccessBrush}"
+                             IsVisible="{Binding HasNetworkData}" />
+                    <Ellipse Width="7"
+                             Height="7"
+                             Fill="{StaticResource MutedTextBrush}"
+                             IsVisible="{Binding !HasNetworkData}" />
+                    <TextBlock Text="{Binding LastUpdatedLabel}"
+                               Classes="Caption"
+                               VerticalAlignment="Center" />
+                </StackPanel>
             </Grid>
         </Border>
 
-        <!-- Fixed table header + star-sized body. The inner horizontal scroller
-             only handles narrow windows; vertical scrolling stays on ListBox. -->
-        <Border Grid.Row="3"
+        <!-- Search, filtering, sorting, and rows belong to one table surface. -->
+        <Border Grid.Row="1"
                 Classes="Card"
                 Padding="0"
                 MinHeight="0"
                 ClipToBounds="True">
             <Grid RowDefinitions="Auto, *" MinHeight="0">
-                <Grid Margin="20,16,20,12" ColumnDefinitions="*, Auto" ColumnSpacing="12">
-                    <StackPanel Orientation="Horizontal" Spacing="10">
-                        <Border Background="{StaticResource AccentBgTintBrush}"
-                                Width="32" Height="32" CornerRadius="8">
-                            <controls:WbIcon IconKey="WbEntityApp" Width="16" Height="16" />
-                        </Border>
-                        <StackPanel VerticalAlignment="Center" Spacing="1">
-                            <TextBlock Text="Running processes" Classes="SectionHeader" FontSize="16" />
-                            <TextBlock Text="Sorted live snapshot" Classes="Caption" />
-                        </StackPanel>
-                    </StackPanel>
-                    <ProgressBar Grid.Column="1"
-                                 IsIndeterminate="True"
-                                 Width="48"
-                                 Height="4"
-                                 VerticalAlignment="Center"
-                                 IsVisible="{Binding IsLoading}"
-                                 AutomationProperties.Name="Refreshing process usage" />
-                </Grid>
+                <Border Padding="12,10"
+                        BorderBrush="{StaticResource DividerBrush}"
+                        BorderThickness="0,0,0,1">
+                    <Grid ColumnDefinitions="*, Auto, Auto, Auto"
+                          ColumnSpacing="10">
+                        <Grid MinWidth="260">
+                            <TextBox Text="{Binding SearchText}"
+                                     PlaceholderText="Search name, PID, or executable path"
+                                     MinHeight="40"
+                                     Padding="38,8,40,8"
+                                     Background="{StaticResource SurfaceBrush}"
+                                     BorderBrush="{StaticResource BorderBrush}"
+                                     BorderThickness="1"
+                                     CornerRadius="8"
+                                     VerticalContentAlignment="Center"
+                                     AutomationProperties.Name="Search processes"
+                                     AutomationProperties.HelpText="Filter running processes by display name, process name, process ID, or executable path" />
+                            <controls:WbIcon IconKey="WbActionSearch"
+                                             Width="15"
+                                             Height="15"
+                                             Margin="13,0,0,0"
+                                             HorizontalAlignment="Left"
+                                             VerticalAlignment="Center"
+                                             IsHitTestVisible="False" />
+                            <Button Classes="Ghost"
+                                    Command="{Binding ClearSearchCommand}"
+                                    IsVisible="{Binding HasSearchText}"
+                                    Width="36"
+                                    Height="36"
+                                    Padding="0"
+                                    Margin="0,2,2,2"
+                                    HorizontalAlignment="Right"
+                                    VerticalAlignment="Center"
+                                    ToolTip.Tip="Clear search"
+                                    AutomationProperties.Name="Clear process search">
+                                <TextBlock Text="×" FontSize="18" FontWeight="Normal" />
+                            </Button>
+                        </Grid>
 
-                <ScrollViewer Grid.Row="1"
+                        <TextBlock Grid.Column="1"
+                                   Text="{Binding VisibleProcessCount, StringFormat='{}{0} shown'}"
+                                   Classes="Caption"
+                                   VerticalAlignment="Center"
+                                   IsVisible="{Binding HasActiveProcessFilter}" />
+
+                        <Border Grid.Column="2"
+                                Background="{StaticResource SurfaceBrush}"
+                                BorderBrush="{StaticResource BorderBrush}"
+                                BorderThickness="1"
+                                CornerRadius="9"
+                                Padding="2">
+                            <StackPanel Orientation="Horizontal" Spacing="2">
+                                <ToggleButton Classes="ProcessScope"
+                                              IsChecked="{Binding IsAllProcessesScope, Mode=OneWay}"
+                                              Command="{Binding ShowAllProcessesCommand}"
+                                              AutomationProperties.Name="Show all processes"
+                                              AutomationProperties.HelpText="Include user applications, background services, and system processes">
+                                    <TextBlock Text="All" />
+                                </ToggleButton>
+                                <ToggleButton Classes="ProcessScope"
+                                              IsChecked="{Binding IsUserProcessesScope, Mode=OneWay}"
+                                              Command="{Binding ShowUserProcessesCommand}"
+                                              AutomationProperties.Name="Show user processes only"
+                                              AutomationProperties.HelpText="Hide operating system and background processes">
+                                    <TextBlock Text="User only" />
+                                </ToggleButton>
+                            </StackPanel>
+                        </Border>
+
+                        <Button Grid.Column="3"
+                                Classes="Secondary"
+                                Command="{Binding RefreshCommand}"
+                                IsEnabled="{Binding !IsLoading}"
+                                Width="40"
+                                Height="40"
+                                Padding="0"
+                                ToolTip.Tip="Refresh now"
+                                AutomationProperties.Name="Refresh process usage"
+                                AutomationProperties.HelpText="Take a new snapshot of process CPU, memory, and network usage">
+                            <controls:WbIcon IconKey="WbActionRefresh" Width="15" Height="15" />
+                        </Button>
+                    </Grid>
+                </Border>
+
+                <!-- Header and rows share one horizontal viewport, so their
+                     repeated column definitions remain aligned when narrow. -->
+                <Grid Grid.Row="1"
+                      MinHeight="0"
+                      ColumnDefinitions="*,Auto">
+                <ScrollViewer Grid.Column="0"
                               MinHeight="0"
                               HorizontalScrollBarVisibility="Auto"
                               VerticalScrollBarVisibility="Disabled">
-                    <Grid MinWidth="950"
+                    <Grid MinWidth="930"
                           MinHeight="0"
                           RowDefinitions="Auto, *">
-                        <!-- Column widths are repeated by the item template so
-                             metric values stay aligned while the list recycles. -->
-                        <Border Grid.Row="0"
-                                Background="{StaticResource BorderSubtleBrush}"
-                                BorderBrush="{StaticResource DividerBrush}"
-                                BorderThickness="0,1,0,1"
-                                Padding="20,10">
-                            <Grid ColumnDefinitions="*, 90, 130, 120, 120, 125"
-                                  ColumnSpacing="12">
-                                <Button Classes="Ghost"
-                                        Padding="0"
-                                        HorizontalAlignment="Left"
-                                        Command="{Binding ToggleSortCommand}"
-                                        CommandParameter="{x:Static vm:ProcessUsageSortColumn.Name}"
-                                        AutomationProperties.Name="Sort processes by name"
-                                        AutomationProperties.HelpText="Sort the running process table by application or process name">
-                                    <StackPanel Orientation="Horizontal" Spacing="4">
-                                        <TextBlock Text="PROCESS" Classes="MetricLabel" FontSize="11" />
-                                        <TextBlock Text="{Binding NameSortGlyph}" Classes="MetricLabel" FontSize="10" />
-                                    </StackPanel>
-                                </Button>
-                                <Button Grid.Column="1"
-                                        Classes="Ghost"
-                                        Padding="0"
-                                        HorizontalAlignment="Right"
-                                        Command="{Binding ToggleSortCommand}"
-                                        CommandParameter="{x:Static vm:ProcessUsageSortColumn.Cpu}"
-                                        AutomationProperties.Name="Sort processes by CPU"
-                                        AutomationProperties.HelpText="Sort the running process table by current CPU usage">
-                                    <StackPanel Orientation="Horizontal" Spacing="4">
-                                        <TextBlock Text="CPU" Classes="MetricLabel" FontSize="11" />
-                                        <TextBlock Text="{Binding CpuSortGlyph}" Classes="MetricLabel" FontSize="10" />
-                                    </StackPanel>
-                                </Button>
-                                <Button Grid.Column="2"
-                                        Classes="Ghost"
-                                        Padding="0"
-                                        HorizontalAlignment="Right"
-                                        Command="{Binding ToggleSortCommand}"
-                                        CommandParameter="{x:Static vm:ProcessUsageSortColumn.Memory}"
-                                        AutomationProperties.Name="Sort processes by memory"
-                                        AutomationProperties.HelpText="Sort the running process table by physical memory usage">
-                                    <StackPanel Orientation="Horizontal" Spacing="4">
-                                        <TextBlock Text="MEMORY" Classes="MetricLabel" FontSize="11" />
-                                        <TextBlock Text="{Binding MemorySortGlyph}" Classes="MetricLabel" FontSize="10" />
-                                    </StackPanel>
-                                </Button>
-                                <Button Grid.Column="3"
-                                        Classes="Ghost"
-                                        Padding="0"
-                                        HorizontalAlignment="Right"
-                                        Command="{Binding ToggleSortCommand}"
-                                        CommandParameter="{x:Static vm:ProcessUsageSortColumn.Download}"
-                                        AutomationProperties.Name="Sort processes by download speed"
-                                        AutomationProperties.HelpText="Sort the running process table by current download speed">
-                                    <StackPanel Orientation="Horizontal" Spacing="4">
-                                        <TextBlock Text="DOWNLOAD" Classes="MetricLabel" FontSize="11" />
-                                        <TextBlock Text="{Binding DownloadSortGlyph}" Classes="MetricLabel" FontSize="10" />
-                                    </StackPanel>
-                                </Button>
-                                <Button Grid.Column="4"
-                                        Classes="Ghost"
-                                        Padding="0"
-                                        HorizontalAlignment="Right"
-                                        Command="{Binding ToggleSortCommand}"
-                                        CommandParameter="{x:Static vm:ProcessUsageSortColumn.Upload}"
-                                        AutomationProperties.Name="Sort processes by upload speed"
-                                        AutomationProperties.HelpText="Sort the running process table by current upload speed">
-                                    <StackPanel Orientation="Horizontal" Spacing="4">
-                                        <TextBlock Text="UPLOAD" Classes="MetricLabel" FontSize="11" />
-                                        <TextBlock Text="{Binding UploadSortGlyph}" Classes="MetricLabel" FontSize="10" />
-                                    </StackPanel>
-                                </Button>
-                                <TextBlock Grid.Column="5"
-                                           Text="SESSION"
-                                           Classes="MetricLabel"
-                                           FontSize="11"
-                                           HorizontalAlignment="Right"
-                                           VerticalAlignment="Center" />
-                            </Grid>
+                <!-- Header cells fill their complete columns. The selected sort
+                     receives a persistent tint; arrows only communicate direction. -->
+                <Border Grid.Row="0"
+                        Background="{StaticResource BorderSubtleBrush}"
+                        BorderBrush="{StaticResource DividerBrush}"
+                        BorderThickness="0,0,0,1"
+                        Padding="8,2">
+                    <Grid ColumnDefinitions="*, 92, 128, 120, 120, 120"
+                          ColumnSpacing="4">
+                        <Button Classes="SortHeader"
+                                Classes.active="{Binding IsNameSort}"
+                                HorizontalContentAlignment="Left"
+                                Command="{Binding ToggleSortCommand}"
+                                CommandParameter="{x:Static vm:ProcessUsageSortColumn.Name}"
+                                AutomationProperties.Name="Sort processes by name"
+                                AutomationProperties.HelpText="Sort the running process table by application or process name">
+                            <StackPanel Orientation="Horizontal" Spacing="6">
+                                <TextBlock Text="PROCESS" />
+                                <TextBlock Text="{Binding NameSortGlyph}" FontSize="9" />
+                            </StackPanel>
+                        </Button>
+                        <Button Grid.Column="1"
+                                Classes="SortHeader"
+                                Classes.active="{Binding IsCpuSort}"
+                                HorizontalContentAlignment="Right"
+                                Command="{Binding ToggleSortCommand}"
+                                CommandParameter="{x:Static vm:ProcessUsageSortColumn.Cpu}"
+                                AutomationProperties.Name="Sort processes by CPU"
+                                AutomationProperties.HelpText="Sort the running process table by current CPU usage">
+                            <StackPanel Orientation="Horizontal" Spacing="6">
+                                <TextBlock Text="CPU" />
+                                <TextBlock Text="{Binding CpuSortGlyph}" FontSize="9" />
+                            </StackPanel>
+                        </Button>
+                        <Button Grid.Column="2"
+                                Classes="SortHeader"
+                                Classes.active="{Binding IsMemorySort}"
+                                HorizontalContentAlignment="Right"
+                                Command="{Binding ToggleSortCommand}"
+                                CommandParameter="{x:Static vm:ProcessUsageSortColumn.Memory}"
+                                AutomationProperties.Name="Sort processes by memory"
+                                AutomationProperties.HelpText="Sort the running process table by physical memory usage">
+                            <StackPanel Orientation="Horizontal" Spacing="6">
+                                <TextBlock Text="MEMORY" />
+                                <TextBlock Text="{Binding MemorySortGlyph}" FontSize="9" />
+                            </StackPanel>
+                        </Button>
+                        <Button Grid.Column="3"
+                                Classes="SortHeader"
+                                Classes.active="{Binding IsDownloadSort}"
+                                HorizontalContentAlignment="Right"
+                                Command="{Binding ToggleSortCommand}"
+                                CommandParameter="{x:Static vm:ProcessUsageSortColumn.Download}"
+                                AutomationProperties.Name="Sort processes by download speed"
+                                AutomationProperties.HelpText="Sort the running process table by current download speed">
+                            <StackPanel Orientation="Horizontal" Spacing="6">
+                                <TextBlock Text="DOWNLOAD" />
+                                <TextBlock Text="{Binding DownloadSortGlyph}" FontSize="9" />
+                            </StackPanel>
+                        </Button>
+                        <Button Grid.Column="4"
+                                Classes="SortHeader"
+                                Classes.active="{Binding IsUploadSort}"
+                                HorizontalContentAlignment="Right"
+                                Command="{Binding ToggleSortCommand}"
+                                CommandParameter="{x:Static vm:ProcessUsageSortColumn.Upload}"
+                                AutomationProperties.Name="Sort processes by upload speed"
+                                AutomationProperties.HelpText="Sort the running process table by current upload speed">
+                            <StackPanel Orientation="Horizontal" Spacing="6">
+                                <TextBlock Text="UPLOAD" />
+                                <TextBlock Text="{Binding UploadSortGlyph}" FontSize="9" />
+                            </StackPanel>
+                        </Button>
+                        <Border Grid.Column="5" Padding="10,8">
+                            <TextBlock Text="SESSION"
+                                       Classes="MetricLabel"
+                                       FontSize="11"
+                                       HorizontalAlignment="Right"
+                                       VerticalAlignment="Center" />
                         </Border>
+                    </Grid>
+                </Border>
 
-                        <Grid Grid.Row="1" MinHeight="0">
-                            <ListBox ItemsSource="{Binding ProcessItems}"
-                                     SelectionMode="Single"
-                                     Background="Transparent"
-                                     BorderThickness="0"
-                                     MinHeight="0"
-                                     ScrollViewer.HorizontalScrollBarVisibility="Disabled"
-                                     ScrollViewer.VerticalScrollBarVisibility="Auto"
-                                     AutomationProperties.Name="Running processes"
-                                     AutomationProperties.HelpText="Virtualized list of processes with live CPU, memory, and network usage">
-                                <ListBox.ItemsPanel>
-                                    <ItemsPanelTemplate>
-                                        <VirtualizingStackPanel />
-                                    </ItemsPanelTemplate>
-                                </ListBox.ItemsPanel>
-                                <ListBox.Styles>
-                                    <Style Selector="ListBoxItem">
-                                        <Setter Property="Padding" Value="0" />
-                                        <Setter Property="Margin" Value="0" />
-                                        <Setter Property="Background" Value="Transparent" />
-                                    </Style>
-                                    <Style Selector="ListBoxItem:selected /template/ ContentPresenter#PART_ContentPresenter">
-                                        <Setter Property="Background" Value="Transparent" />
-                                    </Style>
-                                    <Style Selector="ListBoxItem:selected Border.ProcessRow">
-                                        <Setter Property="Background" Value="{StaticResource SelectionBgBrush}" />
-                                        <Setter Property="BorderBrush" Value="{StaticResource SelectionBorderBrush}" />
-                                    </Style>
-                                </ListBox.Styles>
-                                <ListBox.ItemTemplate>
-                                    <DataTemplate x:DataType="vm:ProcessUsageDisplayItem">
-                                        <Border Classes="ProcessRow"
-                                                Background="Transparent"
-                                                BorderBrush="Transparent"
-                                                BorderThickness="1"
-                                                CornerRadius="8"
-                                                Padding="20,8"
-                                                Height="64"
-                                                ToolTip.Tip="{Binding ExecutablePath}"
-                                                AutomationProperties.Name="{Binding DisplayName}"
-                                                AutomationProperties.HelpText="{Binding ExecutablePath}">
-                                            <Border.Styles>
-                                                <Style Selector="Border:pointerover">
-                                                    <Setter Property="Background" Value="{StaticResource FlyoutItemHoverBrush}" />
-                                                    <Setter Property="BorderBrush" Value="{StaticResource BorderBrush}" />
-                                                </Style>
-                                            </Border.Styles>
-                                            <Grid ColumnDefinitions="*, 90, 130, 120, 120, 125"
-                                                  ColumnSpacing="12">
-                                                <!-- Identity remains left-aligned and wide enough to make the
-                                                     process list useful even on a narrow monitor. -->
-                                                <Grid ColumnDefinitions="Auto, *, Auto" ColumnSpacing="10">
-                                                    <Border Width="36" Height="36"
-                                                            CornerRadius="9"
-                                                            Background="{StaticResource AccentBgTintBrush}">
-                                                        <controls:WbIcon IconKey="WbEntityApp" Width="18" Height="18" />
-                                                    </Border>
-                                                    <StackPanel Grid.Column="1"
-                                                                VerticalAlignment="Center"
-                                                                Spacing="2">
-                                                        <TextBlock Text="{Binding DisplayName}"
-                                                                   FontSize="14"
-                                                                   FontWeight="SemiBold"
-                                                                   TextTrimming="CharacterEllipsis" />
-                                                        <StackPanel Orientation="Horizontal" Spacing="6">
-                                                            <TextBlock Text="{Binding ProcessName}"
-                                                                       Classes="Caption"
-                                                                       TextTrimming="CharacterEllipsis"
-                                                                       MaxWidth="180" />
-                                                            <TextBlock Text="•" Classes="Caption" />
-                                                            <TextBlock Text="{Binding ProcessId, StringFormat='PID {0}'}"
-                                                                       Classes="Caption" />
-                                                        </StackPanel>
-                                                    </StackPanel>
-                                                    <Border Grid.Column="2"
-                                                            Background="{StaticResource BorderSubtleBrush}"
-                                                            CornerRadius="999"
-                                                            Padding="7,2"
-                                                            VerticalAlignment="Center"
-                                                            IsVisible="{Binding IsSystemProcess}">
-                                                        <TextBlock Text="SYSTEM"
-                                                                   FontSize="9"
-                                                                   FontWeight="Bold"
-                                                                   Foreground="{StaticResource SecondaryTextBrush}" />
-                                                    </Border>
-                                                </Grid>
-
+                <!-- The list keeps its own finite vertical viewport so row
+                     virtualization remains active. -->
+                    <Grid Grid.Row="1" MinHeight="0">
+                        <ListBox ItemsSource="{Binding ProcessItems}"
+                                 SelectedItem="{Binding SelectedProcess, Mode=TwoWay}"
+                                 SelectionMode="Single"
+                                 Background="Transparent"
+                                 BorderThickness="0"
+                                 MinHeight="0"
+                                 ScrollViewer.HorizontalScrollBarVisibility="Disabled"
+                                 ScrollViewer.VerticalScrollBarVisibility="Auto"
+                                 AutomationProperties.Name="Running processes"
+                                 AutomationProperties.HelpText="Virtualized list of processes with live CPU, memory, and network usage">
+                            <ListBox.ItemsPanel>
+                                <ItemsPanelTemplate>
+                                    <VirtualizingStackPanel />
+                                </ItemsPanelTemplate>
+                            </ListBox.ItemsPanel>
+                            <ListBox.Styles>
+                                <Style Selector="ListBoxItem">
+                                    <Setter Property="Padding" Value="0" />
+                                    <Setter Property="Margin" Value="0" />
+                                    <Setter Property="Background" Value="Transparent" />
+                                    <Setter Property="Cursor" Value="Hand" />
+                                </Style>
+                                <Style Selector="ListBoxItem:selected /template/ ContentPresenter#PART_ContentPresenter">
+                                    <Setter Property="Background" Value="Transparent" />
+                                </Style>
+                                <Style Selector="ListBoxItem:selected Border.ProcessRow">
+                                    <Setter Property="Background" Value="{StaticResource SelectionBgBrush}" />
+                                    <Setter Property="BorderBrush" Value="{StaticResource SelectionBorderBrush}" />
+                                </Style>
+                            </ListBox.Styles>
+                            <ListBox.ItemTemplate>
+                                <DataTemplate x:DataType="vm:ProcessUsageDisplayItem">
+                                    <Border Classes="ProcessRow"
+                                            Background="Transparent"
+                                            BorderBrush="{StaticResource DividerBrush}"
+                                            BorderThickness="0,0,0,1"
+                                            Padding="12,4"
+                                            Height="52"
+                                            ToolTip.Tip="{Binding ExecutablePath}"
+                                            AutomationProperties.Name="{Binding DisplayName}"
+                                            AutomationProperties.HelpText="Select to inspect live process details">
+                                        <Border.Styles>
+                                            <Style Selector="Border:pointerover">
+                                                <Setter Property="Background" Value="{StaticResource FlyoutItemHoverBrush}" />
+                                            </Style>
+                                        </Border.Styles>
+                                        <Grid ColumnDefinitions="*, 92, 128, 120, 120, 120"
+                                              ColumnSpacing="4">
+                                            <Grid ColumnDefinitions="Auto, *, Auto" ColumnSpacing="9">
+                                                <Border Width="30"
+                                                        Height="30"
+                                                        CornerRadius="7"
+                                                        Background="{StaticResource AccentBgTintBrush}">
+                                                    <controls:WbIcon IconKey="WbEntityApp" Width="15" Height="15" />
+                                                </Border>
                                                 <StackPanel Grid.Column="1"
                                                             VerticalAlignment="Center"
-                                                            HorizontalAlignment="Right"
-                                                            Spacing="1">
-                                                    <TextBlock Text="{Binding CpuDisplay}"
-                                                               FontSize="14"
+                                                            Spacing="0">
+                                                    <TextBlock Text="{Binding DisplayName}"
+                                                               FontSize="13"
                                                                FontWeight="SemiBold"
-                                                               Foreground="{StaticResource CpuBrush}"
-                                                               HorizontalAlignment="Right" />
-                                                    <TextBlock Text="Awaiting sample"
-                                                               Classes="Caption"
-                                                               FontSize="10"
-                                                               HorizontalAlignment="Right"
-                                                               IsVisible="{Binding !HasCpuSample}" />
+                                                               TextTrimming="CharacterEllipsis" />
+                                                    <StackPanel Orientation="Horizontal" Spacing="5">
+                                                        <TextBlock Text="{Binding ProcessName}"
+                                                                   Classes="Caption"
+                                                                   FontSize="10"
+                                                                   TextTrimming="CharacterEllipsis"
+                                                                   MaxWidth="180" />
+                                                        <TextBlock Text="•" Classes="Caption" FontSize="10" />
+                                                        <TextBlock Text="{Binding ProcessId, StringFormat='PID {0}'}"
+                                                                   Classes="Caption"
+                                                                   FontSize="10" />
+                                                    </StackPanel>
                                                 </StackPanel>
-
-                                                <TextBlock Grid.Column="2"
-                                                           Text="{Binding MemoryDisplay}"
-                                                           FontSize="14"
-                                                           FontWeight="SemiBold"
-                                                           Foreground="{StaticResource MemoryBrush}"
-                                                           HorizontalAlignment="Right"
-                                                           VerticalAlignment="Center"
-                                                           TextTrimming="CharacterEllipsis"
-                                                           ToolTip.Tip="{Binding MemoryDisplay}" />
-
-                                                <StackPanel Grid.Column="3"
-                                                            VerticalAlignment="Center"
-                                                            HorizontalAlignment="Right"
-                                                            Spacing="1">
-                                                    <TextBlock Text="{Binding DownloadDisplay}"
-                                                               FontSize="14"
-                                                               FontWeight="SemiBold"
-                                                               Foreground="{StaticResource DownloadBrush}"
-                                                               HorizontalAlignment="Right" />
-                                                    <TextBlock Text="No telemetry"
-                                                               Classes="Caption"
-                                                               FontSize="10"
-                                                               HorizontalAlignment="Right"
-                                                               IsVisible="{Binding !HasNetworkStats}" />
-                                                </StackPanel>
-
-                                                <StackPanel Grid.Column="4"
-                                                            VerticalAlignment="Center"
-                                                            HorizontalAlignment="Right"
-                                                            Spacing="1">
-                                                    <TextBlock Text="{Binding UploadDisplay}"
-                                                               FontSize="14"
-                                                               FontWeight="SemiBold"
-                                                               Foreground="{StaticResource UploadBrush}"
-                                                               HorizontalAlignment="Right" />
-                                                    <TextBlock Text="No telemetry"
-                                                               Classes="Caption"
-                                                               FontSize="10"
-                                                               HorizontalAlignment="Right"
-                                                               IsVisible="{Binding !HasNetworkStats}" />
-                                                </StackPanel>
-
-                                                <TextBlock Grid.Column="5"
-                                                           Text="{Binding SessionTotalDisplay}"
-                                                           FontSize="14"
-                                                           FontWeight="SemiBold"
-                                                           HorizontalAlignment="Right"
-                                                           VerticalAlignment="Center"
-                                                           TextTrimming="CharacterEllipsis"
-                                                           ToolTip.Tip="{Binding SessionTotalDisplay}" />
+                                                <Border Grid.Column="2"
+                                                        Background="{StaticResource BorderSubtleBrush}"
+                                                        CornerRadius="999"
+                                                        Padding="6,2"
+                                                        Margin="6,0"
+                                                        VerticalAlignment="Center"
+                                                        IsVisible="{Binding IsSystemProcess}">
+                                                    <TextBlock Text="SYSTEM"
+                                                               FontSize="8"
+                                                               FontWeight="Bold"
+                                                               Foreground="{StaticResource SecondaryTextBrush}" />
+                                                </Border>
                                             </Grid>
-                                        </Border>
-                                    </DataTemplate>
-                                </ListBox.ItemTemplate>
-                            </ListBox>
 
-                            <!-- The empty state is an overlay, preserving the finite list
-                                 viewport whether data has arrived or not. -->
-                            <Border Background="{StaticResource CardBrush}"
-                                    IsVisible="{Binding !HasVisibleProcesses}">
-                                <StackPanel HorizontalAlignment="Center"
-                                            VerticalAlignment="Center"
-                                            Spacing="10"
-                                            MaxWidth="380">
-                                    <Border Width="56" Height="56"
-                                            CornerRadius="14"
-                                            Background="{StaticResource AccentBgTintBrush}"
-                                            HorizontalAlignment="Center">
-                                        <controls:WbIcon IconKey="WbEntityApp" Width="26" Height="26" />
+                                            <TextBlock Grid.Column="1"
+                                                       Text="{Binding CpuDisplay}"
+                                                       FontSize="13"
+                                                       FontWeight="SemiBold"
+                                                       Foreground="{StaticResource CpuBrush}"
+                                                       HorizontalAlignment="Right"
+                                                       VerticalAlignment="Center"
+                                                       ToolTip.Tip="CPU usage; a dash means the first sample is pending" />
+                                            <TextBlock Grid.Column="2"
+                                                       Text="{Binding MemoryDisplay}"
+                                                       FontSize="13"
+                                                       FontWeight="SemiBold"
+                                                       Foreground="{StaticResource MemoryBrush}"
+                                                       HorizontalAlignment="Right"
+                                                       VerticalAlignment="Center"
+                                                       TextTrimming="CharacterEllipsis"
+                                                       ToolTip.Tip="{Binding MemoryDisplay}" />
+                                            <TextBlock Grid.Column="3"
+                                                       Text="{Binding DownloadDisplay}"
+                                                       FontSize="13"
+                                                       FontWeight="SemiBold"
+                                                       Foreground="{StaticResource DownloadBrush}"
+                                                       HorizontalAlignment="Right"
+                                                       VerticalAlignment="Center"
+                                                       ToolTip.Tip="A dash means per-process network telemetry is unavailable" />
+                                            <TextBlock Grid.Column="4"
+                                                       Text="{Binding UploadDisplay}"
+                                                       FontSize="13"
+                                                       FontWeight="SemiBold"
+                                                       Foreground="{StaticResource UploadBrush}"
+                                                       HorizontalAlignment="Right"
+                                                       VerticalAlignment="Center"
+                                                       ToolTip.Tip="A dash means per-process network telemetry is unavailable" />
+                                            <TextBlock Grid.Column="5"
+                                                       Text="{Binding SessionTotalDisplay}"
+                                                       FontSize="13"
+                                                       FontWeight="SemiBold"
+                                                       HorizontalAlignment="Right"
+                                                       VerticalAlignment="Center"
+                                                       TextTrimming="CharacterEllipsis"
+                                                       ToolTip.Tip="{Binding SessionTotalDisplay}" />
+                                        </Grid>
                                     </Border>
-                                    <TextBlock Text="No processes to show"
-                                               FontSize="16"
-                                               FontWeight="Bold"
-                                               HorizontalAlignment="Center" />
-                                    <TextBlock Text="Processes appear while this page is active. Try clearing the search or showing system processes."
-                                               Classes="Subtitle"
-                                               TextAlignment="Center"
-                                               TextWrapping="Wrap"
-                                               HorizontalAlignment="Center" />
-                                </StackPanel>
-                            </Border>
-                        </Grid>
+                                </DataTemplate>
+                            </ListBox.ItemTemplate>
+                        </ListBox>
+
+                        <Border Background="{StaticResource CardBrush}"
+                                IsVisible="{Binding !HasVisibleProcesses}">
+                            <StackPanel HorizontalAlignment="Center"
+                                        VerticalAlignment="Center"
+                                        Spacing="8"
+                                        MaxWidth="380">
+                                <Border Width="48"
+                                        Height="48"
+                                        CornerRadius="12"
+                                        Background="{StaticResource AccentBgTintBrush}"
+                                        HorizontalAlignment="Center">
+                                    <controls:WbIcon IconKey="WbEntityApp" Width="22" Height="22" />
+                                </Border>
+                                <TextBlock Text="No matching processes"
+                                           FontSize="15"
+                                           FontWeight="Bold"
+                                           HorizontalAlignment="Center" />
+                                <TextBlock Text="Clear the search or switch the scope to All."
+                                           Classes="Subtitle"
+                                           TextAlignment="Center"
+                                           TextWrapping="Wrap"
+                                           HorizontalAlignment="Center" />
+                                <Button Classes="Secondary ToolbarButton"
+                                        Command="{Binding ClearSearchCommand}"
+                                        IsVisible="{Binding HasSearchText}"
+                                        AutomationProperties.Name="Clear process search from empty state">
+                                    <TextBlock Text="Clear search" />
+                                </Button>
+                            </StackPanel>
+                        </Border>
+                    </Grid>
                     </Grid>
                 </ScrollViewer>
+
+                <Border Grid.Column="1"
+                        Width="360"
+                        IsVisible="{Binding HasSelectedProcess}"
+                        Background="{StaticResource SurfaceElevatedBrush}"
+                        BorderBrush="{StaticResource DividerBrush}"
+                        BorderThickness="1,0,0,0"
+                        Padding="18"
+                        AutomationProperties.Name="Selected process details">
+                    <Grid RowDefinitions="Auto,Auto,*" RowSpacing="14">
+                        <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="11">
+                            <Border Width="40"
+                                    Height="40"
+                                    CornerRadius="11"
+                                    Background="{StaticResource AccentBgTintBrush}">
+                                <controls:WbIcon IconKey="WbEntityApp" Width="19" Height="19" />
+                            </Border>
+                            <StackPanel Grid.Column="1" Spacing="2" VerticalAlignment="Center">
+                                <TextBlock Text="{Binding SelectedProcess.DisplayName}"
+                                           FontSize="17"
+                                           FontWeight="SemiBold"
+                                           TextTrimming="CharacterEllipsis" />
+                                <StackPanel Orientation="Horizontal" Spacing="6">
+                                    <TextBlock Text="{Binding SelectedProcess.ProcessIdLabel}" Classes="Caption" />
+                                    <TextBlock Text="•" Classes="Caption" />
+                                    <TextBlock Text="{Binding SelectedProcess.ProcessTypeLabel}" Classes="Caption" />
+                                </StackPanel>
+                            </StackPanel>
+                            <Button Grid.Column="2"
+                                    Classes="Ghost"
+                                    Width="36"
+                                    Height="36"
+                                    Padding="0"
+                                    Command="{Binding CloseProcessDetailsCommand}"
+                                    ToolTip.Tip="Close process details"
+                                    AutomationProperties.Name="Close process details">
+                                <TextBlock Text="×" FontSize="20" FontWeight="Normal" />
+                            </Button>
+                        </Grid>
+
+                        <Border Grid.Row="1"
+                                Height="1"
+                                Background="{StaticResource DividerBrush}" />
+
+                        <ScrollViewer Grid.Row="2"
+                                      VerticalScrollBarVisibility="Auto"
+                                      HorizontalScrollBarVisibility="Disabled">
+                            <StackPanel Spacing="16">
+                                <StackPanel Spacing="6">
+                                    <TextBlock Text="EXECUTABLE" Classes="MetricLabel" FontSize="10" />
+                                    <Border Background="{StaticResource SurfaceVariantBrush}"
+                                            CornerRadius="12"
+                                            Padding="11,9">
+                                        <TextBlock Text="{Binding SelectedProcess.ExecutablePathDisplay}"
+                                                   Classes="Caption"
+                                                   TextWrapping="Wrap" />
+                                    </Border>
+                                </StackPanel>
+
+                                <StackPanel Spacing="8">
+                                    <TextBlock Text="LIVE RESOURCES" Classes="MetricLabel" FontSize="10" />
+                                    <Grid ColumnDefinitions="*,*"
+                                          RowDefinitions="Auto,Auto"
+                                          ColumnSpacing="8"
+                                          RowSpacing="8">
+                                        <Border Background="{StaticResource CpuBgTintBrush}" CornerRadius="12" Padding="11,9">
+                                            <StackPanel Spacing="2">
+                                                <TextBlock Text="CPU" Classes="Caption" />
+                                                <TextBlock Text="{Binding SelectedProcess.CpuDisplay}"
+                                                           FontSize="17"
+                                                           FontWeight="SemiBold"
+                                                           Foreground="{StaticResource CpuBrush}" />
+                                            </StackPanel>
+                                        </Border>
+                                        <Border Grid.Column="1" Background="{StaticResource MemoryBgTintBrush}" CornerRadius="12" Padding="11,9">
+                                            <StackPanel Spacing="2">
+                                                <TextBlock Text="WORKING SET" Classes="Caption" />
+                                                <TextBlock Text="{Binding SelectedProcess.MemoryDisplay}"
+                                                           FontSize="17"
+                                                           FontWeight="SemiBold"
+                                                           Foreground="{StaticResource MemoryBrush}"
+                                                           TextTrimming="CharacterEllipsis" />
+                                            </StackPanel>
+                                        </Border>
+                                        <Border Grid.Row="1" Grid.ColumnSpan="2" Background="{StaticResource SurfaceVariantBrush}" CornerRadius="12" Padding="11,9">
+                                            <Grid ColumnDefinitions="*,Auto">
+                                                <TextBlock Text="Private memory" Classes="Caption" />
+                                                <TextBlock Grid.Column="1"
+                                                           Text="{Binding SelectedProcess.PrivateMemoryDisplay}"
+                                                           FontWeight="SemiBold" />
+                                            </Grid>
+                                        </Border>
+                                    </Grid>
+                                </StackPanel>
+
+                                <StackPanel Spacing="8">
+                                    <Grid ColumnDefinitions="*,Auto">
+                                        <TextBlock Text="NETWORK" Classes="MetricLabel" FontSize="10" VerticalAlignment="Center" />
+                                        <TextBlock Grid.Column="1"
+                                                   Text="{Binding SelectedProcess.NetworkTelemetryLabel}"
+                                                   Classes="Caption"
+                                                   FontSize="10" />
+                                    </Grid>
+                                    <Grid ColumnDefinitions="*,*" ColumnSpacing="8">
+                                        <Border Background="{StaticResource DownloadBgTintBrush}" CornerRadius="12" Padding="11,9">
+                                            <StackPanel Spacing="2">
+                                                <TextBlock Text="DOWNLOAD" Classes="Caption" />
+                                                <TextBlock Text="{Binding SelectedProcess.DownloadDisplay}"
+                                                           FontSize="16"
+                                                           FontWeight="SemiBold"
+                                                           Foreground="{StaticResource DownloadBrush}" />
+                                            </StackPanel>
+                                        </Border>
+                                        <Border Grid.Column="1" Background="{StaticResource UploadBgTintBrush}" CornerRadius="12" Padding="11,9">
+                                            <StackPanel Spacing="2">
+                                                <TextBlock Text="UPLOAD" Classes="Caption" />
+                                                <TextBlock Text="{Binding SelectedProcess.UploadDisplay}"
+                                                           FontSize="16"
+                                                           FontWeight="SemiBold"
+                                                           Foreground="{StaticResource UploadBrush}" />
+                                            </StackPanel>
+                                        </Border>
+                                    </Grid>
+                                    <Border Background="{StaticResource SurfaceVariantBrush}" CornerRadius="12" Padding="11,9">
+                                        <Grid ColumnDefinitions="*,Auto" RowDefinitions="Auto,Auto" RowSpacing="5">
+                                            <TextBlock Text="Session received" Classes="Caption" />
+                                            <TextBlock Grid.Column="1" Text="{Binding SelectedProcess.SessionDownloadDisplay}" FontWeight="SemiBold" />
+                                            <TextBlock Grid.Row="1" Text="Session sent" Classes="Caption" />
+                                            <TextBlock Grid.Row="1" Grid.Column="1" Text="{Binding SelectedProcess.SessionUploadDisplay}" FontWeight="SemiBold" />
+                                        </Grid>
+                                    </Border>
+                                </StackPanel>
+
+                                <TextBlock Text="Values update with the live process snapshot."
+                                           Classes="Caption"
+                                           TextWrapping="Wrap" />
+                            </StackPanel>
+                        </ScrollViewer>
+                    </Grid>
+                </Border>
+                </Grid>
             </Grid>
         </Border>
     </Grid>

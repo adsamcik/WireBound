@@ -7,8 +7,8 @@
              Background="{StaticResource BackgroundBrush}"
              AutomationProperties.Name="Settings View">
 
-    <ScrollViewer Margin="28">
-        <StackPanel Spacing="24">
+    <ScrollViewer>
+        <StackPanel Margin="28" Spacing="24">
             
             <!-- Header -->
             <StackPanel Spacing="4">

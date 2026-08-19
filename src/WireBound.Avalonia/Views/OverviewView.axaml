@@ -85,39 +85,6 @@
               ColumnSpacing="10"
               AutomationProperties.Name="Resource summaries">
                 <Button Grid.Column="0"
-                        Classes="ResourceCard network"
-                        Classes.selected="{Binding IsNetworkFocus}"
-                        Command="{Binding SelectResourceCommand}"
-                        CommandParameter="{x:Static vm:DashboardResource.Network}"
-                        AutomationProperties.Name="Focus Network resource">
-                    <Grid RowDefinitions="Auto,Auto,Auto,*" RowSpacing="3">
-                        <Grid Grid.Row="0" ColumnDefinitions="Auto,*,Auto" ColumnSpacing="7">
-                            <controls:WbIcon IconKey="WbNavLive" Width="16" Height="16" />
-                            <TextBlock Grid.Column="1" Text="Network" FontSize="12" FontWeight="SemiBold" Foreground="{StaticResource DownloadBrush}" />
-                            <TextBlock Grid.Column="2" Text="›" FontSize="18" Foreground="{StaticResource MutedTextBrush}" Margin="0,-4,0,0" />
-                        </Grid>
-                        <StackPanel Grid.Row="1" Orientation="Horizontal" Spacing="6">
-                            <TextBlock Text="{Binding Network.DownloadSpeed}" FontSize="17" FontWeight="SemiBold" />
-                            <TextBlock Text="down" Classes="Caption" VerticalAlignment="Bottom" Margin="0,0,0,2" />
-                        </StackPanel>
-                        <StackPanel Grid.Row="2" Orientation="Horizontal" Spacing="5">
-                            <TextBlock Text="{Binding Network.UploadSpeed, StringFormat='↑ {0}'}" Classes="Caption" Foreground="{StaticResource UploadBrush}" />
-                            <TextBlock Text="upload" Classes="Caption" />
-                        </StackPanel>
-                        <controls:MiniSparkline Grid.Row="3"
-                                                Height="22"
-                                                Margin="0,4,0,0"
-                                                HorizontalAlignment="Stretch"
-                                                Values="{Binding Network.DownloadSparklineValues}"
-                                                StrokeColor="{StaticResource DownloadBrush}"
-                                                FillColor="{StaticResource DownloadBgTintBrush}"
-                                                StrokeThickness="1.6"
-                                                MaxPoints="36"
-                                                AutomationProperties.Name="Recent network download activity" />
-                    </Grid>
-                </Button>
-
-                <Button Grid.Column="1"
                         Classes="ResourceCard cpu"
                         Classes.selected="{Binding IsCpuFocus}"
                         Command="{Binding SelectResourceCommand}"
@@ -150,7 +117,7 @@
                     </Grid>
                 </Button>
 
-                <Button Grid.Column="2"
+                <Button Grid.Column="1"
                         Classes="ResourceCard memory"
                         Classes.selected="{Binding IsMemoryFocus}"
                         Command="{Binding SelectResourceCommand}"
@@ -183,7 +150,7 @@
                     </Grid>
                 </Button>
 
-                <Button Grid.Column="3"
+                <Button Grid.Column="2"
                         Classes="ResourceCard disk"
                         Classes.selected="{Binding IsDiskFocus}"
                         Command="{Binding SelectResourceCommand}"
@@ -213,6 +180,39 @@
                                                 StrokeThickness="1.6"
                                                 MaxPoints="36"
                                                 AutomationProperties.Name="Recent disk read activity" />
+                    </Grid>
+                </Button>
+
+                <Button Grid.Column="3"
+                        Classes="ResourceCard network"
+                        Classes.selected="{Binding IsNetworkFocus}"
+                        Command="{Binding SelectResourceCommand}"
+                        CommandParameter="{x:Static vm:DashboardResource.Network}"
+                        AutomationProperties.Name="Focus Network resource">
+                    <Grid RowDefinitions="Auto,Auto,Auto,*" RowSpacing="3">
+                        <Grid Grid.Row="0" ColumnDefinitions="Auto,*,Auto" ColumnSpacing="7">
+                            <controls:WbIcon IconKey="WbNavLive" Width="16" Height="16" />
+                            <TextBlock Grid.Column="1" Text="Network" FontSize="12" FontWeight="SemiBold" Foreground="{StaticResource DownloadBrush}" />
+                            <TextBlock Grid.Column="2" Text="›" FontSize="18" Foreground="{StaticResource MutedTextBrush}" Margin="0,-4,0,0" />
+                        </Grid>
+                        <StackPanel Grid.Row="1" Orientation="Horizontal" Spacing="6">
+                            <TextBlock Text="{Binding Network.DownloadSpeed}" FontSize="17" FontWeight="SemiBold" />
+                            <TextBlock Text="down" Classes="Caption" VerticalAlignment="Bottom" Margin="0,0,0,2" />
+                        </StackPanel>
+                        <StackPanel Grid.Row="2" Orientation="Horizontal" Spacing="5">
+                            <TextBlock Text="{Binding Network.UploadSpeed, StringFormat='↑ {0}'}" Classes="Caption" Foreground="{StaticResource UploadBrush}" />
+                            <TextBlock Text="upload" Classes="Caption" />
+                        </StackPanel>
+                        <controls:MiniSparkline Grid.Row="3"
+                                                Height="22"
+                                                Margin="0,4,0,0"
+                                                HorizontalAlignment="Stretch"
+                                                Values="{Binding Network.DownloadSparklineValues}"
+                                                StrokeColor="{StaticResource DownloadBrush}"
+                                                FillColor="{StaticResource DownloadBgTintBrush}"
+                                                StrokeThickness="1.6"
+                                                MaxPoints="36"
+                                                AutomationProperties.Name="Recent network download activity" />
                     </Grid>
                 </Button>
         </Grid>

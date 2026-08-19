@@ -132,7 +132,8 @@ is a separate pill and settings is a circular icon action.
 
 ### Resource selector
 
-The four resources are equal sibling summary cards. Each card presents one
+The four resources are equal sibling summary cards ordered CPU, Memory, Disk,
+then Network. Each card presents one
 primary current value, one supporting measurement, and a lightweight recent
 sparkline. The whole card is the target; only the selected resource receives a
 resource-colored border and stronger fill.

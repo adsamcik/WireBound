@@ -7,6 +7,32 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.10.0] - 2026-08-20
+
+### Added
+
+- **Unified Resource Dashboard** - Replaced the network-first overview with one analytical workspace for CPU, memory, disk, and network. Equal resource cards show current values and recent activity, and selecting a card updates the main chart, contributor ranking, contextual controls, and resource drill-down without changing pages.
+- **Process Details** - Selecting a running process now opens an in-context detail pane with its identity, executable path, CPU, working set, private memory, current network rates, session totals, process scope, and telemetry availability.
+- **In-App Helper Autostart Recovery** - When helper autostart is enabled but its scheduler registration is missing or invalid, WireBound now presents a one-time in-app choice to repair the registration or disable autostart.
+
+### Changed
+
+- **Unified Application Shell** - Removed the left navigation rail and consolidated primary destinations into a compact top bar for Overview, Processes, and Connections, with monitoring state and Settings kept as global actions.
+- **Focused Resource Analysis** - Resource selection is manual and stable instead of switching automatically while the user is investigating. CPU, memory, disk, and network use resource-specific charts, units, contributor labels, and contextual controls.
+- **Process Workspace** - Reworked the running-process view around a denser table, integrated search, explicit all/user process scopes, larger sortable column targets, compact live totals, and a refresh action that preserves the user's context.
+- **Signal and Flow Design System** - Refined color, surface, typography, spacing, focus, button, and chart tokens into a more coherent Fluent-inspired visual language across the shell, dashboard, Processes, Connections, Settings, and tray states.
+- **Resource Summary Order** - Standardized resource presentation as CPU, Memory, Disk, then Network and enriched each summary with a clipped, edge-to-edge sparkline.
+- **Build Toolchain** - Pinned the .NET SDK to 10.0.302.
+
+### Fixed
+
+- **Live Process Focus** - Process refreshes now reconcile rows in place, preserve the selected process at its visual position, and avoid moving keyboard focus as live values reorder.
+- **Dashboard Review Flow** - Restored live sampling and chart updates after the dashboard composition changes, with stable resource focus while new samples arrive.
+- **Repeated Scheduler Prompts** - Startup no longer launches helper setup on every run; unresolved registrations are detected without elevation and prompted only once until the user makes a new choice.
+- **Settings Layout** - Unified numeric stepper chrome, removed conflicting borders, and allowed settings content to scroll cleanly beneath the fixed header without extra top padding.
+- **Resource Card Geometry** - Equalized card targets and clipped edge-to-edge sparklines to the cards' rounded shape so charts meet the left, right, and bottom edges without bleeding outside.
+- **Linux Release Validation** - Package checks now verify that the Velopack full package contains a non-empty AppImage payload instead of looking for unpackaged Linux executables.
+
 ## [0.9.1] - 2026-08-11
 
 ### Added

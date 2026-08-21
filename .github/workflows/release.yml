@@ -206,8 +206,21 @@ jobs:
       - name: Generate release notes
         run: |
           version="${{ steps.version.outputs.VERSION }}"
+          changelog_section="$(awk -v version="$version" '
+            $0 ~ "^## \\[" version "\\]" { found = 1; next }
+            found && /^## \\[/ { exit }
+            found { print }
+          ' CHANGELOG.md)"
+
+          if [ -z "$(printf '%s' "$changelog_section" | tr -d '[:space:]')" ]; then
+            echo "CHANGELOG.md does not contain a release section for $version" >&2
+            exit 1
+          fi
+
           cat > release-notes.md << EOF
           ## WireBound v$version
+
+          $changelog_section
           
           ### Downloads
           - **Windows installer (recommended)**: \`WireBound-win-x64-Setup.exe\` - install once, then update from inside WireBound
@@ -218,9 +231,6 @@ jobs:
           ### System Requirements
           - Linux / Windows 10+
           - Self-contained (no runtime required)
-          
-          ### What's New
-          See [CHANGELOG.md](CHANGELOG.md) for detailed changes.
           EOF
 
       - name: Create GitHub Release

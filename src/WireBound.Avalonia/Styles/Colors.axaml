@@ -62,6 +62,10 @@
     <Color x:Key="CpuColorLight">#AFC5FB</Color>
     <Color x:Key="CpuColorDark">#5E83D6</Color>
     <Color x:Key="CpuBgTint">#2683A9F9</Color>
+
+    <!-- Kernel/privileged CPU timing highlight (Amber) -->
+    <Color x:Key="KernelColor">#F59E0B</Color>
+    <Color x:Key="KernelBgTint">#25F59E0B</Color>
     
     <!-- Memory Colors (Magenta Pink — colorblind-safe vs CPU blue) -->
     <Color x:Key="MemoryColor">#F08BBE</Color>
@@ -249,6 +253,10 @@
     <SolidColorBrush x:Key="CpuLightBrush" Color="{StaticResource CpuColorLight}" />
     <SolidColorBrush x:Key="CpuDarkBrush" Color="{StaticResource CpuColorDark}" />
     <SolidColorBrush x:Key="CpuBgTintBrush" Color="{StaticResource CpuBgTint}" />
+
+    <!-- Kernel timing brushes -->
+    <SolidColorBrush x:Key="KernelBrush" Color="{StaticResource KernelColor}" />
+    <SolidColorBrush x:Key="KernelBgTintBrush" Color="{StaticResource KernelBgTint}" />
     
     <!-- Memory Brushes -->
     <SolidColorBrush x:Key="MemoryBrush" Color="{StaticResource MemoryColor}" />

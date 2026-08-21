@@ -1,14 +1,111 @@
 <Window xmlns="https://github.com/avaloniaui"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:controls="using:WireBound.Avalonia.Controls"
+        xmlns:documents="using:Avalonia.Controls.Documents"
         x:Class="WireBound.Avalonia.Views.WhatsNewWindow"
         x:CompileBindings="False"
         Title="What's New"
-        Width="480" Height="400"
-        MinWidth="400" MinHeight="300"
+        Icon="avares://WireBound/Assets/wirebound.ico"
+        Width="560" Height="500"
+        MinWidth="460" MinHeight="360"
         CanResize="False"
         WindowStartupLocation="CenterOwner"
         Background="{StaticResource BackgroundBrush}"
         AutomationProperties.Name="What's New dialog">
+
+    <Window.Styles>
+        <Style Selector="controls|MarkdownView TextBlock.MarkdownParagraph">
+            <Setter Property="Foreground" Value="{StaticResource SecondaryTextBrush}" />
+            <Setter Property="FontSize" Value="14" />
+            <Setter Property="LineHeight" Value="21" />
+        </Style>
+        <Style Selector="controls|MarkdownView TextBlock.MarkdownHeading1">
+            <Setter Property="Foreground" Value="{StaticResource PrimaryTextBrush}" />
+            <Setter Property="FontSize" Value="22" />
+            <Setter Property="FontWeight" Value="Bold" />
+            <Setter Property="Margin" Value="0,8,0,2" />
+        </Style>
+        <Style Selector="controls|MarkdownView TextBlock.MarkdownHeading2">
+            <Setter Property="Foreground" Value="{StaticResource PrimaryTextBrush}" />
+            <Setter Property="FontSize" Value="19" />
+            <Setter Property="FontWeight" Value="SemiBold" />
+            <Setter Property="Margin" Value="0,7,0,1" />
+        </Style>
+        <Style Selector="controls|MarkdownView TextBlock.MarkdownHeading3">
+            <Setter Property="Foreground" Value="{StaticResource PrimaryTextBrush}" />
+            <Setter Property="FontSize" Value="16" />
+            <Setter Property="FontWeight" Value="SemiBold" />
+            <Setter Property="Margin" Value="0,6,0,0" />
+        </Style>
+        <Style Selector="controls|MarkdownView TextBlock.MarkdownHeading4">
+            <Setter Property="Foreground" Value="{StaticResource PrimaryTextBrush}" />
+            <Setter Property="FontSize" Value="14" />
+            <Setter Property="FontWeight" Value="SemiBold" />
+            <Setter Property="Margin" Value="0,4,0,0" />
+        </Style>
+        <Style Selector="controls|MarkdownView TextBlock.MarkdownHeading5">
+            <Setter Property="Foreground" Value="{StaticResource PrimaryTextBrush}" />
+            <Setter Property="FontSize" Value="14" />
+            <Setter Property="FontWeight" Value="SemiBold" />
+            <Setter Property="Margin" Value="0,4,0,0" />
+        </Style>
+        <Style Selector="controls|MarkdownView TextBlock.MarkdownHeading6">
+            <Setter Property="Foreground" Value="{StaticResource PrimaryTextBrush}" />
+            <Setter Property="FontSize" Value="14" />
+            <Setter Property="FontWeight" Value="SemiBold" />
+            <Setter Property="Margin" Value="0,4,0,0" />
+        </Style>
+        <Style Selector="controls|MarkdownView TextBlock.MarkdownListMarker">
+            <Setter Property="Foreground" Value="{StaticResource PrimaryBrush}" />
+            <Setter Property="FontSize" Value="14" />
+            <Setter Property="LineHeight" Value="21" />
+        </Style>
+        <Style Selector="controls|MarkdownView TextBlock.MarkdownListText">
+            <Setter Property="Foreground" Value="{StaticResource SecondaryTextBrush}" />
+            <Setter Property="FontSize" Value="14" />
+            <Setter Property="LineHeight" Value="21" />
+        </Style>
+        <Style Selector="controls|MarkdownView Border.MarkdownQuote">
+            <Setter Property="BorderBrush" Value="{StaticResource PrimaryBrush}" />
+            <Setter Property="Background" Value="{StaticResource AccentBgTintBrush}" />
+        </Style>
+        <Style Selector="controls|MarkdownView TextBlock.MarkdownQuoteText">
+            <Setter Property="Foreground" Value="{StaticResource SecondaryTextBrush}" />
+            <Setter Property="FontStyle" Value="Italic" />
+            <Setter Property="FontSize" Value="14" />
+            <Setter Property="LineHeight" Value="21" />
+        </Style>
+        <Style Selector="controls|MarkdownView Border.MarkdownCodeBlock">
+            <Setter Property="Background" Value="{StaticResource SurfaceBrush}" />
+            <Setter Property="BorderBrush" Value="{StaticResource BorderBrush}" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="CornerRadius" Value="8" />
+            <Setter Property="Padding" Value="12,10" />
+        </Style>
+        <Style Selector="controls|MarkdownView SelectableTextBlock.MarkdownCodeBlockText">
+            <Setter Property="Foreground" Value="{StaticResource PrimaryTextBrush}" />
+            <Setter Property="FontFamily" Value="Cascadia Mono, Consolas, monospace" />
+            <Setter Property="FontSize" Value="13" />
+        </Style>
+        <Style Selector="controls|MarkdownView documents|Run.MarkdownInlineCode">
+            <Setter Property="Foreground" Value="{StaticResource PrimaryTextBrush}" />
+            <Setter Property="Background" Value="{StaticResource SurfaceBrush}" />
+            <Setter Property="FontFamily" Value="Cascadia Mono, Consolas, monospace" />
+            <Setter Property="FontSize" Value="13" />
+        </Style>
+        <Style Selector="controls|MarkdownView HyperlinkButton.MarkdownLink">
+            <Setter Property="Foreground" Value="{StaticResource PrimaryBrush}" />
+            <Setter Property="Background" Value="Transparent" />
+            <Setter Property="Padding" Value="0" />
+            <Setter Property="Margin" Value="0" />
+            <Setter Property="MinHeight" Value="0" />
+            <Setter Property="FontSize" Value="14" />
+        </Style>
+        <Style Selector="controls|MarkdownView Separator.MarkdownRule">
+            <Setter Property="Background" Value="{StaticResource DividerBrush}" />
+            <Setter Property="Margin" Value="0,5" />
+        </Style>
+    </Window.Styles>
 
     <Border Margin="32" CornerRadius="8">
         <DockPanel>
@@ -22,21 +119,29 @@
                     Classes="Accent"
                     AutomationProperties.Name="Dismiss What's New dialog" />
 
-            <!-- Title -->
-            <TextBlock DockPanel.Dock="Top"
-                       Text="{Binding Title}"
-                       FontSize="22"
-                       FontWeight="SemiBold"
-                       Foreground="{StaticResource PrimaryTextBrush}"
-                       Margin="0,0,0,16" />
+            <!-- Branded header -->
+            <StackPanel DockPanel.Dock="Top"
+                        Orientation="Horizontal"
+                        Spacing="14"
+                        Margin="0,0,0,20">
+                <Image Source="avares://WireBound/Assets/wirebound-128.png"
+                       Width="48" Height="48"
+                       Stretch="Uniform"
+                       RenderOptions.BitmapInterpolationMode="HighQuality"
+                       AutomationProperties.Name="WireBound logo" />
+                <TextBlock Text="{Binding Title}"
+                           FontSize="22"
+                           FontWeight="SemiBold"
+                           Foreground="{StaticResource PrimaryTextBrush}"
+                           VerticalAlignment="Center" />
+            </StackPanel>
 
             <!-- Release notes content -->
             <ScrollViewer VerticalScrollBarVisibility="Auto">
-                <TextBlock Text="{Binding Notes}"
-                           TextWrapping="Wrap"
-                           Foreground="{StaticResource SecondaryTextBrush}"
-                           FontSize="14"
-                           LineHeight="22" />
+                <controls:MarkdownView Markdown="{Binding Notes}"
+                                       LinkBaseUri="{Binding LinkBaseUri}"
+                                       Margin="0,0,12,0"
+                                       AutomationProperties.Name="Release notes" />
             </ScrollViewer>
         </DockPanel>
     </Border>

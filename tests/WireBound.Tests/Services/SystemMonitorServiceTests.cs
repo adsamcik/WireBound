@@ -25,6 +25,9 @@ public class SystemMonitorServiceTests : IDisposable
         _cpuProvider.GetCpuInfo().Returns(new CpuInfoData
         {
             UsagePercent = 50,
+            PerCoreUsagePercent = [40, 60],
+            KernelUsagePercent = 12,
+            PerCoreKernelUsagePercent = [8, 16],
             ProcessorCount = 8
         });
         _cpuProvider.SupportsTemperature.Returns(true);
@@ -83,6 +86,9 @@ public class SystemMonitorServiceTests : IDisposable
         // Assert
         var stats = _service.GetCurrentStats();
         stats.Cpu.UsagePercent.Should().Be(50);
+        stats.Cpu.PerCoreUsagePercent.Should().BeEquivalentTo([40, 60]);
+        stats.Cpu.KernelUsagePercent.Should().Be(12);
+        stats.Cpu.PerCoreKernelUsagePercent.Should().BeEquivalentTo([8, 16]);
         stats.Cpu.ProcessorCount.Should().Be(8);
         stats.Memory.TotalBytes.Should().Be(16_000_000_000);
         stats.Memory.UsedBytes.Should().Be(8_000_000_000);

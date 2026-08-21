@@ -89,6 +89,7 @@ public sealed partial class OverviewViewModel : ObservableObject, IRecipient<Mem
     private long _lastPeakDownloadBps = -1;
     private long _lastPeakUploadBps = -1;
     private int _lastCpuPercentInt = -1;
+    private int _lastKernelPercentInt = -1;
     private int _lastMemPercentInt = -1;
 
     // Throttle secondary adapter discovery (every 5 ticks instead of every tick)
@@ -179,10 +180,30 @@ public sealed partial class OverviewViewModel : ObservableObject, IRecipient<Mem
     private double _memoryPercent;
 
     [ObservableProperty]
+    private double _kernelPercent;
+
+    [ObservableProperty]
     private string _cpuUsageFormatted = "0%";
 
     [ObservableProperty]
     private string _memoryUsageFormatted = "0%";
+
+    [ObservableProperty]
+    private string _kernelUsageFormatted = "0% kernel";
+
+    [ObservableProperty]
+    private bool _showKernelTimings;
+
+    [ObservableProperty]
+    private bool _hasCpuCoreCharts;
+
+    [ObservableProperty]
+    private bool _isKernelTimingAvailable;
+
+    /// <summary>
+    /// Compact one-minute histories for each logical processor.
+    /// </summary>
+    public ObservableCollection<CpuCoreChartItem> CpuCoreCharts { get; } = [];
 
     /// <summary>
     /// Current memory pressure level (0 = Normal, 1 = Warning, 2 = Critical).
@@ -490,6 +511,16 @@ public sealed partial class OverviewViewModel : ObservableObject, IRecipient<Mem
             CpuUsageFormatted = $"{stats.Cpu.UsagePercent:F0}%";
         }
 
+        KernelPercent = stats.Cpu.KernelUsagePercent;
+        var kernelInt = (int)stats.Cpu.KernelUsagePercent;
+        if (kernelInt != _lastKernelPercentInt)
+        {
+            _lastKernelPercentInt = kernelInt;
+            KernelUsageFormatted = $"{stats.Cpu.KernelUsagePercent:F0}% kernel";
+        }
+
+        UpdateCpuCoreCharts(stats.Cpu);
+
         // Update Memory properties
         MemoryPercent = stats.Memory.UsagePercent;
         var memInt = (int)stats.Memory.UsagePercent;
@@ -513,6 +544,38 @@ public sealed partial class OverviewViewModel : ObservableObject, IRecipient<Mem
             {
                 AddChartPoint(_memoryOverlayPoints, timestamp, stats.Memory.UsagePercent);
             }
+        }
+    }
+
+    private void UpdateCpuCoreCharts(CpuStats cpu)
+    {
+        var coreUsage = cpu.PerCoreUsagePercent;
+        if (coreUsage.Length == 0)
+        {
+            CpuCoreCharts.Clear();
+            HasCpuCoreCharts = false;
+            IsKernelTimingAvailable = false;
+            return;
+        }
+
+        if (CpuCoreCharts.Count != coreUsage.Length)
+        {
+            CpuCoreCharts.Clear();
+            for (var i = 0; i < coreUsage.Length; i++)
+            {
+                CpuCoreCharts.Add(new CpuCoreChartItem(i));
+            }
+        }
+
+        var kernelUsage = cpu.PerCoreKernelUsagePercent;
+        IsKernelTimingAvailable = kernelUsage.Length == coreUsage.Length;
+        HasCpuCoreCharts = true;
+
+        for (var i = 0; i < coreUsage.Length; i++)
+        {
+            var core = CpuCoreCharts[i];
+            core.ShowKernelHighlight = ShowKernelTimings && IsKernelTimingAvailable;
+            core.AddSample(coreUsage[i], IsKernelTimingAvailable ? kernelUsage[i] : 0);
         }
     }
 
@@ -642,6 +705,15 @@ public sealed partial class OverviewViewModel : ObservableObject, IRecipient<Mem
         {
             _cpuOverlayPoints.Clear();
             ChartSeries.Remove(_cpuOverlaySeries);
+        }
+    }
+
+    partial void OnShowKernelTimingsChanged(bool value)
+    {
+        var showHighlight = value && IsKernelTimingAvailable;
+        foreach (var core in CpuCoreCharts)
+        {
+            core.ShowKernelHighlight = showHighlight;
         }
     }
 

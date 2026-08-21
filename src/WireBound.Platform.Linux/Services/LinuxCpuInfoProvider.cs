@@ -15,8 +15,10 @@ public sealed class LinuxCpuInfoProvider : ICpuInfoProvider
     private readonly string _processorName;
     private long[] _previousIdle;
     private long[] _previousTotal;
+    private long[] _previousKernel;
     private long _previousTotalIdle;
     private long _previousTotalSum;
+    private long _previousTotalKernel;
 
     public LinuxCpuInfoProvider()
     {
@@ -24,6 +26,7 @@ public sealed class LinuxCpuInfoProvider : ICpuInfoProvider
         _processorName = GetProcessorNameFromCpuInfo();
         _previousIdle = new long[_processorCount];
         _previousTotal = new long[_processorCount];
+        _previousKernel = new long[_processorCount];
     }
 
     private static string GetProcessorNameFromCpuInfo()
@@ -61,7 +64,9 @@ public sealed class LinuxCpuInfoProvider : ICpuInfoProvider
     public CpuInfoData GetCpuInfo()
     {
         double usagePercent = 0;
+        double kernelUsagePercent = 0;
         var perCoreUsage = new double[_processorCount];
+        var perCoreKernelUsage = new double[_processorCount];
         double? frequencyMhz = null;
         double? temperatureCelsius = null;
 
@@ -76,21 +81,26 @@ public sealed class LinuxCpuInfoProvider : ICpuInfoProvider
                     if (line.StartsWith("cpu ", StringComparison.Ordinal))
                     {
                         // Total CPU usage
-                        var (_, idle, total) = ParseCpuLine(line);
+                        var (idle, total, kernel) = ParseCpuTimings(line);
 
                         if (_previousTotalSum > 0)
                         {
                             var idleDelta = idle - _previousTotalIdle;
                             var totalDelta = total - _previousTotalSum;
+                            var kernelDelta = kernel - _previousTotalKernel;
 
                             if (totalDelta > 0)
                             {
-                                usagePercent = (1.0 - (double)idleDelta / totalDelta) * 100.0;
+                                usagePercent = ClampPercent((1.0 - (double)idleDelta / totalDelta) * 100.0);
+                                kernelUsagePercent = Math.Min(
+                                    usagePercent,
+                                    ClampPercent((double)kernelDelta / totalDelta * 100.0));
                             }
                         }
 
                         _previousTotalIdle = idle;
                         _previousTotalSum = total;
+                        _previousTotalKernel = kernel;
                     }
                     else if (line.StartsWith("cpu", StringComparison.Ordinal))
                     {
@@ -98,21 +108,26 @@ public sealed class LinuxCpuInfoProvider : ICpuInfoProvider
                         var coreIdStr = line.AsSpan(3, line.IndexOf(' ') - 3);
                         if (int.TryParse(coreIdStr, out var coreId) && coreId < _processorCount)
                         {
-                            var (_, idle, total) = ParseCpuLine(line);
+                            var (idle, total, kernel) = ParseCpuTimings(line);
 
                             if (_previousTotal[coreId] > 0)
                             {
                                 var idleDelta = idle - _previousIdle[coreId];
                                 var totalDelta = total - _previousTotal[coreId];
+                                var kernelDelta = kernel - _previousKernel[coreId];
 
                                 if (totalDelta > 0)
                                 {
-                                    perCoreUsage[coreId] = (1.0 - (double)idleDelta / totalDelta) * 100.0;
+                                    perCoreUsage[coreId] = ClampPercent((1.0 - (double)idleDelta / totalDelta) * 100.0);
+                                    perCoreKernelUsage[coreId] = Math.Min(
+                                        perCoreUsage[coreId],
+                                        ClampPercent((double)kernelDelta / totalDelta * 100.0));
                                 }
                             }
 
                             _previousIdle[coreId] = idle;
                             _previousTotal[coreId] = total;
+                            _previousKernel[coreId] = kernel;
                         }
                     }
                 }
@@ -130,6 +145,8 @@ public sealed class LinuxCpuInfoProvider : ICpuInfoProvider
         {
             UsagePercent = usagePercent,
             PerCoreUsagePercent = perCoreUsage,
+            KernelUsagePercent = kernelUsagePercent,
+            PerCoreKernelUsagePercent = perCoreKernelUsage,
             ProcessorCount = _processorCount,
             FrequencyMhz = frequencyMhz,
             TemperatureCelsius = temperatureCelsius
@@ -137,6 +154,16 @@ public sealed class LinuxCpuInfoProvider : ICpuInfoProvider
     }
 
     internal static (double usage, long idle, long total) ParseCpuLine(string line)
+    {
+        var (idle, total, _) = ParseCpuTimings(line);
+        return (0, idle, total);
+    }
+
+    /// <summary>
+    /// Parses cumulative Linux CPU ticks. Kernel ticks include system, IRQ,
+    /// and soft-IRQ work and are a subset of non-idle CPU time.
+    /// </summary>
+    internal static (long idle, long total, long kernel) ParseCpuTimings(string line)
     {
         // Format: cpu user nice system idle iowait irq softirq steal guest guest_nice
         var parts = line.Split(' ', StringSplitOptions.RemoveEmptyEntries);
@@ -155,9 +182,13 @@ public sealed class LinuxCpuInfoProvider : ICpuInfoProvider
 
         long total = user + nice + system + idle + iowait + irq + softirq + steal;
         long idleTotal = idle + iowait;
+        long kernel = system + irq + softirq;
 
-        return (0, idleTotal, total);
+        return (idleTotal, total, kernel);
     }
+
+    private static double ClampPercent(double value) =>
+        double.IsFinite(value) ? Math.Clamp(value, 0, 100) : 0;
 
     private static double? GetCurrentFrequency()
     {

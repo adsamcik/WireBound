@@ -14,7 +14,9 @@ namespace WireBound.Platform.Windows.Services;
 public sealed class WindowsCpuInfoProvider : ICpuInfoProvider, IDisposable
 {
     private readonly PerformanceCounter _cpuCounter;
+    private readonly PerformanceCounter _kernelCounter;
     private readonly PerformanceCounter[] _perCoreCounters;
+    private readonly PerformanceCounter[] _perCoreKernelCounters;
     private readonly int _processorCount;
     private readonly string _processorName;
     private bool _disposed;
@@ -26,17 +28,25 @@ public sealed class WindowsCpuInfoProvider : ICpuInfoProvider, IDisposable
 
         // Initialize performance counters
         _cpuCounter = new PerformanceCounter("Processor", "% Processor Time", "_Total", true);
+        _kernelCounter = new PerformanceCounter("Processor", "% Privileged Time", "_Total", true);
 
         // Initialize per-core counters
         _perCoreCounters = new PerformanceCounter[_processorCount];
+        _perCoreKernelCounters = new PerformanceCounter[_processorCount];
         for (int i = 0; i < _processorCount; i++)
         {
             _perCoreCounters[i] = new PerformanceCounter("Processor", "% Processor Time", i.ToString(), true);
+            _perCoreKernelCounters[i] = new PerformanceCounter("Processor", "% Privileged Time", i.ToString(), true);
         }
 
         // First call to NextValue() returns 0, need to prime the counters
         _ = _cpuCounter.NextValue();
+        _ = _kernelCounter.NextValue();
         foreach (var counter in _perCoreCounters)
+        {
+            _ = counter.NextValue();
+        }
+        foreach (var counter in _perCoreKernelCounters)
         {
             _ = counter.NextValue();
         }
@@ -63,23 +73,33 @@ public sealed class WindowsCpuInfoProvider : ICpuInfoProvider, IDisposable
     {
         ObjectDisposedException.ThrowIf(_disposed, this);
 
-        var totalUsage = _cpuCounter.NextValue();
+        var totalUsage = ClampPercent(_cpuCounter.NextValue());
+        var totalKernelUsage = Math.Min(totalUsage, ClampPercent(_kernelCounter.NextValue()));
         var perCoreUsage = new double[_processorCount];
+        var perCoreKernelUsage = new double[_processorCount];
 
         for (int i = 0; i < _processorCount; i++)
         {
-            perCoreUsage[i] = _perCoreCounters[i].NextValue();
+            perCoreUsage[i] = ClampPercent(_perCoreCounters[i].NextValue());
+            perCoreKernelUsage[i] = Math.Min(
+                perCoreUsage[i],
+                ClampPercent(_perCoreKernelCounters[i].NextValue()));
         }
 
         return new CpuInfoData
         {
             UsagePercent = totalUsage,
             PerCoreUsagePercent = perCoreUsage,
+            KernelUsagePercent = totalKernelUsage,
+            PerCoreKernelUsagePercent = perCoreKernelUsage,
             ProcessorCount = _processorCount,
             FrequencyMhz = GetCurrentFrequency(),
             TemperatureCelsius = null // Would require WMI or LibreHardwareMonitor for temps
         };
     }
+
+    private static double ClampPercent(float value) =>
+        float.IsFinite(value) ? Math.Clamp(value, 0, 100) : 0;
 
     private double? GetCurrentFrequency()
     {
@@ -110,7 +130,12 @@ public sealed class WindowsCpuInfoProvider : ICpuInfoProvider, IDisposable
         if (_disposed) return;
 
         _cpuCounter.Dispose();
+        _kernelCounter.Dispose();
         foreach (var counter in _perCoreCounters)
+        {
+            counter.Dispose();
+        }
+        foreach (var counter in _perCoreKernelCounters)
         {
             counter.Dispose();
         }

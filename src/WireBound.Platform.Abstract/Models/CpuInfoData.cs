@@ -16,6 +16,17 @@ public sealed class CpuInfoData
     public double[] PerCoreUsagePercent { get; init; } = [];
 
     /// <summary>
+    /// Overall CPU time spent in kernel/privileged mode (0-100).
+    /// </summary>
+    public double KernelUsagePercent { get; init; }
+
+    /// <summary>
+    /// Per-core CPU time spent in kernel/privileged mode (0-100 each).
+    /// Empty when the platform cannot provide kernel timing data.
+    /// </summary>
+    public double[] PerCoreKernelUsagePercent { get; init; } = [];
+
+    /// <summary>
     /// Number of logical processors
     /// </summary>
     public int ProcessorCount { get; init; }

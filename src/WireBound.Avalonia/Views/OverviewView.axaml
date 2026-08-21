@@ -79,7 +79,7 @@
 
     <ScrollViewer VerticalScrollBarVisibility="Auto"
                   HorizontalScrollBarVisibility="Disabled">
-    <Grid Margin="20" MinHeight="610" RowDefinitions="Auto,*" RowSpacing="14">
+    <Grid Margin="20" MinHeight="610" RowDefinitions="Auto,*,Auto" RowSpacing="14">
         <Grid Grid.Row="0"
               ColumnDefinitions="*,*,*,*"
               ColumnSpacing="10"
@@ -504,6 +504,106 @@
                 </Grid>
             </Border>
         </Grid>
+
+        <!-- Per-core charts are shown when CPU is the focused resource. -->
+        <Border Grid.Row="2"
+                IsVisible="{Binding IsCpuFocus}"
+                Background="{StaticResource DashboardPanelBrush}"
+                BorderBrush="{StaticResource GlassBorderBrush}"
+                BorderThickness="1"
+                CornerRadius="26"
+                Padding="20"
+                BoxShadow="0 10 28 0 #26000000"
+                AutomationProperties.Name="Per-core CPU charts">
+            <Grid RowDefinitions="Auto,Auto" RowSpacing="14">
+                <Grid Grid.Row="0" ColumnDefinitions="Auto,*,Auto" ColumnSpacing="12">
+                    <Border Width="34"
+                            Height="34"
+                            Background="{StaticResource CpuBgTintBrush}"
+                            CornerRadius="11">
+                        <controls:WbIcon IconKey="WbEntityCores" Width="16" Height="16" />
+                    </Border>
+                    <StackPanel Grid.Column="1" Spacing="2" VerticalAlignment="Center">
+                        <TextBlock Text="PER-CORE CPU" Classes="MetricLabel" FontSize="10" Foreground="{StaticResource CpuBrush}" />
+                        <TextBlock Text="Last 60 seconds by logical processor" Classes="Caption" />
+                    </StackPanel>
+                    <ToggleButton Grid.Column="2"
+                                  IsChecked="{Binding Network.ShowKernelTimings}"
+                                  IsVisible="{Binding Network.IsKernelTimingAvailable}"
+                                  Padding="10,6"
+                                  ToolTip.Tip="Highlight privileged/kernel CPU time on every core"
+                                  AutomationProperties.Name="Highlight kernel CPU time">
+                        <StackPanel Orientation="Horizontal" Spacing="6">
+                            <Ellipse Width="8"
+                                     Height="8"
+                                     Fill="{StaticResource KernelBrush}"
+                                     VerticalAlignment="Center" />
+                            <TextBlock Text="{Binding Network.KernelUsageFormatted}"
+                                       FontSize="12"
+                                       VerticalAlignment="Center" />
+                        </StackPanel>
+                    </ToggleButton>
+                </Grid>
+
+                <ItemsControl Grid.Row="1" ItemsSource="{Binding Network.CpuCoreCharts}">
+                    <ItemsControl.ItemsPanel>
+                        <ItemsPanelTemplate>
+                            <WrapPanel Orientation="Horizontal" />
+                        </ItemsPanelTemplate>
+                    </ItemsControl.ItemsPanel>
+                    <ItemsControl.ItemTemplate>
+                        <DataTemplate x:DataType="vm:CpuCoreChartItem">
+                            <Border Width="190"
+                                    Height="94"
+                                    Margin="0,0,10,10"
+                                    Padding="10,8"
+                                    CornerRadius="12"
+                                    Background="{StaticResource SurfaceVariantBrush}">
+                                <Grid RowDefinitions="Auto,*">
+                                    <Grid ColumnDefinitions="*,Auto">
+                                        <TextBlock Text="{Binding Label}"
+                                                   Classes="MetricLabel"
+                                                   VerticalAlignment="Center" />
+                                        <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="6">
+                                            <TextBlock Text="{Binding KernelFormatted}"
+                                                       IsVisible="{Binding ShowKernelHighlight}"
+                                                       FontSize="10"
+                                                       Foreground="{StaticResource KernelBrush}"
+                                                       VerticalAlignment="Center" />
+                                            <TextBlock Text="{Binding UsageFormatted}"
+                                                       FontSize="13"
+                                                       FontWeight="SemiBold"
+                                                       Foreground="{StaticResource CpuBrush}"
+                                                       VerticalAlignment="Center" />
+                                        </StackPanel>
+                                    </Grid>
+
+                                    <Grid Grid.Row="1" Height="48" Margin="0,6,0,0">
+                                        <controls:MiniSparkline Values="{Binding UsageHistory}"
+                                                                MaxPoints="60"
+                                                                MinValue="0"
+                                                                MaxValue="100"
+                                                                StrokeColor="{StaticResource CpuBrush}"
+                                                                FillColor="{StaticResource CpuBgTintBrush}"
+                                                                StrokeThickness="1.5"
+                                                                AutomationProperties.Name="{Binding AccessibilityName}" />
+                                        <controls:MiniSparkline Values="{Binding KernelHistory}"
+                                                                MaxPoints="60"
+                                                                MinValue="0"
+                                                                MaxValue="100"
+                                                                StrokeColor="{StaticResource KernelBrush}"
+                                                                FillColor="{StaticResource KernelBgTintBrush}"
+                                                                StrokeThickness="1.5"
+                                                                IsVisible="{Binding ShowKernelHighlight}"
+                                                                IsHitTestVisible="False" />
+                                    </Grid>
+                                </Grid>
+                            </Border>
+                        </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                </ItemsControl>
+            </Grid>
+        </Border>
     </Grid>
     </ScrollViewer>
 </UserControl>

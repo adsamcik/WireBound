@@ -142,6 +142,27 @@ relationship evidence, stable workload ID, stable process instance ID, and
 whether a byte figure is additive. New interactive elements need automation
 names and keyboard access.
 
+## Implemented baseline (2026-09-24)
+
+- Navigation now has Processes and Memory; the old Apps route remains valid.
+- Processes uses machine-wide CPU, RAM and network readings, and its default
+  table aligns Name, CPU, Resident RAM, Download and Upload. Selecting a row
+  reveals its path, private commit and resident RAM.
+- Memory reconciles usable physical RAM as in use plus available. Windows also
+  measures installed RAM and nonpaged kernel pool; the remaining in-use bytes
+  stay explicitly Unattributed. A failed OS read never falls back to the
+  WireBound process's GC memory as if it were machine RAM.
+- Windows and Linux recognize selected VM host processes as **observations**.
+  These name-based links are Likely and require opt-in in the contextual
+  Processes view. Process identity includes PID and OS start marker, so a
+  recycled PID does not inherit a link. The observed working set stays outside
+  the additive physical ledger.
+
+Named VM discovery, independently measured guest physical allocations, and
+exclusive physical ownership for most in-use pages remain unsupported by the
+current platform providers. The page shows that gap as Unattributed; it must
+not turn a process working set into a claim of complete VM RAM ownership.
+
 ## Acceptance checks
 
 - Processes and Memory are both reachable in navigation; returning from a

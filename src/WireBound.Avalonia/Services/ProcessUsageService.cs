@@ -85,6 +85,7 @@ public sealed class ProcessUsageService : IProcessUsageService
                     entries.Add(new ProcessUsageSnapshot
                     {
                         ProcessId = resource.ProcessId,
+                        StartMarker = resource.StartMarker,
                         ProcessName = resource.ProcessName,
                         ExecutablePath = resource.ExecutablePath,
                         PrivateBytes = resource.PrivateBytes,
@@ -173,6 +174,7 @@ public sealed class ProcessUsageService : IProcessUsageService
     private sealed class PreviousProcessSample
     {
         public long CpuTimeTicks { get; init; }
+        public long StartMarker { get; init; }
         public string ProcessName { get; init; } = string.Empty;
         public string ExecutablePath { get; init; } = string.Empty;
 
@@ -181,6 +183,7 @@ public sealed class ProcessUsageService : IProcessUsageService
             return new PreviousProcessSample
             {
                 CpuTimeTicks = resource.CpuTimeTicks,
+                StartMarker = resource.StartMarker,
                 ProcessName = resource.ProcessName,
                 ExecutablePath = resource.ExecutablePath
             };
@@ -188,6 +191,10 @@ public sealed class ProcessUsageService : IProcessUsageService
 
         public bool Matches(ProcessResourceData resource)
         {
+            if (StartMarker != 0 && resource.StartMarker != 0 && StartMarker != resource.StartMarker)
+            {
+                return false;
+            }
             if (!string.Equals(ProcessName, resource.ProcessName, StringComparison.Ordinal))
             {
                 return false;

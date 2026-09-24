@@ -30,7 +30,7 @@ public sealed class NavigationService : INavigationService
     {
         return route switch
         {
-            LegacyApplicationsRoute or LegacyInsightsRoute => Routes.Apps,
+            LegacyApplicationsRoute or LegacyInsightsRoute or "Processes" => Routes.Apps,
             _ => route
         };
     }

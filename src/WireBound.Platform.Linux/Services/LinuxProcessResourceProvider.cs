@@ -40,13 +40,14 @@ public sealed class LinuxProcessResourceProvider : IProcessResourceProvider
 
             try
             {
-                var (processName, cpuTimeTicks) = ReadStat(procDir, pid);
+                var (processName, cpuTimeTicks, startMarker) = ReadStat(procDir, pid);
                 var (rssBytes, privateBytes) = ReadStatm(procDir, pageSize);
                 var exePath = ReadExePath(procDir);
 
                 results.Add(new ProcessResourceData
                 {
                     ProcessId = pid,
+                    StartMarker = startMarker,
                     ProcessName = processName,
                     ExecutablePath = exePath,
                     PrivateBytes = privateBytes,
@@ -66,7 +67,7 @@ public sealed class LinuxProcessResourceProvider : IProcessResourceProvider
     /// <summary>
     /// Read /proc/[pid]/stat for process name and CPU time (utime + stime).
     /// </summary>
-    private static (string name, long cpuTimeTicks) ReadStat(string procDir, int pid)
+    private static (string name, long cpuTimeTicks, long startMarker) ReadStat(string procDir, int pid)
     {
         var statPath = Path.Combine(procDir, "stat");
         var content = File.ReadAllText(statPath);
@@ -83,11 +84,12 @@ public sealed class LinuxProcessResourceProvider : IProcessResourceProvider
 
         var utime = long.Parse(fields[11], CultureInfo.InvariantCulture);
         var stime = long.Parse(fields[12], CultureInfo.InvariantCulture);
+        var startMarker = long.Parse(fields[19], CultureInfo.InvariantCulture);
 
         // Convert clock ticks to 100-ns ticks (same unit as Windows TotalProcessorTime)
         var cpuTimeTicks = (utime + stime) * TicksPerClockTick;
 
-        return (name, cpuTimeTicks);
+        return (name, cpuTimeTicks, startMarker);
     }
 
     /// <summary>

@@ -53,7 +53,7 @@ public class MainViewModelTests : IAsyncDisposable
         using var viewModel = CreateViewModel();
 
         // Assert
-        viewModel.NavigationItems.Should().HaveCount(7);
+        viewModel.NavigationItems.Should().HaveCount(8);
     }
 
     [Test]
@@ -68,6 +68,7 @@ public class MainViewModelTests : IAsyncDisposable
             Routes.Overview,
             Routes.Charts,
             Routes.Apps,
+            Routes.Memory,
             Routes.Connections,
             Routes.System,
             Routes.History,

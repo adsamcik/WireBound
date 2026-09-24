@@ -59,7 +59,8 @@ public partial class MainViewModel : ObservableObject, IRecipient<UpdateAvailabl
         [
             new NavigationItem { Title = "Overview",    IconKey = "WbNavOverview",    Route = Routes.Overview },
             new NavigationItem { Title = "Live Chart",  IconKey = "WbNavLive",        Route = Routes.Charts },
-            new NavigationItem { Title = "Apps",        IconKey = "WbNavApps",        Route = Routes.Apps },
+            new NavigationItem { Title = "Processes",   IconKey = "WbNavApps",        Route = Routes.Apps },
+            new NavigationItem { Title = "Memory",      IconKey = "WbEntityMemory",   Route = Routes.Memory },
             new NavigationItem { Title = "Connections", IconKey = "WbNavConnections", Route = Routes.Connections },
             new NavigationItem { Title = "System",      IconKey = "WbNavSystem",      Route = Routes.System },
             new NavigationItem { Title = "History",     IconKey = "WbMetricAnalytics", Route = Routes.History },
@@ -130,6 +131,11 @@ public partial class MainViewModel : ObservableObject, IRecipient<UpdateAvailabl
 
     private void OnNavigationChanged(string route)
     {
+        var selected = NavigationItems.FirstOrDefault(item => item.Route == route);
+        if (selected is not null && !ReferenceEquals(SelectedNavigationItem, selected))
+        {
+            SelectedNavigationItem = selected;
+        }
         CurrentView = _viewFactory.CreateView(route);
     }
 

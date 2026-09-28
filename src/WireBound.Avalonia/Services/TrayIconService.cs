@@ -8,6 +8,7 @@ using SkiaSharp;
 using WireBound.Core.Helpers;
 using WireBound.Core.Models;
 using WireBound.Core.Services;
+using WireBound.Platform.Abstract.Services;
 
 namespace WireBound.Avalonia.Services;
 
@@ -18,6 +19,7 @@ namespace WireBound.Avalonia.Services;
 /// </summary>
 public sealed class TrayIconService : ITrayIconService
 {
+    private readonly ITrayIconSizeProvider _iconSizeProvider;
     private TrayIcon? _trayIcon;
     private Window? _mainWindow;
     private bool _isDisposed;
@@ -26,6 +28,7 @@ public sealed class TrayIconService : ITrayIconService
     private string _trafficAdapterId = string.Empty;
     private bool _isTraySupported = true;
     private NativeMenuItem? _updateMenuItem;
+    private int _lastIconPixelSize;
 
     /// <summary>
     /// True when the icon shows a live metric graph (anything but the static app icon).
@@ -50,8 +53,34 @@ public sealed class TrayIconService : ITrayIconService
     private MemoryPressureLevel _memoryPressureLevel = MemoryPressureLevel.Normal;
     private string _memoryTooltipLine = string.Empty;
 
-    // Icon dimensions
+    // Logical icon dimensions. The bitmap is rasterized at the tray display's DPI.
     private const int IconSize = 16;
+    private static readonly int[] BrandIconSizes = [16, 32, 48, 64, 128, 256, 512];
+
+    public TrayIconService(ITrayIconSizeProvider iconSizeProvider)
+    {
+        _iconSizeProvider = iconSizeProvider;
+    }
+
+    private int GetPhysicalIconSize()
+    {
+        var reportedSize = _iconSizeProvider.GetPixelSize();
+        if (reportedSize is > 0 and <= 256)
+            return reportedSize.Value;
+
+        var scaling = _mainWindow?.Screens.Primary?.Scaling ?? 1.0;
+        if (!double.IsFinite(scaling) || scaling <= 0)
+            scaling = 1.0;
+
+        return Math.Clamp((int)Math.Ceiling(IconSize * scaling), 8, 256);
+    }
+
+    private void SetTrayIcon(WindowIcon? icon)
+    {
+        if (icon == null || _trayIcon == null) return;
+
+        _trayIcon.Icon = icon;
+    }
 
     /// <summary>
     /// Gets or sets whether the application should minimize to system tray.
@@ -103,8 +132,7 @@ public sealed class TrayIconService : ITrayIconService
     {
         if (_trayIcon == null || _isDisposed) return;
 
-        var icon = CreateIconForCurrentMode();
-        if (icon != null) _trayIcon.Icon = icon;
+        SetTrayIcon(CreateIconForCurrentMode());
         UpdateTrayIconVisibility();
     }
 
@@ -195,11 +223,7 @@ public sealed class TrayIconService : ITrayIconService
             };
 
             // Create a programmatic icon
-            var icon = CreateIconBitmap();
-            if (icon != null)
-            {
-                _trayIcon.Icon = icon;
-            }
+            SetTrayIcon(CreateIconBitmap());
 
             // Click to show window
             _trayIcon.Clicked += (_, _) => ShowMainWindow();
@@ -241,25 +265,32 @@ public sealed class TrayIconService : ITrayIconService
     };
 
     /// <summary>
-    /// Creates the static tray icon from the app's bundled
-    /// <c>Assets/wirebound-16.png</c> (or 32px fallback) so the tray matches
-    /// the rest of the app's brand iconography. Falls back to the procedural
+    /// Creates the static tray icon at the taskbar's exact physical size from
+    /// the smallest bundled brand PNG large enough for that size. Falls back to the procedural
     /// SkiaSharp lightning bolt if the asset can't be loaded — that path
     /// guarantees the tray is always usable, even in unbundled dev runs.
     /// </summary>
-    private static WindowIcon? CreateStaticIcon()
+    private WindowIcon? CreateStaticIcon()
     {
         try
         {
-            // Try the bundled brand icon first. Avalonia's AssetLoader resolves
-            // avares:// URIs against any AvaloniaResource-bundled file. The
-            // 16px asset is sized exactly for the tray on Windows.
-            var assetUri = new Uri("avares://WireBound/Assets/wirebound-16.png");
+            var iconSize = GetPhysicalIconSize();
+            var sourceSize = BrandIconSizes.First(size => size >= iconSize);
+            var assetUri = new Uri($"avares://WireBound/Assets/wirebound-{sourceSize}.png");
             if (global::Avalonia.Platform.AssetLoader.Exists(assetUri))
             {
                 using var stream = global::Avalonia.Platform.AssetLoader.Open(assetUri);
-                var bitmap = new global::Avalonia.Media.Imaging.Bitmap(stream);
-                return new WindowIcon(bitmap);
+                using var image = SKImage.FromEncodedData(stream);
+                if (image == null) throw new InvalidDataException($"Unable to decode {assetUri}");
+
+                using var surface = SKSurface.Create(new SKImageInfo(iconSize, iconSize, SKColorType.Rgba8888, SKAlphaType.Premul));
+                surface.Canvas.Clear(SKColors.Transparent);
+                using var paint = new SKPaint { IsAntialias = true };
+                surface.Canvas.DrawImage(image, new SKRect(0, 0, iconSize, iconSize),
+                    new SKSamplingOptions(SKCubicResampler.Mitchell), paint);
+                var icon = CreateWindowIconFromSurface(surface);
+                _lastIconPixelSize = iconSize;
+                return icon;
             }
         }
         catch (Exception ex)
@@ -270,9 +301,11 @@ public sealed class TrayIconService : ITrayIconService
         // Fallback: procedural cyan circle + lightning bolt. Kept for safety.
         try
         {
-            using var surface = SKSurface.Create(new SKImageInfo(IconSize, IconSize, SKColorType.Rgba8888, SKAlphaType.Premul));
+            var iconSize = GetPhysicalIconSize();
+            using var surface = SKSurface.Create(new SKImageInfo(iconSize, iconSize, SKColorType.Rgba8888, SKAlphaType.Premul));
             var canvas = surface.Canvas;
             canvas.Clear(SKColors.Transparent);
+            canvas.Scale(iconSize / (float)IconSize);
 
             // Draw background circle
             using var bgPaint = new SKPaint
@@ -304,7 +337,9 @@ public sealed class TrayIconService : ITrayIconService
 
             canvas.DrawPath(path, boltPaint);
 
-            return CreateWindowIconFromSurface(surface);
+            var icon = CreateWindowIconFromSurface(surface);
+            _lastIconPixelSize = iconSize;
+            return icon;
         }
         catch (Exception ex)
         {
@@ -361,9 +396,10 @@ public sealed class TrayIconService : ITrayIconService
             TrayIconMode.Traffic => CreateActivityGraphIcon(),
             TrayIconMode.Cpu => CreateMetricGraphIcon(_cpuHistory, ChartColors.CpuColor),
             TrayIconMode.Ram => CreateMetricGraphIcon(_ramHistory, ChartColors.MemoryColor),
+            TrayIconMode.AppIcon when _lastIconPixelSize != GetPhysicalIconSize() => CreateStaticIcon(),
             _ => null,
         };
-        if (icon != null) _trayIcon.Icon = icon;
+        SetTrayIcon(icon);
 
         RefreshTooltip();
     }
@@ -438,8 +474,23 @@ public sealed class TrayIconService : ITrayIconService
     {
         try
         {
-            using var surface = SKSurface.Create(new SKImageInfo(IconSize, IconSize, SKColorType.Rgba8888, SKAlphaType.Premul));
+            using var surface = RenderActivityGraphSurface(GetPhysicalIconSize());
+            return CreateWindowIconFromSurface(surface);
+        }
+        catch (Exception ex)
+        {
+            Log.Warning(ex, "Failed to create activity graph icon");
+            return null;
+        }
+    }
+
+    internal SKSurface RenderActivityGraphSurface(int iconSize)
+    {
+        var surface = SKSurface.Create(new SKImageInfo(iconSize, iconSize, SKColorType.Rgba8888, SKAlphaType.Premul));
+        try
+        {
             var canvas = surface.Canvas;
+            canvas.Scale(iconSize / (float)IconSize);
 
             DrawGraphFrame(canvas);
 
@@ -498,12 +549,12 @@ public sealed class TrayIconService : ITrayIconService
                 DrawEmptyBaseline(canvas, new SKColor(0, 229, 255, 100));
             }
 
-            return CreateWindowIconFromSurface(surface);
+            return surface;
         }
-        catch (Exception ex)
+        catch
         {
-            Log.Warning(ex, "Failed to create activity graph icon");
-            return null;
+            surface.Dispose();
+            throw;
         }
     }
 
@@ -515,8 +566,23 @@ public sealed class TrayIconService : ITrayIconService
     {
         try
         {
-            using var surface = SKSurface.Create(new SKImageInfo(IconSize, IconSize, SKColorType.Rgba8888, SKAlphaType.Premul));
+            using var surface = RenderMetricGraphSurface(history, seriesColor, GetPhysicalIconSize());
+            return CreateWindowIconFromSurface(surface);
+        }
+        catch (Exception ex)
+        {
+            Log.Warning(ex, "Failed to create metric graph icon");
+            return null;
+        }
+    }
+
+    internal SKSurface RenderMetricGraphSurface(Queue<float> history, SKColor seriesColor, int iconSize)
+    {
+        var surface = SKSurface.Create(new SKImageInfo(iconSize, iconSize, SKColorType.Rgba8888, SKAlphaType.Premul));
+        try
+        {
             var canvas = surface.Canvas;
+            canvas.Scale(iconSize / (float)IconSize);
 
             DrawGraphFrame(canvas);
 
@@ -551,12 +617,12 @@ public sealed class TrayIconService : ITrayIconService
                 DrawEmptyBaseline(canvas, seriesColor.WithAlpha(100));
             }
 
-            return CreateWindowIconFromSurface(surface);
+            return surface;
         }
-        catch (Exception ex)
+        catch
         {
-            Log.Warning(ex, "Failed to create metric graph icon");
-            return null;
+            surface.Dispose();
+            throw;
         }
     }
 

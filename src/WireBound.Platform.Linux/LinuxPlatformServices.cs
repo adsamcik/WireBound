@@ -31,5 +31,6 @@ public sealed class LinuxPlatformServices : IPlatformServices
         services.Replace(ServiceDescriptor.Singleton<INetworkCostProvider, LinuxNetworkCostProvider>());
         services.Replace(ServiceDescriptor.Singleton<IProcessResourceProvider, LinuxProcessResourceProvider>());
         services.Replace(ServiceDescriptor.Singleton<IAppMetadataProvider, LinuxAppMetadataProvider>());
+        services.Replace(ServiceDescriptor.Singleton<ITrayIconSizeProvider, LinuxTrayIconSizeProvider>());
     }
 }

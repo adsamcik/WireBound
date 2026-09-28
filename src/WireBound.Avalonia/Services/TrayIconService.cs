@@ -404,8 +404,8 @@ public sealed class TrayIconService : ITrayIconService
     }
 
     /// <summary>
-    /// Draws the shared graph chrome — memory-pressure-tinted background, border,
-    /// and subtle horizontal grid lines — used by every live graph mode.
+    /// Draws the shared memory-pressure-tinted background and subtle horizontal
+    /// grid lines used by every live graph mode.
     /// </summary>
     private void DrawGraphFrame(SKCanvas canvas)
     {
@@ -416,15 +416,6 @@ public sealed class TrayIconService : ITrayIconService
             MemoryPressureLevel.Critical => new SKColor(60, 20, 20), // Coral tint
             _ => new SKColor(20, 30, 35)                             // Default dark blue-gray
         });
-
-        using var borderPaint = new SKPaint
-        {
-            Color = new SKColor(60, 80, 90),
-            IsAntialias = false,
-            Style = SKPaintStyle.Stroke,
-            StrokeWidth = 1
-        };
-        canvas.DrawRect(0, 0, IconSize - 1, IconSize - 1, borderPaint);
 
         using var gridPaint = new SKPaint
         {
@@ -470,7 +461,7 @@ public sealed class TrayIconService : ITrayIconService
 
             // Draw the activity bars
             var history = _activityHistory.ToArray();
-            var graphWidth = IconSize - 2; // Leave 1px border on each side
+            var graphWidth = IconSize - 2; // Leave 1px padding on each side
             var graphHeight = IconSize - 2;
             var barWidth = (float)graphWidth / GraphHistorySize;
 

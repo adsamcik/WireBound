@@ -12,10 +12,9 @@ using WireBound.Platform.Abstract.Services;
 namespace WireBound.Avalonia.ViewModels;
 
 /// <summary>
-/// Page-scoped Task Manager-style monitor for currently running processes.
-/// The timer is disabled until the Apps route is visible and is stopped as
-/// soon as the user navigates away, so process enumeration never becomes an
-/// always-on application cost.
+/// Task Manager-style monitor for currently running processes. Sampling is
+/// active while either the unified dashboard or the full Processes page is
+/// visible, and stops for every other route.
 /// </summary>
 public sealed partial class AppsViewModel : ObservableObject, IDisposable
 {
@@ -56,11 +55,6 @@ public sealed partial class AppsViewModel : ObservableObject, IDisposable
     [ObservableProperty]
     private bool _includeLikelyMatches;
 
-    [ObservableProperty]
-    private ProcessUsageDisplayItem? _selectedProcess;
-
-    public bool HasSelectedProcess => SelectedProcess is not null;
-    partial void OnSelectedProcessChanged(ProcessUsageDisplayItem? value) => OnPropertyChanged(nameof(HasSelectedProcess));
 
     public bool HasContext => _processContext?.Current is not null;
     public string ContextTitle => _processContext?.Current?.Title ?? string.Empty;
@@ -98,7 +92,20 @@ public sealed partial class AppsViewModel : ObservableObject, IDisposable
     [ObservableProperty]
     private int _visibleProcessCount;
 
+    [ObservableProperty]
+    private ProcessUsageDisplayItem? _selectedProcess;
+
     public bool HasVisibleProcesses => VisibleProcessCount > 0;
+
+    public bool HasSelectedProcess => SelectedProcess is not null;
+
+    public bool HasSearchText => !string.IsNullOrWhiteSpace(SearchText);
+
+    public bool HasActiveProcessFilter => HasSearchText || !ShowSystemProcesses;
+
+    public bool IsAllProcessesScope => ShowSystemProcesses;
+
+    public bool IsUserProcessesScope => !ShowSystemProcesses;
 
     [ObservableProperty]
     private string _totalCpu = "—";
@@ -133,6 +140,12 @@ public sealed partial class AppsViewModel : ObservableObject, IDisposable
     public string DownloadSortGlyph => GetSortGlyph(ProcessUsageSortColumn.Download);
     public string UploadSortGlyph => GetSortGlyph(ProcessUsageSortColumn.Upload);
 
+    public bool IsNameSort => SortColumn == ProcessUsageSortColumn.Name;
+    public bool IsCpuSort => SortColumn == ProcessUsageSortColumn.Cpu;
+    public bool IsMemorySort => SortColumn == ProcessUsageSortColumn.Memory;
+    public bool IsDownloadSort => SortColumn == ProcessUsageSortColumn.Download;
+    public bool IsUploadSort => SortColumn == ProcessUsageSortColumn.Upload;
+
     public AppsViewModel(
         IUiDispatcher dispatcher,
         IProcessUsageService processUsageService,
@@ -154,7 +167,7 @@ public sealed partial class AppsViewModel : ObservableObject, IDisposable
         _workloadHosts = workloadHosts;
         if (_processContext is not null) _processContext.Changed += OnProcessContextChanged;
 
-        IsPageActive = _navigationService.CurrentView == Routes.Apps;
+        IsPageActive = IsProcessSurface(_navigationService.CurrentView);
         _refreshTimer = (timeProvider ?? TimeProvider.System).CreateTimer(
             static state => ((AppsViewModel)state!).OnRefreshTimerTick(),
             this,
@@ -167,7 +180,7 @@ public sealed partial class AppsViewModel : ObservableObject, IDisposable
 
     private void OnNavigationChanged(string route)
     {
-        var shouldBeActive = route == Routes.Apps;
+        var shouldBeActive = IsProcessSurface(route);
         if (shouldBeActive == IsPageActive)
         {
             return;
@@ -204,6 +217,26 @@ public sealed partial class AppsViewModel : ObservableObject, IDisposable
         // the route is active.
         return RequestRefreshAsync();
     }
+
+    /// <summary>
+    /// Applies a deterministic resource sort for dashboard contributor lists
+    /// without emulating repeated header clicks.
+    /// </summary>
+    public void SetSort(ProcessUsageSortColumn column, bool descending)
+    {
+        if (_disposed)
+        {
+            return;
+        }
+
+        SortColumn = column;
+        SortDescending = descending;
+        NotifySortGlyphsChanged();
+        RebuildVisibleItems();
+    }
+
+    private static bool IsProcessSurface(string route) =>
+        route is Routes.Overview or Routes.Apps;
 
     private void Deactivate()
     {
@@ -348,6 +381,7 @@ public sealed partial class AppsViewModel : ObservableObject, IDisposable
             SelectedProcess = null;
         }
 
+
         ProcessCount = snapshots.Count;
         HasNetworkData = snapshots.Any(snapshot => snapshot.HasNetworkStats);
         var machine = _systemMonitor?.GetCurrentStats();
@@ -362,11 +396,16 @@ public sealed partial class AppsViewModel : ObservableObject, IDisposable
         CaptureError = null;
         IsLoading = false;
 
+        RebuildVisibleItems(preserveSelectedPosition: true);
+    }
+
+    partial void OnSearchTextChanged(string value)
+    {
+        OnPropertyChanged(nameof(HasSearchText));
+        OnPropertyChanged(nameof(HasActiveProcessFilter));
         RebuildVisibleItems();
     }
 
-    partial void OnSearchTextChanged(string value) => RebuildVisibleItems();
-    partial void OnShowSystemProcessesChanged(bool value) => RebuildVisibleItems();
     partial void OnIncludeLikelyMatchesChanged(bool value) => RebuildVisibleItems();
 
     private void OnProcessContextChanged()
@@ -384,9 +423,29 @@ public sealed partial class AppsViewModel : ObservableObject, IDisposable
 
     [RelayCommand]
     private void ClearContext() => _processContext?.Clear();
+    partial void OnShowSystemProcessesChanged(bool value)
+    {
+        OnPropertyChanged(nameof(IsAllProcessesScope));
+        OnPropertyChanged(nameof(IsUserProcessesScope));
+        OnPropertyChanged(nameof(HasActiveProcessFilter));
+        RebuildVisibleItems();
+    }
     partial void OnLastUpdatedChanged(DateTime? value) => OnPropertyChanged(nameof(LastUpdatedLabel));
     partial void OnCaptureErrorChanged(string? value) => OnPropertyChanged(nameof(LastUpdatedLabel));
     partial void OnVisibleProcessCountChanged(int value) => OnPropertyChanged(nameof(HasVisibleProcesses));
+    partial void OnSelectedProcessChanged(ProcessUsageDisplayItem? value) => OnPropertyChanged(nameof(HasSelectedProcess));
+
+    [RelayCommand]
+    private void ClearSearch() => SearchText = string.Empty;
+
+    [RelayCommand]
+    private void ShowAllProcesses() => ShowSystemProcesses = true;
+
+    [RelayCommand]
+    private void ShowUserProcesses() => ShowSystemProcesses = false;
+
+    [RelayCommand]
+    private void CloseProcessDetails() => SelectedProcess = null;
 
     [RelayCommand]
     private void ToggleSort(ProcessUsageSortColumn column)
@@ -405,7 +464,7 @@ public sealed partial class AppsViewModel : ObservableObject, IDisposable
         RebuildVisibleItems();
     }
 
-    private void RebuildVisibleItems()
+    private void RebuildVisibleItems(bool preserveSelectedPosition = false)
     {
         if (_disposed)
         {
@@ -430,21 +489,58 @@ public sealed partial class AppsViewModel : ObservableObject, IDisposable
             visible = visible.Where(item => item.Matches(term));
         }
 
-        var sorted = SortItems(visible).ToArray();
-        var orderChanged = ProcessItems.Count != sorted.Length
-            || ProcessItems.Where((item, index) => !ReferenceEquals(item, sorted[index])).Any();
+        var sorted = SortItems(visible).ToList();
 
-        // The row objects themselves already raise property changes. Avoiding a
-        // collection Reset when the visible membership and order are stable
-        // preserves realized virtualized containers and prevents needless layout
-        // churn every two-second refresh.
-        if (orderChanged)
+        // Live values may change sort order every two seconds. Keep the process
+        // currently being inspected at its visual position until the user closes
+        // the inspector or explicitly changes sorting/filtering. This prevents
+        // focus from chasing a moving row while its values continue to update.
+        if (preserveSelectedPosition && SelectedProcess is { } selected)
         {
-            ProcessItems.ReplaceAll(sorted);
+            var previousIndex = ProcessItems.IndexOf(selected);
+            var sortedIndex = sorted.IndexOf(selected);
+            if (previousIndex >= 0 && sortedIndex >= 0 && previousIndex != sortedIndex)
+            {
+                sorted.RemoveAt(sortedIndex);
+                sorted.Insert(Math.Min(previousIndex, sorted.Count), selected);
+            }
         }
 
-        VisibleProcessCount = sorted.Length;
+        ReconcileVisibleItems(sorted);
+
+        VisibleProcessCount = sorted.Count;
         OnPropertyChanged(nameof(EmptyLabel));
+    }
+
+    private void ReconcileVisibleItems(IReadOnlyList<ProcessUsageDisplayItem> sorted)
+    {
+        var desiredItems = new HashSet<ProcessUsageDisplayItem>(sorted);
+        for (var index = ProcessItems.Count - 1; index >= 0; index--)
+        {
+            if (!desiredItems.Contains(ProcessItems[index]))
+            {
+                ProcessItems.RemoveAt(index);
+            }
+        }
+
+        for (var targetIndex = 0; targetIndex < sorted.Count; targetIndex++)
+        {
+            var desiredItem = sorted[targetIndex];
+            if (targetIndex < ProcessItems.Count && ReferenceEquals(ProcessItems[targetIndex], desiredItem))
+            {
+                continue;
+            }
+
+            var currentIndex = ProcessItems.IndexOf(desiredItem);
+            if (currentIndex >= 0)
+            {
+                ProcessItems.Move(currentIndex, targetIndex);
+            }
+            else
+            {
+                ProcessItems.Insert(targetIndex, desiredItem);
+            }
+        }
     }
 
     private IEnumerable<ProcessUsageDisplayItem> SortItems(IEnumerable<ProcessUsageDisplayItem> items)
@@ -492,6 +588,11 @@ public sealed partial class AppsViewModel : ObservableObject, IDisposable
         OnPropertyChanged(nameof(MemorySortGlyph));
         OnPropertyChanged(nameof(DownloadSortGlyph));
         OnPropertyChanged(nameof(UploadSortGlyph));
+        OnPropertyChanged(nameof(IsNameSort));
+        OnPropertyChanged(nameof(IsCpuSort));
+        OnPropertyChanged(nameof(IsMemorySort));
+        OnPropertyChanged(nameof(IsDownloadSort));
+        OnPropertyChanged(nameof(IsUploadSort));
     }
 
     public void Dispose()
@@ -523,11 +624,14 @@ public sealed partial class ProcessUsageDisplayItem : ObservableObject
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(DisplayName))]
     [NotifyPropertyChangedFor(nameof(IsSystemProcess))]
+    [NotifyPropertyChangedFor(nameof(ProcessTypeLabel))]
     private string _processName = string.Empty;
 
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(DisplayName))]
     [NotifyPropertyChangedFor(nameof(IsSystemProcess))]
+    [NotifyPropertyChangedFor(nameof(ProcessTypeLabel))]
+    [NotifyPropertyChangedFor(nameof(ExecutablePathDisplay))]
     private string _executablePath = string.Empty;
 
     [ObservableProperty]
@@ -541,6 +645,7 @@ public sealed partial class ProcessUsageDisplayItem : ObservableObject
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(MemoryDisplay))]
     [NotifyPropertyChangedFor(nameof(PrivateDisplay))]
+    [NotifyPropertyChangedFor(nameof(PrivateMemoryDisplay))]
     private long _privateBytes;
 
     [ObservableProperty]
@@ -565,16 +670,21 @@ public sealed partial class ProcessUsageDisplayItem : ObservableObject
 
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(SessionTotalDisplay))]
+    [NotifyPropertyChangedFor(nameof(SessionDownloadDisplay))]
     private long _sessionBytesReceived;
 
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(SessionTotalDisplay))]
+    [NotifyPropertyChangedFor(nameof(SessionUploadDisplay))]
     private long _sessionBytesSent;
 
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(DownloadDisplay))]
     [NotifyPropertyChangedFor(nameof(UploadDisplay))]
     [NotifyPropertyChangedFor(nameof(SessionTotalDisplay))]
+    [NotifyPropertyChangedFor(nameof(SessionDownloadDisplay))]
+    [NotifyPropertyChangedFor(nameof(SessionUploadDisplay))]
+    [NotifyPropertyChangedFor(nameof(NetworkTelemetryLabel))]
     private bool _hasNetworkStats;
 
     public ProcessUsageDisplayItem(ProcessUsageSnapshot snapshot)
@@ -605,14 +715,24 @@ public sealed partial class ProcessUsageDisplayItem : ObservableObject
     public string CpuDisplay => HasCpuSample ? $"{CpuPercent:F1}%" : "—";
     public string MemoryDisplay => ByteFormatter.FormatBytes(Math.Max(0, WorkingSetBytes));
     public string PrivateDisplay => ByteFormatter.FormatBytes(Math.Max(0, PrivateBytes));
+    public string PrivateMemoryDisplay => ByteFormatter.FormatBytes(Math.Max(0, PrivateBytes));
     public string DownloadDisplay => HasNetworkStats ? ByteFormatter.FormatSpeed(DownloadSpeedBps) : "—";
     public string UploadDisplay => HasNetworkStats ? ByteFormatter.FormatSpeed(UploadSpeedBps) : "—";
+    public string SessionDownloadDisplay => HasNetworkStats ? ByteFormatter.FormatBytes(Math.Max(0, SessionBytesReceived)) : "—";
+    public string SessionUploadDisplay => HasNetworkStats ? ByteFormatter.FormatBytes(Math.Max(0, SessionBytesSent)) : "—";
     public string SessionTotalDisplay => HasNetworkStats
         ? ByteFormatter.FormatBytes(Math.Max(0, SessionBytesReceived) + Math.Max(0, SessionBytesSent))
         : "—";
     public bool IsSystemProcess => string.IsNullOrWhiteSpace(ExecutablePath)
                                    || string.Equals(ProcessName, "System", StringComparison.OrdinalIgnoreCase)
                                    || string.Equals(ProcessName, "Idle", StringComparison.OrdinalIgnoreCase);
+    public string ProcessTypeLabel => IsSystemProcess ? "System process" : "User process";
+    public string ExecutablePathDisplay => string.IsNullOrWhiteSpace(ExecutablePath)
+        ? "Executable path unavailable"
+        : ExecutablePath;
+    public string NetworkTelemetryLabel => HasNetworkStats
+        ? "Live process attribution"
+        : "Network attribution unavailable";
 
     public void Update(ProcessUsageSnapshot snapshot)
     {

@@ -60,6 +60,8 @@ public sealed class SystemMonitorService : ISystemMonitorService, IDisposable
                     Timestamp = DateTime.Now,
                     UsagePercent = cpuData.UsagePercent,
                     PerCoreUsagePercent = cpuData.PerCoreUsagePercent,
+                    KernelUsagePercent = cpuData.KernelUsagePercent,
+                    PerCoreKernelUsagePercent = cpuData.PerCoreKernelUsagePercent,
                     ProcessorCount = cpuData.ProcessorCount,
                     ProcessorName = _processorName,
                     FrequencyMhz = cpuData.FrequencyMhz,

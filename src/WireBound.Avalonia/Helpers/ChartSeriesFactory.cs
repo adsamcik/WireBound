@@ -35,7 +35,7 @@ public static class ChartSeriesFactory
                 Name = "Download",
                 Values = downloadPoints,
                 Fill = new LinearGradientPaint(
-                    [downloadColor.WithAlpha(100), downloadColor.WithAlpha(0)],
+                    [downloadColor.WithAlpha(64), downloadColor.WithAlpha(0)],
                     new SKPoint(0.5f, 0),
                     new SKPoint(0.5f, 1)
                 ),
@@ -51,7 +51,7 @@ public static class ChartSeriesFactory
                 Name = "Upload",
                 Values = uploadPoints,
                 Fill = new LinearGradientPaint(
-                    [uploadColor.WithAlpha(100), uploadColor.WithAlpha(0)],
+                    [uploadColor.WithAlpha(64), uploadColor.WithAlpha(0)],
                     new SKPoint(0.5f, 0),
                     new SKPoint(0.5f, 1)
                 ),

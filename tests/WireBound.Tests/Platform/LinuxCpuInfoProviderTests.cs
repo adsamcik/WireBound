@@ -176,4 +176,22 @@ public class LinuxCpuInfoProviderTests
         // Assert
         total.Should().Be(user + nice + system + idleVal + iowait + irq + softirq + steal);
     }
+
+    [Test]
+    public void ParseCpuTimings_StandardLine_ReturnsKernelTicks()
+    {
+        // Arrange
+        const long system = 300;
+        const long irq = 50;
+        const long softirq = 25;
+        var line = $"cpu 1000 200 {system} 5000 100 {irq} {softirq} 10 0 0";
+
+        // Act
+        var (idle, total, kernel) = LinuxCpuInfoProvider.ParseCpuTimings(line);
+
+        // Assert
+        idle.Should().Be(5100);
+        total.Should().Be(6685);
+        kernel.Should().Be(system + irq + softirq);
+    }
 }

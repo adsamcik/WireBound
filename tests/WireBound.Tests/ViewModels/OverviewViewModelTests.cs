@@ -161,6 +161,69 @@ public class OverviewViewModelTests : IAsyncDisposable
     }
 
     [Test]
+    public void Constructor_InitializesPerCoreChartsWithKernelTimings()
+    {
+        var systemStats = new SystemStats
+        {
+            Cpu = new CpuStats
+            {
+                UsagePercent = 45,
+                PerCoreUsagePercent = [30, 60],
+                KernelUsagePercent = 12,
+                PerCoreKernelUsagePercent = [8, 16]
+            },
+            Memory = new MemoryStats { TotalBytes = 100, UsedBytes = 50 }
+        };
+        _systemMonitorMock.GetCurrentStats().Returns(systemStats);
+
+        var viewModel = CreateViewModel();
+
+        viewModel.HasCpuCoreCharts.Should().BeTrue();
+        viewModel.IsKernelTimingAvailable.Should().BeTrue();
+        viewModel.KernelPercent.Should().Be(12);
+        viewModel.KernelUsageFormatted.Should().Be("12% kernel");
+        viewModel.CpuCoreCharts.Should().HaveCount(2);
+        viewModel.CpuCoreCharts[0].UsageHistory.Should().ContainSingle().Which.Should().Be(30);
+        viewModel.CpuCoreCharts[0].KernelHistory.Should().ContainSingle().Which.Should().Be(8);
+        viewModel.CpuCoreCharts[1].UsagePercent.Should().Be(60);
+    }
+
+    [Test]
+    public void ShowKernelTimings_WhenEnabled_HighlightsEveryCore()
+    {
+        _systemMonitorMock.GetCurrentStats().Returns(new SystemStats
+        {
+            Cpu = new CpuStats
+            {
+                PerCoreUsagePercent = [30, 60],
+                PerCoreKernelUsagePercent = [8, 16]
+            },
+            Memory = new MemoryStats { TotalBytes = 100 }
+        });
+        var viewModel = CreateViewModel();
+
+        viewModel.ShowKernelTimings = true;
+
+        viewModel.CpuCoreCharts.Should().OnlyContain(core => core.ShowKernelHighlight);
+    }
+
+    [Test]
+    public void ShowKernelTimings_WithoutKernelData_DoesNotHighlightCores()
+    {
+        _systemMonitorMock.GetCurrentStats().Returns(new SystemStats
+        {
+            Cpu = new CpuStats { PerCoreUsagePercent = [30] },
+            Memory = new MemoryStats { TotalBytes = 100 }
+        });
+        var viewModel = CreateViewModel();
+
+        viewModel.ShowKernelTimings = true;
+
+        viewModel.IsKernelTimingAvailable.Should().BeFalse();
+        viewModel.CpuCoreCharts.Should().OnlyContain(core => !core.ShowKernelHighlight);
+    }
+
+    [Test]
     public void Constructor_InitializesChartSeries()
     {
         // Act
@@ -848,4 +911,3 @@ public class OverviewViewModelTests : IAsyncDisposable
         return ValueTask.CompletedTask;
     }
 }
-

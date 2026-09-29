@@ -353,6 +353,7 @@ public sealed class WireBoundDbContext : DbContext
                 ("CheckForUpdates", "INTEGER NOT NULL DEFAULT 1"),
                 ("AutoDownloadUpdates", "INTEGER NOT NULL DEFAULT 1"),
                 ("StartHelperWithSystem", "INTEGER NOT NULL DEFAULT 0"),
+                ("HelperStartupIssuePrompted", "INTEGER NOT NULL DEFAULT 0"),
                 ("MemoryAlertsEnabled", "INTEGER NOT NULL DEFAULT 0"),
                 ("MemoryWarningThresholdPercent", "INTEGER NOT NULL DEFAULT 85"),
                 ("MemoryCriticalThresholdPercent", "INTEGER NOT NULL DEFAULT 95"),

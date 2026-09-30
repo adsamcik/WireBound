@@ -5,6 +5,12 @@ namespace WireBound.Platform.Abstract.Models;
 /// </summary>
 public sealed class MemoryInfoData
 {
+    /// <summary>Physical RAM installed in the machine, when independently measured.</summary>
+    public long? InstalledBytes { get; init; }
+
+    /// <summary>Windows nonpaged kernel pool, a physically resident allocation when measured.</summary>
+    public long? NonpagedPoolBytes { get; init; }
+
     /// <summary>
     /// Total physical memory in bytes
     /// </summary>

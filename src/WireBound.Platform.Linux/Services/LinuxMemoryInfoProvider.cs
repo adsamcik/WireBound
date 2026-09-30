@@ -58,16 +58,8 @@ public sealed class LinuxMemoryInfoProvider : IMemoryInfoProvider
             // Fallback below
         }
 
-        // Fallback to GC memory info
-        var gcInfo = GC.GetGCMemoryInfo();
-        return new MemoryInfoData
-        {
-            TotalBytes = gcInfo.TotalAvailableMemoryBytes,
-            AvailableBytes = gcInfo.TotalAvailableMemoryBytes - gcInfo.MemoryLoadBytes,
-            UsedBytes = gcInfo.MemoryLoadBytes,
-            TotalVirtualBytes = 0,
-            UsedVirtualBytes = 0
-        };
+        // GC data describes this process, not the machine.
+        return new MemoryInfoData();
     }
 
     internal static Dictionary<string, long> ParseMemInfo(string filePath)
@@ -110,7 +102,7 @@ public sealed class LinuxMemoryInfoProvider : IMemoryInfoProvider
         }
         catch
         {
-            return GC.GetGCMemoryInfo().TotalAvailableMemoryBytes;
+            return 0;
         }
     }
 

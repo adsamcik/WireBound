@@ -27,6 +27,7 @@ public sealed class StubPlatformServices : IPlatformServices
         services.AddSingleton<IDiskInfoProvider, StubDiskInfoProvider>();
         services.AddSingleton<INetworkCostProvider, StubNetworkCostProvider>();
         services.AddSingleton<IProcessResourceProvider, StubProcessResourceProvider>();
+        services.AddSingleton<IWorkloadHostProvider, StubWorkloadHostProvider>();
         services.AddSingleton<IAppMetadataProvider, StubAppMetadataProvider>();
         services.AddSingleton<IGameDetectionProvider, StubGameDetectionProvider>();
         services.AddSingleton<IAppIconService, StubAppIconService>();

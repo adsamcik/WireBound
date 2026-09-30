@@ -357,6 +357,7 @@ public partial class App : Application
 
         // Register app-specific services
         services.AddSingleton<INavigationService, NavigationService>();
+        services.AddSingleton<ProcessContextService>();
         services.AddSingleton<ILocalizationService, LocalizationService>();
         services.AddSingleton<IViewFactory, ViewFactory>();
         services.AddSingleton<ITrayIconService, TrayIconService>();
@@ -373,6 +374,7 @@ public partial class App : Application
         services.AddSingleton<ChartsViewModel>();
         services.AddSingleton<SettingsViewModel>();
         services.AddSingleton<AppsViewModel>();
+        services.AddSingleton<MemoryViewModel>();
         services.AddSingleton<ConnectionsViewModel>();
         services.AddSingleton<SystemViewModel>();
         services.AddSingleton<HistoryViewModel>();
@@ -382,6 +384,7 @@ public partial class App : Application
         services.AddTransient<ChartsView>();
         services.AddTransient<SettingsView>();
         services.AddTransient<AppsView>();
+        services.AddSingleton<MemoryView>();
         services.AddTransient<ConnectionsView>();
         services.AddTransient<SystemView>();
         services.AddTransient<HistoryView>();

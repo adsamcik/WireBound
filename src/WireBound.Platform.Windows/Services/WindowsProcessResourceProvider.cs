@@ -34,6 +34,15 @@ public sealed class WindowsProcessResourceProvider : IProcessResourceProvider
                 cancellationToken.ThrowIfCancellationRequested();
 
                 string exePath = string.Empty;
+                long startMarker = 0;
+                try
+                {
+                    startMarker = process.StartTime.ToUniversalTime().Ticks;
+                }
+                catch
+                {
+                    // Protected processes can deny start-time access.
+                }
                 try
                 {
                     exePath = process.MainModule?.FileName ?? string.Empty;
@@ -46,6 +55,7 @@ public sealed class WindowsProcessResourceProvider : IProcessResourceProvider
                 results.Add(new ProcessResourceData
                 {
                     ProcessId = process.Id,
+                    StartMarker = startMarker,
                     ProcessName = process.ProcessName,
                     ExecutablePath = exePath,
                     PrivateBytes = process.PrivateMemorySize64,

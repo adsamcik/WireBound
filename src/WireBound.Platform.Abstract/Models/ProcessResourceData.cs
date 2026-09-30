@@ -12,6 +12,9 @@ public sealed class ProcessResourceData
     /// </summary>
     public int ProcessId { get; init; }
 
+    /// <summary>OS process generation marker (start time or boot-relative start tick).</summary>
+    public long StartMarker { get; init; }
+
     /// <summary>
     /// Process name (e.g., "chrome")
     /// </summary>

@@ -110,7 +110,7 @@
                 </StackPanel>
 
                 <StackPanel Grid.Column="3" VerticalAlignment="Center" Spacing="1">
-                    <TextBlock Text="MEMORY" Classes="MetricLabel" FontSize="10" />
+                    <TextBlock Text="RAM IN USE" Classes="MetricLabel" FontSize="10" />
                     <TextBlock Text="{Binding TotalMemory}"
                                FontSize="15"
                                FontWeight="Bold"
@@ -181,7 +181,7 @@
                 Padding="0"
                 MinHeight="0"
                 ClipToBounds="True">
-            <Grid RowDefinitions="Auto,Auto,*" MinHeight="0">
+            <Grid RowDefinitions="Auto,*" MinHeight="0">
                 <Border Padding="12,10"
                         BorderBrush="{StaticResource DividerBrush}"
                         BorderThickness="0,0,0,1">
@@ -277,7 +277,7 @@
                               VerticalScrollBarVisibility="Disabled">
                     <Grid MinWidth="930"
                           MinHeight="0"
-                          RowDefinitions="Auto,Auto,*">
+                          RowDefinitions="Auto,*">
                 <!-- Header cells fill their complete columns. The selected sort
                      receives a persistent tint; arrows only communicate direction. -->
                 <Border Grid.Row="0"
@@ -321,7 +321,7 @@
                                 AutomationProperties.Name="Sort processes by memory"
                                 AutomationProperties.HelpText="Sort the running process table by physical memory usage">
                             <StackPanel Orientation="Horizontal" Spacing="6">
-                                <TextBlock Text="MEMORY" />
+                                <TextBlock Text="RESIDENT RAM" />
                                 <TextBlock Text="{Binding MemorySortGlyph}" FontSize="9" />
                             </StackPanel>
                         </Button>
@@ -512,11 +512,12 @@
                                         HorizontalAlignment="Center">
                                     <controls:WbIcon IconKey="WbEntityApp" Width="22" Height="22" />
                                 </Border>
-                                <TextBlock Text="No matching processes"
+                                <TextBlock Text="{Binding EmptyLabel}"
                                            FontSize="15"
                                            FontWeight="Bold"
                                            HorizontalAlignment="Center" />
                                 <TextBlock Text="Clear the search or switch the scope to All."
+                                           IsVisible="{Binding !HasContext}"
                                            Classes="Subtitle"
                                            TextAlignment="Center"
                                            TextWrapping="Wrap"
@@ -665,6 +666,10 @@
                                     </Border>
                                 </StackPanel>
 
+                                <TextBlock Text="{Binding SelectedProcess.LikelyWorkloadLabel}"
+                                           IsVisible="{Binding SelectedProcess.HasLikelyWorkload}"
+                                           Classes="Caption"
+                                           TextWrapping="Wrap" />
                                 <TextBlock Text="Values update with the live process snapshot."
                                            Classes="Caption"
                                            TextWrapping="Wrap" />

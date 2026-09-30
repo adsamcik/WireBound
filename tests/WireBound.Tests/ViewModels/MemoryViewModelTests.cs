@@ -57,7 +57,9 @@ public class MemoryViewModelTests
         var memory = Substitute.For<IMemoryInfoProvider>();
         memory.GetMemoryInfo().Returns(new MemoryInfoData
         {
-            TotalBytes = 100, UsedBytes = 90, AvailableBytes = 90
+            TotalBytes = 100,
+            UsedBytes = 90,
+            AvailableBytes = 90
         });
         var processUsage = Substitute.For<IProcessUsageService>();
         processUsage.CaptureAsync(Arg.Any<CancellationToken>())

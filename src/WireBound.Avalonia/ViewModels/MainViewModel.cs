@@ -157,11 +157,6 @@ public partial class MainViewModel : ObservableObject, IRecipient<UpdateAvailabl
 
     private void OnNavigationChanged(string route)
     {
-        var selected = NavigationItems.FirstOrDefault(item => item.Route == route);
-        if (selected is not null && !ReferenceEquals(SelectedNavigationItem, selected))
-        {
-            SelectedNavigationItem = selected;
-        }
         CurrentView = _viewFactory.CreateView(route);
         CurrentRoute = route;
 

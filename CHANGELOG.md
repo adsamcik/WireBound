@@ -7,15 +7,41 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.11.0] - 2026-10-29
+
 ### Added
 
 - **Memory Details** - Added a Memory page with physical RAM capacity, Windows nonpaged kernel pool, an explicit Unattributed remainder, and observed VM host processes.
 - **Related Process Views** - Memory observations can open a process-instance filter with opt-in likely matches, a return to Memory, and protection against recycled process IDs.
+- **CPU Core Charts** - Added individual CPU-core activity charts to Overview, with optional kernel-time highlighting when the operating system provides it.
+
+### Changed
+
+- **Settings Organization** - Grouped startup, tray, monitoring, display, alerts, data, and update controls into clearer sections.
+- **Update Installation** - Downloaded updates wait for an explicit install-and-restart action instead of applying automatically when WireBound starts.
 
 ### Fixed
 
 - **Machine Resource Totals** - Processes now uses machine-wide CPU, RAM, and network samples instead of adding per-process measurements into incomplete or overlapping totals.
 - **Memory Provider Failures** - Failed operating-system memory reads show unavailable data instead of presenting WireBound's GC memory as machine RAM.
+- **Process Review Context** - Process lists retain their viewport during refreshes, and returning from a process investigation preserves the related Memory context.
+- **Tray Rendering** - Removed the graph border and rendered tray icons at the taskbar's actual DPI for sharper output at different display scales.
+- **What's New Formatting** - Release notes now display Markdown headings, lists, emphasis, and links in the update dialog.
+- **Helper Recovery Layout** - Improved the helper-autostart prompt's wrapping and action layout in the application header.
+- **Release Notes Extraction** - Release builds correctly select the changelog section for bracketed version headings.
+- **Release Toolchain Setup** - The final release job installs the repository-pinned .NET SDK before running packaging tools.
+
+### Security
+
+- **Update Waiting Period** - Installed and portable update checks offer stable releases only after the release and every attached file have been available for at least 24 hours.
+- **Update Package Verification** - Downloads and installation recheck the release on GitHub and verify package size and SHA-256, including cached packages and reconstructed delta updates. Withdrawn or changed releases are blocked, and installation waits when the release cannot be checked online.
+
+### Dependencies
+
+- Updated the .NET SDK to 10.0.403 and Microsoft/Entity Framework Core packages to 10.0.14.
+- Updated Avalonia to 12.1.4, Tmds.DBus.Protocol to 0.95.2, MessagePack to 3.1.12, and Velopack plus its packaging CLI to 1.2.161.
+- Updated Windows tracing to TraceEvent 4.0.0 and wireless-network support to ManagedNativeWifi 3.1.0.
+- Updated test dependencies, including TUnit 1.76.45, AwesomeAssertions 9.6.0, and TimeProvider.Testing 10.11.0.
 
 ## [0.10.0] - 2026-08-20
 

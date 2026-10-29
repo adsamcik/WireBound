@@ -45,13 +45,13 @@ dotnet run --project tests/WireBound.Tests/WireBound.Tests.csproj
 ## Tech Stack
 
 <!-- context-init:managed -->
-- **Language**: C# / .NET 10 (SDK 10.0.102)
-- **UI**: Avalonia 12.1.1 (cross-platform — Windows, Linux)
-- **Architecture**: MVVM with CommunityToolkit.Mvvm 8.4.0
-- **DI**: Microsoft.Extensions.DependencyInjection 10.0.2
-- **Database**: SQLite with Entity Framework Core 10.0.2
+- **Language**: C# / .NET 10 (SDK 10.0.403)
+- **UI**: Avalonia 12.1.4 (cross-platform — Windows, Linux)
+- **Architecture**: MVVM with CommunityToolkit.Mvvm 8.4.2
+- **DI**: Microsoft.Extensions.Hosting 10.0.14
+- **Database**: SQLite with Entity Framework Core 10.0.14
 - **Charts**: LiveChartsCore.SkiaSharpView.Avalonia 2.1.0-dev-798
-- **Logging**: Serilog 4.3.0 (file sink, daily rolling, 14-day retention)
+- **Logging**: Serilog 4.4.0 (file sink, daily rolling, 14-day retention)
 - **Testing**: TUnit, NSubstitute, AwesomeAssertions, EF Core InMemory
 
 ## Architecture

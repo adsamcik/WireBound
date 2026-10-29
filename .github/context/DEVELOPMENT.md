@@ -11,7 +11,7 @@ context-init:mode: full-init
 <!-- context-init:managed -->
 
 - **OS**: Windows 10/11 or Linux
-- **.NET 10 SDK** (10.0.102) — [Download](https://dotnet.microsoft.com/download)
+- **.NET 10 SDK** (10.0.403, pinned in `global.json`) — [Download](https://dotnet.microsoft.com/download)
 - **IDE**: Visual Studio 2022, VS Code with C# Dev Kit, or JetBrains Rider
 - **Git**
 

@@ -31,7 +31,7 @@ public class MemoryViewModelTests
     };
     private static (MemoryViewModel Vm, IWorkloadMemoryService Workloads, INavigationService Navigation, ProcessContextService Context)
         Create(MemoryInfoData? memory = null, IReadOnlyList<ProcessUsageSnapshot>? processes = null,
-            IReadOnlyList<MemoryWorkload>? workloads = null)
+            IReadOnlyList<MemoryWorkload>? workloads = null, IWorkloadHostProvider? hosts = null)
     {
         var provider = Substitute.For<IMemoryInfoProvider>();
         provider.GetMemoryInfo().Returns(memory ?? Memory);
@@ -44,7 +44,7 @@ public class MemoryViewModelTests
         var navigation = Substitute.For<INavigationService>();
         navigation.CurrentView.Returns(Routes.Overview);
         var context = new ProcessContextService();
-        var vm = new MemoryViewModel(provider, usage, Substitute.For<IWorkloadHostProvider>(),
+        var vm = new MemoryViewModel(provider, usage, hosts ?? Substitute.For<IWorkloadHostProvider>(),
             new SynchronousDispatcher(), navigation, context, workloadService);
         navigation.CurrentView.Returns(Routes.Memory);
         return (vm, workloadService, navigation, context);
@@ -61,7 +61,8 @@ public class MemoryViewModelTests
             await vm.RefreshCommand.ExecuteAsync(null);
             vm.MemorySegments.Where(s => s.ConsumerId == "app:path:one").Should().ContainSingle().Which.Bytes.Should().Be(2000);
             vm.MemorySegments.Single(s => s.Label == "Other apps").Bytes.Should().Be(100);
-            vm.MemorySegments.Should().NotContain(s => s.ConsumerId == "docker" || s.ConsumerId == "app:path:small");
+            vm.MemorySegments.Should().NotContain(s => s.ConsumerId == "docker");
+            vm.MemorySegments.Single(s => s.Label == "Other apps").ConsumerId.Should().Be("app:path:small");
             vm.MemorySegments.Sum(s => s.Bytes).Should().Be(17000);
             vm.MemorySegments.Sum(s => s.Percent).Should().BeApproximately(100, 0.00001);
             vm.MemorySegments.Single(s => s.Label == "Available").ConsumerId.Should().BeNull();
@@ -77,7 +78,7 @@ public class MemoryViewModelTests
         {
             await vm.RefreshCommand.ExecuteAsync(null);
             var segment = vm.MemorySegments.Single(s => s.ConsumerId == "app:path:one");
-            await vm.ToggleConsumerCommand.ExecuteAsync(vm.Consumers.Single(r => r.Id == "apps"));
+            vm.Consumers.Single(r => r.Id == "app:path:one").IsExpanded.Should().BeFalse();
             vm.SearchText = "no-match";
             MemoryConsumerRow? revealed = null;
             vm.ConsumerRevealRequested += row => revealed = row;
@@ -118,6 +119,71 @@ public class MemoryViewModelTests
             vm.MemorySegments.Where(s => s.ConsumerId is not null).Should().ContainSingle().Which.Bytes.Should().Be(10000);
             vm.MemorySegments.Should().NotContain(s => s.ConsumerId == "app:path:one");
             vm.MemorySegments.Sum(s => s.Bytes).Should().Be(17000);
+        }
+    }
+
+    [Test]
+    public async Task ConsumerList_InterleavesAppsGuestsContainersAndKernelRam_InDescendingUsage()
+    {
+        var hosts = Substitute.For<IWorkloadHostProvider>();
+        hosts.IdentifyHost("VmmemWSL", "").Returns(new WorkloadHost("wsl", "WSL host", "process name"));
+        var (vm, _, _, _) = Create(processes:
+            [Process(1, "one", 1000), Process(2, "one", 800), Process(3, "two", 700),
+                new ProcessUsageSnapshot { ProcessId = 4, ProcessName = "VmmemWSL", PrivateWorkingSetBytes = 2000, WorkingSetBytes = 2100 }],
+            workloads:
+            [new("guest", "Development VM", 3000, "Assigned to VM", ""),
+                new("docker", "Docker", 1800, "Container usage", "",
+                    [new("docker:large", "database", 1600, "Container usage", "", ContainerId: "abcdef012345"),
+                        new("docker:small", "web", 200, "Container usage", "", ContainerId: "abcdef012346")]),
+                new("unknown", "WSL distro", null, "WSL distribution", "")], hosts: hosts);
+        using (vm)
+        {
+            await vm.RefreshCommand.ExecuteAsync(null);
+            vm.Consumers.Select(r => r.Id).Should().Equal("other", "guest", "host:4:0", "app:path:one",
+                "docker:large", "nonpaged", "app:path:two", "docker:small", "unknown");
+            vm.Consumers.Should().OnlyContain(r => r.Depth == 0);
+            vm.Consumers.Sum(r => r.PhysicalBytes ?? 0).Should().Be(Memory.UsedBytes);
+            vm.Consumers.Single(r => r.Id == "docker:large").UsageMetric.Should().Be("Docker usage");
+            vm.Consumers.Single(r => r.Id == "guest").UsageMetric.Should().Be("Assigned to VM");
+        }
+    }
+
+    [Test]
+    public async Task ConsumerList_PartialAppUsesCompleteWorkingSet_AndRetainsPrivateRamInDetails()
+    {
+        var (vm, _, _, _) = Create(processes:
+            [Process(1, "partial", 100), Process(2, "partial", null), Process(3, "complete", 1800)]);
+        using (vm)
+        {
+            await vm.RefreshCommand.ExecuteAsync(null);
+            var partial = vm.Consumers.Single(r => r.Id == "app:path:partial");
+            partial.UsageBytes.Should().Be(4000);
+            partial.UsageMetric.Should().Be("Working set");
+            partial.MeasurementDetails.Should().Contain(partial.PhysicalDisplay).And.Contain(partial.ObservedDisplay);
+            vm.Consumers.IndexOf(partial).Should().BeLessThan(vm.Consumers.IndexOf(vm.Consumers.Single(r => r.Id == "app:path:complete")));
+            var segment = vm.MemorySegments.Single(s => s.Label == "Other apps");
+            segment.ConsumerId.Should().Be(partial.Id);
+            vm.RevealMemoryConsumerCommand.Execute(segment);
+            vm.SelectedConsumer.Should().BeSameAs(partial);
+            vm.Consumers.Should().Contain(r => r.Id == "process:2:102");
+        }
+    }
+
+    [Test]
+    public async Task ConsumerList_RefreshResortsConsumers_AndKeepsSelection()
+    {
+        var processes = new List<ProcessUsageSnapshot> { Process(1, "one", 1000), Process(2, "two", 1500) };
+        var (vm, _, _, _) = Create(processes: processes);
+        using (vm)
+        {
+            await vm.RefreshCommand.ExecuteAsync(null);
+            vm.SelectedConsumer = vm.Consumers.Single(r => r.Id == "app:path:one");
+            processes[0] = Process(1, "one", 1900);
+            processes[1] = Process(2, "two", 500);
+            await vm.RefreshCommand.ExecuteAsync(null);
+            vm.SelectedConsumer!.Id.Should().Be("app:path:one");
+            vm.Consumers.Where(r => r.Id.StartsWith("app:")).Select(r => r.Id)
+                .Should().Equal("app:path:one", "app:path:two");
         }
     }
 
@@ -213,7 +279,7 @@ public class MemoryViewModelTests
         {
             await vm.RefreshCommand.ExecuteAsync(null);
             await workloads.DidNotReceive().GetContainerProcessesAsync(Arg.Any<string>(), Arg.Any<CancellationToken>());
-            await vm.ToggleConsumerCommand.ExecuteAsync(vm.Consumers.Single(r => r.Id == "docker"));
+            vm.Consumers.Single(r => r.Id == "docker:abc").Depth.Should().Be(0);
             await vm.ToggleConsumerCommand.ExecuteAsync(vm.Consumers.Single(r => r.Id == "docker:abc"));
             vm.Consumers.Should().Contain(r => r.Name == "postgres" && r.PhysicalBytes == null);
             vm.SelectedConsumer = vm.Consumers.Single(r => r.Id == "inside:1");

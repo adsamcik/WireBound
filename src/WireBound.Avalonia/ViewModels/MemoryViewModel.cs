@@ -22,7 +22,7 @@ public sealed partial class MemoryViewModel : ObservableObject, IDisposable
     private readonly ProcessContextService _context;
     private CancellationTokenSource? _capture;
     private IReadOnlyList<MemoryConsumerRow> _roots = [];
-    private readonly HashSet<string> _expanded = ["apps", "workloads"];
+    private readonly HashSet<string> _expanded = [];
     private string? _selectionToRestore;
     private readonly Dictionary<string, int> _segmentColors = new();
     private bool _disposed;
@@ -112,7 +112,7 @@ public sealed partial class MemoryViewModel : ObservableObject, IDisposable
                 _roots = roots;
                 MemorySegments = BuildMemorySegments(memory, valid);
                 AccountingStatus = roots.Last().PhysicalBytes.HasValue
-                    ? "Apps + VM hosts + system + shared and other = in use. Other measurements may overlap; ≥ is partial."
+                    ? "Reported working-set, VM and container values may overlap. The bar shows physical totals."
                     : "Physical attribution unavailable. Refresh to retry. Other measurements may overlap.";
                 RestoreExpansion(_roots);
                 RebuildVisible();
@@ -183,22 +183,24 @@ public sealed partial class MemoryViewModel : ObservableObject, IDisposable
     {
         var selected = SelectedConsumer;
         var search = SearchText.Trim();
-        bool Matches(MemoryConsumerRow row) => row.Name.Contains(search, StringComparison.OrdinalIgnoreCase)
-            || row.Summary.Contains(search, StringComparison.OrdinalIgnoreCase) || row.Children.Any(Matches);
+        bool DirectMatch(MemoryConsumerRow row) => row.Name.Contains(search, StringComparison.OrdinalIgnoreCase)
+            || row.Summary.Contains(search, StringComparison.OrdinalIgnoreCase)
+            || row.UsageMetric.Contains(search, StringComparison.OrdinalIgnoreCase);
+        bool Matches(MemoryConsumerRow row) => DirectMatch(row) || row.Children.Any(Matches);
         var visible = new List<MemoryConsumerRow>();
         void Append(IEnumerable<MemoryConsumerRow> rows, int depth, bool includeAll)
         {
-            foreach (var row in rows)
+            foreach (var row in SortByUsage(rows))
             {
                 if (search.Length > 0 && !includeAll && !Matches(row)) continue;
                 row.Depth = depth;
                 row.IsFilterExpanded = search.Length > 0 && row.Children.Count > 0;
                 visible.Add(row);
                 if (row.IsExpanded || search.Length > 0)
-                    Append(row.Children, depth + 1, includeAll || (search.Length > 0 && row.Name.Contains(search, StringComparison.OrdinalIgnoreCase)));
+                    Append(row.Children, depth + 1, includeAll || (search.Length > 0 && DirectMatch(row)));
             }
         }
-        Append(_roots, 0, false);
+        Append(TopLevelConsumers(), 0, false);
         ConsumersChanging?.Invoke();
         try
         {
@@ -209,6 +211,36 @@ public sealed partial class MemoryViewModel : ObservableObject, IDisposable
         finally { ConsumersChanged?.Invoke(); }
         OnPropertyChanged(nameof(HasNoResults));
     }
+
+    private IEnumerable<MemoryConsumerRow> TopLevelConsumers()
+    {
+        // Keep the physical accounting tree internal; show consumers without category subtotals.
+        foreach (var root in _roots)
+        {
+            if (root.Id == "apps" || root.Id == "system")
+            {
+                foreach (var child in root.Children) yield return child;
+            }
+            else if (root.Id == "workloads")
+            {
+                foreach (var workload in root.Children)
+                {
+                    // Container totals are subdivisions of the Docker total, not extra consumers.
+                    if (workload.Id == "docker" && workload.Children.Count > 0)
+                    {
+                        foreach (var container in workload.Children) yield return container;
+                    }
+                    else yield return workload;
+                }
+            }
+            else yield return root;
+        }
+    }
+
+    private static IOrderedEnumerable<MemoryConsumerRow> SortByUsage(IEnumerable<MemoryConsumerRow> rows) => rows
+        .OrderByDescending(row => row.UsageBytes ?? -1)
+        .ThenBy(row => row.Name, StringComparer.OrdinalIgnoreCase)
+        .ThenBy(row => row.Id, StringComparer.Ordinal);
     private static IEnumerable<MemoryConsumerRow> Walk(IEnumerable<MemoryConsumerRow> rows)
     {
         foreach (var row in rows)
@@ -260,11 +292,15 @@ public sealed partial class MemoryViewModel : ObservableObject, IDisposable
                 Add(row.Name, row.PhysicalBytes!.Value, ChartColors.SeriesPalette[index], index == 5,
                     row.Id, $"Measured private RAM · {row.Summary}" + (row.IsPartial ? ". Some processes could not be measured." : "."));
             }
-            Add("Other apps", apps.Children.Where(r => !retained.Contains(r.Id)).Sum(r => r.PhysicalBytes ?? 0),
-                ChartColors.MemoryDimColor, false, apps.Id, "Measured private RAM of smaller application groups. Click to browse all apps.");
-            Add("Other VM hosts", hosts.Children.Where(r => !retained.Contains(r.Id)).Sum(r => r.PhysicalBytes ?? 0),
-                ChartColors.CpuDimColor, false, hosts.Id, "Measured private RAM of smaller VM host processes. Guest and container observations are excluded.");
-            Add("System", system.PhysicalBytes ?? 0, ChartColors.AxisLabelColor, false, system.Id,
+            var smallerApps = apps.Children.Where(r => r.PhysicalBytes is > 0 && !retained.Contains(r.Id)).ToArray();
+            var smallerHosts = hosts.Children.Where(r => r.PhysicalBytes is > 0 && !retained.Contains(r.Id)).ToArray();
+            Add("Other apps", smallerApps.Sum(r => r.PhysicalBytes!.Value),
+                ChartColors.MemoryDimColor, false, SortByUsage(smallerApps).FirstOrDefault()?.Id,
+                "Measured private RAM of smaller application groups. Click to reveal the largest of these apps.");
+            Add("Other VM hosts", smallerHosts.Sum(r => r.PhysicalBytes!.Value),
+                ChartColors.CpuDimColor, false, SortByUsage(smallerHosts).FirstOrDefault()?.Id,
+                "Measured private RAM of smaller VM host processes. Click to reveal the largest of these hosts. Guest and container observations are excluded.");
+            Add("System", system.PhysicalBytes ?? 0, ChartColors.AxisLabelColor, false, system.Children.FirstOrDefault()?.Id,
                 "Measured resident kernel allocations.");
             Add("Shared / other", shared.PhysicalBytes.Value, ChartColors.AxisNameColor, false, shared.Id,
                 "Shared pages and RAM without a measured exclusive owner, including unmeasured guest allocations.");

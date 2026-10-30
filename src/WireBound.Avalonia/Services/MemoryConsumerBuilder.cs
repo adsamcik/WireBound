@@ -28,7 +28,6 @@ public static class MemoryConsumerBuilder
         var reconciles = validPhysicalSample && measured <= memory.UsedBytes - (pool ?? 0);
         long? Physical(ProcessUsageSnapshot p) => reconciles && p.PrivateWorkingSetBytes is >= 0
             && p.PrivateWorkingSetBytes <= p.WorkingSetBytes ? p.PrivateWorkingSetBytes : null;
-        double Share(long? bytes) => memory.UsedBytes > 0 && bytes is { } value ? value * 100d / memory.UsedBytes : 0;
 
         var apps = new MemoryConsumerRow
         {
@@ -58,7 +57,6 @@ public static class MemoryConsumerBuilder
                 ObservedBytes = members.Sum(p => Math.Max(0, p.WorkingSetBytes)),
                 IsPartial = physicalValues.Any(p => !p.HasValue),
                 Metric = "Working set",
-                SharePercent = Share(bytes),
                 Processes = instances,
                 HasConfirmedProcessLinks = true,
                 Detail = $"{members[0].ExecutablePath}\n{physicalValues.Count(v => v.HasValue)} of {members.Length} processes have measured private RAM. Working sets include shared pages and can overlap other rows."
@@ -75,7 +73,6 @@ public static class MemoryConsumerBuilder
                     HasConfirmedProcessLinks = true,
                     ObservedBytes = Math.Max(0, member.WorkingSetBytes),
                     Metric = "Working set",
-                    SharePercent = Share(privateBytes),
                     Detail = $"{member.ExecutablePath}\nPrivate RAM is resident, not committed memory. Working set includes shared pages."
                         + (privateBytes is null ? " Private RAM is unavailable for this process or sample." : ""),
                     Processes = member.StartMarker == 0 ? new HashSet<ProcessInstanceId>() : [new(member.ProcessId, member.StartMarker)]
@@ -104,7 +101,6 @@ public static class MemoryConsumerBuilder
                 PhysicalBytes = privateBytes,
                 ObservedBytes = Math.Max(0, process.WorkingSetBytes),
                 Metric = "Host working set",
-                SharePercent = Share(privateBytes),
                 Detail = host.Evidence + ". Host working set is not the complete guest footprint. Guest process memory requires a guest collector.",
                 Processes = process.StartMarker == 0 ? new HashSet<ProcessInstanceId>() : [new(process.ProcessId, process.StartMarker)]
             });
@@ -116,7 +112,6 @@ public static class MemoryConsumerBuilder
             Id = "system",
             Name = "System and drivers",
             PhysicalBytes = pool,
-            SharePercent = Share(pool),
             Detail = "Only independently measured resident kernel allocations are attributed here. Other system allocations remain in Shared and other."
         };
         if (pool.HasValue)
@@ -125,7 +120,6 @@ public static class MemoryConsumerBuilder
                 Id = "nonpaged",
                 Name = "Nonpaged kernel pool",
                 PhysicalBytes = pool,
-                SharePercent = Share(pool),
                 Detail = "Windows GetPerformanceInfo · resident, nonpageable kernel pool."
             });
         var remainder = new MemoryConsumerRow

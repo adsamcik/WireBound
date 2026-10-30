@@ -16,8 +16,20 @@ public sealed partial class MemoryConsumerRow : ObservableObject
     public bool IsPartial { get; init; }
     public long? ObservedBytes { get; init; }
     public string Metric { get; init; } = "";
-    public double SharePercent { get; init; }
-    public double BarWidth => Math.Clamp(SharePercent, 0, 100) * 1.3;
+    public bool UsesPhysicalUsage => PhysicalBytes.HasValue && (!IsPartial || !ObservedBytes.HasValue);
+    public long? UsageBytes => UsesPhysicalUsage ? PhysicalBytes : ObservedBytes;
+    public string UsageDisplay => UsesPhysicalUsage ? PhysicalDisplay : ObservedDisplay;
+    public bool HasDistinctSummary => Summary.Length > 0 && Summary != UsageMetric;
+    public string UsageMetric => UsesPhysicalUsage ? Id switch
+    {
+        "other" => "Unattributed",
+        "nonpaged" => "Kernel RAM",
+        _ when Id.StartsWith("host:", StringComparison.Ordinal) => "Host private RAM",
+        _ => "Private RAM"
+    } : ContainerId is not null ? "Docker usage" : string.IsNullOrEmpty(Metric) ? "Unavailable" : Metric;
+    public string MeasurementDetails => PhysicalBytes.HasValue && ObservedBytes.HasValue
+        ? $"Private RAM: {PhysicalDisplay}. {Metric}: {ObservedDisplay} (may overlap).\n{Detail}"
+        : Detail;
     public int Depth { get; set; }
     public string? ContainerId { get; init; }
     public bool HasConfirmedProcessLinks { get; init; }

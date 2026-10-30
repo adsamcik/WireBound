@@ -42,14 +42,14 @@ details. The page remains useful without the helper.
 
 Start with a compact physical capacity strip: **In use · Available · Hardware
 reserved**, with the installed total only when measured. The allocation
-ledger occupies the main viewport. It can contain Applications, Virtual
-machines, System and drivers, Shared allocations, and Unattributed, but only
-measured non-overlapping physical categories enter its additive total.
+consumer list occupies the main viewport. Apps, VM hosts, named guests,
+individual containers, kernel allocations, and shared/unattributed RAM appear
+together without broad category headers or duplicate category subtotals.
 
-Expand a category to reveal meaningful subdivisions. A named VM appears
-after one expansion. System subdivisions must identify real allocation
-types, such as validated nonpaged pool or driver-locked pages, rather than
-repeat the parent number. An allocation detail holds its definition, source,
+Expand an app or container only to inspect its process details. Named guests
+and containers are directly visible. System entries identify measured
+allocation types, such as nonpaged pool, rather than repeat a category total.
+An allocation detail holds its definition, source,
   sample age, and evidence status. Use a separate **View related processes**
   action when links exist; **Check process links** can lead to a contextual
   empty state when correlation is supported but found none. Merely selecting
@@ -64,23 +64,30 @@ reservation. Multiprocess apps remain one slice. Hover exposes bytes, share,
 and measurement scope; activating a consumer slice clears the list filter,
 expands its group, and reveals its current row. Colors stay stable when
 visible consumers change rank. Overlapping observations never enter the bar;
-incompatible attribution falls back to total in-use RAM.
+incompatible attribution falls back to total in-use RAM. Smaller-consumer
+slices reveal their largest remaining member; system slices reveal the
+measured allocation directly.
 Application groups use the exact executable path (process name fallback),
-ordered by measured RAM, and expand to individual process instances.
+and expand to individual process instances. Docker's aggregate wrapper is
+omitted when its individual containers are available.
 Search includes descendants and PIDs, revealing matching ancestry without
 changing saved expansion state. Refresh preserves filters and expansion.
 
-The **Physical RAM** column attributes only measured private resident pages,
-validated nonpaged pool, and the explicitly unexplained remainder. A partial
-process group shows a lower-bound marker. Windows uses private working-set
+The **RAM** column is sorted descending across all top-level consumers;
+optional process details sort within their owner. Use complete measured
+private/system RAM when available, otherwise the reported working-set, guest,
+or container value. This prevents partially measured app groups from hiding
+large unmeasured processes. Unknown values sort last. The **Measurement**
+label states the source metric; list values can overlap and are not additive.
+Both physical and observed values, including partial private measurements,
+remain in row details. Windows uses private working-set
 counters on supported Windows 11 builds; Linux reads private resident pages
 from smaps_rollup only for Memory captures. Committed memory is never used
 as a substitute for physical RAM. Inaccessible or unsupported measurements
 remain unavailable.
 
-The adjacent **Other measurement** column shows working sets, assigned VM
-memory, Docker container usage, and container-process RSS with their exact
-metric. These observations can overlap each other and physical RAM and do
+Assigned VM memory, Docker container usage, and container-process RSS retain
+their exact metric labels. These observations can overlap physical RAM and do
 not enter the physical allocation equation. Named Hyper-V guests and running
 WSL distributions are read without starting or entering a guest. Local
 libvirt system/session connections are read-only; remote default connections

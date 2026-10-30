@@ -287,9 +287,13 @@ public class VelopackUpdateServiceTests
                     var version = ((string)call[0]).Split('/')[^2][1..];
                     var asset = new JsonObject
                     {
-                        ["PackageId"] = "WireBound", ["Version"] = version, ["Type"] = "Full",
-                        ["FileName"] = PackageName(version), ["Size"] = PackageBytes.Length,
-                        ["SHA1"] = Convert.ToHexString(SHA1.HashData(PackageBytes)), ["SHA256"] = Hash
+                        ["PackageId"] = "WireBound",
+                        ["Version"] = version,
+                        ["Type"] = "Full",
+                        ["FileName"] = PackageName(version),
+                        ["Size"] = PackageBytes.Length,
+                        ["SHA1"] = Convert.ToHexString(SHA1.HashData(PackageBytes)),
+                        ["SHA256"] = Hash
                     };
                     MutateManifest?.Invoke(asset);
                     var assets = new JsonArray(asset);
@@ -309,8 +313,11 @@ public class VelopackUpdateServiceTests
             var date = Clock.GetUtcNow() - (age ?? TimeSpan.FromDays(2));
             var release = new JsonObject
             {
-                ["id"] = Releases.Count + 1, ["tag_name"] = $"v{version}", ["draft"] = false,
-                ["prerelease"] = false, ["published_at"] = date.ToString("O"),
+                ["id"] = Releases.Count + 1,
+                ["tag_name"] = $"v{version}",
+                ["draft"] = false,
+                ["prerelease"] = false,
+                ["published_at"] = date.ToString("O"),
                 ["assets"] = new JsonArray(Asset("releases.win-x64.json", version, date, 1), Asset(PackageName(version), version, date, 2))
             };
             Releases.Add(release);
@@ -319,8 +326,12 @@ public class VelopackUpdateServiceTests
 
         private static JsonObject Asset(string name, string version, DateTimeOffset date, int id) => new()
         {
-            ["id"] = id, ["name"] = name, ["state"] = "uploaded", ["size"] = PackageBytes.Length,
-            ["created_at"] = date.ToString("O"), ["updated_at"] = date.ToString("O"),
+            ["id"] = id,
+            ["name"] = name,
+            ["state"] = "uploaded",
+            ["size"] = PackageBytes.Length,
+            ["created_at"] = date.ToString("O"),
+            ["updated_at"] = date.ToString("O"),
             ["browser_download_url"] = $"{GitHubUpdateSource.RepositoryUrl}/releases/download/v{version}/{name}",
             ["digest"] = $"sha256:{Hash}"
         };

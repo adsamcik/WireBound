@@ -51,6 +51,77 @@ public class MemoryViewModelTests
     }
 
     [Test]
+    public async Task MemoryBar_CombinesAppProcesses_AccountsForAllCapacity_AndExcludesOverlappingObservations()
+    {
+        var (vm, _, _, _) = Create(processes:
+            [Process(1, "one", 1000), Process(2, "one", 1000), Process(3, "small", 100)],
+            workloads: [new("docker", "Docker", 9000, "Container usage", "overlaps host RAM")]);
+        using (vm)
+        {
+            await vm.RefreshCommand.ExecuteAsync(null);
+            vm.MemorySegments.Where(s => s.ConsumerId == "app:path:one").Should().ContainSingle().Which.Bytes.Should().Be(2000);
+            vm.MemorySegments.Single(s => s.Label == "Other apps").Bytes.Should().Be(100);
+            vm.MemorySegments.Should().NotContain(s => s.ConsumerId == "docker" || s.ConsumerId == "app:path:small");
+            vm.MemorySegments.Sum(s => s.Bytes).Should().Be(17000);
+            vm.MemorySegments.Sum(s => s.Percent).Should().BeApproximately(100, 0.00001);
+            vm.MemorySegments.Single(s => s.Label == "Available").ConsumerId.Should().BeNull();
+            vm.MemorySegments.Single(s => s.Label == "Reserved").Bytes.Should().Be(1000);
+        }
+    }
+
+    [Test]
+    public async Task MemoryBarClick_RevealsAndExpandsAppGroup_EvenWhenFilteredOrCollapsed()
+    {
+        var (vm, _, navigation, _) = Create(processes: [Process(1, "one", 1000), Process(2, "one", 1000)]);
+        using (vm)
+        {
+            await vm.RefreshCommand.ExecuteAsync(null);
+            var segment = vm.MemorySegments.Single(s => s.ConsumerId == "app:path:one");
+            await vm.ToggleConsumerCommand.ExecuteAsync(vm.Consumers.Single(r => r.Id == "apps"));
+            vm.SearchText = "no-match";
+            MemoryConsumerRow? revealed = null;
+            vm.ConsumerRevealRequested += row => revealed = row;
+            vm.RevealMemoryConsumerCommand.Execute(segment);
+            vm.SearchText.Should().BeEmpty();
+            vm.SelectedConsumer!.Id.Should().Be("app:path:one");
+            vm.SelectedConsumer.IsExpanded.Should().BeTrue();
+            vm.Consumers.Should().Contain(r => r.Id == "process:1:101").And.Contain(r => r.Id == "process:2:102");
+            revealed.Should().BeSameAs(vm.SelectedConsumer);
+            navigation.DidNotReceive().NavigateTo(Arg.Any<string>());
+        }
+    }
+
+    [Test]
+    public async Task MemoryBar_KeepsAppColorsWhenUsageRankingChanges()
+    {
+        var processes = new List<ProcessUsageSnapshot> { Process(1, "one", 1000), Process(2, "two", 1500) };
+        var (vm, _, _, _) = Create(processes: processes);
+        using (vm)
+        {
+            await vm.RefreshCommand.ExecuteAsync(null);
+            var firstColors = vm.MemorySegments.Where(s => s.ConsumerId?.StartsWith("app:") == true).ToDictionary(s => s.ConsumerId!, s => s.Color);
+            processes[0] = Process(1, "one", 1900);
+            processes[1] = Process(2, "two", 500);
+            await vm.RefreshCommand.ExecuteAsync(null);
+            vm.MemorySegments.Where(s => s.ConsumerId?.StartsWith("app:") == true)
+                .Should().OnlyContain(s => s.Color == firstColors[s.ConsumerId!]);
+        }
+    }
+
+    [Test]
+    public async Task MemoryBar_IncompatibleAttribution_FallsBackToInUseWithoutInventingAppSlices()
+    {
+        var (vm, _, _, _) = Create(processes: [Process(1, "one", 9500, 10000)]);
+        using (vm)
+        {
+            await vm.RefreshCommand.ExecuteAsync(null);
+            vm.MemorySegments.Where(s => s.ConsumerId is not null).Should().ContainSingle().Which.Bytes.Should().Be(10000);
+            vm.MemorySegments.Should().NotContain(s => s.ConsumerId == "app:path:one");
+            vm.MemorySegments.Sum(s => s.Bytes).Should().Be(17000);
+        }
+    }
+
+    [Test]
     public void Attribution_UsesExclusiveResidentPages_AndNeverSubtractsVmOrContainerObservations()
     {
         var hosts = Substitute.For<IWorkloadHostProvider>();
@@ -103,6 +174,7 @@ public class MemoryViewModelTests
             vm.InUse.Should().Be("—");
             vm.Consumers.Single(r => r.Id.StartsWith("app:")).ObservedBytes.Should().Be(2000);
             vm.SampleStatus.Should().Be("Physical RAM unavailable");
+            vm.MemorySegments.Should().BeEmpty();
         }
     }
 

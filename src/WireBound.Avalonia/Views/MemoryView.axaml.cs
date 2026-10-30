@@ -1,7 +1,11 @@
+using System.ComponentModel;
 using Avalonia;
+using Avalonia.Automation;
 using Avalonia.Controls;
 using Avalonia.Input;
 using Avalonia.Interactivity;
+using Avalonia.Media;
+using Avalonia.Styling;
 using Avalonia.Threading;
 using Avalonia.VisualTree;
 using WireBound.Avalonia.ViewModels;
@@ -29,6 +33,8 @@ public partial class MemoryView : UserControl
         {
             _observedViewModel.ConsumersChanging -= OnConsumersChanging;
             _observedViewModel.ConsumersChanged -= OnConsumersChanged;
+            _observedViewModel.ConsumerRevealRequested -= OnConsumerRevealRequested;
+            _observedViewModel.PropertyChanged -= OnViewModelPropertyChanged;
         }
         _observedViewModel = null;
         _refreshOffset = null;
@@ -42,6 +48,82 @@ public partial class MemoryView : UserControl
         _observedViewModel = vm;
         vm.ConsumersChanging += OnConsumersChanging;
         vm.ConsumersChanged += OnConsumersChanged;
+        vm.ConsumerRevealRequested += OnConsumerRevealRequested;
+        vm.PropertyChanged += OnViewModelPropertyChanged;
+        RenderMemorySegments();
+    }
+
+    private void OnViewModelPropertyChanged(object? sender, PropertyChangedEventArgs e)
+    {
+        if (e.PropertyName == nameof(MemoryViewModel.MemorySegments)) RenderMemorySegments();
+        else if (e.PropertyName == nameof(MemoryViewModel.SelectedConsumer)) UpdateSegmentSelection();
+    }
+
+    private void RenderMemorySegments()
+    {
+        if (this.FindControl<Grid>("MemoryCapacityBar") is not { } bar || _observedViewModel is not { } vm) return;
+        bar.Children.Clear();
+        bar.ColumnDefinitions.Clear();
+        foreach (var segment in vm.MemorySegments)
+        {
+            bar.ColumnDefinitions.Add(new ColumnDefinition(new GridLength(segment.Bytes, GridUnitType.Star)));
+            var background = new SolidColorBrush(Color.Parse(segment.Color));
+            var foreground = (IBrush)this.FindResource(segment.UseLightText ? "PrimaryTextBrush" : "BackgroundBrush")!;
+            var label = new TextBlock
+            {
+                Text = segment.Label,
+                FontSize = 11,
+                TextTrimming = TextTrimming.CharacterEllipsis,
+                VerticalAlignment = global::Avalonia.Layout.VerticalAlignment.Center,
+                Foreground = foreground
+            };
+            Control control;
+            if (segment.ConsumerId is not null)
+                control = new Button
+                {
+                    Theme = (ControlTheme)this.FindResource("MemorySegmentButtonTheme")!,
+                    Background = background,
+                    Foreground = foreground,
+                    Content = label,
+                    Command = vm.RevealMemoryConsumerCommand,
+                    CommandParameter = segment,
+                    DataContext = segment
+                };
+            else
+                control = new Border { Background = background, Child = label, ClipToBounds = true, Padding = new Thickness(5, 0) };
+            ToolTip.SetTip(control, segment.Tooltip);
+            AutomationProperties.SetName(control, segment.Tooltip);
+            control.SizeChanged += (_, e) => label.IsVisible = e.NewSize.Width >= 32;
+            Grid.SetColumn(control, bar.Children.Count);
+            bar.Children.Add(control);
+        }
+        UpdateSegmentSelection();
+    }
+
+    private void UpdateSegmentSelection()
+    {
+        if (this.FindControl<Grid>("MemoryCapacityBar") is not { } bar) return;
+        foreach (var button in bar.Children.OfType<Button>())
+            button.Classes.Set("selected", button.DataContext is MemorySegment segment
+                && segment.ConsumerId == _observedViewModel?.SelectedConsumer?.Id);
+    }
+
+    private void OnConsumerRevealRequested(MemoryConsumerRow row)
+    {
+        // A bar click deliberately navigates; cancel passive refresh viewport restoration.
+        _refreshOffset = null;
+        _updateVersion++;
+        Dispatcher.UIThread.Post(() =>
+        {
+            if (_observedViewModel?.SelectedConsumer is not { } current || current.Id != row.Id) return;
+            _refreshOffset = null;
+            _updateVersion++;
+            if (this.FindControl<ListBox>("ConsumerList") is { } list)
+            {
+                list.ScrollIntoView(current);
+                list.Focus();
+            }
+        }, DispatcherPriority.Background);
     }
 
     private ScrollViewer? GetConsumerScrollViewer() => this.FindControl<ListBox>("ConsumerList")?

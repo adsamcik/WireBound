@@ -58,6 +58,13 @@ repeat the parent number. An allocation detail holds its definition, source,
 Use one virtualized, expandable **Memory consumers** list for applications,
 virtual machines and containers, system allocations, and shared/other RAM.
 Keep the capacity strip compact and give the list the remaining viewport.
+Its proportional bar shows the largest measured app groups and VM hosts,
+smaller-consumer buckets, system/shared RAM, available RAM, and hardware
+reservation. Multiprocess apps remain one slice. Hover exposes bytes, share,
+and measurement scope; activating a consumer slice clears the list filter,
+expands its group, and reveals its current row. Colors stay stable when
+visible consumers change rank. Overlapping observations never enter the bar;
+incompatible attribution falls back to total in-use RAM.
 Application groups use the exact executable path (process name fallback),
 ordered by measured RAM, and expand to individual process instances.
 Search includes descendants and PIDs, revealing matching ancestry without

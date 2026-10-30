@@ -5,6 +5,34 @@
              x:DataType="vm:MemoryViewModel"
              Background="{StaticResource BackgroundBrush}"
              AutomationProperties.Name="Memory details">
+    <UserControl.Resources>
+        <ControlTheme x:Key="MemorySegmentButtonTheme" TargetType="Button">
+            <Setter Property="MinWidth" Value="0" />
+            <Setter Property="MinHeight" Value="28" />
+            <Setter Property="Padding" Value="3,0" />
+            <Setter Property="Template">
+                <ControlTemplate>
+                    <Border Name="SegmentSurface" Background="{TemplateBinding Background}"
+                            BorderBrush="Transparent" BorderThickness="1" Padding="{TemplateBinding Padding}">
+                        <ContentPresenter Name="PART_ContentPresenter" Content="{TemplateBinding Content}"
+                                          Foreground="{TemplateBinding Foreground}"
+                                          HorizontalContentAlignment="Center" VerticalContentAlignment="Center" />
+                    </Border>
+                </ControlTemplate>
+            </Setter>
+            <Style Selector="^:pointerover /template/ Border#SegmentSurface">
+                <Setter Property="BorderBrush" Value="{Binding $parent[Button].Foreground}" />
+            </Style>
+            <Style Selector="^.selected /template/ Border#SegmentSurface">
+                <Setter Property="BorderBrush" Value="{Binding $parent[Button].Foreground}" />
+                <Setter Property="BorderThickness" Value="2" />
+            </Style>
+            <Style Selector="^:focus-visible /template/ Border#SegmentSurface">
+                <Setter Property="BorderBrush" Value="{Binding $parent[Button].Foreground}" />
+                <Setter Property="BorderThickness" Value="2" />
+            </Style>
+        </ControlTheme>
+    </UserControl.Resources>
     <UserControl.Styles>
         <Style Selector="ListBox#ConsumerList">
             <Setter Property="Background" Value="Transparent" />
@@ -51,9 +79,13 @@
                         <TextBlock Text="{Binding Installed}" FontSize="18" FontWeight="SemiBold" />
                     </StackPanel>
                 </Grid>
-                <ProgressBar Grid.Row="1" Value="{Binding UsedPercent}" Maximum="100" Height="4" MinHeight="0"
-                             Foreground="{StaticResource MemoryBrush}" Background="{StaticResource BorderSubtleBrush}"
-                             AutomationProperties.Name="Physical memory in use percent" />
+                <Border Grid.Row="1" CornerRadius="6" ClipToBounds="True" Background="{StaticResource BorderSubtleBrush}">
+                    <Grid MinHeight="28">
+                        <Grid x:Name="MemoryCapacityBar" AutomationProperties.Name="Physical RAM by consumer" />
+                        <TextBlock Text="Breakdown unavailable" IsVisible="{Binding !HasMemorySegments}"
+                                   Classes="Caption" VerticalAlignment="Center" HorizontalAlignment="Center" />
+                    </Grid>
+                </Border>
             </Grid>
         </Border>
         <Border Grid.Row="2" Background="{StaticResource SurfaceBrush}" CornerRadius="14" ClipToBounds="True">

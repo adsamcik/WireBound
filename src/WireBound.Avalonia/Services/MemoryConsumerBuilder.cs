@@ -52,6 +52,7 @@ public static class MemoryConsumerBuilder
             {
                 Id = "app:" + group.Key,
                 Name = members[0].ProcessName,
+                ExecutablePath = members[0].ExecutablePath,
                 Summary = members.Length == 1 ? $"PID {members[0].ProcessId}" : $"{members.Length} processes",
                 PhysicalBytes = bytes,
                 ObservedBytes = members.Sum(p => Math.Max(0, p.WorkingSetBytes)),
@@ -68,6 +69,7 @@ public static class MemoryConsumerBuilder
                 {
                     Id = $"process:{member.ProcessId}:{member.StartMarker}",
                     Name = member.ProcessName,
+                    ExecutablePath = member.ExecutablePath,
                     Summary = $"PID {member.ProcessId}",
                     PhysicalBytes = privateBytes,
                     HasConfirmedProcessLinks = true,
@@ -97,6 +99,8 @@ public static class MemoryConsumerBuilder
             {
                 Id = $"host:{process.ProcessId}:{process.StartMarker}",
                 Name = host.Label,
+                ExecutablePath = process.ExecutablePath,
+                IconKey = "WbAdapterVirtual",
                 Summary = $"PID {process.ProcessId}",
                 PhysicalBytes = privateBytes,
                 ObservedBytes = Math.Max(0, process.WorkingSetBytes),
@@ -119,6 +123,7 @@ public static class MemoryConsumerBuilder
             {
                 Id = "nonpaged",
                 Name = "Nonpaged kernel pool",
+                IconKey = "WbNavSystem",
                 PhysicalBytes = pool,
                 Detail = "Windows GetPerformanceInfo · resident, nonpageable kernel pool."
             });
@@ -126,6 +131,7 @@ public static class MemoryConsumerBuilder
         {
             Id = "other",
             Name = "Shared and other",
+            IconKey = "WbEntityMemory",
             PhysicalBytes = reconciles ? memory.UsedBytes - measured - (pool ?? 0) : null,
             Summary = "Unattributed",
             Detail = reconciles
@@ -140,6 +146,8 @@ public static class MemoryConsumerBuilder
         {
             Id = workload.Id,
             Name = workload.Name,
+            IconKey = workload.ContainerId is not null || workload.Id == "docker" ? "WbNavApps"
+                : workload.Metric == "Process RSS" ? "WbEntityApp" : "WbAdapterVirtual",
             ObservedBytes = workload.Bytes,
             Metric = workload.Metric,
             Detail = workload.Detail,

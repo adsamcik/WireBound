@@ -10,6 +10,9 @@ public sealed partial class MemoryConsumerRow : ObservableObject
 {
     public required string Id { get; init; }
     public required string Name { get; init; }
+    public string ExecutablePath { get; init; } = "";
+    public string IconKey { get; init; } = "WbEntityApp";
+    [ObservableProperty] private string? _iconPath;
     public string Summary { get; init; } = "";
     public string Detail { get; init; } = "";
     public long? PhysicalBytes { get; init; }

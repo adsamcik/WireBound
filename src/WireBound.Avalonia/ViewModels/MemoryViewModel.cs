@@ -6,6 +6,7 @@ using WireBound.Avalonia.Services;
 using WireBound.Core;
 using WireBound.Core.Helpers;
 using WireBound.Core.Services;
+using WireBound.Platform.Abstract.Helpers;
 using WireBound.Platform.Abstract.Models;
 using WireBound.Platform.Abstract.Services;
 
@@ -20,6 +21,7 @@ public sealed partial class MemoryViewModel : ObservableObject, IDisposable
     private readonly IUiDispatcher _dispatcher;
     private readonly INavigationService _navigation;
     private readonly ProcessContextService _context;
+    private readonly IAppIconService _icons;
     private CancellationTokenSource? _capture;
     private IReadOnlyList<MemoryConsumerRow> _roots = [];
     private readonly HashSet<string> _expanded = [];
@@ -47,7 +49,7 @@ public sealed partial class MemoryViewModel : ObservableObject, IDisposable
 
     public MemoryViewModel(IMemoryInfoProvider memoryProvider, IProcessUsageService processUsage,
         IWorkloadHostProvider hosts, IUiDispatcher dispatcher, INavigationService navigation,
-        ProcessContextService context, IWorkloadMemoryService workloads)
+        ProcessContextService context, IWorkloadMemoryService workloads, IAppIconService icons)
     {
         _memoryProvider = memoryProvider;
         _processUsage = processUsage;
@@ -56,6 +58,7 @@ public sealed partial class MemoryViewModel : ObservableObject, IDisposable
         _navigation = navigation;
         _context = context;
         _workloads = workloads;
+        _icons = icons;
         _navigation.NavigationChanged += OnNavigationChanged;
         if (_navigation.CurrentView == Routes.Memory) _ = RefreshAsync();
     }
@@ -77,7 +80,7 @@ public sealed partial class MemoryViewModel : ObservableObject, IDisposable
         }
     }
 
-    [RelayCommand]
+    [RelayCommand(AllowConcurrentExecutions = true)]
     private async Task RefreshAsync()
     {
         if (_disposed || _navigation.CurrentView != Routes.Memory) return;
@@ -100,6 +103,8 @@ public sealed partial class MemoryViewModel : ObservableObject, IDisposable
                 && memory.UsedBytes >= 0 && memory.UsedBytes <= memory.TotalBytes
                 && memory.AvailableBytes == memory.TotalBytes - memory.UsedBytes;
             var roots = MemoryConsumerBuilder.Build(memory, processes, workloads, _hosts, valid);
+            // Snapshot before lazy container expansion can change child collections on the UI thread.
+            var iconRows = Walk(roots).Where(r => !string.IsNullOrWhiteSpace(r.ExecutablePath)).ToArray();
             await _dispatcher.InvokeAsync(() =>
             {
                 if (capture.IsCancellationRequested || _disposed || _navigation.CurrentView != Routes.Memory) return;
@@ -121,6 +126,7 @@ public sealed partial class MemoryViewModel : ObservableObject, IDisposable
                 foreach (var container in Walk(_roots).Where(r => r.ContainerId is not null && _expanded.Contains(r.Id)).ToArray())
                     _ = ToggleConsumerAsync(container);
             });
+            await LoadIconsAsync(roots, iconRows, capture.Token).ConfigureAwait(false);
         }
         catch (OperationCanceledException) { }
         catch
@@ -130,6 +136,32 @@ public sealed partial class MemoryViewModel : ObservableObject, IDisposable
                 if (capture.IsCancellationRequested || _disposed) return;
                 SampleStatus = _roots.Count > 0 ? "Refresh failed · previous sample shown. Retry Refresh." : "Memory unavailable. Retry Refresh.";
                 IsLoading = false;
+            });
+        }
+    }
+
+    private async Task LoadIconsAsync(IReadOnlyList<MemoryConsumerRow> roots, IReadOnlyList<MemoryConsumerRow> iconRows,
+        CancellationToken cancellationToken)
+    {
+        // One cached lookup per executable, shared by the app and its process rows.
+        // Enrich the displayed sample without rebuilding the list or moving selection.
+        foreach (var group in iconRows.GroupBy(r => r.ExecutablePath,
+                     OperatingSystem.IsWindows() ? StringComparer.OrdinalIgnoreCase : StringComparer.Ordinal))
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            string? path;
+            try
+            {
+                path = await _icons.GetIconPathAsync(group.Key, AppIdentity.ComputeAppIdentifier(group.Key), cancellationToken)
+                    .ConfigureAwait(false);
+            }
+            catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested) { throw; }
+            catch { continue; } // Missing or inaccessible icons must not invalidate memory data.
+            if (path is null) continue;
+            await _dispatcher.InvokeAsync(() =>
+            {
+                if (cancellationToken.IsCancellationRequested || _disposed || !ReferenceEquals(_roots, roots)) return;
+                foreach (var row in group) row.IconPath = path;
             });
         }
     }

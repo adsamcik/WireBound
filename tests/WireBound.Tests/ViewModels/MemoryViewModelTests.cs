@@ -4,6 +4,7 @@ using WireBound.Core;
 using WireBound.Core.Models;
 using WireBound.Core.Services;
 using WireBound.Platform.Abstract.Models;
+using WireBound.Platform.Abstract.Helpers;
 using WireBound.Platform.Abstract.Services;
 using WireBound.Tests.Fixtures;
 
@@ -31,7 +32,7 @@ public class MemoryViewModelTests
     };
     private static (MemoryViewModel Vm, IWorkloadMemoryService Workloads, INavigationService Navigation, ProcessContextService Context)
         Create(MemoryInfoData? memory = null, IReadOnlyList<ProcessUsageSnapshot>? processes = null,
-            IReadOnlyList<MemoryWorkload>? workloads = null, IWorkloadHostProvider? hosts = null)
+            IReadOnlyList<MemoryWorkload>? workloads = null, IWorkloadHostProvider? hosts = null, IAppIconService? icons = null)
     {
         var provider = Substitute.For<IMemoryInfoProvider>();
         provider.GetMemoryInfo().Returns(memory ?? Memory);
@@ -45,9 +46,80 @@ public class MemoryViewModelTests
         navigation.CurrentView.Returns(Routes.Overview);
         var context = new ProcessContextService();
         var vm = new MemoryViewModel(provider, usage, hosts ?? Substitute.For<IWorkloadHostProvider>(),
-            new SynchronousDispatcher(), navigation, context, workloadService);
+            new SynchronousDispatcher(), navigation, context, workloadService, icons ?? Substitute.For<IAppIconService>());
         navigation.CurrentView.Returns(Routes.Memory);
         return (vm, workloadService, navigation, context);
+    }
+
+    [Test]
+    public async Task Icons_ShareOneExecutableLookupAcrossAppGroupAndProcessDetails()
+    {
+        var icons = Substitute.For<IAppIconService>();
+        icons.GetIconPathAsync("browser.exe", AppIdentity.ComputeAppIdentifier("browser.exe"), Arg.Any<CancellationToken>())
+            .Returns(Task.FromResult<string?>("cached.png"));
+        var (vm, _, _, _) = Create(processes: [Process(1, "browser.exe", 1000), Process(2, "browser.exe", 500)], icons: icons);
+        using (vm)
+        {
+            await vm.RefreshCommand.ExecuteAsync(null);
+            var app = vm.Consumers.Single(r => r.Id.StartsWith("app:"));
+            app.IconPath.Should().Be("cached.png");
+            app.Children.Should().OnlyContain(r => r.IconPath == "cached.png");
+            await icons.Received(1).GetIconPathAsync("browser.exe", AppIdentity.ComputeAppIdentifier("browser.exe"), Arg.Any<CancellationToken>());
+        }
+    }
+
+    [Test]
+    public async Task Icons_MissingOrFailedLookupsKeepMemoryDataAndFallbacks()
+    {
+        var icons = Substitute.For<IAppIconService>();
+        icons.GetIconPathAsync("inaccessible.exe", Arg.Any<string>(), Arg.Any<CancellationToken>())
+            .Returns(Task.FromException<string?>(new IOException("Unavailable icon")));
+        var (vm, _, _, _) = Create(processes: [Process(1, "inaccessible.exe", 1000), Process(2, "", 500)],
+            workloads: [new("vm:1", "Guest", 2000, "Assigned to VM", ""),
+                new("docker:1", "Container", 900, "Container usage", "", ContainerId: "1")], icons: icons);
+        using (vm)
+        {
+            await vm.RefreshCommand.ExecuteAsync(null);
+            vm.SampleStatus.Should().StartWith("Sampled");
+            vm.IsLoading.Should().BeFalse();
+            vm.Consumers.Should().OnlyContain(r => r.IconPath == null);
+            vm.Consumers.Single(r => r.Name == "browser" && r.PhysicalBytes == 1000).IconKey.Should().Be("WbEntityApp");
+            vm.Consumers.Single(r => r.Id == "vm:1").IconKey.Should().Be("WbAdapterVirtual");
+            vm.Consumers.Single(r => r.Id == "docker:1").IconKey.Should().Be("WbNavApps");
+            vm.Consumers.Single(r => r.Id == "nonpaged").IconKey.Should().Be("WbNavSystem");
+            vm.Consumers.Single(r => r.Id == "other").IconKey.Should().Be("WbEntityMemory");
+            vm.Consumers.Sum(r => r.PhysicalBytes ?? 0).Should().Be(Memory.UsedBytes);
+            await icons.DidNotReceive().GetIconPathAsync("", Arg.Any<string>(), Arg.Any<CancellationToken>());
+        }
+    }
+
+    [Test]
+    public async Task Icons_LateLookupDoesNotBlockNewRefresh_OrUpdateTheReplacedSample()
+    {
+        var pendingIcon = new TaskCompletionSource<string?>();
+        var lookupStarted = new TaskCompletionSource();
+        var lookups = 0;
+        var icons = Substitute.For<IAppIconService>();
+        icons.GetIconPathAsync(Arg.Any<string>(), Arg.Any<string>(), Arg.Any<CancellationToken>())
+            .Returns(_ => { lookupStarted.TrySetResult(); return ++lookups == 1 ? pendingIcon.Task : Task.FromResult<string?>("current.png"); });
+        var (vm, _, _, _) = Create(processes: [Process(1, "browser.exe", 1000)], icons: icons);
+        using (vm)
+        {
+            var refresh = vm.RefreshCommand.ExecuteAsync(null);
+            await lookupStarted.Task.WaitAsync(TimeSpan.FromSeconds(5));
+            vm.SampleStatus.Should().StartWith("Sampled");
+            vm.IsLoading.Should().BeFalse();
+            var row = vm.Consumers.Single(r => r.Id.StartsWith("app:"));
+            vm.RefreshCommand.CanExecute(null).Should().BeTrue();
+            await vm.RefreshCommand.ExecuteAsync(null);
+            var currentRow = vm.Consumers.Single(r => r.Id.StartsWith("app:"));
+            currentRow.Should().NotBeSameAs(row);
+            currentRow.IconPath.Should().Be("current.png");
+            pendingIcon.SetResult("late.png");
+            await refresh;
+            row.IconPath.Should().BeNull();
+            currentRow.IconPath.Should().Be("current.png");
+        }
     }
 
     [Test]

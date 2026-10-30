@@ -1,6 +1,8 @@
 <UserControl xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:vm="using:WireBound.Avalonia.ViewModels"
+             xmlns:controls="using:WireBound.Avalonia.Controls"
+             xmlns:converters="using:WireBound.Avalonia.Converters"
              x:Class="WireBound.Avalonia.Views.MemoryView"
              x:DataType="vm:MemoryViewModel"
              Background="{StaticResource BackgroundBrush}"
@@ -110,12 +112,18 @@
                         <ListBox.ItemTemplate>
                             <DataTemplate x:DataType="vm:MemoryConsumerRow">
                                 <Grid ColumnDefinitions="*,130,210" ColumnSpacing="12" Margin="0,3,12,3" ToolTip.Tip="{Binding MeasurementDetails}">
-                                    <Grid ColumnDefinitions="28,*,Auto" Margin="{Binding Indent}" ColumnSpacing="5">
+                                    <Grid ColumnDefinitions="28,20,*,Auto" Margin="{Binding Indent}" ColumnSpacing="6">
                                         <Button Classes="Disclosure" IsVisible="{Binding CanExpand}" IsEnabled="{Binding CanToggle}" Content="{Binding ExpandGlyph}"
                                                 Command="{Binding $parent[UserControl].((vm:MemoryViewModel)DataContext).ToggleConsumerCommand}"
                                                 CommandParameter="{Binding}" AutomationProperties.Name="{Binding ExpandName}" />
-                                        <TextBlock Grid.Column="1" Text="{Binding Name}" FontWeight="Medium" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" />
-                                        <TextBlock Grid.Column="2" Text="{Binding Summary}" IsVisible="{Binding HasDistinctSummary}"
+                                        <Grid Grid.Column="1" Width="20" Height="20" VerticalAlignment="Center">
+                                            <Image x:Name="ConsumerIcon" Source="{Binding IconPath, Converter={x:Static converters:IconPathToBitmapConverter.Instance}}"
+                                                   Stretch="Uniform" RenderOptions.BitmapInterpolationMode="HighQuality" />
+                                            <controls:WbIcon IconKey="{Binding IconKey}" Width="20" Height="20"
+                                                             IsVisible="{Binding #ConsumerIcon.Source, Converter={x:Static ObjectConverters.IsNull}}" />
+                                        </Grid>
+                                        <TextBlock Grid.Column="2" Text="{Binding Name}" FontWeight="Medium" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" />
+                                        <TextBlock Grid.Column="3" Text="{Binding Summary}" IsVisible="{Binding HasDistinctSummary}"
                                                    Classes="Caption" VerticalAlignment="Center" Margin="6,0,0,0" />
                                     </Grid>
                                     <TextBlock Grid.Column="1" Text="{Binding UsageDisplay}" HorizontalAlignment="Right"

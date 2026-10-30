@@ -10,6 +10,9 @@ public sealed class ProcessUsageSnapshot
     /// </summary>
     public int ProcessId { get; init; }
 
+    /// <summary>OS process generation marker; zero when unavailable.</summary>
+    public long StartMarker { get; init; }
+
     /// <summary>
     /// Process name reported by the operating system.
     /// </summary>

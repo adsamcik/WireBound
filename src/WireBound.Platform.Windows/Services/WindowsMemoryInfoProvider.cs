@@ -29,26 +29,63 @@ public sealed class WindowsMemoryInfoProvider : IMemoryInfoProvider
     [return: MarshalAs(UnmanagedType.Bool)]
     private static extern bool GlobalMemoryStatusEx(ref MEMORYSTATUSEX lpBuffer);
 
+    [DllImport("kernel32.dll", SetLastError = true)]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    private static extern bool GetPhysicallyInstalledSystemMemory(out ulong totalMemoryInKilobytes);
+
+    [StructLayout(LayoutKind.Sequential)]
+    private struct PERFORMANCE_INFORMATION
+    {
+        public uint cb;
+        public nuint CommitTotal;
+        public nuint CommitLimit;
+        public nuint CommitPeak;
+        public nuint PhysicalTotal;
+        public nuint PhysicalAvailable;
+        public nuint SystemCache;
+        public nuint KernelTotal;
+        public nuint KernelPaged;
+        public nuint KernelNonpaged;
+        public nuint PageSize;
+        public uint HandleCount;
+        public uint ProcessCount;
+        public uint ThreadCount;
+    }
+
+    [DllImport("psapi.dll", SetLastError = true)]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    private static extern bool GetPerformanceInfo(ref PERFORMANCE_INFORMATION info, uint size);
+
     public MemoryInfoData GetMemoryInfo()
     {
         var memStatus = new MEMORYSTATUSEX { dwLength = (uint)Marshal.SizeOf<MEMORYSTATUSEX>() };
 
         if (!GlobalMemoryStatusEx(ref memStatus))
         {
-            // Fallback to GC memory info if native call fails
-            var gcInfo = GC.GetGCMemoryInfo();
-            return new MemoryInfoData
-            {
-                TotalBytes = gcInfo.TotalAvailableMemoryBytes,
-                AvailableBytes = gcInfo.TotalAvailableMemoryBytes - gcInfo.MemoryLoadBytes,
-                UsedBytes = gcInfo.MemoryLoadBytes,
-                TotalVirtualBytes = 0,
-                UsedVirtualBytes = 0
-            };
+            // GC data describes this process, not the machine.
+            return new MemoryInfoData();
+        }
+
+        long? installedBytes = null;
+        if (GetPhysicallyInstalledSystemMemory(out var installedKilobytes)
+            && installedKilobytes <= long.MaxValue / 1024UL)
+        {
+            installedBytes = (long)(installedKilobytes * 1024UL);
+        }
+
+        long? nonpagedPoolBytes = null;
+        var performance = new PERFORMANCE_INFORMATION { cb = (uint)Marshal.SizeOf<PERFORMANCE_INFORMATION>() };
+        if (GetPerformanceInfo(ref performance, performance.cb)
+            && performance.PageSize > 0
+            && (ulong)performance.KernelNonpaged <= (ulong)long.MaxValue / (ulong)performance.PageSize)
+        {
+            nonpagedPoolBytes = (long)((ulong)performance.KernelNonpaged * (ulong)performance.PageSize);
         }
 
         return new MemoryInfoData
         {
+            InstalledBytes = installedBytes,
+            NonpagedPoolBytes = nonpagedPoolBytes,
             TotalBytes = (long)memStatus.ullTotalPhys,
             AvailableBytes = (long)memStatus.ullAvailPhys,
             UsedBytes = (long)(memStatus.ullTotalPhys - memStatus.ullAvailPhys),
@@ -66,7 +103,7 @@ public sealed class WindowsMemoryInfoProvider : IMemoryInfoProvider
             return (long)memStatus.ullTotalPhys;
         }
 
-        return GC.GetGCMemoryInfo().TotalAvailableMemoryBytes;
+        return 0;
     }
 
     public bool SupportsVirtualMemory => true;

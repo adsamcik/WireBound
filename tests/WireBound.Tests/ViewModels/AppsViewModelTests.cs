@@ -5,6 +5,7 @@ using WireBound.Core;
 using WireBound.Core.Helpers;
 using WireBound.Core.Models;
 using WireBound.Core.Services;
+using WireBound.Avalonia.Services;
 using WireBound.Tests.Fixtures;
 
 namespace WireBound.Tests.ViewModels;
@@ -37,7 +38,32 @@ public class AppsViewModelTests : IAsyncDisposable
     }
 
     [Test]
-    public async Task Constructor_WhenRouteHasNoProcessSurface_DoesNotCaptureOrStartTimer()
+    public async Task WorkloadContext_RequiresOptInAndExactProcessGeneration()
+    {
+        _currentRoute = Routes.Apps;
+        var context = new ProcessContextService();
+        context.Set(new ProcessContext("wsl-host:101:7", "WSL utility VM host",
+            "Process name: VmmemWSL", DateTime.Now,
+            new HashSet<ProcessInstanceId> { new(101, 7) }));
+        ConfigureCapture(
+            CreateSnapshot(101, "VmmemWSL", startMarker: 7),
+            CreateSnapshot(102, "VmmemWSL", startMarker: 8));
+        var viewModel = new AppsViewModel(_dispatcher, _processUsageService,
+            _navigationService, timeProvider: _timeProvider, processContext: context);
+        _createdViewModels.Add(viewModel);
+        await WaitUntilAsync(() => viewModel.ProcessCount == 2);
+
+        viewModel.ProcessItems.Should().BeEmpty();
+        viewModel.IncludeLikelyMatches = true;
+        viewModel.ProcessItems.Select(item => item.ProcessId).Should().Equal(101);
+
+        ConfigureCapture(CreateSnapshot(101, "VmmemWSL", startMarker: 9));
+        await viewModel.RefreshCommand.ExecuteAsync(null);
+        viewModel.ProcessItems.Should().BeEmpty();
+    }
+
+    [Test]
+    public async Task Constructor_WhenRouteIsNotApps_DoesNotCaptureOrStartTimer()
     {
         // Arrange
         _currentRoute = Routes.Connections;
@@ -235,10 +261,11 @@ public class AppsViewModelTests : IAsyncDisposable
         chrome.HasNetworkStats.Should().BeTrue();
 
         viewModel.ProcessCount.Should().Be(2);
-        viewModel.TotalCpu.Should().Be("15.0%");
-        viewModel.TotalMemory.Should().Be(ByteFormatter.FormatBytes(chromeMemory + workerMemory));
-        viewModel.TotalDownloadSpeed.Should().Be(ByteFormatter.FormatSpeed(chromeDownload));
-        viewModel.TotalUploadSpeed.Should().Be(ByteFormatter.FormatSpeed(chromeUpload));
+        // Per-process working sets and network data are not complete machine totals.
+        viewModel.TotalCpu.Should().Be("—");
+        viewModel.TotalMemory.Should().Be("—");
+        viewModel.TotalDownloadSpeed.Should().Be("—");
+        viewModel.TotalUploadSpeed.Should().Be("—");
     }
 
     [Test]
@@ -578,11 +605,13 @@ public class AppsViewModelTests : IAsyncDisposable
         long uploadSpeedBps = 0,
         long sessionBytesReceived = 0,
         long sessionBytesSent = 0,
-        bool hasNetworkStats = false)
+        bool hasNetworkStats = false,
+        long startMarker = 0)
     {
         return new ProcessUsageSnapshot
         {
             ProcessId = processId,
+            StartMarker = startMarker,
             ProcessName = processName,
             ExecutablePath = executablePath,
             PrivateBytes = privateBytes,

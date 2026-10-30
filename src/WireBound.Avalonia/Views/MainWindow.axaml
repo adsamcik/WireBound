@@ -92,6 +92,15 @@
                         </StackPanel>
                     </Button>
                     <Button Classes="HeaderNavCard"
+                            Classes.selected="{Binding IsMemorySelected}"
+                            Command="{Binding NavigateToCommand}"
+                            CommandParameter="{x:Static core:Routes.Memory}"
+                            AutomationProperties.Name="Open Memory">
+                        <StackPanel Orientation="Horizontal" Spacing="8">
+                            <controls:WbIcon IconKey="WbEntityMemory" Width="18" Height="18" />
+                            <TextBlock Text="Memory" VerticalAlignment="Center" />
+                        </StackPanel>
+                    </Button>                    <Button Classes="HeaderNavCard"
                             Classes.selected="{Binding IsConnectionsSelected}"
                             Command="{Binding NavigateToCommand}"
                             CommandParameter="{x:Static core:Routes.Connections}"

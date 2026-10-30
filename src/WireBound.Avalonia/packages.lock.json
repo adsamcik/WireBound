@@ -38,11 +38,11 @@
       },
       "Avalonia.Themes.Fluent": {
         "type": "Direct",
-        "requested": "[12.1.1, )",
-        "resolved": "12.1.1",
-        "contentHash": "7vdtZsM9o8I8LpU9dyiB/Ah7WB8a5V3JHLsExe4T433ynn5x57F+DBskctZuNOxml8hbe1GmtNUNkBDsqSVKVg==",
+        "requested": "[12.1.3, )",
+        "resolved": "12.1.3",
+        "contentHash": "ens/GHfXXk0W1ZScHZ2XG6DFiVyUVKR+0O8QK6zkviMNAPQCNwkftXlRVSFSQGtBYxXoJHZMsKYvCLEtVyzkug==",
         "dependencies": {
-          "Avalonia": "12.1.1"
+          "Avalonia": "12.1.3"
         }
       },
       "CommunityToolkit.Mvvm": {
@@ -740,7 +740,7 @@
       "wirebound.platform.windows": {
         "type": "Project",
         "dependencies": {
-          "ManagedNativeWifi": "[3.0.2, )",
+          "ManagedNativeWifi": "[3.1.0, )",
           "Microsoft.Extensions.Logging.Abstractions": "[10.0.11, )",
           "Serilog": "[4.4.0, )",
           "System.Diagnostics.PerformanceCounter": "[10.0.11, )",
@@ -762,9 +762,9 @@
       },
       "ManagedNativeWifi": {
         "type": "CentralTransitive",
-        "requested": "[3.0.2, )",
-        "resolved": "3.0.2",
-        "contentHash": "HgeZhoFiFBYcEkhs8yZdq26Ow8oZGG3uoCBEGw2HmjpCsMNGb3nWlN0vQZwCKVPy0NImaaYAzeCNMzqhuBkuWg=="
+        "requested": "[3.1.0, )",
+        "resolved": "3.1.0",
+        "contentHash": "CbjX9ZPzOHim6BM0YUz7fiSi7JlQbhb0UiOxOvyTgXAt0OGQICrQr0d3qM2JNYLsDw8LD+JHmutQzjjj2QJ1ww=="
       },
       "MessagePack": {
         "type": "CentralTransitive",

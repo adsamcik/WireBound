@@ -70,9 +70,13 @@ WireBound uses [Velopack](https://velopack.io) for installed-mode auto-updates:
 - **Delta updates**: Only changed files are downloaded
 - **Automatic rollback**: If new version crashes on startup, reverts to previous
 - **GitHub Releases**: Updates served directly from GitHub (no appcast needed)
+- **24-hour waiting period**: Only stable releases published at least 24 hours ago are offered, including manual checks and portable notifications. Every attached file must also be at least 24 hours old; changing or replacing a file restarts the hold. Missing or future timestamps keep the release on hold. The newest eligible version among the 100 most recent releases is selected.
+- **Rechecked before use**: Download and installation recheck the release on GitHub. Withdrawn or changed packages are blocked; offline installation is deferred until the release can be checked. Packages require SHA-256 and size verification, including cached files and reconstructed delta updates. Downloaded updates are never applied automatically at startup.
 - **Cross-platform**: Windows (Setup.exe) and Linux (AppImage)
 
 Portable builds still receive update notifications but link to GitHub for manual download.
+
+The waiting period gives maintainers time to withdraw a compromised release. It is not a malware scan or a guarantee of dependency safety, and manual downloads outside the app are not gated by it.
 
 ### Supported Platforms
 

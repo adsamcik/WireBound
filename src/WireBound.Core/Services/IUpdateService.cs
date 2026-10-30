@@ -6,7 +6,7 @@ namespace WireBound.Core.Services;
 public interface IUpdateService
 {
     /// <summary>
-    /// Checks for available updates. Returns null if no update is available.
+    /// Checks for updates eligible after the 24-hour release waiting period. Returns null if none are ready.
     /// </summary>
     Task<UpdateCheckResult?> CheckForUpdateAsync(CancellationToken cancellationToken = default);
 
@@ -18,7 +18,7 @@ public interface IUpdateService
     /// <summary>
     /// Applies a previously downloaded update and restarts the application.
     /// </summary>
-    void ApplyUpdateAndRestart(UpdateCheckResult update);
+    Task ApplyUpdateAndRestartAsync(UpdateCheckResult update, CancellationToken cancellationToken = default);
 
     /// <summary>
     /// Gets whether in-app update installation is supported on the current platform.
@@ -31,8 +31,8 @@ public interface IUpdateService
     string CurrentVersion { get; }
 
     /// <summary>
-    /// Gets an update that was already downloaded during a previous session and
-    /// only needs an application restart to be installed.
+    /// Gets a downloaded update verified against an eligible release during this session.
+    /// Installation rechecks release eligibility and the package checksum.
     /// </summary>
     UpdateCheckResult? PreparedUpdate { get; }
 }

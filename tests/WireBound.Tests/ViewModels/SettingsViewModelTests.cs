@@ -1076,7 +1076,7 @@ public class SettingsViewModelTests : IAsyncDisposable
         await viewModel.ApplyUpdateAndRestartCommand.ExecuteAsync(null);
 
         // Assert
-        _updateService.DidNotReceive().ApplyUpdateAndRestart(Arg.Any<UpdateCheckResult>());
+        await _updateService.DidNotReceive().ApplyUpdateAndRestartAsync(Arg.Any<UpdateCheckResult>());
     }
 
     [Test]
@@ -1135,7 +1135,42 @@ public class SettingsViewModelTests : IAsyncDisposable
         await viewModel.ApplyUpdateAndRestartCommand.ExecuteAsync(null);
 
         await _persistence.Received().SaveSettingsAsync(Arg.Any<AppSettings>());
-        _updateService.Received(1).ApplyUpdateAndRestart(update);
+        await _updateService.Received(1).ApplyUpdateAndRestartAsync(update);
+    }
+
+    [Test]
+    public async Task ApplyUpdateAndRestartCommand_WhenValidationFails_ExposesCheckNow()
+    {
+        var viewModel = CreateViewModel();
+        await viewModel.InitializationTask;
+        var update = new UpdateCheckResult("1.0.0", "https://example.com", null, new object(), CanInstallInApp: true);
+        viewModel.SetAvailableUpdate(update, readyToRestart: true);
+        _updateService.ApplyUpdateAndRestartAsync(update)
+            .Returns(Task.FromException(new InvalidOperationException("Release withdrawn. Check for updates again.")));
+
+        await viewModel.ApplyUpdateAndRestartCommand.ExecuteAsync(null);
+
+        viewModel.IsInstallingUpdate.Should().BeFalse();
+        viewModel.IsReadyToRestart.Should().BeFalse();
+        viewModel.UpdateAvailable.Should().BeFalse();
+        viewModel.PendingUpdate.Should().BeNull();
+        viewModel.UpdateError.Should().Contain("Release withdrawn");
+        viewModel.CheckForUpdateManuallyCommand.CanExecute(null).Should().BeTrue();
+    }
+
+    [Test]
+    public async Task ManualCheck_WhenDownloadedUpdateIsVerified_ShowsRestartInsteadOfDownload()
+    {
+        var viewModel = CreateViewModel();
+        await viewModel.InitializationTask;
+        var update = new UpdateCheckResult("1.0.0", "https://example.com", null, new object(), CanInstallInApp: true);
+        _updateService.CheckForUpdateAsync(Arg.Any<CancellationToken>()).Returns(update);
+        _updateService.PreparedUpdate.Returns(update);
+
+        await viewModel.CheckForUpdateManuallyCommand.ExecuteAsync(null);
+
+        viewModel.IsReadyToRestart.Should().BeTrue();
+        viewModel.CanDownloadUpdate.Should().BeFalse();
     }
 
     [Test]

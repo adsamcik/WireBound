@@ -557,8 +557,8 @@ public partial class App : Application
 
             var updateService = _serviceProvider!.GetRequiredService<IUpdateService>();
             settingsVm = _serviceProvider!.GetRequiredService<SettingsViewModel>();
+            var update = await updateService.CheckForUpdateAsync();
             var preparedUpdate = updateService.PreparedUpdate;
-            var update = preparedUpdate ?? await updateService.CheckForUpdateAsync();
             if (update is null)
             {
                 settingsVm.UpdateStatusMessage = $"WireBound v{updateService.CurrentVersion} is up to date.";
@@ -592,9 +592,10 @@ public partial class App : Application
                     var costProvider = _serviceProvider!.GetRequiredService<INetworkCostProvider>();
                     if (!await costProvider.IsMeteredAsync())
                     {
-                        await updateService.DownloadUpdateAsync(update);
-                        settingsVm.SetAvailableUpdate(update, readyToRestart: true);
-                        Log.Information("Update auto-downloaded, ready to restart");
+                        // Share progress, cancellation, and recovery with the manual download path.
+                        await settingsVm.DownloadUpdateCommand.ExecuteAsync(null);
+                        if (settingsVm.IsReadyToRestart)
+                            Log.Information("Update auto-downloaded, ready to restart");
                     }
                     else
                     {

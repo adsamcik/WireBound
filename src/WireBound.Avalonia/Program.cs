@@ -28,6 +28,8 @@ class Program
         // Velopack lifecycle hooks — MUST be the very first line.
         // Safe no-op when not installed via Velopack (portable/dev mode).
         var velopackApp = VelopackApp.Build()
+            // Eligibility and checksum checks must run before any cached package is applied.
+            .SetAutoApplyOnStartup(false)
             .OnFirstRun(_ =>
             {
                 Environment.SetEnvironmentVariable("WIREBOUND_FIRST_RUN", "1");

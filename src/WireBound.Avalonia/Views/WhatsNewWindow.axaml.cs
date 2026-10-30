@@ -24,11 +24,16 @@ public partial class WhatsNewWindow : Window
     {
         public string Title { get; }
         public string Notes { get; }
+        public Uri LinkBaseUri { get; }
 
         public WhatsNewWindowViewModel(string version, string notes)
         {
-            Title = string.IsNullOrWhiteSpace(version) ? "What's New" : $"What's New in v{version}";
+            var normalizedVersion = version.Trim().TrimStart('v', 'V');
+            Title = string.IsNullOrWhiteSpace(normalizedVersion) ? "What's New" : $"What's New in v{normalizedVersion}";
             Notes = notes;
+            LinkBaseUri = string.IsNullOrWhiteSpace(normalizedVersion)
+                ? new Uri("https://github.com/adsamcik/WireBound/blob/main/")
+                : new Uri($"https://github.com/adsamcik/WireBound/blob/v{normalizedVersion}/");
         }
     }
 }

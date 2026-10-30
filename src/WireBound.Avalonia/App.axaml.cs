@@ -7,6 +7,7 @@ using CommunityToolkit.Mvvm.Messaging;
 using LiveChartsCore;
 using LiveChartsCore.SkiaSharpView;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection.Extensions;
 using Serilog;
 using WireBound.Avalonia.Services;
 using WireBound.Avalonia.ViewModels;
@@ -16,6 +17,7 @@ using WireBound.Core.Services;
 using WireBound.Platform.Abstract.Services;
 using WireBound.Platform.Linux;
 using WireBound.Platform.Stub;
+using WireBound.Platform.Stub.Services;
 using WireBound.Platform.Windows;
 
 namespace WireBound.Avalonia;
@@ -67,8 +69,15 @@ public partial class App : Application
             var forceWindowVisible = desktop.Args?.Any(arg =>
                 string.Equals(arg, "--show-window", StringComparison.OrdinalIgnoreCase)) == true;
 
-            // Fire and forget async initialization - avoids blocking UI thread
-            _ = InitializeAsyncServicesAsync(mainWindow, forceWindowVisible);
+            // Dialogs and tray settings require an owner that has actually opened.
+            mainWindow.Opened += OnMainWindowOpened;
+            void OnMainWindowOpened(object? sender, EventArgs e)
+            {
+                mainWindow.Opened -= OnMainWindowOpened;
+                var initialization = InitializeAsyncServicesAsync(mainWindow, forceWindowVisible);
+                if (Program.IsStartupSmokeTest)
+                    _ = CompleteStartupSmokeTestAsync(desktop, mainWindow, initialization);
+            }
 
             Log.Information("WireBound Avalonia application started successfully");
         }
@@ -85,7 +94,8 @@ public partial class App : Application
         try
         {
             // Ensure startup entry points to current executable (handles updates that change install path)
-            await EnsureStartupPathUpdatedAsync();
+            if (!Program.IsStartupSmokeTest)
+                await EnsureStartupPathUpdatedAsync();
 
             // A missing or invalid helper auto-start registration is a user
             // decision, not a launch-time elevation event. Surface the choice
@@ -104,7 +114,8 @@ public partial class App : Application
             // Try to silently connect to / start an existing auto-started helper.
             // This MUST run before the first per-process query but does not block
             // the UI — failures are logged and surfaced via Settings.
-            await TryAutoConnectHelperAsync();
+            if (!Program.IsStartupSmokeTest)
+                await TryAutoConnectHelperAsync();
 
             // Initialize tray icon and apply settings
             await InitializeTrayIconAsync(mainWindow);
@@ -126,6 +137,8 @@ public partial class App : Application
 
             // Show What's New dialog if this is a post-update restart
             await ShowWhatsNewIfUpdatedAsync(mainWindow);
+
+            Log.Information("Application async initialization completed");
         }
         catch (Exception ex)
         {
@@ -319,6 +332,11 @@ public partial class App : Application
         {
             LinuxPlatformServices.Instance.Register(services);
         }
+
+        // The real desktop/services still run, but test cleanup must not stop a
+        // user's existing systemd helper or otherwise manage OS registrations.
+        if (Program.IsStartupSmokeTest)
+            services.Replace(ServiceDescriptor.Singleton<IHelperProcessManager, StubHelperProcessManager>());
 
         // Register per-app network tracking service (adapts platform providers)
         services.AddSingleton<IProcessNetworkService, ProcessNetworkService>();
@@ -516,7 +534,9 @@ public partial class App : Application
     {
         if (_serviceProvider is null) return;
 
-        if (forceWindowVisible)
+        var hasStartupDialog = Environment.GetEnvironmentVariable("WIREBOUND_FIRST_RUN") == "1"
+            || !string.IsNullOrEmpty(Environment.GetEnvironmentVariable("WIREBOUND_UPDATED_TO"));
+        if (forceWindowVisible || hasStartupDialog)
         {
             Log.Information("Start-minimized preference bypassed for this launch");
             return;
@@ -548,6 +568,9 @@ public partial class App : Application
 
     private async Task CheckForUpdatesAsync()
     {
+        // Exercise local startup without contacting a release server or downloading updates.
+        if (Program.IsStartupSmokeTest) return;
+
         SettingsViewModel? settingsVm = null;
         try
         {

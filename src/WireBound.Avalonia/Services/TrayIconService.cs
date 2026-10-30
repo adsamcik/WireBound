@@ -831,6 +831,14 @@ public sealed class TrayIconService : ITrayIconService
     public void Dispose()
     {
         if (_isDisposed) return;
+        // Async DI disposal can resume on a worker thread after disposing an
+        // elevation service. Native tray objects still belong to the UI thread.
+        if ((_mainWindow != null || _trayIcon != null) && !Dispatcher.UIThread.CheckAccess())
+        {
+            Dispatcher.UIThread.Invoke(Dispose);
+            return;
+        }
+
         _isDisposed = true;
 
         if (_mainWindow != null)

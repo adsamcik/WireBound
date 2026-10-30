@@ -5,6 +5,11 @@
 
 FROM mcr.microsoft.com/dotnet/sdk:10.0 AS build
 
+# Native desktop startup tests need an X server and Avalonia's Linux libraries.
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    xvfb xauth libx11-6 libice6 libsm6 libfontconfig1 fonts-dejavu-core \
+    && rm -rf /var/lib/apt/lists/*
+
 WORKDIR /src
 
 # Copy solution-level files first for layer caching
@@ -34,4 +39,4 @@ COPY . .
 RUN dotnet build tests/WireBound.Tests/WireBound.Tests.csproj -c Release --no-restore
 
 # Run tests — additional args (e.g. --treenode-filter) are passed via docker run
-ENTRYPOINT ["dotnet", "exec", "tests/WireBound.Tests/bin/Release/net10.0/WireBound.Tests.dll"]
+ENTRYPOINT ["xvfb-run", "--auto-servernum", "dotnet", "exec", "tests/WireBound.Tests/bin/Release/net10.0/WireBound.Tests.dll"]

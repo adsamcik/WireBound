@@ -19,6 +19,8 @@ class Program
     private const string StartupCheckArgument = "--startup-check";
     private const uint ErrorMessageBox = 0x00000010;
 
+    internal static bool IsStartupSmokeTest { get; private set; }
+
     // Initialization code. Don't use any Avalonia, third-party APIs or any
     // SynchronizationContext-reliant code before AppMain is called: things aren't initialized
     // yet and stuff might break.
@@ -55,6 +57,21 @@ class Program
         // which is the realistic bypass of the IPC identity check.
         ProcessMitigations.ApplyEarly();
 
+        IsStartupSmokeTest = Array.Exists(args, arg =>
+            string.Equals(arg, "--startup-smoke-test", StringComparison.OrdinalIgnoreCase));
+        if (IsStartupSmokeTest)
+        {
+            var dataDirectory = Environment.GetEnvironmentVariable("WIREBOUND_STARTUP_TEST_DATA_DIRECTORY");
+            if (string.IsNullOrWhiteSpace(dataDirectory) || !Path.IsPathFullyQualified(dataDirectory))
+            {
+                Console.Error.WriteLine("Startup smoke tests require an absolute WIREBOUND_STARTUP_TEST_DATA_DIRECTORY.");
+                Environment.ExitCode = 1;
+                return;
+            }
+
+            AppContext.SetData("WireBound.DataDirectory", dataDirectory);
+        }
+
         // Release validation executes this from the published output. Constructing
         // the first chart catches binary incompatibilities between Avalonia and
         // LiveCharts without opening a window or touching the user's data.
@@ -65,7 +82,8 @@ class Program
         }
 
         // Single-instance enforcement — exit immediately if another instance is running
-        using var mutex = new Mutex(true, MutexName, out var createdNew);
+        var mutexName = IsStartupSmokeTest ? $"{MutexName}-Test-{Environment.ProcessId}" : MutexName;
+        using var mutex = new Mutex(true, mutexName, out var createdNew);
         if (!createdNew)
         {
             Console.Error.WriteLine("WireBound is already running.");
@@ -107,7 +125,10 @@ class Program
         catch (Exception ex)
         {
             Log.Fatal(ex, "Application crashed");
-            ReportFatalStartupError(ex, logPath);
+            if (IsStartupSmokeTest)
+                Console.Error.WriteLine(ex);
+            else
+                ReportFatalStartupError(ex, logPath);
             Environment.ExitCode = 1;
         }
         finally

@@ -14,9 +14,10 @@ public static class AppDataPaths
     private const string LegacyDataDirectoryName = "WireBound";
 
     /// <summary>Gets the persistent per-user WireBound data directory.</summary>
-    public static string DataDirectory => Path.Combine(
-        Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
-        DataDirectoryName);
+    public static string DataDirectory => AppContext.GetData("WireBound.DataDirectory") as string
+        ?? Path.Combine(
+            Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+            DataDirectoryName);
 
     /// <summary>Gets the legacy data directory that collides with Velopack's Windows install location.</summary>
     public static string LegacyDataDirectory => Path.Combine(
@@ -34,6 +35,12 @@ public static class AppDataPaths
     /// </summary>
     public static void MigrateLegacyPersistentData()
     {
+        // An explicitly isolated startup test must never import the user's data.
+        if (AppContext.GetData("WireBound.DataDirectory") is string)
+        {
+            return;
+        }
+
         try
         {
             MigrateLegacyPersistentData(LegacyDataDirectory, DataDirectory);

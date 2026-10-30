@@ -58,8 +58,10 @@ public sealed partial class AppsViewModel : ObservableObject, IDisposable
 
     public bool HasContext => _processContext?.Current is not null;
     public string ContextTitle => _processContext?.Current?.Title ?? string.Empty;
+    public bool HasLikelyContextMatches => _processContext?.Current?.LikelyInstances.Count > 0;
     public string ContextDetail => _processContext?.Current is { } context
-        ? $"Likely host · {context.Evidence} · Guest RAM has no process link"
+        ? context.ConfirmedInstances is { Count: > 0 } ? "Processes from the selected memory group"
+            : $"Likely host · {context.Evidence} · Guest RAM has no process link"
         : string.Empty;
     public string EmptyLabel
     {
@@ -68,9 +70,10 @@ public sealed partial class AppsViewModel : ObservableObject, IDisposable
             if (_processContext?.Current is not { } context) return "No processes to show";
             if (IsLoading || LastUpdated is null) return "Checking process links";
             var running = _itemsByProcessId.Values.Any(item =>
-                context.LikelyInstances.Contains(new ProcessInstanceId(item.ProcessId, item.StartMarker)));
+                context.LikelyInstances.Contains(new ProcessInstanceId(item.ProcessId, item.StartMarker))
+                || context.ConfirmedInstances?.Contains(new ProcessInstanceId(item.ProcessId, item.StartMarker)) == true);
             if (!running) return "Stopped";
-            return IncludeLikelyMatches ? "No matching processes" : "No confirmed process link";
+            return IncludeLikelyMatches || context.ConfirmedInstances is { Count: > 0 } ? "No matching processes" : "No confirmed process link";
         }
     }
 
@@ -412,6 +415,7 @@ public sealed partial class AppsViewModel : ObservableObject, IDisposable
     {
         OnPropertyChanged(nameof(HasContext));
         OnPropertyChanged(nameof(ContextTitle));
+        OnPropertyChanged(nameof(HasLikelyContextMatches));
         OnPropertyChanged(nameof(ContextDetail));
         OnPropertyChanged(nameof(EmptyLabel));
         IncludeLikelyMatches = false;
@@ -474,9 +478,9 @@ public sealed partial class AppsViewModel : ObservableObject, IDisposable
         IEnumerable<ProcessUsageDisplayItem> visible = _itemsByProcessId.Values;
         if (_processContext?.Current is { } context)
         {
-            visible = IncludeLikelyMatches
-                ? visible.Where(item => context.LikelyInstances.Contains(new ProcessInstanceId(item.ProcessId, item.StartMarker)))
-                : [];
+            visible = visible.Where(item =>
+                context.ConfirmedInstances?.Contains(new ProcessInstanceId(item.ProcessId, item.StartMarker)) == true
+                || (IncludeLikelyMatches && context.LikelyInstances.Contains(new ProcessInstanceId(item.ProcessId, item.StartMarker))));
         }
         if (!ShowSystemProcesses)
         {

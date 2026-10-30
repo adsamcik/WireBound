@@ -5,116 +5,117 @@
              x:DataType="vm:MemoryViewModel"
              Background="{StaticResource BackgroundBrush}"
              AutomationProperties.Name="Memory details">
-    <Grid Margin="24" RowDefinitions="Auto,Auto,*" RowSpacing="16">
-        <Grid ColumnDefinitions="*,Auto">
-            <TextBlock Text="Memory" Classes="PageTitle" />
-            <Button Grid.Column="1" Classes="Secondary ToolbarButton"
-                    Command="{Binding RefreshCommand}"
-                    IsEnabled="{Binding !IsLoading}"
-                    AutomationProperties.Name="Refresh memory details">
-                <TextBlock Text="Refresh" />
-            </Button>
+    <UserControl.Styles>
+        <Style Selector="ListBox#ConsumerList">
+            <Setter Property="Background" Value="Transparent" />
+            <Setter Property="BorderThickness" Value="0" />
+            <Setter Property="Padding" Value="0" />
+        </Style>
+        <Style Selector="ListBox#ConsumerList ListBoxItem">
+            <Setter Property="Padding" Value="8,0" />
+            <Setter Property="MinHeight" Value="42" />
+            <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+        </Style>
+        <Style Selector="Button.Disclosure">
+            <Setter Property="Padding" Value="0" />
+            <Setter Property="MinWidth" Value="28" />
+            <Setter Property="MinHeight" Value="30" />
+            <Setter Property="Background" Value="Transparent" />
+            <Setter Property="FontSize" Value="20" />
+        </Style>
+    </UserControl.Styles>
+    <Grid Margin="20,16" RowDefinitions="Auto,Auto,*" RowSpacing="12">
+        <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="16">
+            <TextBlock Text="Memory" FontSize="25" FontWeight="SemiBold" VerticalAlignment="Center" />
+            <TextBlock Grid.Column="1" Text="{Binding SampleStatus}" Classes="Caption" VerticalAlignment="Center" />
+            <Button Grid.Column="2" Classes="Secondary ToolbarButton" Command="{Binding RefreshCommand}"
+                    IsEnabled="{Binding !IsLoading}" AutomationProperties.Name="Refresh memory details" Content="Refresh" />
         </Grid>
-
-        <Border Grid.Row="1" Classes="Card" Padding="20">
-            <Grid ColumnDefinitions="*,*,*,*" ColumnSpacing="16">
-                <StackPanel Spacing="5">
-                    <TextBlock Text="IN USE" Classes="MetricLabel" />
-                    <TextBlock Text="{Binding InUse}" FontSize="21" FontWeight="Bold"
-                               Foreground="{StaticResource MemoryBrush}" />
-                </StackPanel>
-                <StackPanel Grid.Column="1" Spacing="5">
-                    <TextBlock Text="AVAILABLE" Classes="MetricLabel" />
-                    <TextBlock Text="{Binding Available}" FontSize="21" FontWeight="Bold" />
-                </StackPanel>
-                <StackPanel Grid.Column="2" Spacing="5">
-                    <TextBlock Text="HARDWARE RESERVED" Classes="MetricLabel" />
-                    <TextBlock Text="{Binding HardwareReserved}" FontSize="21" FontWeight="Bold" />
-                </StackPanel>
-                <StackPanel Grid.Column="3" Spacing="5">
-                    <TextBlock Text="INSTALLED" Classes="MetricLabel" />
-                    <TextBlock Text="{Binding Installed}" FontSize="21" FontWeight="Bold" />
-                </StackPanel>
+        <Border Grid.Row="1" Background="{StaticResource SurfaceBrush}" CornerRadius="14" Padding="16,10">
+            <Grid RowDefinitions="Auto,Auto" RowSpacing="9">
+                <Grid ColumnDefinitions="*,*,*,*" ColumnSpacing="16">
+                    <StackPanel Spacing="2">
+                        <TextBlock Text="In use" Classes="Caption" />
+                        <TextBlock Text="{Binding InUse}" FontSize="18" FontWeight="SemiBold" Foreground="{StaticResource MemoryBrush}" />
+                    </StackPanel>
+                    <StackPanel Grid.Column="1" Spacing="2">
+                        <TextBlock Text="Available" Classes="Caption" />
+                        <TextBlock Text="{Binding Available}" FontSize="18" FontWeight="SemiBold" />
+                    </StackPanel>
+                    <StackPanel Grid.Column="2" Spacing="2">
+                        <TextBlock Text="Hardware reserved" Classes="Caption" />
+                        <TextBlock Text="{Binding HardwareReserved}" FontSize="18" FontWeight="SemiBold" />
+                    </StackPanel>
+                    <StackPanel Grid.Column="3" Spacing="2">
+                        <TextBlock Text="Installed" Classes="Caption" />
+                        <TextBlock Text="{Binding Installed}" FontSize="18" FontWeight="SemiBold" />
+                    </StackPanel>
+                </Grid>
+                <ProgressBar Grid.Row="1" Value="{Binding UsedPercent}" Maximum="100" Height="4" MinHeight="0"
+                             Foreground="{StaticResource MemoryBrush}" Background="{StaticResource BorderSubtleBrush}"
+                             AutomationProperties.Name="Physical memory in use percent" />
             </Grid>
         </Border>
-
-        <Grid Grid.Row="2" RowDefinitions="Auto,*" RowSpacing="16" MinHeight="0">
-            <Border Classes="Card" Padding="20">
-                <StackPanel Spacing="12">
-                    <Grid ColumnDefinitions="*,Auto">
-                        <TextBlock Text="RAM allocation" Classes="SectionHeader" />
-                        <TextBlock Grid.Column="1" Text="{Binding SampleStatus}" Classes="Caption" />
-                    </Grid>
-                    <Border Background="{StaticResource BorderSubtleBrush}"
-                            IsVisible="{Binding HasNonpagedPool}"
-                            CornerRadius="8" Padding="16">
-                        <Grid ColumnDefinitions="*,Auto">
-                            <StackPanel Spacing="4">
-                                <TextBlock Text="System · nonpaged pool" FontWeight="SemiBold" />
-                                <TextBlock Text="Windows kernel pool · resident pages" Classes="Caption" />
-                            </StackPanel>
-                            <TextBlock Grid.Column="1" Text="{Binding NonpagedPool}"
-                                       FontWeight="Bold" VerticalAlignment="Center" />
-                        </Grid>
-                    </Border>
-                    <Border Background="{StaticResource BorderSubtleBrush}"
-                            CornerRadius="8" Padding="16">
-                        <Grid ColumnDefinitions="*,Auto">
-                            <StackPanel Spacing="4">
-                                <TextBlock Text="Unattributed" FontWeight="SemiBold" />
-                                <TextBlock Text="Physical pages without a measured exclusive owner"
-                                           Classes="Caption" TextWrapping="Wrap" />
-                            </StackPanel>
-                            <TextBlock Grid.Column="1" Text="{Binding Unattributed}"
-                                       FontWeight="Bold" VerticalAlignment="Center" />
-                        </Grid>
-                    </Border>
-                </StackPanel>
-            </Border>
-
-            <Border Grid.Row="1" Classes="Card" Padding="20" MinHeight="0">
-                <Grid RowDefinitions="Auto,*,Auto" RowSpacing="12" MinHeight="0">
-                    <StackPanel Spacing="3">
-                        <TextBlock Text="Observed VM hosts" Classes="SectionHeader" />
-                        <TextBlock Text="Host-process RAM is separate from the allocation total"
-                                   Classes="Caption" />
-                    </StackPanel>
-                    <Grid Grid.Row="1" MinHeight="0">
-                        <ListBox ItemsSource="{Binding ObservedWorkloads}"
-                                 SelectedItem="{Binding SelectedWorkload}"
-                                 MinHeight="0"
-                                 AutomationProperties.Name="Observed VM hosts">
-                            <ListBox.ItemsPanel>
-                                <ItemsPanelTemplate><VirtualizingStackPanel /></ItemsPanelTemplate>
-                            </ListBox.ItemsPanel>
-                            <ListBox.ItemTemplate>
-                                <DataTemplate x:DataType="vm:MemoryWorkloadItem">
-                                    <Grid ColumnDefinitions="*,Auto" Margin="6,8" ColumnSpacing="12">
-                                        <TextBlock Text="{Binding Title}" FontWeight="SemiBold" />
-                                        <TextBlock Grid.Column="1" Text="{Binding ResidentDisplay}"
-                                                   Classes="Caption" />
-                                    </Grid>
-                                </DataTemplate>
-                            </ListBox.ItemTemplate>
-                        </ListBox>
-                        <TextBlock Text="No VM host observed in this sample"
-                                   HorizontalAlignment="Center" VerticalAlignment="Center"
-                                   Classes="Caption" IsVisible="{Binding !HasObservedWorkloads}" />
-                    </Grid>
-                    <Grid Grid.Row="2" ColumnDefinitions="*,Auto" ColumnSpacing="16"
-                          IsVisible="{Binding HasSelectedWorkload}">
-                        <TextBlock Text="{Binding SelectedWorkload.Detail}"
-                                   Classes="Caption" TextWrapping="Wrap"
-                                   VerticalAlignment="Center" />
-                        <Button Grid.Column="1" Classes="Secondary"
-                                Command="{Binding ViewRelatedProcessesCommand}"
-                                IsEnabled="{Binding SelectedWorkload.CanLink}"
-                                AutomationProperties.Name="View related processes">
-                            <TextBlock Text="View related processes" />
-                        </Button>
-                    </Grid>
+        <Border Grid.Row="2" Background="{StaticResource SurfaceBrush}" CornerRadius="14" ClipToBounds="True">
+            <Grid RowDefinitions="Auto,Auto,*,Auto" MinHeight="0">
+                <Grid Margin="12,10" ColumnDefinitions="*,260" ColumnSpacing="16">
+                    <TextBlock Text="Memory consumers" FontWeight="SemiBold" VerticalAlignment="Center" />
+                    <TextBox Grid.Column="1" Text="{Binding SearchText}" PlaceholderText="Find app, VM, container or PID"
+                             AutomationProperties.Name="Filter memory consumers" />
                 </Grid>
-            </Border>
-        </Grid>
+                <Grid Grid.Row="1" ColumnDefinitions="*,130,210" ColumnSpacing="12" Margin="16,0,28,6">
+                    <TextBlock Text="Consumer" Classes="Caption" />
+                    <TextBlock Grid.Column="1" Text="Physical RAM" Classes="Caption" HorizontalAlignment="Right"
+                               ToolTip.Tip="Measured exclusive resident pages. System rows show measured kernel RAM and the remaining shared or unattributed RAM." />
+                    <TextBlock Grid.Column="2" Text="Other measurement" Classes="Caption" HorizontalAlignment="Right"
+                               ToolTip.Tip="Working sets, VM assignments, and container usage can overlap. These values are not added to physical totals." />
+                </Grid>
+                <Grid Grid.Row="2" MinHeight="0">
+                    <ListBox x:Name="ConsumerList" ItemsSource="{Binding Consumers}" SelectedItem="{Binding SelectedConsumer}"
+                             ScrollViewer.HorizontalScrollBarVisibility="Disabled"
+                             AutomationProperties.Name="Grouped memory consumers">
+                        <ListBox.ItemsPanel><ItemsPanelTemplate><VirtualizingStackPanel /></ItemsPanelTemplate></ListBox.ItemsPanel>
+                        <ListBox.ItemTemplate>
+                            <DataTemplate x:DataType="vm:MemoryConsumerRow">
+                                <Grid ColumnDefinitions="*,130,210" ColumnSpacing="12" Margin="0,3,12,3" ToolTip.Tip="{Binding Detail}">
+                                    <Grid ColumnDefinitions="28,*,Auto" Margin="{Binding Indent}" ColumnSpacing="5">
+                                        <Button Classes="Disclosure" IsVisible="{Binding CanExpand}" IsEnabled="{Binding CanToggle}" Content="{Binding ExpandGlyph}"
+                                                Command="{Binding $parent[UserControl].((vm:MemoryViewModel)DataContext).ToggleConsumerCommand}"
+                                                CommandParameter="{Binding}" AutomationProperties.Name="{Binding ExpandName}" />
+                                        <TextBlock Grid.Column="1" Text="{Binding Name}" FontWeight="Medium" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" />
+                                        <TextBlock Grid.Column="2" Text="{Binding Summary}" Classes="Caption" VerticalAlignment="Center" Margin="6,0,0,0" />
+                                    </Grid>
+                                    <StackPanel Grid.Column="1" VerticalAlignment="Center" Spacing="3">
+                                        <TextBlock Text="{Binding PhysicalDisplay}" HorizontalAlignment="Right" FontWeight="SemiBold" />
+                                        <Border Width="{Binding BarWidth}" Height="2" CornerRadius="1" HorizontalAlignment="Right"
+                                                Background="{StaticResource MemoryBrush}" />
+                                    </StackPanel>
+                                    <Grid Grid.Column="2" ColumnDefinitions="*,Auto" ColumnSpacing="8" VerticalAlignment="Center">
+                                        <TextBlock Text="{Binding Metric}" Classes="Caption" HorizontalAlignment="Right" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" />
+                                        <TextBlock Grid.Column="1" Text="{Binding ObservedDisplay}" VerticalAlignment="Center" />
+                                    </Grid>
+                                </Grid>
+                            </DataTemplate>
+                        </ListBox.ItemTemplate>
+                    </ListBox>
+                    <TextBlock Text="No matching consumers" IsVisible="{Binding HasNoResults}" Classes="Caption"
+                               HorizontalAlignment="Center" VerticalAlignment="Center" />
+                </Grid>
+                <Border Grid.Row="3" BorderThickness="0,1,0,0" BorderBrush="{StaticResource BorderSubtleBrush}" Padding="14,9">
+                    <Grid RowDefinitions="Auto,Auto" RowSpacing="7">
+                        <TextBlock Text="{Binding AccountingStatus}"
+                                   Classes="Caption" TextWrapping="Wrap" />
+                        <Grid Grid.Row="1" ColumnDefinitions="*,Auto" ColumnSpacing="16" IsVisible="{Binding HasSelection}">
+                            <ScrollViewer MaxHeight="84" HorizontalScrollBarVisibility="Disabled" VerticalScrollBarVisibility="Auto"
+                                          Focusable="True" AutomationProperties.Name="Selected memory consumer details">
+                                <TextBlock Text="{Binding SelectedConsumer.Detail}" Classes="Caption" TextWrapping="Wrap" />
+                            </ScrollViewer>
+                            <Button Grid.Column="1" Classes="Secondary" Content="Related processes" IsVisible="{Binding SelectedConsumer.CanLink}"
+                                    Command="{Binding ViewRelatedProcessesCommand}" AutomationProperties.Name="View related processes" VerticalAlignment="Center" />
+                        </Grid>
+                    </Grid>
+                </Border>
+            </Grid>
+        </Border>
     </Grid>
 </UserControl>

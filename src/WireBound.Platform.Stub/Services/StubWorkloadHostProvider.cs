@@ -6,4 +6,7 @@ namespace WireBound.Platform.Stub.Services;
 public sealed class StubWorkloadHostProvider : IWorkloadHostProvider
 {
     public WorkloadHost? IdentifyHost(string processName, string executablePath) => null;
+
+    public Task<IReadOnlyList<MemoryWorkload>> GetVirtualMachinesAsync(CancellationToken cancellationToken = default)
+        => Task.FromResult<IReadOnlyList<MemoryWorkload>>([]);
 }

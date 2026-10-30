@@ -15,7 +15,7 @@ public sealed class LinuxProcessResourceProvider : IProcessResourceProvider
     private static readonly long TicksPerClockTick = TimeSpan.TicksPerSecond / GetClockTicksPerSecond();
 
     public Task<IReadOnlyList<ProcessResourceData>> GetProcessResourceDataAsync(
-        CancellationToken cancellationToken = default)
+        CancellationToken cancellationToken = default, bool includePrivateWorkingSet = false)
     {
         var results = new List<ProcessResourceData>();
         var pageSize = Environment.SystemPageSize;
@@ -52,6 +52,7 @@ public sealed class LinuxProcessResourceProvider : IProcessResourceProvider
                     ExecutablePath = exePath,
                     PrivateBytes = privateBytes,
                     WorkingSetBytes = rssBytes,
+                    PrivateWorkingSetBytes = includePrivateWorkingSet ? ReadPrivateWorkingSet(procDir) : null,
                     CpuTimeTicks = cpuTimeTicks
                 });
             }
@@ -132,5 +133,19 @@ public sealed class LinuxProcessResourceProvider : IProcessResourceProvider
     {
         // sysconf(_SC_CLK_TCK) is typically 100 on Linux
         return 100;
+    }
+
+    private static long? ReadPrivateWorkingSet(string procDir)
+    {
+        try
+        {
+            var values = LinuxMemoryInfoProvider.ParseMemInfo(Path.Combine(procDir, "smaps_rollup"));
+            if (!values.ContainsKey("Private_Clean") || !values.ContainsKey("Private_Dirty")) return null;
+            return checked((values["Private_Clean"] + values["Private_Dirty"]
+                + values.GetValueOrDefault("Private_Hugetlb")) * 1024);
+        }
+        catch (IOException) { return null; }
+        catch (UnauthorizedAccessException) { return null; }
+        catch (OverflowException) { return null; }
     }
 }

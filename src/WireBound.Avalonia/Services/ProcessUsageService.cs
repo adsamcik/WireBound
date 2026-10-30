@@ -37,7 +37,8 @@ public sealed class ProcessUsageService : IProcessUsageService
     }
 
     /// <inheritdoc />
-    public async Task<IReadOnlyList<ProcessUsageSnapshot>> CaptureAsync(CancellationToken cancellationToken = default)
+    public async Task<IReadOnlyList<ProcessUsageSnapshot>> CaptureAsync(CancellationToken cancellationToken = default,
+        bool includePrivateWorkingSet = false)
     {
         await _captureGate.WaitAsync(cancellationToken).ConfigureAwait(false);
         try
@@ -49,7 +50,7 @@ public sealed class ProcessUsageService : IProcessUsageService
             // Always schedule that work away from the UI caller so opening or
             // manually refreshing the page cannot block input or rendering.
             var resources = await Task.Run(
-                    () => _resourceProvider.GetProcessResourceDataAsync(cancellationToken),
+                    () => _resourceProvider.GetProcessResourceDataAsync(cancellationToken, includePrivateWorkingSet),
                     cancellationToken)
                 .ConfigureAwait(false);
             cancellationToken.ThrowIfCancellationRequested();
@@ -90,6 +91,7 @@ public sealed class ProcessUsageService : IProcessUsageService
                         ExecutablePath = resource.ExecutablePath,
                         PrivateBytes = resource.PrivateBytes,
                         WorkingSetBytes = resource.WorkingSetBytes,
+                        PrivateWorkingSetBytes = resource.PrivateWorkingSetBytes,
                         CpuTimeTicks = resource.CpuTimeTicks,
                         CpuPercent = cpuPercent,
                         HasCpuSample = hasCpuSample,

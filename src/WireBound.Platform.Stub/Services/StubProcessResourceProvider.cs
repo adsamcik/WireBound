@@ -10,7 +10,7 @@ namespace WireBound.Platform.Stub.Services;
 public sealed class StubProcessResourceProvider : IProcessResourceProvider
 {
     public Task<IReadOnlyList<ProcessResourceData>> GetProcessResourceDataAsync(
-        CancellationToken cancellationToken = default)
+        CancellationToken cancellationToken = default, bool includePrivateWorkingSet = false)
     {
         return Task.FromResult<IReadOnlyList<ProcessResourceData>>([]);
     }

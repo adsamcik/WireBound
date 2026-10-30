@@ -344,6 +344,7 @@ public partial class App : Application
         // Register pull-based per-PID usage sampling for the on-demand process page.
         // The service owns no background timer and never changes network-monitor ownership.
         services.AddSingleton<IProcessUsageService, ProcessUsageService>();
+        services.AddSingleton<IWorkloadMemoryService, WorkloadMemoryService>();
 
         // Register system monitoring service (CPU, RAM)
         services.AddSingleton<ISystemMonitorService, SystemMonitorService>();

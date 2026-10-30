@@ -19,7 +19,8 @@ public interface IProcessUsageService
     /// CPU usage is calculated from the prior successful capture for each PID.
     /// Concurrent captures are serialized by the implementation.
     /// </summary>
-    Task<IReadOnlyList<ProcessUsageSnapshot>> CaptureAsync(CancellationToken cancellationToken = default);
+    Task<IReadOnlyList<ProcessUsageSnapshot>> CaptureAsync(CancellationToken cancellationToken = default,
+        bool includePrivateWorkingSet = false);
 
     /// <summary>
     /// Clears CPU baselines. The next successful capture reports zero CPU until

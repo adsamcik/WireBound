@@ -10,6 +10,19 @@ namespace WireBound.Tests.Services;
 public class ProcessUsageServiceTests
 {
     [Test]
+    public async Task CaptureAsync_ReadsPrivateResidentMemoryOnlyWhenRequested()
+    {
+        var (service, provider, _) = CreateService();
+        provider.GetProcessResourceDataAsync(Arg.Any<CancellationToken>(), true).Returns(
+            Task.FromResult<IReadOnlyList<ProcessResourceData>>([new ProcessResourceData
+            { ProcessId = 1, PrivateWorkingSetBytes = 123, PrivateBytes = 999, WorkingSetBytes = 456 }]));
+        var snapshots = await service.CaptureAsync(includePrivateWorkingSet: true);
+        snapshots.Single().PrivateWorkingSetBytes.Should().Be(123);
+        await provider.Received(1).GetProcessResourceDataAsync(Arg.Any<CancellationToken>(), true);
+        await provider.DidNotReceive().GetProcessResourceDataAsync(Arg.Any<CancellationToken>(), false);
+    }
+
+    [Test]
     public async Task CaptureAsync_ReturnsRawPerPidRows()
     {
         var (service, provider, _) = CreateService();

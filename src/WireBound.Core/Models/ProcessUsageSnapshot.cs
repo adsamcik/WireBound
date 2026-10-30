@@ -33,6 +33,9 @@ public sealed class ProcessUsageSnapshot
     /// </summary>
     public long WorkingSetBytes { get; init; }
 
+    /// <summary>Physically resident private pages; null when the OS cannot measure them.</summary>
+    public long? PrivateWorkingSetBytes { get; init; }
+
     /// <summary>
     /// Total processor time in 100-nanosecond ticks from the raw platform sample.
     /// </summary>

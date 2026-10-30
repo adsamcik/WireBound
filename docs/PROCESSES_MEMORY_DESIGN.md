@@ -55,12 +55,36 @@ repeat the parent number. An allocation detail holds its definition, source,
   empty state when correlation is supported but found none. Merely selecting
   or expanding a row stays on Memory.
 
-When a known VM has only assigned guest memory or a host-process working
-set, show it under a small **Observed workloads** section with that exact
-metric. These observations are outside the additive allocation ledger.
-Do not turn assigned, committed, or process-resident bytes into host
-physical RAM. WSL 2 distributions remain context beneath one utility VM
-unless per-distribution host RAM can be measured.
+Use one virtualized, expandable **Memory consumers** list for applications,
+virtual machines and containers, system allocations, and shared/other RAM.
+Keep the capacity strip compact and give the list the remaining viewport.
+Application groups use the exact executable path (process name fallback),
+ordered by measured RAM, and expand to individual process instances.
+Search includes descendants and PIDs, revealing matching ancestry without
+changing saved expansion state. Refresh preserves filters and expansion.
+
+The **Physical RAM** column attributes only measured private resident pages,
+validated nonpaged pool, and the explicitly unexplained remainder. A partial
+process group shows a lower-bound marker. Windows uses private working-set
+counters on supported Windows 11 builds; Linux reads private resident pages
+from smaps_rollup only for Memory captures. Committed memory is never used
+as a substitute for physical RAM. Inaccessible or unsupported measurements
+remain unavailable.
+
+The adjacent **Other measurement** column shows working sets, assigned VM
+memory, Docker container usage, and container-process RSS with their exact
+metric. These observations can overlap each other and physical RAM and do
+not enter the physical allocation equation. Named Hyper-V guests and running
+WSL distributions are read without starting or entering a guest. Local
+libvirt system/session connections are read-only; remote default connections
+are excluded. WSL distribution RAM cannot be isolated from the utility VM.
+
+Docker uses only the local socket endpoint from the active CLI context.
+Each running container reports Docker stats usage (Linux inactive file cache
+excluded). Expanding a container lazily reads docker top PID/RSS/command;
+process RSS may overlap and does not sum to container usage. Unsupported
+engines, missing tools, denied access, and stopped workloads have concise
+unavailable rows. No in-container or in-guest command is executed.
 
 Physical state and ownership are separate equations:
 
@@ -69,7 +93,7 @@ Physical state and ownership are separate equations:
 | Capacity | Installed = OS usable + reserved, if installed is measured. OS usable = in use + available. |
 | Allocation | In use = exclusive physical categories + Unattributed. |
 
-Unattributed remains visible with its reason. If samples or definitions are
+Shared and other remains visible with its reason. If samples or definitions are
 incompatible, show the breakdown as unavailable instead of clamping a
 remainder into a false 100% explanation.
 
@@ -88,6 +112,8 @@ or an equivalent generation marker; PID or name alone can be reused. The
 relationship provider refreshes links as processes start or exit. If the
 workload stops, keep its identity and show **Stopped**.
 
+Exact application/process links appear by default and reject recycled PIDs.
+VM host name matches retain their separate likely-link opt-in.
 Confirmed relationships appear by default. **Include likely matches** is
 an optional control; likely rows carry a visible Likely label and evidence
 in details. Ordinary text search still works inside the filtered context.

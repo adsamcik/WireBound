@@ -38,6 +38,28 @@ public class AppsViewModelTests : IAsyncDisposable
     }
 
     [Test]
+    public async Task ConfirmedMemoryAppContext_ShowsExactInstancesWithoutOptIn_AndRejectsRecycledPids()
+    {
+        var navigation = Substitute.For<INavigationService>();
+        navigation.CurrentView.Returns(Routes.Apps);
+        var context = new ProcessContextService();
+        context.Set(new ProcessContext("app:browser", "browser", "exact executable group", DateTime.Now,
+            new HashSet<ProcessInstanceId>(), new HashSet<ProcessInstanceId> { new(101, 7) }));
+        ConfigureCapture(CreateSnapshot(101, "browser", startMarker: 7), CreateSnapshot(102, "browser", startMarker: 8));
+        var viewModel = new AppsViewModel(_dispatcher, _processUsageService, navigation,
+            timeProvider: _timeProvider, processContext: context);
+        _createdViewModels.Add(viewModel);
+        await WaitUntilAsync(() => viewModel.ProcessCount == 2);
+        viewModel.IncludeLikelyMatches.Should().BeFalse();
+        viewModel.HasLikelyContextMatches.Should().BeFalse();
+        viewModel.ProcessItems.Select(i => i.ProcessId).Should().Equal(101);
+        ConfigureCapture(CreateSnapshot(101, "browser", startMarker: 9));
+        await viewModel.RefreshCommand.ExecuteAsync(null);
+        viewModel.ProcessItems.Should().BeEmpty();
+        viewModel.EmptyLabel.Should().Be("Stopped");
+    }
+
+    [Test]
     public async Task WorkloadContext_RequiresOptInAndExactProcessGeneration()
     {
         _currentRoute = Routes.Apps;

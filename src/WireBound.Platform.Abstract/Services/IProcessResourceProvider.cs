@@ -13,7 +13,8 @@ public interface IProcessResourceProvider
     /// Some system processes may report 0 for memory/CPU if access is denied.
     /// </summary>
     /// <param name="cancellationToken">Cancellation token</param>
+    /// <param name="includePrivateWorkingSet">Read exclusive resident pages for Memory attribution; potentially expensive on Linux.</param>
     /// <returns>Resource data for each process</returns>
     Task<IReadOnlyList<ProcessResourceData>> GetProcessResourceDataAsync(
-        CancellationToken cancellationToken = default);
+        CancellationToken cancellationToken = default, bool includePrivateWorkingSet = false);
 }

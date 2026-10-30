@@ -35,6 +35,9 @@ public sealed class ProcessResourceData
     /// </summary>
     public long WorkingSetBytes { get; init; }
 
+    /// <summary>Physically resident private pages, when measured independently of commit.</summary>
+    public long? PrivateWorkingSetBytes { get; init; }
+
     /// <summary>
     /// Total processor time in ticks (100-nanosecond intervals).
     /// Caller computes CPU% by diffing consecutive snapshots:

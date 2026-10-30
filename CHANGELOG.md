@@ -7,13 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.11.1] - 2026-10-30
+
 ### Added
 
 - **History Local Traffic Filter** - History excludes localhost traffic from app rankings by default, with an option to include it in per-app totals and rankings without reloading the selected period.
+- **Startup Validation** - Added desktop launch tests that check the dashboard, active monitoring, startup errors, and clean shutdown.
 
 ### Fixed
 
 - **History Loading States** - Local-only history keeps its filter accessible, and superseded date-range requests cannot replace newer results or clear their loading state.
+- **Startup Dialogs** - First-run and post-update dialogs open after the main window is ready, including when start-minimized is enabled.
+- **Tray Cleanup** - Tray icons are disposed on the UI thread during asynchronous application shutdown.
 
 ## [0.11.0] - 2026-10-30
 

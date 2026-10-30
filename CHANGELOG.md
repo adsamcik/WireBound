@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **History Local Traffic Filter** - History excludes localhost traffic from app rankings by default, with an option to include it in per-app totals and rankings without reloading the selected period.
+
+### Fixed
+
+- **History Loading States** - Local-only history keeps its filter accessible, and superseded date-range requests cannot replace newer results or clear their loading state.
+
 ## [0.11.0] - 2026-10-30
 
 ### Added

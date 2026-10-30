@@ -4,9 +4,9 @@
     "net10.0": {
       "ManagedNativeWifi": {
         "type": "Direct",
-        "requested": "[3.0.2, )",
-        "resolved": "3.0.2",
-        "contentHash": "HgeZhoFiFBYcEkhs8yZdq26Ow8oZGG3uoCBEGw2HmjpCsMNGb3nWlN0vQZwCKVPy0NImaaYAzeCNMzqhuBkuWg=="
+        "requested": "[3.1.0, )",
+        "resolved": "3.1.0",
+        "contentHash": "CbjX9ZPzOHim6BM0YUz7fiSi7JlQbhb0UiOxOvyTgXAt0OGQICrQr0d3qM2JNYLsDw8LD+JHmutQzjjj2QJ1ww=="
       },
       "Microsoft.Extensions.Logging.Abstractions": {
         "type": "Direct",

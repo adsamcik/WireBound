@@ -35,11 +35,6 @@ dotnet run --project src/WireBound.Avalonia/WireBound.Avalonia.csproj
 # Run tests
 dotnet run --project tests/WireBound.Tests/WireBound.Tests.csproj
 
-# Publish (all platforms)
-.\scripts\publish.ps1 -Version "1.0.0"
-
-# Publish (specific platform)
-.\scripts\publish.ps1 -Version "1.0.0" -Runtime linux-x64
 ```
 
 ## Tech Stack
@@ -157,3 +152,10 @@ See @.github/context/PATTERNS.md for detailed examples.
 
 <!-- context-init:user-content-below -->
 <!-- Add custom instructions below this line -->
+
+## Releases
+
+- Releases are triggered by pushing a `vX.Y.Z` Git tag for the intended release commit. `.github/workflows/release.yml` builds and validates the Windows and Linux packages and publishes the GitHub Release.
+- Prepare the application version and `CHANGELOG.md`, run the required checks, and commit the changes before tagging. For release preparation, use normal builds and tests; leave distribution packaging to GitHub Actions.
+- Do not build or distribute release artifacts locally. Do not use `scripts/publish.ps1`, `dotnet publish`, or `vpk pack` as a local release process.
+- Do not manually create GitHub Releases, upload release assets, or dispatch the release workflow by hand. Use the version-tag trigger.

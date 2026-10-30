@@ -115,8 +115,7 @@ services.AddSingleton<INetworkUsageRepository>(sp => sp.GetRequiredService<DataP
 - `dotnet build` — build all projects
 - `dotnet test` — run all tests
 - `dotnet run --project src/WireBound.Avalonia/WireBound.Avalonia.csproj` — run app
-- `.\scripts\publish.ps1 -Version "X.Y.Z"` — publish all platforms
-- `.\scripts\publish.ps1 -Version "X.Y.Z" -Runtime win-x64` — publish specific platform
+- Release publication: push a `vX.Y.Z` Git tag; GitHub Actions builds and publishes all release packages.
 
 ## Do NOT
 
@@ -130,6 +129,13 @@ services.AddSingleton<INetworkUsageRepository>(sp => sp.GetRequiredService<DataP
 - Update charts off the UI thread — use `Dispatcher.UIThread`
 
 <!-- context-init:user-content-below -->
+
+## Releases
+
+- Releases are triggered by pushing a `vX.Y.Z` Git tag for the intended release commit. `.github/workflows/release.yml` builds and validates the Windows and Linux packages and publishes the GitHub Release.
+- Prepare the application version and `CHANGELOG.md`, run the required checks, and commit the changes before tagging. For release preparation, use normal builds and tests; leave distribution packaging to GitHub Actions.
+- Do not build or distribute release artifacts locally. Do not use `scripts/publish.ps1`, `dotnet publish`, or `vpk pack` as a local release process.
+- Do not manually create GitHub Releases, upload release assets, or dispatch the release workflow by hand. Use the version-tag trigger.
 
 ## Repository
 

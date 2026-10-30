@@ -1,177 +1,135 @@
 using System.Net.Http;
-using System.Net.Http.Json;
 using System.Reflection;
-using System.Text.Json;
-using System.Text.Json.Serialization;
 using Serilog;
 using Velopack;
-using Velopack.Sources;
 using WireBound.Core.Services;
 
 namespace WireBound.Avalonia.Services;
 
-/// <summary>
-/// Update service using Velopack for installed mode, with GitHub API fallback for portable mode.
-/// </summary>
-public sealed partial class VelopackUpdateService : IUpdateService
+/// <summary>Checks aged GitHub releases and verifies packages before installation.</summary>
+public sealed class VelopackUpdateService : IUpdateService
 {
-    private const string Owner = "adsamcik";
-    private const string Repo = "WireBound";
-    private const string RepoUrl = $"https://github.com/{Owner}/{Repo}";
-    private const string GitHubApiUrl = $"https://api.github.com/repos/{Owner}/{Repo}/releases/latest";
-
     private static readonly HttpClient HttpClient = new()
     {
         DefaultRequestHeaders =
         {
             { "User-Agent", "WireBound-UpdateChecker" },
-            { "Accept", "application/vnd.github.v3+json" }
+            { "Accept", "application/vnd.github+json" },
+            { "Cache-Control", "no-cache" }
         },
         Timeout = TimeSpan.FromSeconds(10)
     };
 
-    private readonly UpdateManager _updateManager;
+    private readonly VerifiedUpdateManager _updateManager;
+    private readonly GitHubUpdateSource _source;
+    private readonly SemaphoreSlim _operationLock = new(1, 1);
 
-    public VelopackUpdateService()
+    public VelopackUpdateService(TimeProvider timeProvider)
     {
-        var source = new GithubSource(RepoUrl, accessToken: null, prerelease: false);
-        _updateManager = new UpdateManager(source);
+        _source = new GitHubUpdateSource(HttpClient, timeProvider);
+        _updateManager = new VerifiedUpdateManager(_source);
     }
 
-    /// <inheritdoc />
+    internal VelopackUpdateService(VerifiedUpdateManager updateManager, GitHubUpdateSource source)
+    {
+        _updateManager = updateManager;
+        _source = source;
+    }
+
     public bool IsUpdateSupported => _updateManager.IsInstalled;
 
-    /// <inheritdoc />
     public string CurrentVersion => _updateManager.CurrentVersion?.ToString()
         ?? Assembly.GetEntryAssembly()?.GetName().Version?.ToString(3)
         ?? "0.0.0";
 
-    /// <inheritdoc />
-    public UpdateCheckResult? PreparedUpdate
-    {
-        get
-        {
-            var prepared = _updateManager.UpdatePendingRestart;
-            return prepared is null
-                ? null
-                : new UpdateCheckResult(
-                    prepared.Version.ToString(),
-                    GetReleaseUrl(prepared.Version.ToString()),
-                    null,
-                    prepared,
-                    CanInstallInApp: true);
-        }
-    }
+    // A local file alone is insufficient: it must match an eligible remote release and checksum.
+    public UpdateCheckResult? PreparedUpdate { get; private set; }
 
-    /// <inheritdoc />
     public async Task<UpdateCheckResult?> CheckForUpdateAsync(CancellationToken cancellationToken = default)
     {
-        if (!IsUpdateSupported)
-        {
-            return await CheckGitHubApiAsync(cancellationToken);
-        }
-
+        await _operationLock.WaitAsync(cancellationToken);
         try
         {
-            var info = await _updateManager.CheckForUpdatesAsync();
-            if (info is null) return null;
+            PreparedUpdate = null;
+            if (!IsUpdateSupported)
+                return await _source.CheckPortableAsync(CurrentVersion, cancellationToken);
 
-            return new UpdateCheckResult(
-                info.TargetFullRelease.Version.ToString(),
-                GetReleaseUrl(info.TargetFullRelease.Version.ToString()),
-                null,
-                info,
-                CanInstallInApp: true);
-        }
-        catch (Exception ex)
-        {
-            Log.Warning(ex, "Velopack update check failed, falling back to GitHub API");
+            UpdateInfo? info;
             try
             {
-                return await CheckGitHubApiAsync(cancellationToken);
+                // Velopack's check has no token parameter; its network requests are bounded.
+                info = await _updateManager.CheckForUpdatesAsync();
+                cancellationToken.ThrowIfCancellationRequested();
             }
-            catch (Exception fallbackException)
+            catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested) { throw; }
+            catch (Exception ex)
             {
-                throw new InvalidOperationException(
-                    "WireBound could not reach its update service. Check your connection and try again.",
-                    new AggregateException(ex, fallbackException));
+                cancellationToken.ThrowIfCancellationRequested();
+                Log.Warning(ex, "Velopack update check failed, falling back to aged GitHub releases");
+                return await _source.CheckPortableAsync(CurrentVersion, cancellationToken);
             }
+
+            if (info is null) return null;
+            var target = info.TargetFullRelease;
+            await _source.RevalidateAsync(target, cancellationToken);
+            var update = new UpdateCheckResult(target.Version.ToString(),
+                _source.GetReleaseUrl(target), _source.GetPublishedAt(target), info, CanInstallInApp: true);
+
+            if (_updateManager.UpdatePendingRestart is { } local && local.FileName == target.FileName)
+            {
+                try
+                {
+                    await _updateManager.VerifyLocalPackageAsync(target);
+                    cancellationToken.ThrowIfCancellationRequested();
+                    PreparedUpdate = update;
+                }
+                catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested) { throw; }
+                catch (Exception ex)
+                {
+                    Log.Warning(ex, "Cached update verification failed; it will not be installed");
+                }
+            }
+            return update;
         }
+        finally { _operationLock.Release(); }
     }
 
-    /// <inheritdoc />
-    public async Task DownloadUpdateAsync(UpdateCheckResult update, Action<int>? progress = null, CancellationToken cancellationToken = default)
+    public async Task DownloadUpdateAsync(UpdateCheckResult update, Action<int>? progress = null,
+        CancellationToken cancellationToken = default)
     {
-        if (!IsUpdateSupported)
-            throw new InvalidOperationException("In-app updates are not supported in portable mode.");
-
-        if (!update.CanInstallInApp)
-            throw new InvalidOperationException("This update must be installed from the release download page.");
-
-        if (update.NativeUpdateInfo is not UpdateInfo info)
-            throw new ArgumentException("Invalid update info — expected Velopack UpdateInfo.", nameof(update));
-
-        await _updateManager.DownloadUpdatesAsync(info, progress, cancelToken: cancellationToken);
-    }
-
-    /// <inheritdoc />
-    public void ApplyUpdateAndRestart(UpdateCheckResult update)
-    {
-        if (!IsUpdateSupported)
-            throw new InvalidOperationException("In-app updates are not supported in portable mode.");
-
-        if (!update.CanInstallInApp)
-            throw new InvalidOperationException("This update must be installed from the release download page.");
-
-        switch (update.NativeUpdateInfo)
+        await _operationLock.WaitAsync(cancellationToken);
+        try
         {
-            case UpdateInfo info:
-                _updateManager.ApplyUpdatesAndRestart(info);
-                break;
-            case VelopackAsset prepared:
-                _updateManager.ApplyUpdatesAndRestart(prepared);
-                break;
-            default:
-                throw new ArgumentException("Invalid update information.", nameof(update));
+            var info = GetInstallableInfo(update);
+            PreparedUpdate = null;
+            await _source.RevalidateAsync(info.TargetFullRelease, cancellationToken);
+            await _updateManager.DownloadUpdatesAsync(info, progress, cancellationToken);
+            cancellationToken.ThrowIfCancellationRequested();
+            PreparedUpdate = update;
         }
+        finally { _operationLock.Release(); }
     }
 
-    /// <summary>
-    /// Fallback for portable mode — checks GitHub API for latest release.
-    /// </summary>
-    private async Task<UpdateCheckResult?> CheckGitHubApiAsync(CancellationToken cancellationToken)
+    public async Task ApplyUpdateAndRestartAsync(UpdateCheckResult update, CancellationToken cancellationToken = default)
     {
-        using var response = await HttpClient.GetAsync(GitHubApiUrl, cancellationToken);
-        response.EnsureSuccessStatusCode();
-        var json = await response.Content.ReadAsStringAsync(cancellationToken);
-        var release = JsonSerializer.Deserialize(json, VelopackJsonContext.Default.GitHubRelease)
-            ?? throw new InvalidDataException("GitHub returned an invalid release response.");
-
-        var latestVersion = release.TagName.TrimStart('v');
-        if (!Version.TryParse(latestVersion, out var latest) ||
-            !Version.TryParse(CurrentVersion, out var current))
+        await _operationLock.WaitAsync(cancellationToken);
+        try
         {
-            throw new InvalidDataException("The release version could not be parsed.");
+            var info = GetInstallableInfo(update);
+            await _source.RevalidateAsync(info.TargetFullRelease, cancellationToken);
+            await _updateManager.VerifyLocalPackageAsync(info.TargetFullRelease);
+            cancellationToken.ThrowIfCancellationRequested();
+            _updateManager.ApplyAndRestart(info.TargetFullRelease);
         }
-
-        if (latest <= current) return null;
-
-        return new UpdateCheckResult(
-            latestVersion,
-            release.HtmlUrl,
-            release.PublishedAt,
-            null,
-            CanInstallInApp: false);
+        finally { _operationLock.Release(); }
     }
 
-    private static string GetReleaseUrl(string version) =>
-        $"https://github.com/{Owner}/{Repo}/releases/tag/v{version}";
-
-    private record GitHubRelease(
-        [property: JsonPropertyName("tag_name")] string TagName,
-        [property: JsonPropertyName("html_url")] string HtmlUrl,
-        [property: JsonPropertyName("published_at")] DateTimeOffset PublishedAt);
-
-    [JsonSerializable(typeof(GitHubRelease))]
-    private partial class VelopackJsonContext : JsonSerializerContext;
+    private UpdateInfo GetInstallableInfo(UpdateCheckResult update)
+    {
+        if (!IsUpdateSupported || !update.CanInstallInApp)
+            throw new InvalidOperationException("This update must be installed from the release download page.");
+        if (update.NativeUpdateInfo is not UpdateInfo info || update.Version != info.TargetFullRelease.Version.ToString() || info.IsDowngrade)
+            throw new ArgumentException("Invalid update information. Check for updates again.", nameof(update));
+        return info;
+    }
 }

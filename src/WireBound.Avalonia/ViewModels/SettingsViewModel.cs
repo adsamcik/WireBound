@@ -1142,6 +1142,7 @@ public sealed partial class SettingsViewModel : ObservableObject, IDisposable
         }
         catch (Exception ex)
         {
+            ClearAvailableUpdate();
             UpdateError = $"The update couldn't be downloaded. Check your connection and try again. ({ex.Message})";
             UpdateStatusMessage = "Update download failed.";
             _logger?.LogError(ex, "Failed to download update");
@@ -1169,11 +1170,12 @@ public sealed partial class SettingsViewModel : ObservableObject, IDisposable
             UpdateError = null;
             UpdateStatusMessage = "Saving your settings, then restarting to install the update…";
             await SaveAsync();
-            _updateService.ApplyUpdateAndRestart(PendingUpdate);
+            await _updateService.ApplyUpdateAndRestartAsync(PendingUpdate);
         }
         catch (Exception ex)
         {
             IsInstallingUpdate = false;
+            ClearAvailableUpdate();
             UpdateError = $"The update couldn't be installed. Your current version is unchanged. ({ex.Message})";
             UpdateStatusMessage = "Update installation failed.";
             _logger?.LogError(ex, "Failed to apply update and restart");
@@ -1194,15 +1196,11 @@ public sealed partial class SettingsViewModel : ObservableObject, IDisposable
             IsUpdateSupported = _updateService.IsUpdateSupported;
             if (update is not null)
             {
-                SetAvailableUpdate(update);
+                SetAvailableUpdate(update, readyToRestart: _updateService.PreparedUpdate == update);
             }
             else
             {
-                UpdateAvailable = false;
-                LatestVersion = null;
-                UpdateUrl = null;
-                PendingUpdate = null;
-                IsReadyToRestart = false;
+                ClearAvailableUpdate();
                 UpdateStatusMessage = $"WireBound v{CurrentVersion} is up to date.";
             }
         }
@@ -1216,6 +1214,15 @@ public sealed partial class SettingsViewModel : ObservableObject, IDisposable
         {
             IsCheckingForUpdates = false;
         }
+    }
+
+    private void ClearAvailableUpdate()
+    {
+        UpdateAvailable = false;
+        LatestVersion = null;
+        UpdateUrl = null;
+        PendingUpdate = null;
+        IsReadyToRestart = false;
     }
 
     internal void SetAvailableUpdate(UpdateCheckResult update, bool readyToRestart = false)

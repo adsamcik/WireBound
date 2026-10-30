@@ -1,4 +1,5 @@
 using System.ComponentModel;
+using System.Globalization;
 using Avalonia;
 using Avalonia.Automation;
 using Avalonia.Controls;
@@ -8,6 +9,7 @@ using Avalonia.Media;
 using Avalonia.Styling;
 using Avalonia.Threading;
 using Avalonia.VisualTree;
+using WireBound.Core.Helpers;
 using WireBound.Avalonia.ViewModels;
 
 namespace WireBound.Avalonia.Views;
@@ -68,14 +70,28 @@ public partial class MemoryView : UserControl
         {
             bar.ColumnDefinitions.Add(new ColumnDefinition(new GridLength(segment.Bytes, GridUnitType.Star)));
             var background = new SolidColorBrush(Color.Parse(segment.Color));
-            var foreground = (IBrush)this.FindResource(segment.UseLightText ? "PrimaryTextBrush" : "BackgroundBrush")!;
+            // These fixed foregrounds are the same pair used to calculate segment contrast.
+            var foreground = new SolidColorBrush(Color.Parse(segment.UseLightText ? "#F4F7FA" : "#0B1017"));
             var label = new TextBlock
             {
                 Text = segment.Label,
-                FontSize = 11,
+                FontSize = 12,
+                FontWeight = FontWeight.SemiBold,
                 TextTrimming = TextTrimming.CharacterEllipsis,
-                VerticalAlignment = global::Avalonia.Layout.VerticalAlignment.Center,
+                TextAlignment = TextAlignment.Center,
                 Foreground = foreground
+            };
+            var size = new TextBlock
+            {
+                Text = ByteFormatter.FormatBytes(segment.Bytes),
+                FontSize = 11,
+                TextAlignment = TextAlignment.Center,
+                Foreground = foreground
+            };
+            var content = new StackPanel
+            {
+                VerticalAlignment = global::Avalonia.Layout.VerticalAlignment.Center,
+                Children = { label, size }
             };
             Control control;
             if (segment.ConsumerId is not null)
@@ -84,16 +100,52 @@ public partial class MemoryView : UserControl
                     Theme = (ControlTheme)this.FindResource("MemorySegmentButtonTheme")!,
                     Background = background,
                     Foreground = foreground,
-                    Content = label,
+                    Content = content,
                     Command = vm.RevealMemoryConsumerCommand,
                     CommandParameter = segment,
                     DataContext = segment
                 };
             else
-                control = new Border { Background = background, Child = label, ClipToBounds = true, Padding = new Thickness(5, 0) };
-            ToolTip.SetTip(control, segment.Tooltip);
+                control = new Border
+                {
+                    Background = background,
+                    Child = content,
+                    ClipToBounds = true,
+                    Padding = new Thickness(2, 0),
+                    BorderThickness = new Thickness(2),
+                    BorderBrush = Brushes.Transparent,
+                    Focusable = true,
+                    DataContext = segment
+                };
+            ToolTip.SetTip(control, new TextBlock { Text = segment.Tooltip, MaxWidth = 340, TextWrapping = TextWrapping.Wrap });
+            ToolTip.SetShowDelay(control, 180);
+            control.GotFocus += (_, _) =>
+            {
+                if (control is Border border) border.BorderBrush = foreground;
+                ToolTip.SetIsOpen(control, true);
+            };
+            control.LostFocus += (_, _) =>
+            {
+                if (control is Border border) border.BorderBrush = Brushes.Transparent;
+                ToolTip.SetIsOpen(control, false);
+            };
             AutomationProperties.SetName(control, segment.Tooltip);
-            control.SizeChanged += (_, e) => label.IsVisible = e.NewSize.Width >= 32;
+            control.SizeChanged += (_, e) =>
+            {
+                double Width(TextBlock text) => new FormattedText(text.Text ?? "", CultureInfo.CurrentCulture,
+                    FlowDirection.LeftToRight, new Typeface(text.FontFamily, text.FontStyle, text.FontWeight),
+                    text.FontSize, foreground).Width;
+                var availableWidth = Math.Max(0, e.NewSize.Width - 8);
+                label.FontSize = 12;
+                label.Text = segment.Label;
+                if (Width(label) > availableWidth && segment.ConsumerId?.StartsWith("host:", StringComparison.Ordinal) == true)
+                    label.Text = segment.Label.Replace(" utility VM host", "", StringComparison.Ordinal)
+                        .Replace(" VM host", "", StringComparison.Ordinal);
+                if (Width(label) > availableWidth && availableWidth < 80) label.FontSize = 11;
+                // Never turn a short name into a fragment, or clip a memory value.
+                label.IsVisible = Width(label) <= availableWidth || availableWidth >= 80;
+                size.IsVisible = Width(size) <= availableWidth;
+            };
             Grid.SetColumn(control, bar.Children.Count);
             bar.Children.Add(control);
         }

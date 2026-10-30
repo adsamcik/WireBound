@@ -165,6 +165,32 @@ public class MemoryViewModelTests
     }
 
     [Test]
+    public async Task MemoryBar_AllSegmentLabelsHaveReadableContrast()
+    {
+        var hosts = Substitute.For<IWorkloadHostProvider>();
+        hosts.IdentifyHost("browser", "host").Returns(new WorkloadHost("vm", "VM host", "process name"));
+        var (vm, _, _, _) = Create(processes: [.. Enumerable.Range(1, 6).Select(i => Process(i, $"app{i}", 600)),
+            Process(7, "small", 100), Process(8, "host", 100)], hosts: hosts);
+        using (vm)
+        {
+            await vm.RefreshCommand.ExecuteAsync(null);
+            foreach (var segment in vm.MemorySegments)
+            {
+                static double Luminance(string hex)
+                {
+                    var color = SkiaSharp.SKColor.Parse(hex);
+                    static double Channel(byte c) => c <= 10 ? c / 3294.6 : Math.Pow((c / 255d + .055) / 1.055, 2.4);
+                    return .2126 * Channel(color.Red) + .7152 * Channel(color.Green) + .0722 * Channel(color.Blue);
+                }
+                var background = Luminance(segment.Color);
+                var foreground = Luminance(segment.UseLightText ? "#F4F7FA" : "#0B1017");
+                var contrast = (Math.Max(background, foreground) + .05) / (Math.Min(background, foreground) + .05);
+                contrast.Should().BeGreaterThanOrEqualTo(4.5, $"{segment.Label} must remain readable on {segment.Color}");
+            }
+        }
+    }
+
+    [Test]
     public async Task MemoryBar_KeepsAppColorsWhenUsageRankingChanges()
     {
         var processes = new List<ProcessUsageSnapshot> { Process(1, "one", 1000), Process(2, "two", 1500) };

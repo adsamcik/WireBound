@@ -27,6 +27,11 @@ public sealed partial class MemoryViewModel : ObservableObject, IDisposable
     private readonly HashSet<string> _expanded = [];
     private string? _selectionToRestore;
     private readonly Dictionary<string, int> _segmentColors = new();
+    private static readonly SKColor[] ConsumerPalette =
+    [
+        ChartColors.CpuColor, ChartColors.DiskColor, ChartColors.DownloadColor,
+        ChartColors.MemoryColor, ChartColors.UploadColor, new(182, 154, 243)
+    ];
     private bool _disposed;
 
     [ObservableProperty] private string _inUse = "—";
@@ -288,11 +293,20 @@ public sealed partial class MemoryViewModel : ObservableObject, IDisposable
         var capacity = memory.InstalledBytes is { } installed && installed >= memory.TotalBytes
             ? installed : memory.TotalBytes;
         var segments = new List<MemorySegment>();
-        void Add(string label, long bytes, SKColor color, bool lightText, string? id, string description)
+        void Add(string label, long bytes, SKColor color, string? id, string description)
         {
             if (bytes <= 0) return;
+            static double Luminance(SKColor c)
+            {
+                static double Linear(byte channel) => channel / 255d <= .04045
+                    ? channel / 255d / 12.92 : Math.Pow((channel / 255d + .055) / 1.055, 2.4);
+                return .2126 * Linear(c.Red) + .7152 * Linear(c.Green) + .0722 * Linear(c.Blue);
+            }
+            var luminance = Luminance(color);
+            var lightContrast = (Luminance(ChartColors.TooltipTextColor) + .05) / (luminance + .05);
+            var darkContrast = (luminance + .05) / (Luminance(new SKColor(11, 16, 23)) + .05);
             segments.Add(new(label, bytes, bytes * 100d / capacity,
-                $"#{color.Red:X2}{color.Green:X2}{color.Blue:X2}", lightText, id, description));
+                $"#{color.Red:X2}{color.Green:X2}{color.Blue:X2}", lightContrast > darkContrast, id, description));
         }
 
         var apps = _roots.Single(r => r.Id == "apps");
@@ -317,33 +331,33 @@ public sealed partial class MemoryViewModel : ObservableObject, IDisposable
             {
                 if (!_segmentColors.TryGetValue(row.Id, out var index))
                 {
-                    index = Enumerable.Range(0, ChartColors.SeriesPalette.Length).First(i => !assigned.Contains(i));
+                    index = Enumerable.Range(0, ConsumerPalette.Length).First(i => !assigned.Contains(i));
                     _segmentColors[row.Id] = index;
                     assigned.Add(index);
                 }
-                Add(row.Name, row.PhysicalBytes!.Value, ChartColors.SeriesPalette[index], index == 5,
+                Add(row.Name, row.PhysicalBytes!.Value, ConsumerPalette[index],
                     row.Id, $"Measured private RAM · {row.Summary}" + (row.IsPartial ? ". Some processes could not be measured." : "."));
             }
             var smallerApps = apps.Children.Where(r => r.PhysicalBytes is > 0 && !retained.Contains(r.Id)).ToArray();
             var smallerHosts = hosts.Children.Where(r => r.PhysicalBytes is > 0 && !retained.Contains(r.Id)).ToArray();
             Add("Other apps", smallerApps.Sum(r => r.PhysicalBytes!.Value),
-                ChartColors.MemoryDimColor, false, SortByUsage(smallerApps).FirstOrDefault()?.Id,
+                ChartColors.MemoryDimColor, SortByUsage(smallerApps).FirstOrDefault()?.Id,
                 "Measured private RAM of smaller application groups. Click to reveal the largest of these apps.");
             Add("Other VM hosts", smallerHosts.Sum(r => r.PhysicalBytes!.Value),
-                ChartColors.CpuDimColor, false, SortByUsage(smallerHosts).FirstOrDefault()?.Id,
+                ChartColors.CpuDimColor, SortByUsage(smallerHosts).FirstOrDefault()?.Id,
                 "Measured private RAM of smaller VM host processes. Click to reveal the largest of these hosts. Guest and container observations are excluded.");
-            Add("System", system.PhysicalBytes ?? 0, ChartColors.AxisLabelColor, false, system.Children.FirstOrDefault()?.Id,
+            Add("System", system.PhysicalBytes ?? 0, ChartColors.AxisNameColor, system.Children.FirstOrDefault()?.Id,
                 "Measured resident kernel allocations.");
-            Add("Shared / other", shared.PhysicalBytes.Value, ChartColors.AxisNameColor, false, shared.Id,
+            Add("Shared / other", shared.PhysicalBytes.Value, new SKColor(74, 91, 110), shared.Id,
                 "Shared pages and RAM without a measured exclusive owner, including unmeasured guest allocations.");
         }
         else
-            Add("In use", memory.UsedBytes, ChartColors.MemoryColor, false, shared.Id,
+            Add("In use", memory.UsedBytes, ChartColors.MemoryColor, shared.Id,
                 "Physical attribution is unavailable for this sample. Click for details, or refresh to retry.");
 
-        Add("Available", memory.AvailableBytes, ChartColors.ChartBackgroundColor, true, null,
+        Add("Available", memory.AvailableBytes, new SKColor(38, 51, 66), null,
             "RAM available for applications, including reclaimable cache.");
-        Add("Reserved", capacity - memory.TotalBytes, ChartColors.AxisLabelColor, false, null,
+        Add("Reserved", capacity - memory.TotalBytes, ChartColors.AxisLabelColor, null,
             "Installed RAM reserved by hardware; unavailable to the operating system.");
         return segments;
     }

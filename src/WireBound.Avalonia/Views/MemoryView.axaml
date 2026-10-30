@@ -10,15 +10,20 @@
     <UserControl.Resources>
         <ControlTheme x:Key="MemorySegmentButtonTheme" TargetType="Button">
             <Setter Property="MinWidth" Value="0" />
-            <Setter Property="MinHeight" Value="28" />
-            <Setter Property="Padding" Value="3,0" />
+            <Setter Property="MinHeight" Value="40" />
+            <Setter Property="Padding" Value="2,0" />
+            <Setter Property="Cursor" Value="Hand" />
             <Setter Property="Template">
                 <ControlTemplate>
-                    <Border Name="SegmentSurface" Background="{TemplateBinding Background}"
-                            BorderBrush="Transparent" BorderThickness="1" Padding="{TemplateBinding Padding}">
-                        <ContentPresenter Name="PART_ContentPresenter" Content="{TemplateBinding Content}"
-                                          Foreground="{TemplateBinding Foreground}"
-                                          HorizontalContentAlignment="Center" VerticalContentAlignment="Center" />
+                    <Border Background="{TemplateBinding Background}" ClipToBounds="True">
+                        <Grid>
+                            <Border BorderBrush="{StaticResource SurfaceBrush}" BorderThickness="0,0,1,0" IsHitTestVisible="False" />
+                            <Border Name="SegmentSurface" BorderBrush="Transparent" BorderThickness="2" Padding="{TemplateBinding Padding}">
+                                <ContentPresenter Name="PART_ContentPresenter" Content="{TemplateBinding Content}"
+                                                  Foreground="{TemplateBinding Foreground}"
+                                                  HorizontalContentAlignment="Stretch" VerticalContentAlignment="Center" />
+                            </Border>
+                        </Grid>
                     </Border>
                 </ControlTemplate>
             </Setter>
@@ -27,11 +32,9 @@
             </Style>
             <Style Selector="^.selected /template/ Border#SegmentSurface">
                 <Setter Property="BorderBrush" Value="{Binding $parent[Button].Foreground}" />
-                <Setter Property="BorderThickness" Value="2" />
             </Style>
             <Style Selector="^:focus-visible /template/ Border#SegmentSurface">
                 <Setter Property="BorderBrush" Value="{Binding $parent[Button].Foreground}" />
-                <Setter Property="BorderThickness" Value="2" />
             </Style>
         </ControlTheme>
     </UserControl.Resources>
@@ -82,7 +85,7 @@
                     </StackPanel>
                 </Grid>
                 <Border Grid.Row="1" CornerRadius="6" ClipToBounds="True" Background="{StaticResource BorderSubtleBrush}">
-                    <Grid MinHeight="28">
+                    <Grid MinHeight="40">
                         <Grid x:Name="MemoryCapacityBar" AutomationProperties.Name="Physical RAM by consumer" />
                         <TextBlock Text="Breakdown unavailable" IsVisible="{Binding !HasMemorySegments}"
                                    Classes="Caption" VerticalAlignment="Center" HorizontalAlignment="Center" />

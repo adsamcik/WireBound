@@ -34,5 +34,6 @@ public sealed class WindowsPlatformServices : IPlatformServices
         services.Replace(ServiceDescriptor.Singleton<IAppMetadataProvider, WindowsAppMetadataProvider>());
         services.Replace(ServiceDescriptor.Singleton<IGameDetectionProvider, WindowsGameDetectionProvider>());
         services.Replace(ServiceDescriptor.Singleton<IAppIconService, WindowsAppIconService>());
+        services.Replace(ServiceDescriptor.Singleton<ITrayIconSizeProvider, WindowsTrayIconSizeProvider>());
     }
 }

@@ -7,6 +7,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.12.0] - 2026-10-30
+
+### Added
+
+- **Interactive RAM Breakdown** - The capacity bar shows the largest memory consumers, combines multiprocess apps, and supports hover details, keyboard focus, and click-through to the consumer list.
+- **VM and Container Details** - Memory includes supported VM hosts, named guest observations, and local Docker container usage, with on-demand container process memory where the engine supports it.
+
+### Changed
+
+- **Unified Memory List** - Apps, VM hosts, guests, individual containers, and system allocations appear together in descending usage order, with expandable process details and search.
+- **Memory Presentation** - Available app icons, compact rows, adaptive bar labels, exact sizes, and clearer contrast make memory consumers easier to identify.
+
+### Fixed
+
+- **Physical RAM Accounting** - Measured private resident pages and kernel allocations reconcile with in-use RAM. Shared and unmeasured allocations remain explicit, while overlapping VM, container, and working-set observations stay outside physical totals.
+- **Memory Navigation** - Refreshes preserve selection, expansion, and scroll position; bar segments reveal their consumer in the actual desktop app, and slow icon loading no longer blocks a fresh sample.
+
 ## [0.11.1] - 2026-10-30
 
 ### Added

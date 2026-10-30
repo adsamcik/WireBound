@@ -1,0 +1,120 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:WireBound.Avalonia.ViewModels"
+             x:Class="WireBound.Avalonia.Views.MemoryView"
+             x:DataType="vm:MemoryViewModel"
+             Background="{StaticResource BackgroundBrush}"
+             AutomationProperties.Name="Memory details">
+    <Grid Margin="24" RowDefinitions="Auto,Auto,*" RowSpacing="16">
+        <Grid ColumnDefinitions="*,Auto">
+            <TextBlock Text="Memory" Classes="PageTitle" />
+            <Button Grid.Column="1" Classes="Secondary ToolbarButton"
+                    Command="{Binding RefreshCommand}"
+                    IsEnabled="{Binding !IsLoading}"
+                    AutomationProperties.Name="Refresh memory details">
+                <TextBlock Text="Refresh" />
+            </Button>
+        </Grid>
+
+        <Border Grid.Row="1" Classes="Card" Padding="20">
+            <Grid ColumnDefinitions="*,*,*,*" ColumnSpacing="16">
+                <StackPanel Spacing="5">
+                    <TextBlock Text="IN USE" Classes="MetricLabel" />
+                    <TextBlock Text="{Binding InUse}" FontSize="21" FontWeight="Bold"
+                               Foreground="{StaticResource MemoryBrush}" />
+                </StackPanel>
+                <StackPanel Grid.Column="1" Spacing="5">
+                    <TextBlock Text="AVAILABLE" Classes="MetricLabel" />
+                    <TextBlock Text="{Binding Available}" FontSize="21" FontWeight="Bold" />
+                </StackPanel>
+                <StackPanel Grid.Column="2" Spacing="5">
+                    <TextBlock Text="HARDWARE RESERVED" Classes="MetricLabel" />
+                    <TextBlock Text="{Binding HardwareReserved}" FontSize="21" FontWeight="Bold" />
+                </StackPanel>
+                <StackPanel Grid.Column="3" Spacing="5">
+                    <TextBlock Text="INSTALLED" Classes="MetricLabel" />
+                    <TextBlock Text="{Binding Installed}" FontSize="21" FontWeight="Bold" />
+                </StackPanel>
+            </Grid>
+        </Border>
+
+        <Grid Grid.Row="2" RowDefinitions="Auto,*" RowSpacing="16" MinHeight="0">
+            <Border Classes="Card" Padding="20">
+                <StackPanel Spacing="12">
+                    <Grid ColumnDefinitions="*,Auto">
+                        <TextBlock Text="RAM allocation" Classes="SectionHeader" />
+                        <TextBlock Grid.Column="1" Text="{Binding SampleStatus}" Classes="Caption" />
+                    </Grid>
+                    <Border Background="{StaticResource BorderSubtleBrush}"
+                            IsVisible="{Binding HasNonpagedPool}"
+                            CornerRadius="8" Padding="16">
+                        <Grid ColumnDefinitions="*,Auto">
+                            <StackPanel Spacing="4">
+                                <TextBlock Text="System · nonpaged pool" FontWeight="SemiBold" />
+                                <TextBlock Text="Windows kernel pool · resident pages" Classes="Caption" />
+                            </StackPanel>
+                            <TextBlock Grid.Column="1" Text="{Binding NonpagedPool}"
+                                       FontWeight="Bold" VerticalAlignment="Center" />
+                        </Grid>
+                    </Border>
+                    <Border Background="{StaticResource BorderSubtleBrush}"
+                            CornerRadius="8" Padding="16">
+                        <Grid ColumnDefinitions="*,Auto">
+                            <StackPanel Spacing="4">
+                                <TextBlock Text="Unattributed" FontWeight="SemiBold" />
+                                <TextBlock Text="Physical pages without a measured exclusive owner"
+                                           Classes="Caption" TextWrapping="Wrap" />
+                            </StackPanel>
+                            <TextBlock Grid.Column="1" Text="{Binding Unattributed}"
+                                       FontWeight="Bold" VerticalAlignment="Center" />
+                        </Grid>
+                    </Border>
+                </StackPanel>
+            </Border>
+
+            <Border Grid.Row="1" Classes="Card" Padding="20" MinHeight="0">
+                <Grid RowDefinitions="Auto,*,Auto" RowSpacing="12" MinHeight="0">
+                    <StackPanel Spacing="3">
+                        <TextBlock Text="Observed VM hosts" Classes="SectionHeader" />
+                        <TextBlock Text="Host-process RAM is separate from the allocation total"
+                                   Classes="Caption" />
+                    </StackPanel>
+                    <Grid Grid.Row="1" MinHeight="0">
+                        <ListBox ItemsSource="{Binding ObservedWorkloads}"
+                                 SelectedItem="{Binding SelectedWorkload}"
+                                 MinHeight="0"
+                                 AutomationProperties.Name="Observed VM hosts">
+                            <ListBox.ItemsPanel>
+                                <ItemsPanelTemplate><VirtualizingStackPanel /></ItemsPanelTemplate>
+                            </ListBox.ItemsPanel>
+                            <ListBox.ItemTemplate>
+                                <DataTemplate x:DataType="vm:MemoryWorkloadItem">
+                                    <Grid ColumnDefinitions="*,Auto" Margin="6,8" ColumnSpacing="12">
+                                        <TextBlock Text="{Binding Title}" FontWeight="SemiBold" />
+                                        <TextBlock Grid.Column="1" Text="{Binding ResidentDisplay}"
+                                                   Classes="Caption" />
+                                    </Grid>
+                                </DataTemplate>
+                            </ListBox.ItemTemplate>
+                        </ListBox>
+                        <TextBlock Text="No VM host observed in this sample"
+                                   HorizontalAlignment="Center" VerticalAlignment="Center"
+                                   Classes="Caption" IsVisible="{Binding !HasObservedWorkloads}" />
+                    </Grid>
+                    <Grid Grid.Row="2" ColumnDefinitions="*,Auto" ColumnSpacing="16"
+                          IsVisible="{Binding HasSelectedWorkload}">
+                        <TextBlock Text="{Binding SelectedWorkload.Detail}"
+                                   Classes="Caption" TextWrapping="Wrap"
+                                   VerticalAlignment="Center" />
+                        <Button Grid.Column="1" Classes="Secondary"
+                                Command="{Binding ViewRelatedProcessesCommand}"
+                                IsEnabled="{Binding SelectedWorkload.CanLink}"
+                                AutomationProperties.Name="View related processes">
+                            <TextBlock Text="View related processes" />
+                        </Button>
+                    </Grid>
+                </Grid>
+            </Border>
+        </Grid>
+    </Grid>
+</UserControl>

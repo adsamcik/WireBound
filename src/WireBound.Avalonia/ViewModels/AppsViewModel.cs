@@ -6,6 +6,8 @@ using WireBound.Core;
 using WireBound.Core.Helpers;
 using WireBound.Core.Models;
 using WireBound.Core.Services;
+using WireBound.Avalonia.Services;
+using WireBound.Platform.Abstract.Services;
 
 namespace WireBound.Avalonia.ViewModels;
 
@@ -22,6 +24,10 @@ public sealed partial class AppsViewModel : ObservableObject, IDisposable
     private readonly IProcessUsageService _processUsageService;
     private readonly INavigationService _navigationService;
     private readonly ILogger<AppsViewModel>? _logger;
+    private readonly ISystemMonitorService? _systemMonitor;
+    private readonly INetworkMonitorService? _networkMonitor;
+    private readonly ProcessContextService? _processContext;
+    private readonly IWorkloadHostProvider? _workloadHosts;
     private readonly Dictionary<int, ProcessUsageDisplayItem> _itemsByProcessId = [];
 
     private ITimer? _refreshTimer;
@@ -45,6 +51,28 @@ public sealed partial class AppsViewModel : ObservableObject, IDisposable
 
     [ObservableProperty]
     private bool _showSystemProcesses = true;
+
+    [ObservableProperty]
+    private bool _includeLikelyMatches;
+
+
+    public bool HasContext => _processContext?.Current is not null;
+    public string ContextTitle => _processContext?.Current?.Title ?? string.Empty;
+    public string ContextDetail => _processContext?.Current is { } context
+        ? $"Likely host · {context.Evidence} · Guest RAM has no process link"
+        : string.Empty;
+    public string EmptyLabel
+    {
+        get
+        {
+            if (_processContext?.Current is not { } context) return "No processes to show";
+            if (IsLoading || LastUpdated is null) return "Checking process links";
+            var running = _itemsByProcessId.Values.Any(item =>
+                context.LikelyInstances.Contains(new ProcessInstanceId(item.ProcessId, item.StartMarker)));
+            if (!running) return "Stopped";
+            return IncludeLikelyMatches ? "No matching processes" : "No confirmed process link";
+        }
+    }
 
     [ObservableProperty]
     private ProcessUsageSortColumn _sortColumn = ProcessUsageSortColumn.Cpu;
@@ -83,7 +111,7 @@ public sealed partial class AppsViewModel : ObservableObject, IDisposable
     private string _totalCpu = "—";
 
     [ObservableProperty]
-    private string _totalMemory = "0 B";
+    private string _totalMemory = "—";
 
     [ObservableProperty]
     private string _totalDownloadSpeed = "—";
@@ -123,12 +151,21 @@ public sealed partial class AppsViewModel : ObservableObject, IDisposable
         IProcessUsageService processUsageService,
         INavigationService navigationService,
         ILogger<AppsViewModel>? logger = null,
-        TimeProvider? timeProvider = null)
+        TimeProvider? timeProvider = null,
+        ISystemMonitorService? systemMonitor = null,
+        INetworkMonitorService? networkMonitor = null,
+        ProcessContextService? processContext = null,
+        IWorkloadHostProvider? workloadHosts = null)
     {
         _dispatcher = dispatcher;
         _processUsageService = processUsageService;
         _navigationService = navigationService;
         _logger = logger;
+        _systemMonitor = systemMonitor;
+        _networkMonitor = networkMonitor;
+        _processContext = processContext;
+        _workloadHosts = workloadHosts;
+        if (_processContext is not null) _processContext.Changed += OnProcessContextChanged;
 
         IsPageActive = IsProcessSurface(_navigationService.CurrentView);
         _refreshTimer = (timeProvider ?? TimeProvider.System).CreateTimer(
@@ -321,42 +358,40 @@ public sealed partial class AppsViewModel : ObservableObject, IDisposable
         foreach (var snapshot in snapshots)
         {
             activeProcessIds.Add(snapshot.ProcessId);
-            if (!_itemsByProcessId.TryGetValue(snapshot.ProcessId, out var item))
+            if (!_itemsByProcessId.TryGetValue(snapshot.ProcessId, out var item)
+                || (item.StartMarker != 0 && snapshot.StartMarker != 0 && item.StartMarker != snapshot.StartMarker))
             {
                 item = new ProcessUsageDisplayItem(snapshot);
-                _itemsByProcessId.Add(snapshot.ProcessId, item);
+                _itemsByProcessId[snapshot.ProcessId] = item;
             }
             else
             {
                 item.Update(snapshot);
             }
+            item.LikelyWorkload = _workloadHosts?.IdentifyHost(snapshot.ProcessName, snapshot.ExecutablePath)?.Label ?? string.Empty;
         }
 
         foreach (var processId in _itemsByProcessId.Keys.Where(id => !activeProcessIds.Contains(id)).ToArray())
         {
             _itemsByProcessId.Remove(processId);
         }
-
-        if (SelectedProcess is { } selected
-            && (!_itemsByProcessId.TryGetValue(selected.ProcessId, out var activeItem)
-                || !ReferenceEquals(selected, activeItem)))
+        if (SelectedProcess is { } selected &&
+            (!_itemsByProcessId.TryGetValue(selected.ProcessId, out var current) || !ReferenceEquals(current, selected)))
         {
             SelectedProcess = null;
         }
 
+
         ProcessCount = snapshots.Count;
         HasNetworkData = snapshots.Any(snapshot => snapshot.HasNetworkStats);
-        var cpuSnapshots = snapshots.Where(snapshot => snapshot.HasCpuSample).ToArray();
-        TotalCpu = cpuSnapshots.Length == 0
-            ? "Collecting…"
-            : $"{cpuSnapshots.Sum(snapshot => snapshot.CpuPercent):F1}%";
-        TotalMemory = ByteFormatter.FormatBytes(snapshots.Sum(snapshot => Math.Max(0, snapshot.WorkingSetBytes)));
-        TotalDownloadSpeed = HasNetworkData
-            ? ByteFormatter.FormatSpeed(snapshots.Sum(snapshot => snapshot.DownloadSpeedBps))
-            : "—";
-        TotalUploadSpeed = HasNetworkData
-            ? ByteFormatter.FormatSpeed(snapshots.Sum(snapshot => snapshot.UploadSpeedBps))
-            : "—";
+        var machine = _systemMonitor?.GetCurrentStats();
+        TotalCpu = machine?.Memory.TotalBytes > 0
+            ? $"{machine.Cpu.UsagePercent:F1}%" : "—";
+        TotalMemory = machine?.Memory.TotalBytes > 0
+            ? ByteFormatter.FormatBytes(machine.Memory.UsedBytes) : "—";
+        var network = _networkMonitor?.GetCurrentStats();
+        TotalDownloadSpeed = network is null ? "—" : ByteFormatter.FormatSpeed(network.DownloadSpeedBps);
+        TotalUploadSpeed = network is null ? "—" : ByteFormatter.FormatSpeed(network.UploadSpeedBps);
         LastUpdated = DateTime.Now;
         CaptureError = null;
         IsLoading = false;
@@ -371,6 +406,23 @@ public sealed partial class AppsViewModel : ObservableObject, IDisposable
         RebuildVisibleItems();
     }
 
+    partial void OnIncludeLikelyMatchesChanged(bool value) => RebuildVisibleItems();
+
+    private void OnProcessContextChanged()
+    {
+        OnPropertyChanged(nameof(HasContext));
+        OnPropertyChanged(nameof(ContextTitle));
+        OnPropertyChanged(nameof(ContextDetail));
+        OnPropertyChanged(nameof(EmptyLabel));
+        IncludeLikelyMatches = false;
+        RebuildVisibleItems();
+    }
+
+    [RelayCommand]
+    private void BackToMemory() => _navigationService.NavigateTo(Routes.Memory);
+
+    [RelayCommand]
+    private void ClearContext() => _processContext?.Clear();
     partial void OnShowSystemProcessesChanged(bool value)
     {
         OnPropertyChanged(nameof(IsAllProcessesScope));
@@ -420,6 +472,12 @@ public sealed partial class AppsViewModel : ObservableObject, IDisposable
         }
 
         IEnumerable<ProcessUsageDisplayItem> visible = _itemsByProcessId.Values;
+        if (_processContext?.Current is { } context)
+        {
+            visible = IncludeLikelyMatches
+                ? visible.Where(item => context.LikelyInstances.Contains(new ProcessInstanceId(item.ProcessId, item.StartMarker)))
+                : [];
+        }
         if (!ShowSystemProcesses)
         {
             visible = visible.Where(item => !item.IsSystemProcess);
@@ -451,6 +509,7 @@ public sealed partial class AppsViewModel : ObservableObject, IDisposable
         ReconcileVisibleItems(sorted);
 
         VisibleProcessCount = sorted.Count;
+        OnPropertyChanged(nameof(EmptyLabel));
     }
 
     private void ReconcileVisibleItems(IReadOnlyList<ProcessUsageDisplayItem> sorted)
@@ -545,6 +604,7 @@ public sealed partial class AppsViewModel : ObservableObject, IDisposable
 
         _disposed = true;
         _navigationService.NavigationChanged -= OnNavigationChanged;
+        if (_processContext is not null) _processContext.Changed -= OnProcessContextChanged;
         IsPageActive = false;
         Deactivate();
         _refreshTimer?.Dispose();
@@ -559,6 +619,7 @@ public sealed partial class AppsViewModel : ObservableObject, IDisposable
 public sealed partial class ProcessUsageDisplayItem : ObservableObject
 {
     public int ProcessId { get; }
+    public long StartMarker { get; }
 
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(DisplayName))]
@@ -583,8 +644,17 @@ public sealed partial class ProcessUsageDisplayItem : ObservableObject
 
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(MemoryDisplay))]
+    [NotifyPropertyChangedFor(nameof(PrivateDisplay))]
     [NotifyPropertyChangedFor(nameof(PrivateMemoryDisplay))]
     private long _privateBytes;
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(HasLikelyWorkload))]
+    [NotifyPropertyChangedFor(nameof(LikelyWorkloadLabel))]
+    private string _likelyWorkload = string.Empty;
+
+    public bool HasLikelyWorkload => !string.IsNullOrEmpty(LikelyWorkload);
+    public string LikelyWorkloadLabel => HasLikelyWorkload ? $"Likely host: {LikelyWorkload}" : string.Empty;
 
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(MemoryDisplay))]
@@ -620,6 +690,7 @@ public sealed partial class ProcessUsageDisplayItem : ObservableObject
     public ProcessUsageDisplayItem(ProcessUsageSnapshot snapshot)
     {
         ProcessId = snapshot.ProcessId;
+        StartMarker = snapshot.StartMarker;
         Update(snapshot);
     }
 
@@ -643,6 +714,7 @@ public sealed partial class ProcessUsageDisplayItem : ObservableObject
     public string ProcessIdLabel => $"PID {ProcessId}";
     public string CpuDisplay => HasCpuSample ? $"{CpuPercent:F1}%" : "—";
     public string MemoryDisplay => ByteFormatter.FormatBytes(Math.Max(0, WorkingSetBytes));
+    public string PrivateDisplay => ByteFormatter.FormatBytes(Math.Max(0, PrivateBytes));
     public string PrivateMemoryDisplay => ByteFormatter.FormatBytes(Math.Max(0, PrivateBytes));
     public string DownloadDisplay => HasNetworkStats ? ByteFormatter.FormatSpeed(DownloadSpeedBps) : "—";
     public string UploadDisplay => HasNetworkStats ? ByteFormatter.FormatSpeed(UploadSpeedBps) : "—";

@@ -72,6 +72,7 @@ public partial class MainViewModel : ObservableObject, IRecipient<UpdateAvailabl
         [
             new NavigationItem { Title = "Overview",    IconKey = "WbNavOverview",    Route = Routes.Overview },
             new NavigationItem { Title = "Processes",   IconKey = "WbNavApps",        Route = Routes.Apps },
+            new NavigationItem { Title = "Memory",      IconKey = "WbEntityMemory",   Route = Routes.Memory },
             new NavigationItem { Title = "Connections", IconKey = "WbNavConnections", Route = Routes.Connections }
         ];
 
@@ -136,6 +137,7 @@ public partial class MainViewModel : ObservableObject, IRecipient<UpdateAvailabl
     public bool IsOverviewSelected => CurrentRoute is Routes.Overview or Routes.Charts or Routes.System or Routes.History;
     public bool IsDashboardRoute => CurrentRoute == Routes.Overview;
     public bool IsProcessesSelected => CurrentRoute == Routes.Apps;
+    public bool IsMemorySelected => CurrentRoute == Routes.Memory;
     public bool IsConnectionsSelected => CurrentRoute == Routes.Connections;
     public bool IsSettingsSelected => CurrentRoute == Routes.Settings;
 
@@ -162,6 +164,7 @@ public partial class MainViewModel : ObservableObject, IRecipient<UpdateAvailabl
         SelectedNavigationItem = route switch
         {
             Routes.Apps => NavigationItems.First(item => item.Route == Routes.Apps),
+            Routes.Memory => NavigationItems.First(item => item.Route == Routes.Memory),
             Routes.Connections => NavigationItems.First(item => item.Route == Routes.Connections),
             Routes.Settings => null,
             _ => NavigationItems.First(item => item.Route == Routes.Overview)
@@ -176,6 +179,7 @@ public partial class MainViewModel : ObservableObject, IRecipient<UpdateAvailabl
         OnPropertyChanged(nameof(IsOverviewSelected));
         OnPropertyChanged(nameof(IsDashboardRoute));
         OnPropertyChanged(nameof(IsProcessesSelected));
+        OnPropertyChanged(nameof(IsMemorySelected));
         OnPropertyChanged(nameof(IsConnectionsSelected));
         OnPropertyChanged(nameof(IsSettingsSelected));
     }

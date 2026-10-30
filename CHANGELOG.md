@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **Memory Details** - Added a Memory page with physical RAM capacity, Windows nonpaged kernel pool, an explicit Unattributed remainder, and observed VM host processes.
+- **Related Process Views** - Memory observations can open a process-instance filter with opt-in likely matches, a return to Memory, and protection against recycled process IDs.
+
+### Fixed
+
+- **Machine Resource Totals** - Processes now uses machine-wide CPU, RAM, and network samples instead of adding per-process measurements into incomplete or overlapping totals.
+- **Memory Provider Failures** - Failed operating-system memory reads show unavailable data instead of presenting WireBound's GC memory as machine RAM.
+
 ## [0.10.0] - 2026-08-20
 
 ### Added

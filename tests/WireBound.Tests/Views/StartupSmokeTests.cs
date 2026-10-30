@@ -71,6 +71,8 @@ public class StartupSmokeTests
             logs.Should().Contain("Database initialized successfully", diagnostics)
                 .And.Contain("Application async initialization completed", diagnostics)
                 .And.Contain("Startup smoke test reached a rendered dashboard with active monitoring", diagnostics)
+                .And.Contain("Startup smoke test reached the live Memory page", diagnostics)
+                .And.Contain("working slice navigation", diagnostics)
                 .And.Contain("Application shutdown complete", diagnostics)
                 .And.NotContain("[ERR]", diagnostics)
                 .And.NotContain("[FTL]", diagnostics);

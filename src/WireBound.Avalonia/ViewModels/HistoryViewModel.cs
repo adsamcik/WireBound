@@ -31,6 +31,7 @@ public sealed partial class HistoryViewModel : ObservableObject, IDisposable
     private readonly ILogger<HistoryViewModel>? _logger;
 
     private CancellationTokenSource? _loadCts;
+    private IReadOnlyList<AppOverview> _loadedApps = [];
     private bool _disposed;
 
     // ── Period selection ────────────────────────────────────────────────────
@@ -86,17 +87,41 @@ public sealed partial class HistoryViewModel : ObservableObject, IDisposable
 
     // ── Top apps ────────────────────────────────────────────────────────────
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(HasTopApps))]
     private ObservableCollection<HistoryAppEntry> _topApps = [];
+
+    /// <summary>
+    /// Whether loopback / localhost bytes are included in the top-app ranking
+    /// and per-app totals. Disabled by default so local service-to-service
+    /// communication is not presented as external network usage.
+    /// </summary>
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(TopAppsHeading))]
+    private bool _includeLocalhostTraffic;
+
+    public bool HasTopApps => TopApps.Count > 0;
+
+    public string TopAppsHeading => IncludeLocalhostTraffic
+        ? "Top apps by total traffic"
+        : "Top apps by network traffic";
+
+    public string TopAppsEmptyMessage => !IncludeLocalhostTraffic && _loadedApps.Any(app => app.HasLoopbackTraffic)
+        ? "Only localhost traffic for this period"
+        : "No app traffic for this period";
 
     // ── State ───────────────────────────────────────────────────────────────
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(ShowLoadingOverlay))]
+    [NotifyPropertyChangedFor(nameof(ShowEmptyState))]
     private bool _isLoading;
 
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(ShowLoadingOverlay))]
     [NotifyPropertyChangedFor(nameof(ShowEmptyState))]
     private bool _hasData;
+
+    [ObservableProperty]
+    private bool _hasOverviewData;
 
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(ShowEmptyState))]
@@ -109,7 +134,7 @@ public sealed partial class HistoryViewModel : ObservableObject, IDisposable
     public bool ShowLoadingOverlay => IsLoading && !HasData;
 
     /// <summary>Empty placeholder when a completed load produced nothing.</summary>
-    public bool ShowEmptyState => !HasData && !HasError;
+    public bool ShowEmptyState => !IsLoading && !HasData && !HasError;
 
     public HistoryViewModel(
         IUiDispatcher dispatcher,
@@ -166,6 +191,8 @@ public sealed partial class HistoryViewModel : ObservableObject, IDisposable
         }
     }
 
+    partial void OnIncludeLocalhostTrafficChanged(bool value) => RebuildTopApps();
+
     private (DateOnly Start, DateOnly End) GetDateRange()
     {
         var today = DateOnly.FromDateTime(DateTime.Now);
@@ -182,9 +209,12 @@ public sealed partial class HistoryViewModel : ObservableObject, IDisposable
 
     private async Task LoadHistoryAsync()
     {
+        if (_disposed) return;
+
         _loadCts?.Cancel();
-        _loadCts = new CancellationTokenSource();
-        var token = _loadCts.Token;
+        using var loadCts = new CancellationTokenSource();
+        _loadCts = loadCts;
+        var token = loadCts.Token;
 
         try
         {
@@ -261,26 +291,10 @@ public sealed partial class HistoryViewModel : ObservableObject, IDisposable
             var avgDisk = systemStats.Count > 0 ? systemStats.Average(s => s.AvgDiskActivityPercent) : 0;
             var systemSeries = BuildSystemSeries(systemStats);
 
-            // ── Top apps (ranked by NETWORK traffic; loopback shown separately) ─
-            var topApps = apps
-                .Where(a => a.NetworkTotalBytes > 0 || a.LoopbackTotalBytes > 0)
-                .OrderByDescending(a => a.NetworkTotalBytes)
-                .ThenByDescending(a => a.LoopbackTotalBytes)
-                .Take(TopAppsLimit)
-                .Select(a => new HistoryAppEntry(
-                    string.IsNullOrWhiteSpace(a.AppName) ? a.ProcessName : a.AppName,
-                    a.IconPath,
-                    a.FormattedNetworkTotalBytes,
-                    ByteFormatter.FormatBytes(a.NetworkBytesReceived),
-                    ByteFormatter.FormatBytes(a.NetworkBytesSent),
-                    a.HasLoopbackTraffic,
-                    a.FormattedLocalTotalBytes))
-                .ToList();
-
-            var hasData = networkBuckets.Count > 0 || systemStats.Count > 0 || topApps.Count > 0;
-
             await _dispatcher.InvokeAsync(() =>
             {
+                if (token.IsCancellationRequested || _disposed) return;
+
                 RangeLabel = rangeLabel;
                 TotalDownload = ByteFormatter.FormatBytes(totalDown);
                 TotalUpload = ByteFormatter.FormatBytes(totalUp);
@@ -290,8 +304,9 @@ public sealed partial class HistoryViewModel : ObservableObject, IDisposable
                 NetworkSeries = networkSeries;
                 NetworkXAxes = networkAxes;
                 SystemSeries = systemSeries;
-                TopApps = [.. topApps];
-                HasData = hasData;
+                _loadedApps = apps;
+                HasOverviewData = networkBuckets.Count > 0 || systemStats.Count > 0;
+                RebuildTopApps();
             }).ConfigureAwait(false);
         }
         catch (OperationCanceledException)
@@ -303,15 +318,52 @@ public sealed partial class HistoryViewModel : ObservableObject, IDisposable
             _logger?.LogError(ex, "Failed to load history for the selected period");
             await _dispatcher.InvokeAsync(() =>
             {
+                if (token.IsCancellationRequested || _disposed) return;
+
                 HasError = true;
                 ErrorMessage = $"Failed to load history: {ex.Message}";
             }).ConfigureAwait(false);
         }
         finally
         {
-            await _dispatcher.InvokeAsync(() => IsLoading = false).ConfigureAwait(false);
+            await _dispatcher.InvokeAsync(() =>
+            {
+                if (!ReferenceEquals(_loadCts, loadCts)) return;
+
+                _loadCts = null;
+                if (!_disposed) IsLoading = false;
+            }).ConfigureAwait(false);
         }
     }
+
+    private void RebuildTopApps()
+    {
+        var includeLocalhost = IncludeLocalhostTraffic;
+        var topApps = _loadedApps
+            .Where(app => GetDisplayedTotal(app, includeLocalhost) > 0)
+            .OrderByDescending(app => GetDisplayedTotal(app, includeLocalhost))
+            .ThenBy(app => string.IsNullOrWhiteSpace(app.AppName) ? app.ProcessName : app.AppName,
+                StringComparer.OrdinalIgnoreCase)
+            .Take(TopAppsLimit)
+            .Select(app => new HistoryAppEntry(
+                string.IsNullOrWhiteSpace(app.AppName) ? app.ProcessName : app.AppName,
+                app.IconPath,
+                ByteFormatter.FormatBytes(GetDisplayedTotal(app, includeLocalhost)),
+                ByteFormatter.FormatBytes(includeLocalhost ? app.BytesReceived : app.NetworkBytesReceived),
+                ByteFormatter.FormatBytes(includeLocalhost ? app.BytesSent : app.NetworkBytesSent),
+                app.HasLoopbackTraffic,
+                app.FormattedLocalTotalBytes,
+                includeLocalhost))
+            .ToList();
+
+        TopApps = [.. topApps];
+        // Keep the filter available even when every app has only local traffic.
+        HasData = HasOverviewData || _loadedApps.Any(app => app.TotalBytes > 0);
+        OnPropertyChanged(nameof(TopAppsEmptyMessage));
+    }
+
+    private static long GetDisplayedTotal(AppOverview app, bool includeLocalhost) =>
+        includeLocalhost ? app.TotalBytes : app.NetworkTotalBytes;
 
     private static ISeries[] BuildNetworkSeries(IReadOnlyList<(DateTime Bucket, long Down, long Up)> buckets, bool isSingleDay)
     {
@@ -455,14 +507,13 @@ public sealed partial class HistoryViewModel : ObservableObject, IDisposable
         if (_disposed) return;
         _disposed = true;
         _loadCts?.Cancel();
-        _loadCts?.Dispose();
     }
 }
 
 /// <summary>
 /// A single top-app row in the History dashboard's "Top apps" list. Traffic
-/// figures are NETWORK (non-loopback) by default; loopback is surfaced
-/// separately via <see cref="LocalFormatted"/> when present.
+/// figures are NETWORK (non-loopback) by default. When the user enables the
+/// localhost toggle, the row is rebuilt with combined network + local totals.
 /// </summary>
 public sealed record HistoryAppEntry(
     string Name,
@@ -471,7 +522,9 @@ public sealed record HistoryAppEntry(
     string DownloadFormatted,
     string UploadFormatted,
     bool HasLocal,
-    string LocalFormatted)
+    string LocalFormatted,
+    bool IsLocalIncluded)
 {
     public bool HasIcon => !string.IsNullOrEmpty(IconPath);
+    public string LocalTrafficLabel => $"{LocalFormatted} local {(IsLocalIncluded ? "included" : "excluded")}";
 }

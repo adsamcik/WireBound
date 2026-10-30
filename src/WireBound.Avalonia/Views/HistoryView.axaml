@@ -102,8 +102,8 @@
                 </StackPanel>
             </Border>
 
-            <!-- CONTENT -->
-            <StackPanel Spacing="24" IsVisible="{Binding HasData}">
+            <!-- Summary and charts -->
+            <StackPanel Spacing="24" IsVisible="{Binding HasOverviewData}">
 
                 <!-- Summary cards -->
                 <Grid ColumnDefinitions="*, *, *, *, *" ColumnSpacing="16">
@@ -209,63 +209,79 @@
                     </Grid>
                 </Border>
 
-                <!-- Top apps -->
-                <Border Classes="Card">
-                    <StackPanel Spacing="12">
-                        <TextBlock Text="Top apps by network traffic" Classes="SectionHeader" />
-                        <ItemsControl ItemsSource="{Binding TopApps}">
-                            <ItemsControl.ItemTemplate>
-                                <DataTemplate x:DataType="vm:HistoryAppEntry">
-                                    <Border Background="{StaticResource SurfaceBrush}"
-                                            CornerRadius="10" Padding="14,10" Margin="0,0,0,8">
-                                        <Grid ColumnDefinitions="Auto, *, Auto, Auto" ColumnSpacing="16">
-                                            <Border Width="32" Height="32" CornerRadius="8"
-                                                    Background="{StaticResource BorderSubtleBrush}"
-                                                    ClipToBounds="True" VerticalAlignment="Center">
-                                                <Grid>
-                                                    <controls:WbIcon IconKey="WbEntityApp" Width="18" Height="18"
-                                                                     IsVisible="{Binding !HasIcon}" />
-                                                    <Image Source="{Binding IconPath, Converter={x:Static converters:IconPathToBitmapConverter.Instance}}"
-                                                           Width="24" Height="24"
-                                                           Stretch="Uniform"
-                                                           IsVisible="{Binding HasIcon}" />
-                                                </Grid>
-                                            </Border>
-                                            <TextBlock Grid.Column="1" Text="{Binding Name}"
-                                                       FontSize="14" FontWeight="SemiBold"
-                                                       VerticalAlignment="Center"
-                                                       TextTrimming="CharacterEllipsis"
-                                                       ToolTip.Tip="{Binding Name}" />
-                                            <StackPanel Grid.Column="2" Spacing="2" VerticalAlignment="Center" MinWidth="90">
-                                                <TextBlock Text="{Binding DownloadFormatted}"
-                                                           FontSize="12" FontWeight="SemiBold"
-                                                           Foreground="{StaticResource DownloadBrush}"
-                                                           HorizontalAlignment="Right" />
-                                                <TextBlock Text="{Binding UploadFormatted}"
-                                                           FontSize="12" FontWeight="SemiBold"
-                                                           Foreground="{StaticResource UploadBrush}"
-                                                           HorizontalAlignment="Right" />
-                                            </StackPanel>
-                                            <StackPanel Grid.Column="3" Spacing="2" VerticalAlignment="Center" MinWidth="90">
-                                                <TextBlock Text="{Binding TotalFormatted}"
-                                                           FontSize="16" FontWeight="Bold"
-                                                           HorizontalAlignment="Right" />
-                                                <TextBlock Text="{Binding LocalFormatted, StringFormat='{}{0} local'}"
-                                                           FontSize="11"
-                                                           Foreground="{StaticResource SecondaryTextBrush}"
-                                                           HorizontalAlignment="Right"
-                                                           IsVisible="{Binding HasLocal}"
-                                                           ToolTip.Tip="Loopback / localhost traffic, excluded from the network total" />
-                                            </StackPanel>
-                                        </Grid>
-                                    </Border>
-                                </DataTemplate>
-                            </ItemsControl.ItemTemplate>
-                        </ItemsControl>
-                    </StackPanel>
-                </Border>
             </StackPanel>
 
+            <!-- Top apps -->
+            <Border Classes="Card" IsVisible="{Binding HasData}">
+                <StackPanel Spacing="12">
+                    <Grid ColumnDefinitions="*,Auto" ColumnSpacing="16">
+                        <TextBlock Text="{Binding TopAppsHeading}"
+                                   Classes="SectionHeader"
+                                   VerticalAlignment="Center"
+                                   TextWrapping="Wrap" />
+                        <CheckBox Grid.Column="1"
+                                  IsChecked="{Binding IncludeLocalhostTraffic}"
+                                  VerticalAlignment="Center"
+                                  AutomationProperties.Name="Include localhost traffic"
+                                  AutomationProperties.HelpText="Include traffic between apps and services on this machine in the app ranking and app totals">
+                            <TextBlock Text="Include localhost" FontSize="13" VerticalAlignment="Center" />
+                        </CheckBox>
+                    </Grid>
+                    <TextBlock Text="{Binding TopAppsEmptyMessage}"
+                               Classes="Caption"
+                               TextWrapping="Wrap"
+                               IsVisible="{Binding !HasTopApps}" />
+                    <ItemsControl ItemsSource="{Binding TopApps}">
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate x:DataType="vm:HistoryAppEntry">
+                                <Border Background="{StaticResource SurfaceBrush}"
+                                        CornerRadius="10" Padding="14,10" Margin="0,0,0,8">
+                                    <Grid ColumnDefinitions="Auto, *, Auto, Auto" ColumnSpacing="16">
+                                        <Border Width="32" Height="32" CornerRadius="8"
+                                                Background="{StaticResource BorderSubtleBrush}"
+                                                ClipToBounds="True" VerticalAlignment="Center">
+                                            <Grid>
+                                                <controls:WbIcon IconKey="WbEntityApp" Width="18" Height="18"
+                                                                 IsVisible="{Binding !HasIcon}" />
+                                                <Image Source="{Binding IconPath, Converter={x:Static converters:IconPathToBitmapConverter.Instance}}"
+                                                       Width="24" Height="24"
+                                                       Stretch="Uniform"
+                                                       IsVisible="{Binding HasIcon}" />
+                                            </Grid>
+                                        </Border>
+                                        <TextBlock Grid.Column="1" Text="{Binding Name}"
+                                                   FontSize="14" FontWeight="SemiBold"
+                                                   VerticalAlignment="Center"
+                                                   TextTrimming="CharacterEllipsis"
+                                                   ToolTip.Tip="{Binding Name}" />
+                                        <StackPanel Grid.Column="2" Spacing="2" VerticalAlignment="Center" MinWidth="90">
+                                            <TextBlock Text="{Binding DownloadFormatted}"
+                                                       FontSize="12" FontWeight="SemiBold"
+                                                       Foreground="{StaticResource DownloadBrush}"
+                                                       HorizontalAlignment="Right" />
+                                            <TextBlock Text="{Binding UploadFormatted}"
+                                                       FontSize="12" FontWeight="SemiBold"
+                                                       Foreground="{StaticResource UploadBrush}"
+                                                       HorizontalAlignment="Right" />
+                                        </StackPanel>
+                                        <StackPanel Grid.Column="3" Spacing="2" VerticalAlignment="Center" MinWidth="90">
+                                            <TextBlock Text="{Binding TotalFormatted}"
+                                                       FontSize="16" FontWeight="Bold"
+                                                       HorizontalAlignment="Right" />
+                                            <TextBlock Text="{Binding LocalTrafficLabel}"
+                                                       FontSize="11"
+                                                       Foreground="{StaticResource SecondaryTextBrush}"
+                                                       HorizontalAlignment="Right"
+                                                       IsVisible="{Binding HasLocal}"
+                                                       ToolTip.Tip="Loopback / localhost traffic between apps and services on this machine" />
+                                        </StackPanel>
+                                    </Grid>
+                                </Border>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                </StackPanel>
+            </Border>
             <!-- Empty state -->
             <Border Classes="Card" Padding="60"
                     IsVisible="{Binding ShowEmptyState}"

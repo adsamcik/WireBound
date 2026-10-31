@@ -40,11 +40,18 @@ public sealed partial class MemoryViewModel : ObservableObject, IDisposable
     [ObservableProperty] private string _hardwareReserved = "—";
     [ObservableProperty] private string _installed = "—";
     [ObservableProperty] private string _sampleStatus = "Waiting for sample";
-    [ObservableProperty] private string _accountingStatus = "Other measurements may overlap; they are not added to physical RAM.";
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(HasAccountingStatus))]
+    [NotifyPropertyChangedFor(nameof(HasFooterContent))]
+    private string _accountingStatus = "";
     [ObservableProperty] private bool _isLoading;
     [ObservableProperty] private string _searchText = "";
-    [ObservableProperty] private string _actionStatus = "";
-    [ObservableProperty] private MemoryConsumerRow? _selectedConsumer;
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(HasFooterContent))]
+    private string _actionStatus = "";
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(HasFooterContent))]
+    private MemoryConsumerRow? _selectedConsumer;
     [ObservableProperty] private IReadOnlyList<MemorySegment> _memorySegments = [];
     public BatchObservableCollection<MemoryConsumerRow> Consumers { get; } = new();
     public event Action? ConsumersChanging;
@@ -54,6 +61,8 @@ public sealed partial class MemoryViewModel : ObservableObject, IDisposable
     public bool HasNoResults => Consumers.Count == 0 && !IsLoading;
     public bool HasMemorySegments => MemorySegments.Count > 0;
     public bool HasActionStatus => ActionStatus.Length > 0;
+    public bool HasAccountingStatus => AccountingStatus.Length > 0;
+    public bool HasFooterContent => HasAccountingStatus || HasSelection || HasActionStatus;
 
     public MemoryViewModel(IMemoryInfoProvider memoryProvider, IProcessUsageService processUsage,
         IWorkloadHostProvider hosts, IUiDispatcher dispatcher, INavigationService navigation,
@@ -128,7 +137,7 @@ public sealed partial class MemoryViewModel : ObservableObject, IDisposable
                 _roots = roots;
                 MemorySegments = BuildMemorySegments(memory, valid);
                 AccountingStatus = roots.Last().PhysicalBytes.HasValue
-                    ? "Shared working sets, VM and container observations may overlap. The bar shows physical totals."
+                    ? ""
                     : "Physical attribution unavailable. Refresh to retry. Other measurements may overlap.";
                 RestoreExpansion(_roots);
                 RebuildVisible();

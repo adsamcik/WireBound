@@ -140,11 +140,12 @@
                     <TextBlock Text="No matching consumers" IsVisible="{Binding HasNoResults}" Classes="Caption"
                                HorizontalAlignment="Center" VerticalAlignment="Center" />
                 </Grid>
-                <Border Grid.Row="3" BorderThickness="0,1,0,0" BorderBrush="{StaticResource BorderSubtleBrush}" Padding="14,9">
-                    <Grid RowDefinitions="Auto,Auto,Auto" RowSpacing="7">
-                        <TextBlock Text="{Binding AccountingStatus}"
+                <Border Grid.Row="3" BorderThickness="0,1,0,0" BorderBrush="{StaticResource BorderSubtleBrush}" Padding="14,9"
+                        IsVisible="{Binding HasFooterContent}">
+                    <StackPanel Spacing="7">
+                        <TextBlock Text="{Binding AccountingStatus}" IsVisible="{Binding HasAccountingStatus}"
                                    Classes="Caption" TextWrapping="Wrap" />
-                        <Grid Grid.Row="1" ColumnDefinitions="*,Auto" ColumnSpacing="16" IsVisible="{Binding HasSelection}">
+                        <Grid ColumnDefinitions="*,Auto" ColumnSpacing="16" IsVisible="{Binding HasSelection}">
                             <ScrollViewer MaxHeight="84" HorizontalScrollBarVisibility="Disabled" VerticalScrollBarVisibility="Auto"
                                           Focusable="True" AutomationProperties.Name="Selected memory consumer details">
                                 <TextBlock Text="{Binding SelectedConsumer.MeasurementDetails}" Classes="Caption" TextWrapping="Wrap" />
@@ -152,9 +153,9 @@
                             <Button Grid.Column="1" Classes="Secondary" Content="Related processes" IsVisible="{Binding SelectedConsumer.CanLink}"
                                     Command="{Binding ViewRelatedProcessesCommand}" AutomationProperties.Name="View related processes" VerticalAlignment="Center" />
                         </Grid>
-                        <TextBlock Grid.Row="2" Text="{Binding ActionStatus}" IsVisible="{Binding HasActionStatus}"
+                        <TextBlock Text="{Binding ActionStatus}" IsVisible="{Binding HasActionStatus}"
                                    Classes="Caption" AutomationProperties.LiveSetting="Polite" />
-                    </Grid>
+                    </StackPanel>
                 </Border>
             </Grid>
         </Border>

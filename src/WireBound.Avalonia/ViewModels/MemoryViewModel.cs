@@ -200,7 +200,7 @@ public sealed partial class MemoryViewModel : ObservableObject, IDisposable
         row.IsLoading = true;
         try
         {
-            var children = await _workloads.GetContainerProcessesAsync(row.ContainerId, capture.Token).ConfigureAwait(false);
+            var children = await _workloads.GetContainerProcessesAsync(row.ContainerId, capture.Token, row.ContainerContext).ConfigureAwait(false);
             await _dispatcher.InvokeAsync(() =>
             {
                 if (capture.IsCancellationRequested || _disposed || !Walk(_roots).Contains(row)) return;

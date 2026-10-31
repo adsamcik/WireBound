@@ -115,7 +115,7 @@ public static class MemoryConsumerBuilder
             IsExpanded = true,
             PhysicalBytes = hostProcesses.Any(p => Physical(p.Process).HasValue) ? hostProcesses.Sum(p => Physical(p.Process) ?? 0) : null,
             IsPartial = hostProcesses.Any(p => !Physical(p.Process).HasValue),
-            Detail = "Private RAM includes only measured host-process private pages. Assigned VM memory, Docker usage, and process RSS are observations in the other column; they can overlap each other and host RAM. Guests are never started or entered to collect data."
+            Detail = "Private RAM includes only measured host-process private pages. Assigned VM memory, container usage, and process RSS are observations; they can overlap each other and host RAM. Container queries use the active local engine."
         };
         foreach (var (process, host) in hostProcesses)
         {
@@ -220,6 +220,7 @@ public static class MemoryConsumerBuilder
             Metric = workload.Metric,
             Detail = workload.Detail,
             ContainerId = workload.ContainerId,
+            ContainerContext = workload.ContainerContext,
             Summary = workload.Children is { Count: > 0 } ? $"{workload.Children.Count} items" : workload.Summary
         };
         if (workload.Children is not null) row.Children.AddRange(workload.Children.Select(FromWorkload));

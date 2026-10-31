@@ -2,6 +2,7 @@ using Avalonia;
 using CommunityToolkit.Mvvm.ComponentModel;
 using WireBound.Core.Helpers;
 using WireBound.Avalonia.Services;
+using WireBound.Platform.Abstract.Models;
 
 namespace WireBound.Avalonia.ViewModels;
 
@@ -31,12 +32,18 @@ public sealed partial class MemoryConsumerRow : ObservableObject
         _ when Id.StartsWith("system:", StringComparison.Ordinal) => Metric,
         _ when Id.StartsWith("host:", StringComparison.Ordinal) => "Host private RAM",
         _ => "Private RAM"
-    } : ContainerId is not null ? "Docker usage" : string.IsNullOrEmpty(Metric) ? "Unavailable" : Metric;
+    } : ContainerId is not null ? ContainerContext?.Runtime switch
+    {
+        ContainerRuntime.RancherMoby => "Rancher · Moby",
+        ContainerRuntime.RancherContainerd => "Rancher · containerd",
+        _ => "Docker usage"
+    } : string.IsNullOrEmpty(Metric) ? "Unavailable" : Metric;
     public string MeasurementDetails => PhysicalBytes.HasValue && ObservedBytes.HasValue
         ? $"Private RAM: {PhysicalDisplay}. {Metric}: {ObservedDisplay} (may overlap).\n{Detail}"
         : Detail;
     public int Depth { get; set; }
     public string? ContainerId { get; init; }
+    public ContainerRuntimeContext? ContainerContext { get; init; }
     public bool HasConfirmedProcessLinks { get; init; }
     public IReadOnlySet<ProcessInstanceId> Processes { get; init; } = new HashSet<ProcessInstanceId>();
     public List<MemoryConsumerRow> Children { get; } = [];

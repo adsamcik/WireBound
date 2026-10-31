@@ -59,8 +59,9 @@ public sealed class WindowsWorkloadHostProvider : IWorkloadHostProvider
             detectUtf16: true);
         if (wsl is not null)
             foreach (var name in wsl.Split(['\r', '\n'], StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
-                rows.Add(new("wsl:" + name, name, null, "WSL distribution",
-                    "Running WSL distribution. Distributions share the WSL utility VM; per-distribution physical memory and guest processes are unavailable without a guest collector."));
+                rows.Add(new("wsl:" + name, name.Equals("rancher-desktop", StringComparison.OrdinalIgnoreCase) ? "Rancher Desktop VM" : name,
+                    null, "WSL distribution",
+                    "Running WSL distribution. Distributions share the WSL utility VM; per-distribution physical memory is not independently measured.", Summary: name));
         else
             rows.Add(new("wsl-status", "WSL distributions", null, "Unavailable",
                 "Running distribution names could not be read. Check that WSL is installed and available to this account, then refresh."));

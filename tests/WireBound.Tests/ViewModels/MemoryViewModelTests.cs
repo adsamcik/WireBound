@@ -636,6 +636,31 @@ public class MemoryViewModelTests
     }
 
     [Test]
+    public async Task RancherContainers_KeepTheirNamespaceThroughDrilldownWithoutAddingPhysicalRam()
+    {
+        var context = new ContainerRuntimeContext(ContainerRuntime.RancherContainerd, "/run/k3s/containerd/containerd.sock", "k8s.io");
+        var (vm, workloads, _, _) = Create(workloads:
+        [
+            new("rancher:containerd:default:abcdef012345", "database", 1000, "Container usage", "Rancher Desktop", ContainerId: "abcdef012345", Summary: "default", ContainerContext: context with { Namespace = "default" }),
+            new("rancher:containerd:k8s.io:abcdef012345", "database", 2000, "Container usage", "Rancher Desktop", ContainerId: "abcdef012345", Summary: "k8s.io", ContainerContext: context)
+        ]);
+        workloads.GetContainerProcessesAsync("abcdef012345", Arg.Any<CancellationToken>(), context)
+            .Returns(Task.FromResult<IReadOnlyList<MemoryWorkload>>([new("rancher:containerd:k8s.io:process:10", "postgres", 500, "Process RSS", "")]));
+        using (vm)
+        {
+            await vm.RefreshCommand.ExecuteAsync(null);
+            vm.Consumers.Where(r => r.ContainerId != null).Should().HaveCount(2).And.OnlyContain(r => r.UsageMetric == "Rancher · containerd");
+            vm.Consumers.Sum(r => r.PhysicalBytes ?? 0).Should().Be(Memory.UsedBytes);
+            var row = vm.Consumers.Single(r => r.ContainerContext == context);
+            await vm.ToggleConsumerCommand.ExecuteAsync(row);
+            await workloads.Received(1).GetContainerProcessesAsync("abcdef012345", Arg.Any<CancellationToken>(), context);
+            vm.Consumers.Single(r => r.Name == "postgres").CanLink.Should().BeFalse();
+            vm.SearchText = "Rancher";
+            vm.Consumers.Should().Contain(r => r.Id == row.Id);
+        }
+    }
+
+    [Test]
     public async Task ContainerProcesses_LoadOnlyOnExpansion_AndRefreshWithNewSnapshot()
     {
         var (vm, workloads, _, _) = Create(workloads:

@@ -8,7 +8,8 @@ namespace WireBound.Platform.Abstract.Helpers;
 public static class LocalCommandRunner
 {
     public static async Task<string?> RunAsync(string executable, IEnumerable<string> arguments,
-        CancellationToken cancellationToken, int timeoutSeconds = 5, bool detectUtf16 = false)
+        CancellationToken cancellationToken, int timeoutSeconds = 5, bool detectUtf16 = false,
+        IReadOnlyDictionary<string, string?>? environment = null)
     {
         using var deadline = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
         deadline.CancelAfter(TimeSpan.FromSeconds(timeoutSeconds));
@@ -24,6 +25,10 @@ public static class LocalCommandRunner
             }
         };
         process.StartInfo.Environment["LC_ALL"] = "C";
+        if (environment is not null)
+            foreach (var (name, value) in environment)
+                if (value is null) process.StartInfo.Environment.Remove(name);
+                else process.StartInfo.Environment[name] = value;
         foreach (var argument in arguments) process.StartInfo.ArgumentList.Add(argument);
         try
         {

@@ -54,6 +54,63 @@ public class MemoryViewModelTests
     }
 
     [Test]
+    public async Task ServiceHosts_StaySeparateAndSearchAllHostedServices()
+    {
+        var clipboard = Substitute.For<IClipboardService>();
+        var (vm, _, navigation, context) = Create(processes:
+        [
+            new() { ProcessId = 11, StartMarker = 111, ProcessName = "svchost", ExecutablePath = "C:/Windows/System32/svchost.exe",
+                PrivateWorkingSetBytes = 1000, WorkingSetBytes = 1500, ServiceHost = new([new("Dnscache", "DNS Client")]) },
+            new() { ProcessId = 12, StartMarker = 112, ProcessName = "svchost", ExecutablePath = "C:/Windows/System32/svchost.exe",
+                PrivateWorkingSetBytes = 2000, WorkingSetBytes = 2500, ServiceHost = new([new("wuauserv", "Windows Update"), new("BITS", "Background Intelligent Transfer Service")]) },
+            Process(21, "browser.exe", 500), Process(22, "browser.exe", 500)
+        ], clipboard: clipboard);
+        using (vm)
+        {
+            await vm.RefreshCommand.ExecuteAsync(null);
+            var hosts = vm.Consumers.Where(r => r.Id.StartsWith("app:service-host:")).ToArray();
+            hosts.Should().HaveCount(2);
+            hosts.Select(r => r.PhysicalBytes).Should().Equal(2000, 1000);
+            hosts.Should().OnlyContain(r => r.IconKey == "WbNavSystem" && r.Children.Count == 0);
+            vm.Consumers.Single(r => r.Name == "browser").Children.Should().HaveCount(2);
+            vm.Consumers.Sum(r => r.PhysicalBytes ?? 0).Should().Be(Memory.UsedBytes);
+            vm.SearchText = "BITS";
+            vm.Consumers.Should().ContainSingle();
+            var host = vm.Consumers.Single();
+            host.Summary.Should().Be("PID 12");
+            host.Detail.Should().Contain("Windows Update (wuauserv)").And.Contain("Background Intelligent Transfer Service (BITS)")
+                .And.Contain("whole host");
+            await vm.CopyConsumerDetailsCommand.ExecuteAsync(host);
+            await clipboard.Received().SetTextAsync(Arg.Is<string>(text => text.Contains("(BITS)") && text.Contains("PIDs: 12")));
+            vm.SelectedConsumer = host;
+            vm.ViewRelatedProcessesCommand.Execute(null);
+            context.Current!.ConfirmedInstances.Should().ContainSingle().Which.Should().Be(new ProcessInstanceId(12, 112));
+            navigation.Received().NavigateTo(Routes.Apps);
+        }
+    }
+
+    [Test]
+    public async Task ServiceHosts_WithUnavailableNamesRemainSeparateAndFindable()
+    {
+        var (vm, _, _, _) = Create(processes:
+        [
+            new() { ProcessId = 11, StartMarker = 111, ProcessName = "svchost", PrivateWorkingSetBytes = 1000, WorkingSetBytes = 1500, ServiceHost = new([]) },
+            new() { ProcessId = 12, StartMarker = 112, ProcessName = "svchost", PrivateWorkingSetBytes = 2000, WorkingSetBytes = 2500, ServiceHost = new([]) },
+            new() { ProcessId = 13, StartMarker = 113, ProcessName = "svchost", PrivateWorkingSetBytes = 500, WorkingSetBytes = 1000 }
+        ]);
+        using (vm)
+        {
+            await vm.RefreshCommand.ExecuteAsync(null);
+            vm.SearchText = "svchost";
+            vm.Consumers.Should().HaveCount(3);
+            vm.Consumers.Where(r => r.Name == "Service host").Should().HaveCount(2).And.OnlyContain(r => r.Detail.Contains("Service names unavailable"));
+            vm.Consumers.Single(r => r.Name == "svchost").Summary.Should().Be("PID 13");
+            vm.SearchText = "PID 12";
+            vm.Consumers.Should().ContainSingle().Which.Processes.Should().ContainSingle().Which.Pid.Should().Be(12);
+        }
+    }
+
+    [Test]
     public async Task CopyDetails_PreservesBothMeasurementsAndProcessIdentity()
     {
         var clipboard = Substitute.For<IClipboardService>();

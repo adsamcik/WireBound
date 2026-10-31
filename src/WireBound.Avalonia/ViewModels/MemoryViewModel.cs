@@ -228,7 +228,8 @@ public sealed partial class MemoryViewModel : ObservableObject, IDisposable
         var search = SearchText.Trim();
         bool DirectMatch(MemoryConsumerRow row) => row.Name.Contains(search, StringComparison.OrdinalIgnoreCase)
             || row.Summary.Contains(search, StringComparison.OrdinalIgnoreCase)
-            || row.UsageMetric.Contains(search, StringComparison.OrdinalIgnoreCase);
+            || row.UsageMetric.Contains(search, StringComparison.OrdinalIgnoreCase)
+            || row.SearchTerms.Contains(search, StringComparison.OrdinalIgnoreCase);
         bool Matches(MemoryConsumerRow row) => DirectMatch(row)
             || (row.Id != "other" || row.IsExpanded) && row.Children.Any(Matches);
         var visible = new List<MemoryConsumerRow>();
@@ -322,7 +323,7 @@ public sealed partial class MemoryViewModel : ObservableObject, IDisposable
         var shared = _roots.Single(r => r.Id == "other");
         if (shared.PhysicalBytes.HasValue)
         {
-            // App rows already combine every process from the same executable.
+            // App rows combine related processes; service hosts retain their own process identity.
             // Use only their exclusive pages, never working sets or guest/container observations.
             var largest = apps.Children.Concat(hosts.Children)
                 .Where(r => r.PhysicalBytes is > 0 && r.PhysicalBytes.Value * 100d / capacity >= 2)

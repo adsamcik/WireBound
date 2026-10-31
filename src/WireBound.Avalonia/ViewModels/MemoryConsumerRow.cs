@@ -14,6 +14,7 @@ public sealed partial class MemoryConsumerRow : ObservableObject
     public string IconKey { get; init; } = "WbEntityApp";
     [ObservableProperty] private string? _iconPath;
     public string Summary { get; init; } = "";
+    public string SearchTerms { get; init; } = "";
     public string Detail { get; init; } = "";
     public long? PhysicalBytes { get; init; }
     public bool IsPartial { get; init; }

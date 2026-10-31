@@ -8,6 +8,7 @@ using WireBound.Core.Models;
 using WireBound.Core.Services;
 using WireBound.Avalonia.Services;
 using WireBound.Platform.Abstract.Services;
+using WireBound.Platform.Abstract.Models;
 
 namespace WireBound.Avalonia.ViewModels;
 
@@ -629,6 +630,17 @@ public sealed partial class ProcessUsageDisplayItem : ObservableObject
     [NotifyPropertyChangedFor(nameof(DisplayName))]
     [NotifyPropertyChangedFor(nameof(IsSystemProcess))]
     [NotifyPropertyChangedFor(nameof(ProcessTypeLabel))]
+    [NotifyPropertyChangedFor(nameof(HasServiceDetails))]
+    [NotifyPropertyChangedFor(nameof(ServiceDetails))]
+    private ServiceHostInfo? _serviceHost;
+
+    public bool HasServiceDetails => ServiceHost is not null;
+    public string ServiceDetails => ServiceHost is { } host ? ServiceHostPresentation.Details(host) : "";
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(DisplayName))]
+    [NotifyPropertyChangedFor(nameof(IsSystemProcess))]
+    [NotifyPropertyChangedFor(nameof(ProcessTypeLabel))]
     private string _processName = string.Empty;
 
     [ObservableProperty]
@@ -702,6 +714,7 @@ public sealed partial class ProcessUsageDisplayItem : ObservableObject
     {
         get
         {
+            if (ServiceHost is { } host) return ServiceHostPresentation.Name(host);
             if (!string.IsNullOrWhiteSpace(ExecutablePath))
             {
                 var fileName = Path.GetFileNameWithoutExtension(ExecutablePath);
@@ -727,10 +740,10 @@ public sealed partial class ProcessUsageDisplayItem : ObservableObject
     public string SessionTotalDisplay => HasNetworkStats
         ? ByteFormatter.FormatBytes(Math.Max(0, SessionBytesReceived) + Math.Max(0, SessionBytesSent))
         : "—";
-    public bool IsSystemProcess => string.IsNullOrWhiteSpace(ExecutablePath)
+    public bool IsSystemProcess => ServiceHost is not null || string.IsNullOrWhiteSpace(ExecutablePath)
                                    || string.Equals(ProcessName, "System", StringComparison.OrdinalIgnoreCase)
                                    || string.Equals(ProcessName, "Idle", StringComparison.OrdinalIgnoreCase);
-    public string ProcessTypeLabel => IsSystemProcess ? "System process" : "User process";
+    public string ProcessTypeLabel => ServiceHost is not null ? "Service host" : IsSystemProcess ? "System process" : "User process";
     public string ExecutablePathDisplay => string.IsNullOrWhiteSpace(ExecutablePath)
         ? "Executable path unavailable"
         : ExecutablePath;
@@ -742,6 +755,7 @@ public sealed partial class ProcessUsageDisplayItem : ObservableObject
     {
         ProcessName = snapshot.ProcessName;
         ExecutablePath = snapshot.ExecutablePath;
+        ServiceHost = snapshot.ServiceHost;
         CpuPercent = snapshot.CpuPercent;
         HasCpuSample = snapshot.HasCpuSample;
         PrivateBytes = snapshot.PrivateBytes;
@@ -758,6 +772,7 @@ public sealed partial class ProcessUsageDisplayItem : ObservableObject
         return DisplayName.Contains(term, StringComparison.OrdinalIgnoreCase)
                || ProcessName.Contains(term, StringComparison.OrdinalIgnoreCase)
                || ExecutablePath.Contains(term, StringComparison.OrdinalIgnoreCase)
+               || ServiceHost is { } host && ServiceHostPresentation.SearchTerms(host).Contains(term, StringComparison.OrdinalIgnoreCase)
                || ProcessId.ToString().Contains(term, StringComparison.Ordinal);
     }
 }

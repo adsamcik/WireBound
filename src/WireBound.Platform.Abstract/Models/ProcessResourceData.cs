@@ -25,6 +25,9 @@ public sealed class ProcessResourceData
     /// </summary>
     public string ExecutablePath { get; init; } = string.Empty;
 
+    /// <summary>Native service-host identification; empty services mean names were unavailable.</summary>
+    public ServiceHostInfo? ServiceHost { get; init; }
+
     /// <summary>
     /// Private (committed) memory in bytes — stable metric, not affected by OS paging
     /// </summary>

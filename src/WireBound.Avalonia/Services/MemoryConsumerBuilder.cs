@@ -1,4 +1,5 @@
 using WireBound.Avalonia.ViewModels;
+using WireBound.Avalonia.Helpers;
 using WireBound.Core.Models;
 using WireBound.Platform.Abstract.Models;
 using WireBound.Platform.Abstract.Services;
@@ -49,10 +50,11 @@ public static class MemoryConsumerBuilder
             PhysicalBytes = appProcesses.Any(p => Physical(p).HasValue) ? appProcesses.Sum(p => Physical(p) ?? 0) : null,
             IsPartial = appProcesses.Any(p => !Physical(p).HasValue),
             Summary = $"{appProcesses.Count} processes",
-            Detail = "Private RAM counts measured resident pages exclusive to each process. Shared mappings and unclassified allocations remain in Shared and other. App groups use the exact executable path, or the process name when the path is unavailable."
+            Detail = "Private RAM counts measured resident pages exclusive to each process. Shared mappings and unclassified allocations remain in Shared and other. Apps share a row by executable path or process name; Windows service hosts remain separate by process."
         };
-        foreach (var group in appProcesses.GroupBy(p => string.IsNullOrEmpty(p.ExecutablePath)
-                     ? "name:" + p.ProcessName : "path:" + p.ExecutablePath,
+        foreach (var group in appProcesses.GroupBy(p => p.ServiceHost is not null
+                     || string.IsNullOrEmpty(p.ExecutablePath) && ServiceHostPresentation.HasHostName(p.ProcessName) ? $"service-host:{p.ProcessId}:{p.StartMarker}"
+                     : string.IsNullOrEmpty(p.ExecutablePath) ? "name:" + p.ProcessName : "path:" + p.ExecutablePath,
                      OperatingSystem.IsWindows() ? StringComparer.OrdinalIgnoreCase : StringComparer.Ordinal))
         {
             var members = group.OrderByDescending(p => p.WorkingSetBytes).ToArray();
@@ -63,7 +65,9 @@ public static class MemoryConsumerBuilder
             var row = new MemoryConsumerRow
             {
                 Id = "app:" + group.Key,
-                Name = members[0].ProcessName,
+                Name = members[0].ServiceHost is { } host ? ServiceHostPresentation.Name(host) : members[0].ProcessName,
+                IconKey = members[0].ServiceHost is not null ? "WbNavSystem" : "WbEntityApp",
+                SearchTerms = members[0].ServiceHost is { } services ? ServiceHostPresentation.SearchTerms(services) : "",
                 ExecutablePath = members[0].ExecutablePath,
                 Summary = members.Length == 1 ? $"PID {members[0].ProcessId}" : $"{members.Length} processes",
                 PhysicalBytes = bytes,
@@ -72,7 +76,10 @@ public static class MemoryConsumerBuilder
                 Metric = "Working set",
                 Processes = instances,
                 HasConfirmedProcessLinks = true,
-                Detail = $"{members[0].ExecutablePath}\n{physicalValues.Count(v => v.HasValue)} of {members.Length} processes have measured private RAM. Working sets include shared pages and can overlap other rows."
+                Detail = members[0].ServiceHost is { } serviceHost
+                    ? ServiceHostPresentation.Details(serviceHost)
+                        + (string.IsNullOrEmpty(members[0].ExecutablePath) ? "" : "\n" + members[0].ExecutablePath)
+                    : $"{members[0].ExecutablePath}\n{physicalValues.Count(v => v.HasValue)} of {members.Length} processes have measured private RAM. Working sets include shared pages and can overlap other rows."
             };
             foreach (var member in members.Length > 1 ? members : [])
             {
@@ -184,6 +191,7 @@ public static class MemoryConsumerBuilder
                 Id = "other:observation:" + consumer.Id,
                 Name = consumer.Name,
                 Summary = consumer.Summary,
+                SearchTerms = consumer.SearchTerms,
                 ExecutablePath = consumer.ExecutablePath,
                 IconKey = consumer.IconKey,
                 ObservedBytes = bytes,

@@ -10,6 +10,18 @@ namespace WireBound.Tests.Services;
 public class ProcessUsageServiceTests
 {
     [Test]
+    public async Task CaptureAsync_PreservesNativeServiceHostIdentity()
+    {
+        var (service, provider, _) = CreateService();
+        var host = new ServiceHostInfo([new("Dnscache", "DNS Client")]);
+        provider.GetProcessResourceDataAsync(Arg.Any<CancellationToken>()).Returns(
+            Task.FromResult<IReadOnlyList<ProcessResourceData>>([new() { ProcessId = 42, StartMarker = 123, ServiceHost = host }]));
+        var snapshot = (await service.CaptureAsync()).Single();
+        snapshot.ServiceHost.Should().BeSameAs(host);
+        snapshot.StartMarker.Should().Be(123);
+    }
+
+    [Test]
     public async Task CaptureAsync_ReadsPrivateResidentMemoryOnlyWhenRequested()
     {
         var (service, provider, _) = CreateService();

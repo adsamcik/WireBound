@@ -592,6 +592,11 @@
                                     </Border>
                                 </StackPanel>
 
+                                <TextBlock Text="{Binding SelectedProcess.ServiceDetails}"
+                                           IsVisible="{Binding SelectedProcess.HasServiceDetails}"
+                                           Classes="Caption" TextWrapping="Wrap"
+                                           AutomationProperties.Name="Hosted Windows services" />
+
                                 <StackPanel Spacing="8">
                                     <TextBlock Text="LIVE RESOURCES" Classes="MetricLabel" FontSize="10" />
                                     <Grid ColumnDefinitions="*,*"

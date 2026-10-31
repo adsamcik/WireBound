@@ -1,6 +1,7 @@
 using System.Diagnostics;
 using System.Runtime.Versioning;
 using System.Runtime.InteropServices;
+using System.Text;
 using Microsoft.Win32.SafeHandles;
 using WireBound.Platform.Abstract.Models;
 using WireBound.Platform.Abstract.Services;
@@ -30,6 +31,41 @@ public sealed class WindowsProcessResourceProvider : IProcessResourceProvider
     [DllImport("kernel32.dll", SetLastError = true)]
     private static extern SafeProcessHandle OpenProcess(uint desiredAccess, [MarshalAs(UnmanagedType.Bool)] bool inheritHandle, int processId);
 
+    [DllImport("kernel32.dll", CharSet = CharSet.Unicode, SetLastError = true)]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    private static extern bool QueryFullProcessImageNameW(SafeProcessHandle handle, uint flags, StringBuilder name, ref int size);
+
+    [DllImport("kernel32.dll", SetLastError = true)]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    private static extern bool GetProcessTimes(SafeProcessHandle handle, out long created, out long exited, out long kernel, out long user);
+
+    internal static bool IsCurrentInstance(ProcessResourceData sample)
+    {
+        using var handle = OpenProcess(0x1000, false, sample.ProcessId);
+        return MatchesStart(handle, sample.StartMarker);
+    }
+
+    private static bool MatchesStart(SafeProcessHandle handle, long marker)
+    {
+        if (marker == 0 || handle.IsInvalid || !GetProcessTimes(handle, out var created, out _, out _, out _)) return false;
+        try { return DateTime.FromFileTimeUtc(created).Ticks == marker; }
+        catch (ArgumentOutOfRangeException) { return false; }
+    }
+
+    internal static string ReadExecutablePath(int processId, long startMarker)
+    {
+        using var handle = OpenProcess(0x1000, false, processId);
+        if (!MatchesStart(handle, startMarker)) return "";
+        // Limited-information queries work for service hosts without reading their modules.
+        var name = new StringBuilder(1024);
+        var size = name.Capacity;
+        if (QueryFullProcessImageNameW(handle, 0, name, ref size)) return name.ToString();
+        if (Marshal.GetLastWin32Error() != 122) return ""; // ERROR_INSUFFICIENT_BUFFER
+        name.EnsureCapacity(32768);
+        size = name.Capacity;
+        return QueryFullProcessImageNameW(handle, 0, name, ref size) ? name.ToString() : "";
+    }
+
     private static long? ReadPrivateWorkingSet(Process process)
     {
         // Older Windows versions may accept the larger buffer without filling EX2 fields.
@@ -48,6 +84,12 @@ public sealed class WindowsProcessResourceProvider : IProcessResourceProvider
     public Task<IReadOnlyList<ProcessResourceData>> GetProcessResourceDataAsync(
         CancellationToken cancellationToken = default, bool includePrivateWorkingSet = false)
     {
+        var samples = CaptureResources(cancellationToken, includePrivateWorkingSet);
+        return Task.FromResult(WindowsServiceHostSnapshot.Enrich(samples, cancellationToken));
+    }
+
+    private static IReadOnlyList<ProcessResourceData> CaptureResources(CancellationToken cancellationToken, bool includePrivateWorkingSet)
+    {
         var results = new List<ProcessResourceData>();
 
         var snapshot = WindowsProcessMemorySnapshot.Capture(includePrivateWorkingSet, cancellationToken);
@@ -56,17 +98,7 @@ public sealed class WindowsProcessResourceProvider : IProcessResourceProvider
             foreach (var sample in snapshot)
             {
                 cancellationToken.ThrowIfCancellationRequested();
-                var path = "";
-                try
-                {
-                    using var process = Process.GetProcessById(sample.ProcessId);
-                    // Do not attach a newly reused PID's executable to an older sample.
-                    if (sample.StartMarker != 0 && process.StartTime.ToUniversalTime().Ticks == sample.StartMarker)
-                        path = process.MainModule?.FileName ?? "";
-                }
-                catch (System.ComponentModel.Win32Exception) { }
-                catch (InvalidOperationException) { }
-                catch (ArgumentException) { }
+                var path = ReadExecutablePath(sample.ProcessId, sample.StartMarker);
                 results.Add(new ProcessResourceData
                 {
                     ProcessId = sample.ProcessId,
@@ -79,7 +111,7 @@ public sealed class WindowsProcessResourceProvider : IProcessResourceProvider
                     CpuTimeTicks = sample.CpuTimeTicks
                 });
             }
-            return Task.FromResult<IReadOnlyList<ProcessResourceData>>(results);
+            return results;
         }
 
         Process[] processes;
@@ -89,7 +121,7 @@ public sealed class WindowsProcessResourceProvider : IProcessResourceProvider
         }
         catch
         {
-            return Task.FromResult<IReadOnlyList<ProcessResourceData>>(results);
+            return results;
         }
 
         foreach (var process in processes)
@@ -110,7 +142,7 @@ public sealed class WindowsProcessResourceProvider : IProcessResourceProvider
                 }
                 try
                 {
-                    exePath = process.MainModule?.FileName ?? string.Empty;
+                    exePath = ReadExecutablePath(process.Id, startMarker);
                 }
                 catch
                 {
@@ -148,6 +180,6 @@ public sealed class WindowsProcessResourceProvider : IProcessResourceProvider
             }
         }
 
-        return Task.FromResult<IReadOnlyList<ProcessResourceData>>(results);
+        return results;
     }
 }

@@ -1,3 +1,5 @@
+using WireBound.Platform.Abstract.Models;
+
 namespace WireBound.Core.Models;
 
 /// <summary>
@@ -22,6 +24,8 @@ public sealed class ProcessUsageSnapshot
     /// Full executable path when the operating system permits it.
     /// </summary>
     public string ExecutablePath { get; init; } = string.Empty;
+
+    public ServiceHostInfo? ServiceHost { get; init; }
 
     /// <summary>
     /// Private committed memory in bytes.

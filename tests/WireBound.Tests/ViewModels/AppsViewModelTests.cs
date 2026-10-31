@@ -16,6 +16,30 @@ namespace WireBound.Tests.ViewModels;
 /// </summary>
 public class AppsViewModelTests : IAsyncDisposable
 {
+    [Test]
+    public void ServiceHostRow_UsesNativeNamesSystemClassificationAndSearch()
+    {
+        var item = new ProcessUsageDisplayItem(new()
+        {
+            ProcessId = 42,
+            ProcessName = "svchost",
+            ExecutablePath = "C:/Windows/System32/svchost.exe",
+            ServiceHost = new([new("wuauserv", "Windows Update"), new("BITS", "Background Intelligent Transfer Service")])
+        });
+        item.DisplayName.Should().Be("Service host: Windows Update +1");
+        item.IsSystemProcess.Should().BeTrue();
+        item.ProcessTypeLabel.Should().Be("Service host");
+        item.Matches("bits").Should().BeTrue();
+        item.Matches("Background Intelligent").Should().BeTrue();
+        item.Matches("svchost").Should().BeTrue();
+        item.ServiceDetails.Should().Contain("Windows Update (wuauserv)").And.Contain("whole host");
+
+        item.Update(new() { ProcessId = 42, ProcessName = "svchost", ExecutablePath = "C:/Windows/System32/svchost.exe", ServiceHost = new([]) });
+        item.DisplayName.Should().Be("Service host");
+        item.Matches("bits").Should().BeFalse();
+        item.ServiceDetails.Should().Contain("Service names unavailable");
+    }
+
     private const long Kibibyte = 1024;
     private const long Mebibyte = 1024 * Kibibyte;
 

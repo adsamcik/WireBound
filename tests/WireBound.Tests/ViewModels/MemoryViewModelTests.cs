@@ -300,9 +300,118 @@ public class MemoryViewModelTests
             vm.SearchText.Should().BeEmpty();
             vm.SelectedConsumer!.Id.Should().Be("app:path:one");
             vm.SelectedConsumer.IsExpanded.Should().BeTrue();
+            vm.SelectedConsumers.Select(r => r.Id).Should().BeEquivalentTo(new[] { "app:path:one", "process:1:101", "process:2:102" });
             vm.Consumers.Should().Contain(r => r.Id == "process:1:101").And.Contain(r => r.Id == "process:2:102");
             revealed.Should().BeSameAs(vm.SelectedConsumer);
             navigation.DidNotReceive().NavigateTo(Arg.Any<string>());
+        }
+    }
+
+    [Test]
+    public async Task MemoryBarAggregates_SelectAllContributors_WithoutSelectingOverlappingGuests()
+    {
+        var hosts = Substitute.For<IWorkloadHostProvider>();
+        hosts.IdentifyHost("small-vm", "").Returns(new WorkloadHost("vm", "Small VM host", "process name"));
+        var sample = new MemoryInfoData
+        {
+            InstalledBytes = 17000,
+            TotalBytes = 16000,
+            UsedBytes = 10000,
+            AvailableBytes = 6000,
+            NonpagedPoolBytes = 1000,
+            SystemAllocations = [new("paged-pool", "Resident paged pool", 500, "Kernel RAM", "")]
+        };
+        var (vm, _, _, _) = Create(memory: sample, processes:
+        [
+            Process(1, "large", 2000), Process(2, "small", 150), Process(3, "small", 150), Process(4, "tiny", 100),
+            new() { ProcessId = 5, StartMarker = 105, ProcessName = "small-vm", PrivateWorkingSetBytes = 250, WorkingSetBytes = 300 },
+            new() { ProcessId = 6, StartMarker = 106, ProcessName = "small-vm", PrivateWorkingSetBytes = 200, WorkingSetBytes = 300 }
+        ], workloads: [new("guest", "Guest observation", 5000, "Assigned to VM", "")], hosts: hosts);
+        using (vm)
+        {
+            await vm.RefreshCommand.ExecuteAsync(null);
+            vm.SearchText = "nothing";
+            var apps = vm.MemorySegments.Single(s => s.Label == "Other apps");
+            apps.ConsumerIds.Should().BeEquivalentTo(new[] { "app:path:small", "app:path:tiny" });
+            vm.RevealMemoryConsumerCommand.Execute(apps);
+            vm.SearchText.Should().BeEmpty();
+            vm.SelectedConsumers.Select(r => r.Id).Should().BeEquivalentTo(new[]
+                { "app:path:small", "process:2:102", "process:3:103", "app:path:tiny" });
+
+            vm.RevealMemoryConsumerCommand.Execute(vm.MemorySegments.Single(s => s.Label == "Other VM hosts"));
+            vm.SelectedConsumers.Select(r => r.Id).Should().BeEquivalentTo(new[] { "host:5:105", "host:6:106" });
+            vm.SelectedConsumers.Should().NotContain(r => r.Id == "guest");
+
+            vm.RevealMemoryConsumerCommand.Execute(vm.MemorySegments.Single(s => s.Label == "System"));
+            vm.SelectedConsumers.Select(r => r.Id).Should().BeEquivalentTo(new[] { "nonpaged", "system:paged-pool" });
+            vm.HasRelatedProcesses.Should().BeFalse();
+            vm.MemorySegments.Sum(s => s.Bytes).Should().Be(17000);
+        }
+    }
+
+    [Test]
+    public async Task MultiSelection_SurvivesRefreshResortAndFiltering_UntilUserReplacesIt()
+    {
+        var processes = new List<ProcessUsageSnapshot> { Process(1, "one", 500), Process(2, "two", 1000), Process(3, "three", 1500) };
+        var (vm, _, _, _) = Create(processes: processes);
+        using (vm)
+        {
+            await vm.RefreshCommand.ExecuteAsync(null);
+            var original = vm.Consumers.Where(r => r.Id is "app:path:one" or "app:path:two").ToArray();
+            vm.SelectConsumers(original);
+            processes[0] = Process(1, "one", 1800);
+            await vm.RefreshCommand.ExecuteAsync(null);
+            vm.SelectedConsumers.Select(r => r.Id).Should().BeEquivalentTo(new[] { "app:path:one", "app:path:two" });
+            vm.SelectedConsumers.Should().NotIntersectWith(original);
+
+            vm.SearchText = "PID 1";
+            vm.SelectedConsumers.Should().ContainSingle().Which.Id.Should().Be("app:path:one");
+            vm.SearchText = "";
+            vm.SelectedConsumers.Should().HaveCount(2);
+
+            vm.SearchText = "PID 3";
+            vm.SelectedConsumer = vm.Consumers.Single();
+            vm.SearchText = "";
+            vm.SelectedConsumers.Should().ContainSingle().Which.Id.Should().Be("app:path:three");
+        }
+    }
+
+    [Test]
+    public async Task MultiSelection_RelatedProcessesDeduplicatesInstances_AndKeepsHostLinksUnconfirmed()
+    {
+        var hosts = Substitute.For<IWorkloadHostProvider>();
+        hosts.IdentifyHost("vm-host", "").Returns(new WorkloadHost("vm", "VM host", "process name"));
+        var (vm, _, navigation, context) = Create(processes:
+        [
+            Process(11, "one", 500), Process(12, "one", 500), Process(13, "two", 500),
+            new() { ProcessId = 20, StartMarker = 120, ProcessName = "vm-host", PrivateWorkingSetBytes = 1000, WorkingSetBytes = 1500 }
+        ], hosts: hosts);
+        using (vm)
+        {
+            await vm.RefreshCommand.ExecuteAsync(null);
+            var app = vm.Consumers.Single(r => r.Id == "app:path:one");
+            await vm.ToggleConsumerCommand.ExecuteAsync(app);
+            vm.SelectConsumers(vm.Consumers.Where(r => r.Id is "app:path:one" or "process:11:111" or "app:path:two" or "host:20:120"));
+            vm.ViewRelatedProcessesCommand.Execute(null);
+            context.Current!.ConfirmedInstances.Should().BeEquivalentTo(new[] { new ProcessInstanceId(11, 111), new ProcessInstanceId(12, 112), new ProcessInstanceId(13, 113) });
+            context.Current.LikelyInstances.Should().ContainSingle().Which.Should().Be(new ProcessInstanceId(20, 120));
+            navigation.Received().NavigateTo(Routes.Apps);
+        }
+    }
+
+    [Test]
+    public async Task MultiSelection_CopyDetailsIncludesOnlySelectedConsumers()
+    {
+        var clipboard = Substitute.For<IClipboardService>();
+        var (vm, _, _, _) = Create(processes: [Process(1, "one", 500), Process(2, "two", 500), Process(3, "three", 500)], clipboard: clipboard);
+        using (vm)
+        {
+            await vm.RefreshCommand.ExecuteAsync(null);
+            vm.SelectConsumers(vm.Consumers.Where(r => r.Id is "app:path:one" or "app:path:two"));
+            await vm.CopySelectedConsumerDetailsCommand.ExecuteAsync(null);
+            await clipboard.Received(1).SetTextAsync(Arg.Is<string>(text =>
+                text.Contains("PIDs: 1") && text.Contains("PIDs: 2") && !text.Contains("PIDs: 3")));
+            vm.ActionStatus.Should().Be("Copied to clipboard");
         }
     }
 
@@ -666,7 +775,8 @@ public class MemoryViewModelTests
         var (vm, workloads, _, _) = Create(workloads:
             [new("docker", "Docker", 1000, "Container usage", "", [new("docker:abc", "database", 1000, "Container usage", "", ContainerId: "abcdef012345")])]);
         workloads.GetContainerProcessesAsync("abcdef012345", Arg.Any<CancellationToken>())
-            .Returns(Task.FromResult<IReadOnlyList<MemoryWorkload>>([new("inside:1", "postgres", 1000, "Process RSS", "")]));
+            .Returns(Task.FromResult<IReadOnlyList<MemoryWorkload>>([
+                new("inside:1", "postgres", 1000, "Process RSS", ""), new("inside:2", "worker", 500, "Process RSS", "")]));
         using (vm)
         {
             await vm.RefreshCommand.ExecuteAsync(null);
@@ -674,10 +784,11 @@ public class MemoryViewModelTests
             vm.Consumers.Single(r => r.Id == "docker:abc").Depth.Should().Be(0);
             await vm.ToggleConsumerCommand.ExecuteAsync(vm.Consumers.Single(r => r.Id == "docker:abc"));
             vm.Consumers.Should().Contain(r => r.Name == "postgres" && r.PhysicalBytes == null);
-            vm.SelectedConsumer = vm.Consumers.Single(r => r.Id == "inside:1");
+            vm.SelectConsumers(vm.Consumers.Where(r => r.Id.StartsWith("inside:", StringComparison.Ordinal)));
             await vm.RefreshCommand.ExecuteAsync(null);
             await workloads.Received(2).GetContainerProcessesAsync("abcdef012345", Arg.Any<CancellationToken>());
             vm.SelectedConsumer!.Id.Should().Be("inside:1");
+            vm.SelectedConsumers.Select(r => r.Id).Should().BeEquivalentTo(new[] { "inside:1", "inside:2" });
         }
     }
 

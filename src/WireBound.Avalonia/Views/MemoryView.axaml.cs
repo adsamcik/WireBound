@@ -19,6 +19,7 @@ public partial class MemoryView : UserControl
 {
     private MemoryViewModel? _observedViewModel;
     private Vector? _refreshOffset;
+    private string? _focusedConsumerToRestore;
     private int _updateVersion;
     private ContextMenu? _consumerMenu;
 
@@ -47,6 +48,7 @@ public partial class MemoryView : UserControl
         }
         _observedViewModel = null;
         _refreshOffset = null;
+        _focusedConsumerToRestore = null;
         _updateVersion++;
     }
 
@@ -65,7 +67,7 @@ public partial class MemoryView : UserControl
     private void OnViewModelPropertyChanged(object? sender, PropertyChangedEventArgs e)
     {
         if (e.PropertyName == nameof(MemoryViewModel.MemorySegments)) RenderMemorySegments();
-        else if (e.PropertyName == nameof(MemoryViewModel.SelectedConsumer))
+        else if (e.PropertyName == nameof(MemoryViewModel.SelectedConsumers))
         {
             CloseConsumerMenu();
             UpdateSegmentSelection();
@@ -83,21 +85,35 @@ public partial class MemoryView : UserControl
         CloseConsumerMenu();
         if (sender is not ListBox list || _observedViewModel is not { } vm) return;
         var pointerRequest = e.TryGetPosition(list, out _);
-        var container = pointerRequest
-            ? (e.Source as Visual)?.GetSelfAndVisualAncestors().OfType<ListBoxItem>().FirstOrDefault()
-            : list.SelectedItem is { } selected ? list.ContainerFromItem(selected) as ListBoxItem : null;
+        var container = GetConsumerContainer(e.Source);
+        if (!pointerRequest)
+            container ??= GetConsumerContainer(TopLevel.GetTopLevel(this)?.FocusManager?.GetFocusedElement())
+                ?? (list.SelectedItem is { } focusedItem ? list.ContainerFromItem(focusedItem) as ListBoxItem : null);
         if (container?.DataContext is not MemoryConsumerRow row || !vm.Consumers.Contains(row)) return;
-        vm.SelectedConsumer = row;
+        if (!vm.SelectedConsumers.Contains(row)) vm.SelectedConsumer = row;
 
         var menu = new ContextMenu { Placement = pointerRequest ? PlacementMode.Pointer : PlacementMode.Bottom };
-        AutomationProperties.SetName(menu, $"Actions for {row.Name}");
+        var selected = vm.SelectedConsumers;
+        AutomationProperties.SetName(menu, selected.Count > 1 ? $"Actions for {selected.Count} memory consumers" : $"Actions for {row.Name}");
         void Add(string label, ICommand command, object? parameter = null, bool enabled = true)
         {
             var item = new MenuItem { Header = label, Command = command, CommandParameter = parameter, IsEnabled = enabled };
             AutomationProperties.SetName(item, label);
             menu.Items.Add(item);
         }
-        if (row.CanLink) Add("Related processes", vm.ViewRelatedProcessesCommand);
+        if (vm.HasRelatedProcesses) Add("Related processes", vm.ViewRelatedProcessesCommand);
+        if (selected.Count > 1)
+        {
+            if (menu.Items.Count > 0) menu.Items.Add(new Separator());
+            Add("Copy names", vm.CopyTextCommand, string.Join(Environment.NewLine, selected.Select(r => r.Name).Distinct()));
+            Add("Copy memory details", vm.CopySelectedConsumerDetailsCommand);
+            if (vm.HasRelatedProcesses) Add("Copy PIDs", vm.CopyTextCommand,
+                string.Join(", ", selected.SelectMany(r => r.Processes).Select(p => p.Pid).Distinct().Order()));
+            _consumerMenu = menu;
+            e.Handled = true;
+            menu.Open(container);
+            return;
+        }
         if (row.CanExpand)
             Add(row.IsFilterExpanded ? "Contents shown by search" : row.IsExpanded ? "Collapse" : "Expand",
                 vm.ToggleConsumerCommand, row, row.CanToggle);
@@ -207,19 +223,22 @@ public partial class MemoryView : UserControl
     private void UpdateSegmentSelection()
     {
         if (this.FindControl<Grid>("MemoryCapacityBar") is not { } bar) return;
+        var selected = _observedViewModel?.SelectedConsumers.Select(r => r.Id).ToHashSet() ?? [];
         foreach (var button in bar.Children.OfType<Button>())
             button.Classes.Set("selected", button.DataContext is MemorySegment segment
-                && segment.ConsumerId == _observedViewModel?.SelectedConsumer?.Id);
+                && segment.ConsumerIds.Any(selected.Contains));
     }
 
     private void OnConsumerRevealRequested(MemoryConsumerRow row)
     {
         // A bar click deliberately navigates; cancel passive refresh viewport restoration.
         _refreshOffset = null;
+        _focusedConsumerToRestore = null;
         _updateVersion++;
         Dispatcher.UIThread.Post(() =>
         {
-            if (_observedViewModel?.SelectedConsumer is not { } current || current.Id != row.Id) return;
+            var current = _observedViewModel?.SelectedConsumers.FirstOrDefault(r => r.Id == row.Id);
+            if (current is null) return;
             _refreshOffset = null;
             _updateVersion++;
             if (this.FindControl<ListBox>("ConsumerList") is { } list)
@@ -236,6 +255,8 @@ public partial class MemoryView : UserControl
     private void OnConsumersChanging()
     {
         CloseConsumerMenu();
+        if (TopLevel.GetTopLevel(this)?.FocusManager?.GetFocusedElement() is { } focused)
+            _focusedConsumerToRestore = (GetConsumerContainer(focused)?.DataContext as MemoryConsumerRow)?.Id;
         // Capture immediately before replacement, including late container results,
         // so scrolling during a pending query remains the user's current position.
         _refreshOffset ??= GetConsumerScrollViewer()?.Offset;
@@ -256,13 +277,23 @@ public partial class MemoryView : UserControl
                 if (_observedViewModel is null || version != _updateVersion) return;
                 if (GetConsumerScrollViewer() is { } scroll) scroll.Offset = offset;
                 _refreshOffset = null;
+                var focusedId = _focusedConsumerToRestore;
+                _focusedConsumerToRestore = null;
+                if (TopLevel.GetTopLevel(this)?.FocusManager?.GetFocusedElement() is null
+                    && _observedViewModel.Consumers.FirstOrDefault(r => r.Id == focusedId) is { } row
+                    && this.FindControl<ListBox>("ConsumerList")?.ContainerFromItem(row) is ListBoxItem item)
+                    item.Focus(NavigationMethod.Directional, KeyModifiers.Control);
             }, DispatcherPriority.Background);
         }
     }
 
     private void OnConsumerKeyDown(object? sender, KeyEventArgs e)
     {
-        if (DataContext is not MemoryViewModel vm || vm.SelectedConsumer is not { } row) return;
+        if (DataContext is not MemoryViewModel vm) return;
+        var row = GetConsumerContainer(e.Source)?.DataContext as MemoryConsumerRow
+            ?? GetConsumerContainer(TopLevel.GetTopLevel(this)?.FocusManager?.GetFocusedElement())?.DataContext as MemoryConsumerRow
+            ?? vm.SelectedConsumer;
+        if (row is null || !vm.Consumers.Contains(row)) return;
         if (e.Key == Key.Right && row.CanToggle && !row.IsExpanded)
         {
             vm.ToggleConsumerCommand.Execute(row);
@@ -279,4 +310,7 @@ public partial class MemoryView : UserControl
             e.Handled = true;
         }
     }
+
+    private static ListBoxItem? GetConsumerContainer(object? source) =>
+        (source as Visual)?.GetSelfAndVisualAncestors().OfType<ListBoxItem>().FirstOrDefault();
 }

@@ -109,7 +109,7 @@
                                ToolTip.Tip="Reported working sets, VM assignments and container usage may overlap physical RAM. These rows are not added to physical totals." />
                 </Grid>
                 <Grid Grid.Row="2" MinHeight="0">
-                    <ListBox x:Name="ConsumerList" ItemsSource="{Binding Consumers}" SelectedItem="{Binding SelectedConsumer}"
+                    <ListBox x:Name="ConsumerList" ItemsSource="{Binding Consumers}" SelectedItems="{Binding SelectedConsumers, Mode=OneWay}" SelectionMode="Multiple"
                              ScrollViewer.HorizontalScrollBarVisibility="Disabled"
                              AutomationProperties.Name="Memory consumers sorted by RAM usage">
                         <ListBox.ItemsPanel><ItemsPanelTemplate><VirtualizingStackPanel /></ItemsPanelTemplate></ListBox.ItemsPanel>

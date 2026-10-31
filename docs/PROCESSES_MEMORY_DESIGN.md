@@ -71,7 +71,11 @@ Application groups use the exact executable path (process name fallback),
 and expand to individual process instances. Docker's aggregate wrapper is
 omitted when its individual containers are available.
 Search includes descendants and PIDs, revealing matching ancestry without
-changing saved expansion state. Refresh preserves filters and expansion.
+changing saved expansion state. Refresh preserves filters, expansion, and selected
+consumer IDs. The list supports Ctrl/Shift multi-selection. Grouped bar segments
+select all contributing consumers, and app segments also select their process
+rows. Related-process actions combine exact process instances across the selection,
+deduplicate group/child references, and preserve unconfirmed host links as likely.
 
 The **RAM** column is sorted descending across all top-level consumers;
 optional process details sort within their owner. Use complete measured

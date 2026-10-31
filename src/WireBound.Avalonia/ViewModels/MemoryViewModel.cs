@@ -1,3 +1,4 @@
+using System.Collections.Specialized;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using SkiaSharp;
@@ -26,7 +27,8 @@ public sealed partial class MemoryViewModel : ObservableObject, IDisposable
     private CancellationTokenSource? _capture;
     private IReadOnlyList<MemoryConsumerRow> _roots = [];
     private readonly HashSet<string> _expanded = [];
-    private string? _selectionToRestore;
+    private readonly HashSet<string> _selectedIds = [];
+    private bool _restoringSelection;
     private readonly Dictionary<string, int> _segmentColors = new();
     private static readonly SKColor[] ConsumerPalette =
     [
@@ -49,16 +51,18 @@ public sealed partial class MemoryViewModel : ObservableObject, IDisposable
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(HasFooterContent))]
     private string _actionStatus = "";
-    [ObservableProperty]
-    [NotifyPropertyChangedFor(nameof(HasFooterContent))]
-    [NotifyPropertyChangedFor(nameof(HasRelatedProcesses))]
-    private MemoryConsumerRow? _selectedConsumer;
     [ObservableProperty] private IReadOnlyList<MemorySegment> _memorySegments = [];
     public BatchObservableCollection<MemoryConsumerRow> Consumers { get; } = new();
+    public BatchObservableCollection<MemoryConsumerRow> SelectedConsumers { get; } = new();
+    public MemoryConsumerRow? SelectedConsumer
+    {
+        get => SelectedConsumers.FirstOrDefault();
+        set => SelectConsumers(value is null ? [] : [value]);
+    }
     public event Action? ConsumersChanging;
     public event Action? ConsumersChanged;
     public event Action<MemoryConsumerRow>? ConsumerRevealRequested;
-    public bool HasRelatedProcesses => SelectedConsumer?.CanLink == true;
+    public bool HasRelatedProcesses => SelectedConsumers.Any(r => r.CanLink);
     public bool HasNoResults => Consumers.Count == 0 && !IsLoading;
     public bool HasMemorySegments => MemorySegments.Count > 0;
     public bool HasActionStatus => ActionStatus.Length > 0;
@@ -78,13 +82,43 @@ public sealed partial class MemoryViewModel : ObservableObject, IDisposable
         _workloads = workloads;
         _icons = icons;
         _clipboard = clipboard;
+        SelectedConsumers.CollectionChanged += OnConsumerSelectionChanged;
         _navigation.NavigationChanged += OnNavigationChanged;
         if (_navigation.CurrentView == Routes.Memory) _ = RefreshAsync();
     }
-    partial void OnSelectedConsumerChanged(MemoryConsumerRow? value)
+    private void OnConsumerSelectionChanged(object? sender, NotifyCollectionChangedEventArgs e)
     {
+        if (_restoringSelection) return;
+        _selectedIds.Clear();
+        _selectedIds.UnionWith(SelectedConsumers.Select(r => r.Id));
         ActionStatus = "";
-        if (value is not null) _selectionToRestore = null;
+        NotifySelectionChanged();
+    }
+    public void SelectConsumers(IEnumerable<MemoryConsumerRow> rows)
+    {
+        var ids = rows.Select(r => r.Id).ToArray();
+        _selectedIds.Clear();
+        _selectedIds.UnionWith(ids);
+        ActionStatus = "";
+        ApplySelection();
+    }
+    private void ApplySelection()
+    {
+        var restoring = _restoringSelection;
+        _restoringSelection = true;
+        try
+        {
+            SelectedConsumers.ReplaceAll(Consumers.Where(r => _selectedIds.Contains(r.Id)));
+        }
+        finally { _restoringSelection = restoring; }
+        if (!restoring) NotifySelectionChanged();
+    }
+    private void NotifySelectionChanged()
+    {
+        OnPropertyChanged(nameof(SelectedConsumer));
+        OnPropertyChanged(nameof(SelectedConsumers));
+        OnPropertyChanged(nameof(HasRelatedProcesses));
+        OnPropertyChanged(nameof(HasFooterContent));
     }
     partial void OnSearchTextChanged(string value) => RebuildVisible();
     partial void OnActionStatusChanged(string value) => OnPropertyChanged(nameof(HasActionStatus));
@@ -133,7 +167,6 @@ public sealed partial class MemoryViewModel : ObservableObject, IDisposable
                 Installed = memory.InstalledBytes is > 0 ? ByteFormatter.FormatBytes(memory.InstalledBytes.Value) : "—";
                 HardwareReserved = valid && memory.InstalledBytes is { } installed && installed >= memory.TotalBytes
                     ? ByteFormatter.FormatBytes(installed - memory.TotalBytes) : "—";
-                _selectionToRestore = SelectedConsumer?.Id;
                 _roots = roots;
                 MemorySegments = BuildMemorySegments(memory, valid);
                 AccountingStatus = roots.Last().PhysicalBytes.HasValue
@@ -233,7 +266,6 @@ public sealed partial class MemoryViewModel : ObservableObject, IDisposable
     }
     private void RebuildVisible()
     {
-        var selected = SelectedConsumer;
         var search = SearchText.Trim();
         bool DirectMatch(MemoryConsumerRow row) => row.Name.Contains(search, StringComparison.OrdinalIgnoreCase)
             || row.Summary.Contains(search, StringComparison.OrdinalIgnoreCase)
@@ -256,13 +288,18 @@ public sealed partial class MemoryViewModel : ObservableObject, IDisposable
         }
         Append(TopLevelConsumers(), 0, false);
         ConsumersChanging?.Invoke();
+        _restoringSelection = true;
         try
         {
             Consumers.ReplaceAll(visible);
-            SelectedConsumer = selected is not null && visible.Contains(selected) ? selected
-                : visible.FirstOrDefault(r => r.Id == _selectionToRestore);
+            ApplySelection();
         }
-        finally { ConsumersChanged?.Invoke(); }
+        finally
+        {
+            _restoringSelection = false;
+            NotifySelectionChanged();
+            ConsumersChanged?.Invoke();
+        }
         OnPropertyChanged(nameof(HasNoResults));
     }
 
@@ -312,7 +349,7 @@ public sealed partial class MemoryViewModel : ObservableObject, IDisposable
         var capacity = memory.InstalledBytes is { } installed && installed >= memory.TotalBytes
             ? installed : memory.TotalBytes;
         var segments = new List<MemorySegment>();
-        void Add(string label, long bytes, SKColor color, string? id, string description)
+        void Add(string label, long bytes, SKColor color, IReadOnlyList<string> ids, string description)
         {
             if (bytes <= 0) return;
             static double Luminance(SKColor c)
@@ -325,7 +362,7 @@ public sealed partial class MemoryViewModel : ObservableObject, IDisposable
             var lightContrast = (Luminance(ChartColors.TooltipTextColor) + .05) / (luminance + .05);
             var darkContrast = (luminance + .05) / (Luminance(new SKColor(11, 16, 23)) + .05);
             segments.Add(new(label, bytes, bytes * 100d / capacity,
-                $"#{color.Red:X2}{color.Green:X2}{color.Blue:X2}", lightContrast > darkContrast, id, description));
+                $"#{color.Red:X2}{color.Green:X2}{color.Blue:X2}", lightContrast > darkContrast, ids, description));
         }
 
         var apps = _roots.Single(r => r.Id == "apps");
@@ -355,28 +392,28 @@ public sealed partial class MemoryViewModel : ObservableObject, IDisposable
                     assigned.Add(index);
                 }
                 Add(row.Name, row.PhysicalBytes!.Value, ConsumerPalette[index],
-                    row.Id, $"Measured private RAM · {row.Summary}" + (row.IsPartial ? ". Some processes could not be measured." : "."));
+                    [row.Id], $"Measured private RAM · {row.Summary}" + (row.IsPartial ? ". Some processes could not be measured." : "."));
             }
             var smallerApps = apps.Children.Where(r => r.PhysicalBytes is > 0 && !retained.Contains(r.Id)).ToArray();
             var smallerHosts = hosts.Children.Where(r => r.PhysicalBytes is > 0 && !retained.Contains(r.Id)).ToArray();
             Add("Other apps", smallerApps.Sum(r => r.PhysicalBytes!.Value),
-                ChartColors.MemoryDimColor, SortByUsage(smallerApps).FirstOrDefault()?.Id,
-                "Measured private RAM of smaller application groups. Click to reveal the largest of these apps.");
+                ChartColors.MemoryDimColor, SortByUsage(smallerApps).Select(r => r.Id).ToArray(),
+                "Measured private RAM of smaller application groups. Click to select all contributing apps.");
             Add("Other VM hosts", smallerHosts.Sum(r => r.PhysicalBytes!.Value),
-                ChartColors.CpuDimColor, SortByUsage(smallerHosts).FirstOrDefault()?.Id,
-                "Measured private RAM of smaller VM host processes. Click to reveal the largest of these hosts. Guest and container observations are excluded.");
-            Add("System", system.PhysicalBytes ?? 0, ChartColors.AxisNameColor, SortByUsage(system.Children.Where(r => r.PhysicalBytes.HasValue)).FirstOrDefault()?.Id,
+                ChartColors.CpuDimColor, SortByUsage(smallerHosts).Select(r => r.Id).ToArray(),
+                "Measured private RAM of smaller VM host processes. Click to select all contributing hosts. Guest and container observations are excluded.");
+            Add("System", system.PhysicalBytes ?? 0, ChartColors.AxisNameColor, SortByUsage(system.Children.Where(r => r.PhysicalBytes.HasValue)).Select(r => r.Id).ToArray(),
                 "Measured resident kernel, cache and modified-page allocations.");
-            Add("Shared / other", shared.PhysicalBytes.Value, new SKColor(74, 91, 110), shared.Id,
+            Add("Shared / other", shared.PhysicalBytes.Value, new SKColor(74, 91, 110), [shared.Id],
                 "Shared pages and RAM without a measured exclusive owner, including unmeasured guest allocations.");
         }
         else
-            Add("In use", memory.UsedBytes, ChartColors.MemoryColor, shared.Id,
+            Add("In use", memory.UsedBytes, ChartColors.MemoryColor, [shared.Id],
                 "Physical attribution is unavailable for this sample. Click for details, or refresh to retry.");
 
-        Add("Available", memory.AvailableBytes, new SKColor(38, 51, 66), null,
+        Add("Available", memory.AvailableBytes, new SKColor(38, 51, 66), [],
             "RAM available for applications, including reclaimable cache.");
-        Add("Reserved", capacity - memory.TotalBytes, ChartColors.AxisLabelColor, null,
+        Add("Reserved", capacity - memory.TotalBytes, ChartColors.AxisLabelColor, [],
             "Installed RAM reserved by hardware; unavailable to the operating system.");
         return segments;
     }
@@ -384,13 +421,16 @@ public sealed partial class MemoryViewModel : ObservableObject, IDisposable
     [RelayCommand]
     private void RevealMemoryConsumer(MemorySegment? segment)
     {
-        if (segment?.ConsumerId is not { } id) return;
-        var target = Walk(_roots).FirstOrDefault(r => r.Id == id);
-        if (target is null) return;
+        if (segment is null) return;
+        var ids = segment.ConsumerIds.ToHashSet();
+        var targets = Walk(_roots).Where(r => ids.Contains(r.Id)).ToArray();
+        if (targets.Length == 0) return;
         SearchText = "";
         bool ExpandPath(MemoryConsumerRow row)
         {
-            if (!ReferenceEquals(row, target) && !row.Children.Any(ExpandPath)) return false;
+            var containsTarget = ids.Contains(row.Id);
+            foreach (var child in row.Children) containsTarget = ExpandPath(child) || containsTarget;
+            if (!containsTarget) return false;
             if (row.CanExpand)
             {
                 row.IsExpanded = true;
@@ -400,18 +440,28 @@ public sealed partial class MemoryViewModel : ObservableObject, IDisposable
         }
         foreach (var root in _roots) ExpandPath(root);
         RebuildVisible();
-        SelectedConsumer = target;
-        ConsumerRevealRequested?.Invoke(target);
+        // App process rows are members of their group. Shared-memory diagnostics
+        // are overlapping observations, so keep them out of the segment selection.
+        SelectConsumers(targets.SelectMany(r => r.Id.StartsWith("app:", StringComparison.Ordinal) ? Walk([r]) : [r]));
+        ConsumerRevealRequested?.Invoke(SelectedConsumer!);
     }
     [RelayCommand]
     private Task CopyConsumerDetailsAsync(MemoryConsumerRow? row)
     {
-        if (row is null) return Task.CompletedTask;
+        return row is null ? Task.CompletedTask : CopyTextAsync(ConsumerDetails(row));
+    }
+
+    [RelayCommand]
+    private Task CopySelectedConsumerDetailsAsync() => CopyTextAsync(string.Join(Environment.NewLine + Environment.NewLine,
+        SelectedConsumers.Select(ConsumerDetails)));
+
+    private static string ConsumerDetails(MemoryConsumerRow row)
+    {
         var lines = new List<string> { row.Name, $"{row.UsageDisplay} · {row.UsageMetric}" };
         if (row.Processes.Count > 0) lines.Add($"PIDs: {string.Join(", ", row.Processes.Select(p => p.Pid).Order())}");
         if (!string.IsNullOrWhiteSpace(row.ExecutablePath)) lines.Add(row.ExecutablePath);
         if (!string.IsNullOrWhiteSpace(row.MeasurementDetails)) lines.Add(row.MeasurementDetails);
-        return CopyTextAsync(string.Join(Environment.NewLine, lines));
+        return string.Join(Environment.NewLine, lines);
     }
 
     [RelayCommand]
@@ -432,10 +482,15 @@ public sealed partial class MemoryViewModel : ObservableObject, IDisposable
     [RelayCommand]
     private void ViewRelatedProcesses()
     {
-        if (SelectedConsumer is not { CanLink: true } row) return;
-        _context.Set(new ProcessContext(row.Id, row.Name, row.Detail, DateTime.Now,
-            row.HasConfirmedProcessLinks ? new HashSet<ProcessInstanceId>() : row.Processes,
-            row.HasConfirmedProcessLinks ? row.Processes : null));
+        var rows = SelectedConsumers.Where(r => r.CanLink).ToArray();
+        if (rows.Length == 0) return;
+        var confirmed = rows.Where(r => r.HasConfirmedProcessLinks).SelectMany(r => r.Processes).ToHashSet();
+        var likely = rows.Where(r => !r.HasConfirmedProcessLinks).SelectMany(r => r.Processes).ToHashSet();
+        likely.ExceptWith(confirmed);
+        _context.Set(new ProcessContext(rows.Length == 1 ? rows[0].Id : "memory-selection",
+            rows.Length == 1 ? rows[0].Name : "Selected memory consumers",
+            rows.Length == 1 ? rows[0].Detail : "Processes referenced by the selected memory consumers", DateTime.Now,
+            likely, confirmed));
         _navigation.NavigateTo(Routes.Apps);
     }
     public void Dispose()
@@ -443,6 +498,7 @@ public sealed partial class MemoryViewModel : ObservableObject, IDisposable
         if (_disposed) return;
         _disposed = true;
         _navigation.NavigationChanged -= OnNavigationChanged;
+        SelectedConsumers.CollectionChanged -= OnConsumerSelectionChanged;
         _capture?.Cancel();
         _capture?.Dispose();
     }

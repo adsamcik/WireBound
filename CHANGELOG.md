@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.13.0] - 2026-10-31
+
+### Added
+
+- **Rancher Desktop Memory** - Memory supports local Moby and containerd engines, including containers across Kubernetes namespaces and on-demand process details. Duplicate Docker observations are filtered out.
+- **Windows Service Identification** - Processes and Memory show native service names for svchost and standalone services, plus friendly names for built-in Windows programs. Separate host instances retain their own memory totals.
+- **Memory Context Menus** - Right-click a consumer to open related processes, expand its contents, or copy available names, paths, process IDs, container IDs, and memory details. Keyboard context menus are supported too.
+
+### Changed
+
+- **Cleaner Memory List** - Unavailable workload placeholders are hidden, and redundant footer explanations have been removed. Memory measurements remain available in row tooltips and context menus.
+
 ### Fixed
 
 - **Memory Attribution** - Protected processes and memory compression contribute measured private resident RAM. Resident kernel, cache, and modified-page categories reduce the unclassified remainder, which now expands into explicitly overlapping app observations and coverage details.

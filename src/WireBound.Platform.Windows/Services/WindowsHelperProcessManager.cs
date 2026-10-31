@@ -64,24 +64,12 @@ public sealed class WindowsHelperProcessManager : IHelperProcessManager
             // at RL HIGHEST every login.
             var regValid = await ValidateRegistrationAsync();
             if (!regValid.IsValid)
-            {
-                _logger?.LogError("Scheduled task definition validation failed: {Error}", regValid.ErrorMessage);
-                return HelperStartResult.ValidationFailed(
-                    $"Scheduled task definition has been tampered: {regValid.ErrorMessage}");
-            }
+                _logger?.LogWarning("Ignoring invalid helper scheduled task: {Error}. Interactive start allowed: {Interactive}",
+                    regValid.ErrorMessage, allowInteractive);
 
-            _logger?.LogInformation("Starting helper via Task Scheduler (no UAC prompt)");
-            var taskResult = await StartViaTaskSchedulerAsync(cancellationToken);
-            if (taskResult.IsSuccess) return taskResult;
-
-            _logger?.LogWarning("Task Scheduler start failed: {Reason}", taskResult.ErrorMessage);
-            if (!allowInteractive)
-            {
-                // Auto-start path — never fall back to UAC.
-                return HelperStartResult.Failed(
-                    $"Silent start via Task Scheduler failed and interactive elevation disabled: {taskResult.ErrorMessage}");
-            }
-            _logger?.LogWarning("Falling back to direct launch with UAC");
+            return await StartRegisteredHelperAsync(regValid, allowInteractive,
+                () => StartViaTaskSchedulerAsync(cancellationToken),
+                () => StartDirectAsync(cancellationToken));
         }
         else if (!allowInteractive)
         {
@@ -92,6 +80,27 @@ public sealed class WindowsHelperProcessManager : IHelperProcessManager
 
         // Fallback: direct launch with UAC (only when allowInteractive is true)
         return await StartDirectAsync(cancellationToken);
+    }
+
+    // Keep the launch policy testable without executing a real privileged task or showing UAC.
+    internal static async Task<HelperStartResult> StartRegisteredHelperAsync(HelperValidationResult registration,
+        bool allowInteractive, Func<Task<HelperStartResult>> startScheduled, Func<Task<HelperStartResult>> startInteractive)
+    {
+        if (!registration.IsValid)
+        {
+            // Never run an invalid task. An explicit manual start can instead launch
+            // the already-validated bundled helper through a fresh UAC consent prompt.
+            if (allowInteractive) return await startInteractive();
+            return HelperStartResult.ValidationFailed(
+                $"Helper auto-start registration is outdated or invalid. Repair it in Settings. {registration.ErrorMessage}");
+        }
+
+        var scheduled = await startScheduled();
+        if (scheduled.IsSuccess) return scheduled;
+        if (!allowInteractive)
+            return HelperStartResult.Failed(
+                $"Silent start via Task Scheduler failed and interactive elevation disabled: {scheduled.ErrorMessage}");
+        return await startInteractive();
     }
 
     /// <inheritdoc />
@@ -342,6 +351,7 @@ public sealed class WindowsHelperProcessManager : IHelperProcessManager
 
     private async Task<HelperStartResult> StartDirectAsync(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
         try
         {
             _logger?.LogInformation("Starting helper with UAC elevation: {Path}", HelperPath);

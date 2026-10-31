@@ -491,6 +491,87 @@ public class SettingsViewModelTests : IAsyncDisposable
     #region Startup Service Integration Tests
 
     [Test]
+    public async Task RequestElevation_ReportsBusyFailureAndCancellation_AndAllowsRetry()
+    {
+        var pending = new TaskCompletionSource<ElevationResult>();
+        _elevationService.StartHelperAsync(Arg.Any<CancellationToken>()).Returns(pending.Task);
+        var viewModel = CreateViewModel();
+        await viewModel.InitializationTask;
+
+        var request = viewModel.RequestElevationCommand.ExecuteAsync(null);
+        viewModel.IsRequestingElevation.Should().BeTrue();
+        viewModel.HelperActionStatus.Should().StartWith("Starting helper");
+        pending.SetResult(ElevationResult.Failed("Scheduled task points at an old executable"));
+        await request;
+        viewModel.IsRequestingElevation.Should().BeFalse();
+        viewModel.HelperActionStatus.Should().StartWith("Couldn't start helper");
+        viewModel.HelperActionError.Should().Contain("old executable");
+
+        _elevationService.StartHelperAsync(Arg.Any<CancellationToken>()).Returns(ElevationResult.Cancelled());
+        await viewModel.RequestElevationCommand.ExecuteAsync(null);
+        viewModel.HelperActionStatus.Should().Contain("cancelled");
+        viewModel.HelperActionError.Should().BeNull();
+
+        _elevationService.StartHelperAsync(Arg.Any<CancellationToken>()).Returns(_ =>
+        {
+            _elevationService.IsHelperConnected.Returns(true);
+            return Task.FromResult(ElevationResult.Success());
+        });
+        await viewModel.RequestElevationCommand.ExecuteAsync(null);
+        viewModel.IsElevated.Should().BeTrue();
+        viewModel.HelperActionStatus.Should().Be("Helper connected.");
+        viewModel.HelperActionError.Should().BeNull();
+    }
+
+    [Test]
+    public async Task RequestElevation_UnexpectedFailureIsVisible_AndClearsBusyState()
+    {
+        _elevationService.StartHelperAsync(Arg.Any<CancellationToken>())
+            .Returns(Task.FromException<ElevationResult>(new IOException("Helper launch unavailable")));
+        var viewModel = CreateViewModel();
+        await viewModel.InitializationTask;
+        await viewModel.RequestElevationCommand.ExecuteAsync(null);
+        viewModel.HelperActionError.Should().Be("Helper launch unavailable");
+        viewModel.IsRequestingElevation.Should().BeFalse();
+    }
+
+    [Test]
+    [Arguments(true)]
+    [Arguments(false)]
+    public async Task StopElevation_StatusMatchesTheActualConnection(bool remainsConnected)
+    {
+        _elevationService.IsHelperConnected.Returns(true);
+        _elevationService.StopHelperAsync().Returns(_ =>
+        {
+            _elevationService.IsHelperConnected.Returns(remainsConnected);
+            return Task.CompletedTask;
+        });
+        var viewModel = CreateViewModel();
+        await viewModel.InitializationTask;
+        await viewModel.StopElevationCommand.ExecuteAsync(null);
+        viewModel.IsElevated.Should().Be(remainsConnected);
+        viewModel.HelperActionStatus.Should().Be(remainsConnected
+            ? "Helper is still connected. Try stopping it again." : "Helper stopped.");
+        viewModel.IsRequestingElevation.Should().BeFalse();
+    }
+
+    [Test]
+    public async Task HelperFeedback_UpdatesWhenConnectionIsRecoveredOrLost()
+    {
+        var viewModel = CreateViewModel();
+        await viewModel.InitializationTask;
+        viewModel.HelperActionError = "Earlier start failed";
+        _elevationService.HelperConnectionStateChanged += Raise.Event<EventHandler<HelperConnectionStateChangedEventArgs>>(
+            this, new HelperConnectionStateChangedEventArgs(true, "Connected"));
+        viewModel.HelperActionStatus.Should().Be("Helper connected.");
+        viewModel.HelperActionError.Should().BeNull();
+        _elevationService.HelperConnectionStateChanged += Raise.Event<EventHandler<HelperConnectionStateChangedEventArgs>>(
+            this, new HelperConnectionStateChangedEventArgs(false, "Connection lost"));
+        viewModel.IsElevated.Should().BeFalse();
+        viewModel.HelperActionStatus.Should().Be("Helper disconnected. Start Helper to reconnect.");
+    }
+
+    [Test]
     public async Task StartWithWindows_WhenStartupEnabled_IsTrue()
     {
         // Arrange

@@ -246,6 +246,12 @@ public sealed partial class SettingsViewModel : ObservableObject, IDisposable
     private bool _isRequestingElevation;
 
     [ObservableProperty]
+    private string _helperActionStatus = "";
+
+    [ObservableProperty]
+    private string? _helperActionError;
+
+    [ObservableProperty]
     private bool _isStartupDisabledByUser;
 
     [ObservableProperty]
@@ -691,22 +697,23 @@ public sealed partial class SettingsViewModel : ObservableObject, IDisposable
 
     private void OnHelperConnectionStateChanged(object? sender, HelperConnectionStateChangedEventArgs e)
     {
-        // Update UI state when helper connection changes
-        if (_dispatcher is not null)
+        void UpdateState()
         {
-            _dispatcher.Post(() =>
-            {
-                IsElevated = e.IsConnected;
-                RequiresElevation = !e.IsConnected && _elevationService.IsElevationSupported;
-                UpdateHelperAutoStartStatus();
-            }, UiDispatcherPriority.Background);
-        }
-        else
-        {
+            var wasConnected = IsElevated;
             IsElevated = e.IsConnected;
             RequiresElevation = !e.IsConnected && _elevationService.IsElevationSupported;
+            if (e.IsConnected)
+            {
+                HelperActionError = null;
+                HelperActionStatus = "Helper connected.";
+            }
+            else if (wasConnected && !IsRequestingElevation)
+                HelperActionStatus = "Helper disconnected. Start Helper to reconnect.";
             UpdateHelperAutoStartStatus();
         }
+
+        if (_dispatcher is not null) _dispatcher.Post(UpdateState, UiDispatcherPriority.Background);
+        else UpdateState();
     }
 
     /// <summary>
@@ -941,6 +948,8 @@ public sealed partial class SettingsViewModel : ObservableObject, IDisposable
         }
 
         IsRequestingElevation = true;
+        HelperActionError = null;
+        HelperActionStatus = "Starting helper… Approve the system prompt if shown.";
         try
         {
             _logger?.LogInformation("User requested to start elevated helper from Settings");
@@ -954,19 +963,25 @@ public sealed partial class SettingsViewModel : ObservableObject, IDisposable
                 // Update elevation status
                 IsElevated = _elevationService.IsHelperConnected;
                 RequiresElevation = _elevationService.RequiresElevation;
+                HelperActionStatus = "Helper connected.";
             }
             else if (result.Status == ElevationStatus.Cancelled)
             {
                 _logger?.LogInformation("User cancelled helper elevation request");
+                HelperActionStatus = "Helper start cancelled. You can try again.";
             }
             else
             {
                 _logger?.LogWarning("Failed to start helper: {Error}", result.ErrorMessage);
+                HelperActionStatus = "Couldn't start helper. See Details, then try again.";
+                HelperActionError = result.ErrorMessage ?? "No error details were provided.";
             }
         }
         catch (Exception ex)
         {
             _logger?.LogError(ex, "Unexpected error during helper start request");
+            HelperActionStatus = "Couldn't start helper. See Details, then try again.";
+            HelperActionError = ex.Message;
         }
         finally
         {
@@ -989,6 +1004,8 @@ public sealed partial class SettingsViewModel : ObservableObject, IDisposable
         }
 
         IsRequestingElevation = true;
+        HelperActionError = null;
+        HelperActionStatus = "Stopping helper…";
         try
         {
             _logger?.LogInformation("User requested to stop elevated helper from Settings");
@@ -997,11 +1014,22 @@ public sealed partial class SettingsViewModel : ObservableObject, IDisposable
             IsElevated = _elevationService.IsHelperConnected;
             RequiresElevation = _elevationService.RequiresElevation;
 
-            _logger?.LogInformation("Helper process stopped");
+            if (IsElevated)
+            {
+                _logger?.LogWarning("Helper is still connected after the stop request");
+                HelperActionStatus = "Helper is still connected. Try stopping it again.";
+            }
+            else
+            {
+                _logger?.LogInformation("Helper process stopped");
+                HelperActionStatus = "Helper stopped.";
+            }
         }
         catch (Exception ex)
         {
             _logger?.LogError(ex, "Unexpected error during helper stop request");
+            HelperActionStatus = "Couldn't stop helper. See Details, then try again.";
+            HelperActionError = ex.Message;
         }
         finally
         {

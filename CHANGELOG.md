@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- **Manual Helper Startup** - Start Helper can launch the validated bundled helper with a fresh elevation prompt when an old or invalid auto-start task is present. Invalid tasks remain blocked for automatic startup, and Settings now shows progress, cancellation, and error details.
+
 ## [0.12.0] - 2026-10-30
 
 ### Added

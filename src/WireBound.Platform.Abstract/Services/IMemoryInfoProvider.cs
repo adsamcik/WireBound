@@ -10,7 +10,7 @@ public interface IMemoryInfoProvider
     /// <summary>
     /// Get current memory usage statistics
     /// </summary>
-    MemoryInfoData GetMemoryInfo();
+    MemoryInfoData GetMemoryInfo(bool includeSystemBreakdown = false);
 
     /// <summary>
     /// Get total physical memory in bytes

@@ -11,7 +11,7 @@ namespace WireBound.Platform.Linux.Services;
 [SupportedOSPlatform("linux")]
 public sealed class LinuxMemoryInfoProvider : IMemoryInfoProvider
 {
-    public MemoryInfoData GetMemoryInfo()
+    public MemoryInfoData GetMemoryInfo(bool includeSystemBreakdown = false)
     {
         try
         {
@@ -45,6 +45,7 @@ public sealed class LinuxMemoryInfoProvider : IMemoryInfoProvider
 
                 return new MemoryInfoData
                 {
+                    SystemAllocations = includeSystemBreakdown ? ReadResidentAllocations(memInfo) : [],
                     TotalBytes = totalBytes,
                     AvailableBytes = availableBytes,
                     UsedBytes = usedBytes,
@@ -60,6 +61,15 @@ public sealed class LinuxMemoryInfoProvider : IMemoryInfoProvider
 
         // GC data describes this process, not the machine.
         return new MemoryInfoData();
+    }
+
+    internal static IReadOnlyList<ResidentMemoryAllocation> ReadResidentAllocations(IReadOnlyDictionary<string, long> values)
+    {
+        var allocations = new List<ResidentMemoryAllocation>();
+        foreach (var (key, name) in new[] { ("SUnreclaim", "Unreclaimable kernel slab"), ("KernelStack", "Kernel stacks"), ("PageTables", "Page tables") })
+            if (values.TryGetValue(key, out var kib) && kib >= 0 && kib <= long.MaxValue / 1024)
+                allocations.Add(new(key, name, kib * 1024, "Kernel RAM", $"/proc/meminfo · {key}. Resident kernel allocation; excludes process-private pages and reclaimable slab."));
+        return allocations;
     }
 
     internal static Dictionary<string, long> ParseMemInfo(string filePath)

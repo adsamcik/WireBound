@@ -27,6 +27,7 @@ public sealed partial class MemoryConsumerRow : ObservableObject
     {
         "other" => "Unattributed",
         "nonpaged" => "Kernel RAM",
+        _ when Id.StartsWith("system:", StringComparison.Ordinal) => Metric,
         _ when Id.StartsWith("host:", StringComparison.Ordinal) => "Host private RAM",
         _ => "Private RAM"
     } : ContainerId is not null ? "Docker usage" : string.IsNullOrEmpty(Metric) ? "Unavailable" : Metric;

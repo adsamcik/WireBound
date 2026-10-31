@@ -26,6 +26,18 @@ public static class MemoryConsumerBuilder
             && p.PrivateWorkingSetBytes <= p.WorkingSetBytes).Sum(p => p.PrivateWorkingSetBytes!.Value);
         // Collection instants can disagree. Never force an overfull sample to reconcile.
         var reconciles = validPhysicalSample && measured <= memory.UsedBytes - (pool ?? 0);
+        var systemBudget = reconciles ? memory.UsedBytes - measured - (pool ?? 0) : 0;
+        var detailedSystemReconciles = reconciles;
+        foreach (var allocation in memory.SystemAllocations)
+        {
+            if (allocation.Bytes < 0 || allocation.Bytes > systemBudget)
+            {
+                detailedSystemReconciles = false;
+                break;
+            }
+            systemBudget -= allocation.Bytes;
+        }
+        var systemBytes = (pool ?? 0) + (detailedSystemReconciles ? memory.UsedBytes - measured - (pool ?? 0) - systemBudget : 0);
         long? Physical(ProcessUsageSnapshot p) => reconciles && p.PrivateWorkingSetBytes is >= 0
             && p.PrivateWorkingSetBytes <= p.WorkingSetBytes ? p.PrivateWorkingSetBytes : null;
 
@@ -37,7 +49,7 @@ public static class MemoryConsumerBuilder
             PhysicalBytes = appProcesses.Any(p => Physical(p).HasValue) ? appProcesses.Sum(p => Physical(p) ?? 0) : null,
             IsPartial = appProcesses.Any(p => !Physical(p).HasValue),
             Summary = $"{appProcesses.Count} processes",
-            Detail = "Private RAM counts measured resident pages exclusive to each process. Shared pages, inaccessible processes, drivers, and guest allocations remain in Shared and other. App groups use the exact executable path, or the process name when the path is unavailable."
+            Detail = "Private RAM counts measured resident pages exclusive to each process. Shared mappings and unclassified allocations remain in Shared and other. App groups use the exact executable path, or the process name when the path is unavailable."
         };
         foreach (var group in appProcesses.GroupBy(p => string.IsNullOrEmpty(p.ExecutablePath)
                      ? "name:" + p.ProcessName : "path:" + p.ExecutablePath,
@@ -115,8 +127,8 @@ public static class MemoryConsumerBuilder
         {
             Id = "system",
             Name = "System and drivers",
-            PhysicalBytes = pool,
-            Detail = "Only independently measured resident kernel allocations are attributed here. Other system allocations remain in Shared and other."
+            PhysicalBytes = pool.HasValue || detailedSystemReconciles && memory.SystemAllocations.Count > 0 ? systemBytes : null,
+            Detail = "Independently measured resident kernel, cache, and modified-page allocations. Standby cache is part of Available."
         };
         if (pool.HasValue)
             system.Children.Add(new MemoryConsumerRow
@@ -127,18 +139,60 @@ public static class MemoryConsumerBuilder
                 PhysicalBytes = pool,
                 Detail = "Windows GetPerformanceInfo · resident, nonpageable kernel pool."
             });
+        foreach (var allocation in memory.SystemAllocations)
+            system.Children.Add(new MemoryConsumerRow
+            {
+                Id = "system:" + allocation.Id,
+                Name = allocation.Name,
+                IconKey = "WbNavSystem",
+                PhysicalBytes = detailedSystemReconciles ? allocation.Bytes : null,
+                ObservedBytes = !detailedSystemReconciles && allocation.Bytes >= 0 ? allocation.Bytes : null,
+                Metric = detailedSystemReconciles ? allocation.Metric : "Unreconciled observation",
+                Detail = allocation.Detail + (detailedSystemReconciles ? "" : " This separately sampled category does not reconcile with current in-use RAM; it is not subtracted from the remainder. Refresh to retry.")
+            });
+        var privateReadings = processes.Count(p => Physical(p).HasValue);
         var remainder = new MemoryConsumerRow
         {
             Id = "other",
             Name = "Shared and other",
             IconKey = "WbEntityMemory",
-            PhysicalBytes = reconciles ? memory.UsedBytes - measured - (pool ?? 0) : null,
+            PhysicalBytes = reconciles ? memory.UsedBytes - measured - systemBytes : null,
             Summary = "Unattributed",
             Detail = reconciles
-                ? "In-use RAM minus measured private resident pages and nonpaged pool. Includes shared pages, unmeasured VM allocations, file-backed pages in use, other kernel/driver allocations, and protected processes. Ownership cannot be resolved from this sample."
+                ? $"Private resident RAM measured for {privateReadings} of {processes.Count} processes. In-use RAM minus those private pages and measured resident system allocations. The remainder includes shared images/mappings and unclassified kernel, driver-locked or guest allocations. Standby cache is already Available, not part of this remainder."
+                    + (memory.SystemAllocations.Count == 0 ? " Detailed system residency counters were not available in this sample." : "")
+                    + (!detailedSystemReconciles ? " Additional system observations did not reconcile and were not subtracted." : "")
                 : "Physical attribution is unavailable because the capacity sample is missing or separately sampled allocations exceed in-use RAM. Refresh to retry; observations remain available."
         };
+        if (reconciles) AddSharedDiagnostics(remainder, apps.Children.Concat(virtualMachines.Children
+            .Where(r => r.Id.StartsWith("host:", StringComparison.Ordinal))).Where(r => r.ObservedBytes.HasValue));
         return [apps, virtualMachines, system, remainder];
+    }
+
+    private static void AddSharedDiagnostics(MemoryConsumerRow remainder, IEnumerable<MemoryConsumerRow> consumers)
+    {
+        foreach (var consumer in consumers)
+        {
+            var incomplete = consumer.IsPartial || !consumer.PhysicalBytes.HasValue;
+            var bytes = incomplete ? consumer.ObservedBytes : consumer.ObservedBytes - consumer.PhysicalBytes;
+            if (bytes is not > 0) continue;
+            var detail = incomplete
+                ? "Total working set of an app/host group missing at least one private reading. Some private pages may already be attributed. This observation overlaps other rows and is not subtracted from the remainder."
+                : "Working set minus measured private pages. Shared images and mapped files can appear in several processes and in resident system cache. These observations are not additional allocations and do not sum to the remainder.";
+            remainder.Children.Add(new MemoryConsumerRow
+            {
+                Id = "other:observation:" + consumer.Id,
+                Name = consumer.Name,
+                Summary = consumer.Summary,
+                ExecutablePath = consumer.ExecutablePath,
+                IconKey = consumer.IconKey,
+                ObservedBytes = bytes,
+                Metric = incomplete ? "Working set (overlap)" : "Shared WS (overlap)",
+                Detail = detail + "\n" + consumer.Detail,
+                Processes = consumer.Processes,
+                HasConfirmedProcessLinks = consumer.HasConfirmedProcessLinks
+            });
+        }
     }
     public static MemoryConsumerRow FromWorkload(MemoryWorkload workload)
     {

@@ -11,6 +11,9 @@ public sealed class MemoryInfoData
     /// <summary>Windows nonpaged kernel pool, a physically resident allocation when measured.</summary>
     public long? NonpagedPoolBytes { get; init; }
 
+    /// <summary>Optional resident system categories, collected only for a detailed Memory sample.</summary>
+    public IReadOnlyList<ResidentMemoryAllocation> SystemAllocations { get; init; } = [];
+
     /// <summary>
     /// Total physical memory in bytes
     /// </summary>

@@ -19,4 +19,13 @@ public class WindowsMemoryInfoProviderTests
         if (sample.NonpagedPoolBytes is { } pool)
             pool.Should().BeLessThanOrEqualTo(sample.UsedBytes);
     }
+
+    [Test]
+    public void DetailedMemorySample_ReportsResidentCategories_WhenCountersAreAvailable()
+    {
+        if (!OperatingSystem.IsWindows()) return;
+        var sample = new WindowsMemoryInfoProvider().GetMemoryInfo(true);
+        sample.SystemAllocations.Should().OnlyContain(a => a.Bytes >= 0 && a.Bytes <= sample.UsedBytes);
+        sample.SystemAllocations.Select(a => a.Id).Should().OnlyHaveUniqueItems();
+    }
 }

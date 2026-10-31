@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **Memory Attribution** - Protected processes and memory compression contribute measured private resident RAM. Resident kernel, cache, and modified-page categories reduce the unclassified remainder, which now expands into explicitly overlapping app observations and coverage details.
 - **Manual Helper Startup** - Start Helper can launch the validated bundled helper with a fresh elevation prompt when an old or invalid auto-start task is present. Invalid tasks remain blocked for automatic startup, and Settings now shows progress, cancellation, and error details.
 
 ## [0.12.0] - 2026-10-30

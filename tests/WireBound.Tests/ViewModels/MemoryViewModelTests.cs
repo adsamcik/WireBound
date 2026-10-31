@@ -35,7 +35,7 @@ public class MemoryViewModelTests
             IReadOnlyList<MemoryWorkload>? workloads = null, IWorkloadHostProvider? hosts = null, IAppIconService? icons = null)
     {
         var provider = Substitute.For<IMemoryInfoProvider>();
-        provider.GetMemoryInfo().Returns(memory ?? Memory);
+        provider.GetMemoryInfo(true).Returns(memory ?? Memory);
         var usage = Substitute.For<IProcessUsageService>();
         usage.CaptureAsync(Arg.Any<CancellationToken>(), true)
             .Returns(Task.FromResult(processes ?? (IReadOnlyList<ProcessUsageSnapshot>)[]));
@@ -161,6 +161,79 @@ public class MemoryViewModelTests
             vm.Consumers.Should().Contain(r => r.Id == "process:1:101").And.Contain(r => r.Id == "process:2:102");
             revealed.Should().BeSameAs(vm.SelectedConsumer);
             navigation.DidNotReceive().NavigateTo(Arg.Any<string>());
+        }
+    }
+
+    [Test]
+    public async Task ResidentSystemCategories_ReduceRemainder_WithoutCountingSharedObservationsTwice()
+    {
+        var sample = new MemoryInfoData
+        {
+            InstalledBytes = 17000,
+            TotalBytes = 16000,
+            UsedBytes = 10000,
+            AvailableBytes = 6000,
+            NonpagedPoolBytes = 1000,
+            SystemAllocations = [new("paged-pool", "Resident paged kernel pool", 1400, "Kernel RAM", "resident only"),
+                new("file-cache", "Resident system cache", 1000, "Resident cache", "excludes standby")]
+        };
+        var (vm, _, _, _) = Create(memory: sample, processes: [Process(1, "one", 1500), Process(2, "two", 500)]);
+        using (vm)
+        {
+            await vm.RefreshCommand.ExecuteAsync(null);
+            vm.Consumers.Single(r => r.Id == "other").PhysicalBytes.Should().Be(4600);
+            vm.Consumers.Single(r => r.Id == "system:paged-pool").UsageMetric.Should().Be("Kernel RAM");
+            vm.Consumers.Single(r => r.Id == "system:file-cache").UsageMetric.Should().Be("Resident cache");
+            vm.Consumers.Sum(r => r.PhysicalBytes ?? 0).Should().Be(10000);
+            vm.MemorySegments.Sum(s => s.Bytes).Should().Be(17000);
+            var system = vm.MemorySegments.Single(s => s.Label == "System");
+            system.Bytes.Should().Be(3400);
+            system.ConsumerId.Should().Be("system:paged-pool");
+            vm.SearchText = "browser";
+            vm.Consumers.Should().NotContain(r => r.Id == "other" || r.Id.StartsWith("other:observation:"));
+            vm.SearchText = "";
+            vm.RevealMemoryConsumerCommand.Execute(vm.MemorySegments.Single(s => s.ConsumerId == "other"));
+            vm.Consumers.Where(r => r.Id.StartsWith("other:observation:")).Should().HaveCount(2)
+                .And.OnlyContain(r => r.PhysicalBytes == null && r.UsageMetric == "Shared WS (overlap)" && r.CanLink);
+            vm.Consumers.Sum(r => r.PhysicalBytes ?? 0).Should().Be(10000);
+        }
+    }
+
+    [Test]
+    public async Task IncompatibleSystemCounters_RemainObservations_AndDoNotEraseGoodPrivateReadings()
+    {
+        var (vm, _, _, _) = Create(memory: new MemoryInfoData
+        {
+            TotalBytes = 16000,
+            UsedBytes = 10000,
+            AvailableBytes = 6000,
+            NonpagedPoolBytes = 1000,
+            SystemAllocations = [new("paged-pool", "Paged pool", 9000, "Kernel RAM", "separately sampled")]
+        }, processes: [Process(1, "one", 2000)]);
+        using (vm)
+        {
+            await vm.RefreshCommand.ExecuteAsync(null);
+            vm.Consumers.Single(r => r.Id.StartsWith("app:")).PhysicalBytes.Should().Be(2000);
+            vm.Consumers.Single(r => r.Id == "other").PhysicalBytes.Should().Be(7000);
+            var observed = vm.Consumers.Single(r => r.Id == "system:paged-pool");
+            observed.PhysicalBytes.Should().BeNull();
+            observed.UsageMetric.Should().Be("Unreconciled observation");
+            vm.MemorySegments.Sum(s => s.Bytes).Should().Be(16000);
+        }
+    }
+
+    [Test]
+    public async Task MissingPrivateReadings_AreExplainedInRemainderDrilldown()
+    {
+        var (vm, _, _, _) = Create(processes: [Process(1, "protected", null)]);
+        using (vm)
+        {
+            await vm.RefreshCommand.ExecuteAsync(null);
+            var other = vm.Consumers.Single(r => r.Id == "other");
+            other.Detail.Should().Contain("0 of 1 processes");
+            other.Children.Should().ContainSingle().Which.UsageMetric.Should().Be("Working set (overlap)");
+            other.Children[0].PhysicalBytes.Should().BeNull();
+            other.Children[0].ObservedBytes.Should().Be(2000);
         }
     }
 

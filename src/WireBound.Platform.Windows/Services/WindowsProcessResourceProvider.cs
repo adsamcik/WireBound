@@ -50,6 +50,38 @@ public sealed class WindowsProcessResourceProvider : IProcessResourceProvider
     {
         var results = new List<ProcessResourceData>();
 
+        var snapshot = WindowsProcessMemorySnapshot.Capture(includePrivateWorkingSet, cancellationToken);
+        if (snapshot is not null)
+        {
+            foreach (var sample in snapshot)
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                var path = "";
+                try
+                {
+                    using var process = Process.GetProcessById(sample.ProcessId);
+                    // Do not attach a newly reused PID's executable to an older sample.
+                    if (sample.StartMarker != 0 && process.StartTime.ToUniversalTime().Ticks == sample.StartMarker)
+                        path = process.MainModule?.FileName ?? "";
+                }
+                catch (System.ComponentModel.Win32Exception) { }
+                catch (InvalidOperationException) { }
+                catch (ArgumentException) { }
+                results.Add(new ProcessResourceData
+                {
+                    ProcessId = sample.ProcessId,
+                    ProcessName = sample.ProcessName,
+                    StartMarker = sample.StartMarker,
+                    ExecutablePath = path,
+                    WorkingSetBytes = sample.WorkingSetBytes,
+                    PrivateBytes = sample.PrivateBytes,
+                    PrivateWorkingSetBytes = sample.PrivateWorkingSetBytes,
+                    CpuTimeTicks = sample.CpuTimeTicks
+                });
+            }
+            return Task.FromResult<IReadOnlyList<ProcessResourceData>>(results);
+        }
+
         Process[] processes;
         try
         {

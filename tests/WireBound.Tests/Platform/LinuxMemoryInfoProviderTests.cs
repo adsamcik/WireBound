@@ -264,4 +264,16 @@ public class LinuxMemoryInfoProviderTests
         // Assert
         result.Should().BeEmpty();
     }
+
+    [Test]
+    public void ResidentBreakdown_UsesOnlyNonreclaimableKernelAllocations()
+    {
+        var values = LinuxMemoryInfoProvider.ParseMemInfoLines([
+            "SUnreclaim: 1024 kB", "KernelStack: 512 kB", "PageTables: 256 kB",
+            "SReclaimable: 2048 kB", "Cached: 99999 kB", "Dirty: 1024 kB"]);
+        var allocations = LinuxMemoryInfoProvider.ReadResidentAllocations(values);
+        allocations.Should().HaveCount(3);
+        allocations.Sum(a => a.Bytes).Should().Be((1024L + 512 + 256) * 1024);
+        allocations.Should().NotContain(a => a.Id == "Cached" || a.Id == "SReclaimable" || a.Id == "Dirty");
+    }
 }

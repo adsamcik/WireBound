@@ -17,7 +17,7 @@ public sealed class StubMemoryInfoProvider : IMemoryInfoProvider
         _totalMemory = 16L * 1024 * 1024 * 1024;
     }
 
-    public MemoryInfoData GetMemoryInfo()
+    public MemoryInfoData GetMemoryInfo(bool includeSystemBreakdown = false)
     {
         // Generate realistic-looking random memory usage for development/testing
         var usagePercent = 40 + _random.NextDouble() * 30; // 40-70% usage

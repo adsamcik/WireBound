@@ -56,7 +56,7 @@ public sealed class WindowsMemoryInfoProvider : IMemoryInfoProvider
     [return: MarshalAs(UnmanagedType.Bool)]
     private static extern bool GetPerformanceInfo(ref PERFORMANCE_INFORMATION info, uint size);
 
-    public MemoryInfoData GetMemoryInfo()
+    public MemoryInfoData GetMemoryInfo(bool includeSystemBreakdown = false)
     {
         var memStatus = new MEMORYSTATUSEX { dwLength = (uint)Marshal.SizeOf<MEMORYSTATUSEX>() };
 
@@ -86,6 +86,7 @@ public sealed class WindowsMemoryInfoProvider : IMemoryInfoProvider
         {
             InstalledBytes = installedBytes,
             NonpagedPoolBytes = nonpagedPoolBytes,
+            SystemAllocations = includeSystemBreakdown ? WindowsResidentMemoryCounters.Read() : [],
             TotalBytes = (long)memStatus.ullTotalPhys,
             AvailableBytes = (long)memStatus.ullAvailPhys,
             UsedBytes = (long)(memStatus.ullTotalPhys - memStatus.ullAvailPhys),

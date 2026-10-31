@@ -97,7 +97,7 @@ public sealed partial class MemoryViewModel : ObservableObject, IDisposable
         SampleStatus = _roots.Count > 0 ? "Refreshing · previous sample shown" : "Reading memory…";
         try
         {
-            var memoryTask = Task.Run(() => (_memoryProvider.GetMemoryInfo(), DateTime.Now), capture.Token);
+            var memoryTask = Task.Run(() => (_memoryProvider.GetMemoryInfo(includeSystemBreakdown: true), DateTime.Now), capture.Token);
             var processesTask = _processUsage.CaptureAsync(capture.Token, includePrivateWorkingSet: true);
             var workloadTask = _workloads.CaptureAsync(capture.Token);
             await Task.WhenAll(memoryTask, processesTask, workloadTask).ConfigureAwait(false);
@@ -122,7 +122,7 @@ public sealed partial class MemoryViewModel : ObservableObject, IDisposable
                 _roots = roots;
                 MemorySegments = BuildMemorySegments(memory, valid);
                 AccountingStatus = roots.Last().PhysicalBytes.HasValue
-                    ? "Reported working-set, VM and container values may overlap. The bar shows physical totals."
+                    ? "Shared working sets, VM and container observations may overlap. The bar shows physical totals."
                     : "Physical attribution unavailable. Refresh to retry. Other measurements may overlap.";
                 RestoreExpansion(_roots);
                 RebuildVisible();
@@ -223,7 +223,8 @@ public sealed partial class MemoryViewModel : ObservableObject, IDisposable
         bool DirectMatch(MemoryConsumerRow row) => row.Name.Contains(search, StringComparison.OrdinalIgnoreCase)
             || row.Summary.Contains(search, StringComparison.OrdinalIgnoreCase)
             || row.UsageMetric.Contains(search, StringComparison.OrdinalIgnoreCase);
-        bool Matches(MemoryConsumerRow row) => DirectMatch(row) || row.Children.Any(Matches);
+        bool Matches(MemoryConsumerRow row) => DirectMatch(row)
+            || (row.Id != "other" || row.IsExpanded) && row.Children.Any(Matches);
         var visible = new List<MemoryConsumerRow>();
         void Append(IEnumerable<MemoryConsumerRow> rows, int depth, bool includeAll)
         {
@@ -346,8 +347,8 @@ public sealed partial class MemoryViewModel : ObservableObject, IDisposable
             Add("Other VM hosts", smallerHosts.Sum(r => r.PhysicalBytes!.Value),
                 ChartColors.CpuDimColor, SortByUsage(smallerHosts).FirstOrDefault()?.Id,
                 "Measured private RAM of smaller VM host processes. Click to reveal the largest of these hosts. Guest and container observations are excluded.");
-            Add("System", system.PhysicalBytes ?? 0, ChartColors.AxisNameColor, system.Children.FirstOrDefault()?.Id,
-                "Measured resident kernel allocations.");
+            Add("System", system.PhysicalBytes ?? 0, ChartColors.AxisNameColor, SortByUsage(system.Children.Where(r => r.PhysicalBytes.HasValue)).FirstOrDefault()?.Id,
+                "Measured resident kernel, cache and modified-page allocations.");
             Add("Shared / other", shared.PhysicalBytes.Value, new SKColor(74, 91, 110), shared.Id,
                 "Shared pages and RAM without a measured exclusive owner, including unmeasured guest allocations.");
         }

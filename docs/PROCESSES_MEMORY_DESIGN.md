@@ -111,6 +111,29 @@ Shared and other remains visible with its reason. If samples or definitions are
 incompatible, show the breakdown as unavailable instead of clamping a
 remainder into a false 100% explanation.
 
+Detailed Memory samples now include additional resident system allocations:
+Windows uses language-neutral PDH gauges for resident paged pool, system cache,
+kernel/driver code, and modified pages awaiting writeback. Standby is excluded
+because it is already Available. Linux reports unreclaimable slab, kernel stacks,
+and page tables from `/proc/meminfo`. These extra readings are requested only on
+the Memory page; ordinary system polling stays lightweight. An overfull set of
+additional gauges remains an explicitly unreconciled observation, preserving
+valid private readings and the original remainder rather than forcing a fit.
+
+Windows process sampling uses a validated system-wide process snapshot so
+protected processes, Secure System, and Memory Compression can contribute their
+private resident pages without opening their memory. PID plus kernel creation
+time identifies each sample; executable enrichment requires a matching creation
+time. Invalid native layouts fall back to the existing per-process APIs.
+
+Expanding Shared and other shows per-app/host shared-working-set observations
+and working sets lacking private readings. These details can overlap each other
+and the resident system cache, never add to physical totals, and do not claim to
+partition the remainder. Ordinary app searches exclude these diagnostic copies
+unless the remainder has been expanded. The unresolved physical remainder stays
+visible: unique shared-page ownership, driver-locked pages, and some guest
+allocations need information not exposed by these counters.
+
 ## Memory to Processes workflow
 
 A named VM or another linkable allocation has an explicit **View related

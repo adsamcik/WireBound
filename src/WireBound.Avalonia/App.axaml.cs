@@ -26,6 +26,7 @@ public partial class App : Application
 {
     private ServiceProvider? _serviceProvider;
     private volatile bool _shutdownInProgress;
+    private bool _showWelcomeOnStartup;
 
     public override void Initialize()
     {
@@ -48,8 +49,13 @@ public partial class App : Application
         var localizationService = _serviceProvider.GetRequiredService<ILocalizationService>();
         Strings.Initialize(localizationService);
 
-        // Initialize database (synchronous, fast operation)
-        InitializeDatabase();
+        // Installer first-run hooks can also fire when a newer installer replaces
+        // an existing installation. The persistent profile identifies a new user.
+        var isNewProfile = InitializeDatabase();
+        _showWelcomeOnStartup = isNewProfile
+            && Environment.GetEnvironmentVariable("WIREBOUND_FIRST_RUN") == "1"
+            && string.IsNullOrEmpty(Environment.GetEnvironmentVariable("WIREBOUND_UPDATED_TO"));
+        Environment.SetEnvironmentVariable("WIREBOUND_FIRST_RUN", null);
 
         if (ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop)
         {
@@ -410,19 +416,21 @@ public partial class App : Application
     }
 
     [System.Diagnostics.CodeAnalysis.SuppressMessage("AOT", "IL3050", Justification = "EF Core AOT: EnsureCreated uses runtime model building; ApplyMigrations uses raw SQL which is AOT-safe")]
-    private void InitializeDatabase()
+    private bool InitializeDatabase()
     {
         try
         {
             using var scope = _serviceProvider!.CreateScope();
             var context = scope.ServiceProvider.GetRequiredService<WireBoundDbContext>();
-            context.Database.EnsureCreated();
+            var isNewProfile = context.Database.EnsureCreated();
             context.ApplyMigrations();
             Log.Information("Database initialized successfully");
+            return isNewProfile;
         }
         catch (Exception ex)
         {
             Log.Error(ex, "Failed to initialize database");
+            return false;
         }
     }
 
@@ -535,7 +543,7 @@ public partial class App : Application
     {
         if (_serviceProvider is null) return;
 
-        var hasStartupDialog = Environment.GetEnvironmentVariable("WIREBOUND_FIRST_RUN") == "1"
+        var hasStartupDialog = _showWelcomeOnStartup
             || !string.IsNullOrEmpty(Environment.GetEnvironmentVariable("WIREBOUND_UPDATED_TO"));
         if (forceWindowVisible || hasStartupDialog)
         {
@@ -653,7 +661,9 @@ public partial class App : Application
             Environment.SetEnvironmentVariable("WIREBOUND_UPDATED_TO", null);
 
             // Fetch release notes from GitHub API
-            var notes = await FetchReleaseNotesAsync(updatedTo);
+            var notes = Program.IsStartupSmokeTest
+                ? $"Updated to version {updatedTo}."
+                : await FetchReleaseNotesAsync(updatedTo);
 
             await Dispatcher.UIThread.InvokeAsync(() =>
             {
@@ -669,14 +679,14 @@ public partial class App : Application
         }
     }
 
-    private static async Task ShowWelcomeIfFirstRunAsync(MainWindow mainWindow)
+    private async Task ShowWelcomeIfFirstRunAsync(MainWindow mainWindow)
     {
-        if (Environment.GetEnvironmentVariable("WIREBOUND_FIRST_RUN") != "1")
+        if (!_showWelcomeOnStartup)
         {
             return;
         }
 
-        Environment.SetEnvironmentVariable("WIREBOUND_FIRST_RUN", null);
+        _showWelcomeOnStartup = false;
         await Dispatcher.UIThread.InvokeAsync(() =>
         {
             var welcomeWindow = new WelcomeWindow();

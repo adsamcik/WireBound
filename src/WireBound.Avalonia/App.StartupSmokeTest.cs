@@ -1,12 +1,15 @@
 using Avalonia.Automation;
 using Avalonia.Controls;
 using Avalonia.Controls.ApplicationLifetimes;
+using Avalonia.Interactivity;
 using Avalonia.Threading;
 using Avalonia.VisualTree;
+using Microsoft.Extensions.DependencyInjection;
 using Serilog;
 using WireBound.Avalonia.ViewModels;
 using WireBound.Avalonia.Views;
 using WireBound.Core;
+using WireBound.Core.Services;
 
 namespace WireBound.Avalonia;
 
@@ -16,7 +19,7 @@ public partial class App
     /// Runs inside the real desktop process, after its native window has opened.
     /// The parent test supplies isolated storage, enforces a timeout, and checks the logs.
     /// </summary>
-    private static async Task CompleteStartupSmokeTestAsync(
+    private async Task CompleteStartupSmokeTestAsync(
         IClassicDesktopStyleApplicationLifetime desktop, MainWindow mainWindow, Task initialization)
     {
         try
@@ -26,6 +29,32 @@ public partial class App
             // Let native rendering, chart updates and several polling ticks execute.
             // A window constructor alone misses failures posted to the dispatcher.
             await Task.Delay(TimeSpan.FromSeconds(5));
+            await Dispatcher.UIThread.InvokeAsync(() =>
+            {
+                var isMinimized = !mainWindow.IsVisible || mainWindow.WindowState == WindowState.Minimized;
+                var expectMinimized = Environment.GetEnvironmentVariable("WIREBOUND_STARTUP_TEST_EXPECT_MINIMIZED") == "1";
+                if (isMinimized != expectMinimized)
+                    throw new InvalidOperationException("Startup did not preserve the expected window visibility.");
+
+                foreach (var dialog in desktop.Windows.Where(w => w is WelcomeWindow or WhatsNewWindow).ToArray())
+                {
+                    if (!dialog.IsVisible || dialog.Bounds.Width <= 0 || dialog.Bounds.Height <= 0)
+                        throw new InvalidOperationException("The startup dialog did not render.");
+
+                    var isWelcome = dialog is WelcomeWindow;
+                    var actionName = isWelcome ? "Start Monitoring" : "Dismiss What's New dialog";
+                    var dismiss = dialog.GetVisualDescendants().OfType<Button>()
+                        .Single(b => AutomationProperties.GetName(b) == actionName);
+                    dismiss.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+                    if (dialog.IsVisible)
+                        throw new InvalidOperationException("The startup dialog action did not dismiss it.");
+                    Log.Information("Startup smoke test dismissed rendered {Dialog:l} dialog", isWelcome ? "Welcome" : "What's New");
+                }
+
+                if (isMinimized)
+                    _serviceProvider!.GetRequiredService<ITrayIconService>().ShowMainWindow();
+            }, DispatcherPriority.Background);
+            await Task.Delay(200);
             await Dispatcher.UIThread.InvokeAsync(() =>
             {
                 if (!mainWindow.IsVisible || mainWindow.Bounds.Width <= 0 || mainWindow.Bounds.Height <= 0

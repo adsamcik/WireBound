@@ -7,10 +7,12 @@ namespace WireBound.Tests.Views;
 public class StartupSmokeTests
 {
     [Test]
-    [Arguments(false)]
-    [Arguments(true)]
+    [Arguments(false, false)]
+    [Arguments(true, false)]
+    [Arguments(true, true)]
     [Timeout(90_000)]
-    public async Task DesktopStartup_RendersDashboardAndShutsDownWithoutErrors(bool minimizedFirstRun, CancellationToken cancellationToken)
+    public async Task DesktopStartup_RendersDashboardAndShutsDownWithoutErrors(
+        bool existingProfile, bool updateRestart, CancellationToken cancellationToken)
     {
         var dataDirectory = Path.Combine(Path.GetTempPath(), $"wirebound-startup-{Guid.NewGuid():N}");
         Directory.CreateDirectory(dataDirectory);
@@ -18,7 +20,7 @@ public class StartupSmokeTests
         var started = false;
         try
         {
-            if (minimizedFirstRun)
+            if (existingProfile)
             {
                 var options = new DbContextOptionsBuilder<WireBoundDbContext>()
                     .UseSqlite($"Data Source={Path.Combine(dataDirectory, "wirebound.db")};Pooling=False")
@@ -44,8 +46,14 @@ public class StartupSmokeTests
             };
             startInfo.ArgumentList.Add("--startup-smoke-test");
             startInfo.Environment["WIREBOUND_STARTUP_TEST_DATA_DIRECTORY"] = dataDirectory;
-            startInfo.Environment["WIREBOUND_FIRST_RUN"] = minimizedFirstRun ? "1" : "0";
-            startInfo.Environment.Remove("WIREBOUND_UPDATED_TO");
+            // A newer installer may report first-run again for an existing profile.
+            // Both lifecycle flags can also be present on an update restart.
+            startInfo.Environment["WIREBOUND_FIRST_RUN"] = "1";
+            startInfo.Environment["WIREBOUND_STARTUP_TEST_EXPECT_MINIMIZED"] = existingProfile && !updateRestart ? "1" : "0";
+            if (updateRestart)
+                startInfo.Environment["WIREBOUND_UPDATED_TO"] = "0.13.0";
+            else
+                startInfo.Environment.Remove("WIREBOUND_UPDATED_TO");
             process.StartInfo = startInfo;
             started = process.Start();
             started.Should().BeTrue();
@@ -76,8 +84,21 @@ public class StartupSmokeTests
                 .And.Contain("Application shutdown complete", diagnostics)
                 .And.NotContain("[ERR]", diagnostics)
                 .And.NotContain("[FTL]", diagnostics);
-            if (minimizedFirstRun)
-                logs.Should().Contain("Showed first-install welcome dialog", diagnostics);
+            if (!existingProfile)
+                logs.Should().Contain("Showed first-install welcome dialog", diagnostics)
+                    .And.Contain("Startup smoke test dismissed rendered Welcome dialog", diagnostics);
+            else
+                logs.Should().NotContain("Showed first-install welcome dialog", diagnostics)
+                    .And.NotContain("Startup smoke test dismissed rendered Welcome dialog", diagnostics);
+
+            if (updateRestart)
+                logs.Should().Contain("Showed What's New dialog for version", diagnostics)
+                    .And.Contain("Startup smoke test dismissed rendered What's New dialog", diagnostics);
+            else
+                logs.Should().NotContain("Showed What's New dialog", diagnostics);
+
+            if (existingProfile && !updateRestart)
+                logs.Should().Contain("Application started minimized to tray", diagnostics);
         }
         finally
         {

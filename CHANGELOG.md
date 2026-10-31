@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- **Welcome After Updates** - The welcome screen is limited to a fresh user profile. Reinstalling a newer version preserves completed setup and the start-minimized preference, while update restarts keep showing What's New.
+
 ## [0.13.0] - 2026-10-31
 
 ### Added

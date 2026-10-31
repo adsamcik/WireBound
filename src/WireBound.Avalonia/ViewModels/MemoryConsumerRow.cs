@@ -57,18 +57,17 @@ public sealed partial class MemoryConsumerRow : ObservableObject
     public Thickness Indent => new(Depth * 18, 0, 0, 0);
     public string PhysicalDisplay => PhysicalBytes is { } bytes ? (IsPartial ? "≥ " : "") + ByteFormatter.FormatBytes(bytes) : "—";
     public string ObservedDisplay => ObservedBytes is { } bytes ? ByteFormatter.FormatBytes(bytes) : "—";
-    public string ExpandGlyph => IsLoading ? "…" : IsExpanded || IsFilterExpanded ? "⌄" : "›";
+    public double ExpandAngle => IsExpanded || IsFilterExpanded ? 90 : 0;
     public string ExpandName => IsFilterExpanded ? $"Matching children of {Name}" : $"{(IsExpanded ? "Collapse" : "Expand")} {Name}";
     partial void OnIsFilterExpandedChanged(bool value)
     {
         OnPropertyChanged(nameof(CanToggle));
-        OnPropertyChanged(nameof(ExpandGlyph));
+        OnPropertyChanged(nameof(ExpandAngle));
         OnPropertyChanged(nameof(ExpandName));
     }
     partial void OnIsExpandedChanged(bool value)
     {
-        OnPropertyChanged(nameof(ExpandGlyph));
+        OnPropertyChanged(nameof(ExpandAngle));
         OnPropertyChanged(nameof(ExpandName));
     }
-    partial void OnIsLoadingChanged(bool value) => OnPropertyChanged(nameof(ExpandGlyph));
 }

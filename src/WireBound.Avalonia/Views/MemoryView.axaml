@@ -54,7 +54,8 @@
             <Setter Property="MinWidth" Value="28" />
             <Setter Property="MinHeight" Value="30" />
             <Setter Property="Background" Value="Transparent" />
-            <Setter Property="FontSize" Value="20" />
+            <Setter Property="HorizontalContentAlignment" Value="Center" />
+            <Setter Property="VerticalContentAlignment" Value="Center" />
         </Style>
     </UserControl.Styles>
     <Grid Margin="20,16" RowDefinitions="Auto,Auto,*" RowSpacing="12">
@@ -116,9 +117,21 @@
                             <DataTemplate x:DataType="vm:MemoryConsumerRow">
                                 <Grid ColumnDefinitions="*,130,210" ColumnSpacing="12" Margin="0,3,12,3" Background="Transparent" ToolTip.Tip="{Binding MeasurementDetails}">
                                     <Grid ColumnDefinitions="28,20,*,Auto" Margin="{Binding Indent}" ColumnSpacing="6">
-                                        <Button Classes="Disclosure" IsVisible="{Binding CanExpand}" IsEnabled="{Binding CanToggle}" Content="{Binding ExpandGlyph}"
+                                        <Button Classes="Disclosure" IsVisible="{Binding CanExpand}" IsEnabled="{Binding CanToggle}"
                                                 Command="{Binding $parent[UserControl].((vm:MemoryViewModel)DataContext).ToggleConsumerCommand}"
-                                                CommandParameter="{Binding}" AutomationProperties.Name="{Binding ExpandName}" />
+                                                CommandParameter="{Binding}" AutomationProperties.Name="{Binding ExpandName}">
+                                            <Grid Width="16" Height="16">
+                                                <PathIcon Width="12" Height="12" HorizontalAlignment="Center" VerticalAlignment="Center"
+                                                          Data="M 9,6 L 7.59,7.41 L 12.17,12 L 7.59,16.59 L 9,18 L 15,12 Z"
+                                                          IsVisible="{Binding !IsLoading}" RenderTransformOrigin="50%,50%">
+                                                    <PathIcon.RenderTransform>
+                                                        <RotateTransform Angle="{Binding ExpandAngle}" />
+                                                    </PathIcon.RenderTransform>
+                                                </PathIcon>
+                                                <TextBlock Text="…" IsVisible="{Binding IsLoading}" FontSize="14" LineHeight="16"
+                                                           HorizontalAlignment="Center" VerticalAlignment="Center" />
+                                            </Grid>
+                                        </Button>
                                         <Grid Grid.Column="1" Width="20" Height="20" VerticalAlignment="Center">
                                             <Image x:Name="ConsumerIcon" Source="{Binding IconPath, Converter={x:Static converters:IconPathToBitmapConverter.Instance}}"
                                                    Stretch="Uniform" RenderOptions.BitmapInterpolationMode="HighQuality" />

@@ -1,5 +1,6 @@
 using System.ComponentModel;
 using System.Globalization;
+using System.Windows.Input;
 using Avalonia;
 using Avalonia.Automation;
 using Avalonia.Controls;
@@ -19,11 +20,16 @@ public partial class MemoryView : UserControl
     private MemoryViewModel? _observedViewModel;
     private Vector? _refreshOffset;
     private int _updateVersion;
+    private ContextMenu? _consumerMenu;
 
     public MemoryView()
     {
         InitializeComponent();
-        this.FindControl<ListBox>("ConsumerList")?.AddHandler(KeyDownEvent, OnConsumerKeyDown, RoutingStrategies.Tunnel);
+        if (this.FindControl<ListBox>("ConsumerList") is { } list)
+        {
+            list.AddHandler(KeyDownEvent, OnConsumerKeyDown, RoutingStrategies.Tunnel);
+            list.ContextRequested += OnConsumerContextRequested;
+        }
         DataContextChanged += (_, _) => ObserveViewModel();
         AttachedToVisualTree += (_, _) => ObserveViewModel();
         DetachedFromVisualTree += (_, _) => StopObserving();
@@ -31,6 +37,7 @@ public partial class MemoryView : UserControl
 
     private void StopObserving()
     {
+        CloseConsumerMenu();
         if (_observedViewModel is not null)
         {
             _observedViewModel.ConsumersChanging -= OnConsumersChanging;
@@ -58,7 +65,52 @@ public partial class MemoryView : UserControl
     private void OnViewModelPropertyChanged(object? sender, PropertyChangedEventArgs e)
     {
         if (e.PropertyName == nameof(MemoryViewModel.MemorySegments)) RenderMemorySegments();
-        else if (e.PropertyName == nameof(MemoryViewModel.SelectedConsumer)) UpdateSegmentSelection();
+        else if (e.PropertyName == nameof(MemoryViewModel.SelectedConsumer))
+        {
+            CloseConsumerMenu();
+            UpdateSegmentSelection();
+        }
+    }
+
+    private void CloseConsumerMenu()
+    {
+        _consumerMenu?.Close();
+        _consumerMenu = null;
+    }
+
+    private void OnConsumerContextRequested(object? sender, ContextRequestedEventArgs e)
+    {
+        CloseConsumerMenu();
+        if (sender is not ListBox list || _observedViewModel is not { } vm) return;
+        var pointerRequest = e.TryGetPosition(list, out _);
+        var container = pointerRequest
+            ? (e.Source as Visual)?.GetSelfAndVisualAncestors().OfType<ListBoxItem>().FirstOrDefault()
+            : list.SelectedItem is { } selected ? list.ContainerFromItem(selected) as ListBoxItem : null;
+        if (container?.DataContext is not MemoryConsumerRow row || !vm.Consumers.Contains(row)) return;
+        vm.SelectedConsumer = row;
+
+        var menu = new ContextMenu { Placement = pointerRequest ? PlacementMode.Pointer : PlacementMode.Bottom };
+        AutomationProperties.SetName(menu, $"Actions for {row.Name}");
+        void Add(string label, ICommand command, object? parameter = null, bool enabled = true)
+        {
+            var item = new MenuItem { Header = label, Command = command, CommandParameter = parameter, IsEnabled = enabled };
+            AutomationProperties.SetName(item, label);
+            menu.Items.Add(item);
+        }
+        if (row.CanLink) Add("Related processes", vm.ViewRelatedProcessesCommand);
+        if (row.CanExpand)
+            Add(row.IsFilterExpanded ? "Contents shown by search" : row.IsExpanded ? "Collapse" : "Expand",
+                vm.ToggleConsumerCommand, row, row.CanToggle);
+        if (menu.Items.Count > 0) menu.Items.Add(new Separator());
+        Add("Copy name", vm.CopyTextCommand, row.Name);
+        Add("Copy memory details", vm.CopyConsumerDetailsCommand, row);
+        if (!string.IsNullOrWhiteSpace(row.ExecutablePath)) Add("Copy executable path", vm.CopyTextCommand, row.ExecutablePath);
+        if (row.CanLink) Add(row.Processes.Count == 1 ? "Copy PID" : "Copy PIDs", vm.CopyTextCommand,
+            string.Join(", ", row.Processes.Select(p => p.Pid).Order()));
+        if (row.ContainerId is not null) Add("Copy container ID", vm.CopyTextCommand, row.ContainerId);
+        _consumerMenu = menu;
+        e.Handled = true;
+        menu.Open(container);
     }
 
     private void RenderMemorySegments()
@@ -183,6 +235,7 @@ public partial class MemoryView : UserControl
 
     private void OnConsumersChanging()
     {
+        CloseConsumerMenu();
         // Capture immediately before replacement, including late container results,
         // so scrolling during a pending query remains the user's current position.
         _refreshOffset ??= GetConsumerScrollViewer()?.Offset;

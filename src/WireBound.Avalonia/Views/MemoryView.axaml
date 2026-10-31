@@ -114,7 +114,7 @@
                         <ListBox.ItemsPanel><ItemsPanelTemplate><VirtualizingStackPanel /></ItemsPanelTemplate></ListBox.ItemsPanel>
                         <ListBox.ItemTemplate>
                             <DataTemplate x:DataType="vm:MemoryConsumerRow">
-                                <Grid ColumnDefinitions="*,130,210" ColumnSpacing="12" Margin="0,3,12,3" ToolTip.Tip="{Binding MeasurementDetails}">
+                                <Grid ColumnDefinitions="*,130,210" ColumnSpacing="12" Margin="0,3,12,3" Background="Transparent" ToolTip.Tip="{Binding MeasurementDetails}">
                                     <Grid ColumnDefinitions="28,20,*,Auto" Margin="{Binding Indent}" ColumnSpacing="6">
                                         <Button Classes="Disclosure" IsVisible="{Binding CanExpand}" IsEnabled="{Binding CanToggle}" Content="{Binding ExpandGlyph}"
                                                 Command="{Binding $parent[UserControl].((vm:MemoryViewModel)DataContext).ToggleConsumerCommand}"
@@ -141,7 +141,7 @@
                                HorizontalAlignment="Center" VerticalAlignment="Center" />
                 </Grid>
                 <Border Grid.Row="3" BorderThickness="0,1,0,0" BorderBrush="{StaticResource BorderSubtleBrush}" Padding="14,9">
-                    <Grid RowDefinitions="Auto,Auto" RowSpacing="7">
+                    <Grid RowDefinitions="Auto,Auto,Auto" RowSpacing="7">
                         <TextBlock Text="{Binding AccountingStatus}"
                                    Classes="Caption" TextWrapping="Wrap" />
                         <Grid Grid.Row="1" ColumnDefinitions="*,Auto" ColumnSpacing="16" IsVisible="{Binding HasSelection}">
@@ -152,6 +152,8 @@
                             <Button Grid.Column="1" Classes="Secondary" Content="Related processes" IsVisible="{Binding SelectedConsumer.CanLink}"
                                     Command="{Binding ViewRelatedProcessesCommand}" AutomationProperties.Name="View related processes" VerticalAlignment="Center" />
                         </Grid>
+                        <TextBlock Grid.Row="2" Text="{Binding ActionStatus}" IsVisible="{Binding HasActionStatus}"
+                                   Classes="Caption" AutomationProperties.LiveSetting="Polite" />
                     </Grid>
                 </Border>
             </Grid>

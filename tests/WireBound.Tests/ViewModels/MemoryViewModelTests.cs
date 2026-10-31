@@ -32,7 +32,8 @@ public class MemoryViewModelTests
     };
     private static (MemoryViewModel Vm, IWorkloadMemoryService Workloads, INavigationService Navigation, ProcessContextService Context)
         Create(MemoryInfoData? memory = null, IReadOnlyList<ProcessUsageSnapshot>? processes = null,
-            IReadOnlyList<MemoryWorkload>? workloads = null, IWorkloadHostProvider? hosts = null, IAppIconService? icons = null)
+            IReadOnlyList<MemoryWorkload>? workloads = null, IWorkloadHostProvider? hosts = null, IAppIconService? icons = null,
+            IClipboardService? clipboard = null)
     {
         var provider = Substitute.For<IMemoryInfoProvider>();
         provider.GetMemoryInfo(true).Returns(memory ?? Memory);
@@ -46,9 +47,70 @@ public class MemoryViewModelTests
         navigation.CurrentView.Returns(Routes.Overview);
         var context = new ProcessContextService();
         var vm = new MemoryViewModel(provider, usage, hosts ?? Substitute.For<IWorkloadHostProvider>(),
-            new SynchronousDispatcher(), navigation, context, workloadService, icons ?? Substitute.For<IAppIconService>());
+            new SynchronousDispatcher(), navigation, context, workloadService, icons ?? Substitute.For<IAppIconService>(),
+            clipboard ?? Substitute.For<IClipboardService>());
         navigation.CurrentView.Returns(Routes.Memory);
         return (vm, workloadService, navigation, context);
+    }
+
+    [Test]
+    public async Task CopyDetails_PreservesBothMeasurementsAndProcessIdentity()
+    {
+        var clipboard = Substitute.For<IClipboardService>();
+        var (vm, _, _, _) = Create(clipboard: clipboard);
+        using (vm)
+        {
+            var row = new MemoryConsumerRow
+            {
+                Id = "app:browser",
+                Name = "Browser",
+                ExecutablePath = "C:/Apps/browser.exe",
+                PhysicalBytes = 1024,
+                IsPartial = true,
+                ObservedBytes = 4096,
+                Metric = "Working set",
+                Detail = "Includes shared pages.",
+                Processes = new HashSet<ProcessInstanceId> { new(12, 112), new(11, 111) }
+            };
+            await vm.CopyConsumerDetailsCommand.ExecuteAsync(row);
+            await clipboard.Received(1).SetTextAsync(Arg.Is<string>(text =>
+                text.StartsWith("Browser" + Environment.NewLine + "4.00 KB · Working set")
+                && text.Contains("PIDs: 11, 12") && text.Contains("C:/Apps/browser.exe")
+                && text.Contains("Private RAM: ≥ 1.00 KB") && text.Contains("may overlap")
+                && text.EndsWith("Includes shared pages.")));
+            vm.ActionStatus.Should().Be("Copied to clipboard");
+            vm.HasActionStatus.Should().BeTrue();
+        }
+    }
+
+    [Test]
+    public async Task CopyText_ReportsFailureAndAllowsRetry()
+    {
+        var clipboard = Substitute.For<IClipboardService>();
+        clipboard.SetTextAsync("Browser").Returns(Task.FromException(new IOException("Clipboard busy")), Task.CompletedTask);
+        var (vm, _, _, _) = Create(clipboard: clipboard);
+        using (vm)
+        {
+            await vm.CopyTextCommand.ExecuteAsync("Browser");
+            vm.ActionStatus.Should().Be("Could not copy. Try again.");
+            await vm.CopyTextCommand.ExecuteAsync("Browser");
+            vm.ActionStatus.Should().Be("Copied to clipboard");
+            vm.SelectedConsumer = new MemoryConsumerRow { Id = "other", Name = "Other" };
+            vm.HasActionStatus.Should().BeFalse();
+        }
+    }
+
+    [Test]
+    public async Task CopyText_IgnoresEmptyInputAndDisposedPage()
+    {
+        var clipboard = Substitute.For<IClipboardService>();
+        var (vm, _, _, _) = Create(clipboard: clipboard);
+        await vm.CopyTextCommand.ExecuteAsync(null);
+        await vm.CopyConsumerDetailsCommand.ExecuteAsync(null);
+        await vm.CopyTextCommand.ExecuteAsync("");
+        vm.Dispose();
+        await vm.CopyTextCommand.ExecuteAsync("Browser");
+        await clipboard.DidNotReceiveWithAnyArgs().SetTextAsync(default!);
     }
 
     [Test]

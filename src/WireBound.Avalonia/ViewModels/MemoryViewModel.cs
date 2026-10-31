@@ -22,6 +22,7 @@ public sealed partial class MemoryViewModel : ObservableObject, IDisposable
     private readonly INavigationService _navigation;
     private readonly ProcessContextService _context;
     private readonly IAppIconService _icons;
+    private readonly IClipboardService _clipboard;
     private CancellationTokenSource? _capture;
     private IReadOnlyList<MemoryConsumerRow> _roots = [];
     private readonly HashSet<string> _expanded = [];
@@ -42,6 +43,7 @@ public sealed partial class MemoryViewModel : ObservableObject, IDisposable
     [ObservableProperty] private string _accountingStatus = "Other measurements may overlap; they are not added to physical RAM.";
     [ObservableProperty] private bool _isLoading;
     [ObservableProperty] private string _searchText = "";
+    [ObservableProperty] private string _actionStatus = "";
     [ObservableProperty] private MemoryConsumerRow? _selectedConsumer;
     [ObservableProperty] private IReadOnlyList<MemorySegment> _memorySegments = [];
     public BatchObservableCollection<MemoryConsumerRow> Consumers { get; } = new();
@@ -51,10 +53,11 @@ public sealed partial class MemoryViewModel : ObservableObject, IDisposable
     public bool HasSelection => SelectedConsumer is not null;
     public bool HasNoResults => Consumers.Count == 0 && !IsLoading;
     public bool HasMemorySegments => MemorySegments.Count > 0;
+    public bool HasActionStatus => ActionStatus.Length > 0;
 
     public MemoryViewModel(IMemoryInfoProvider memoryProvider, IProcessUsageService processUsage,
         IWorkloadHostProvider hosts, IUiDispatcher dispatcher, INavigationService navigation,
-        ProcessContextService context, IWorkloadMemoryService workloads, IAppIconService icons)
+        ProcessContextService context, IWorkloadMemoryService workloads, IAppIconService icons, IClipboardService clipboard)
     {
         _memoryProvider = memoryProvider;
         _processUsage = processUsage;
@@ -64,15 +67,18 @@ public sealed partial class MemoryViewModel : ObservableObject, IDisposable
         _context = context;
         _workloads = workloads;
         _icons = icons;
+        _clipboard = clipboard;
         _navigation.NavigationChanged += OnNavigationChanged;
         if (_navigation.CurrentView == Routes.Memory) _ = RefreshAsync();
     }
     partial void OnSelectedConsumerChanged(MemoryConsumerRow? value)
     {
+        ActionStatus = "";
         if (value is not null) _selectionToRestore = null;
         OnPropertyChanged(nameof(HasSelection));
     }
     partial void OnSearchTextChanged(string value) => RebuildVisible();
+    partial void OnActionStatusChanged(string value) => OnPropertyChanged(nameof(HasActionStatus));
     partial void OnMemorySegmentsChanged(IReadOnlyList<MemorySegment> value) => OnPropertyChanged(nameof(HasMemorySegments));
     partial void OnIsLoadingChanged(bool value) => OnPropertyChanged(nameof(HasNoResults));
     private void OnNavigationChanged(string route)
@@ -385,6 +391,32 @@ public sealed partial class MemoryViewModel : ObservableObject, IDisposable
         SelectedConsumer = target;
         ConsumerRevealRequested?.Invoke(target);
     }
+    [RelayCommand]
+    private Task CopyConsumerDetailsAsync(MemoryConsumerRow? row)
+    {
+        if (row is null) return Task.CompletedTask;
+        var lines = new List<string> { row.Name, $"{row.UsageDisplay} · {row.UsageMetric}" };
+        if (row.Processes.Count > 0) lines.Add($"PIDs: {string.Join(", ", row.Processes.Select(p => p.Pid).Order())}");
+        if (!string.IsNullOrWhiteSpace(row.ExecutablePath)) lines.Add(row.ExecutablePath);
+        if (!string.IsNullOrWhiteSpace(row.MeasurementDetails)) lines.Add(row.MeasurementDetails);
+        return CopyTextAsync(string.Join(Environment.NewLine, lines));
+    }
+
+    [RelayCommand]
+    private async Task CopyTextAsync(string? text)
+    {
+        if (string.IsNullOrEmpty(text) || _disposed) return;
+        try
+        {
+            await _clipboard.SetTextAsync(text);
+            ActionStatus = "Copied to clipboard";
+        }
+        catch
+        {
+            ActionStatus = "Could not copy. Try again.";
+        }
+    }
+
     [RelayCommand]
     private void ViewRelatedProcesses()
     {

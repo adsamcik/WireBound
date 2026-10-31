@@ -51,18 +51,19 @@ public sealed partial class MemoryViewModel : ObservableObject, IDisposable
     private string _actionStatus = "";
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(HasFooterContent))]
+    [NotifyPropertyChangedFor(nameof(HasRelatedProcesses))]
     private MemoryConsumerRow? _selectedConsumer;
     [ObservableProperty] private IReadOnlyList<MemorySegment> _memorySegments = [];
     public BatchObservableCollection<MemoryConsumerRow> Consumers { get; } = new();
     public event Action? ConsumersChanging;
     public event Action? ConsumersChanged;
     public event Action<MemoryConsumerRow>? ConsumerRevealRequested;
-    public bool HasSelection => SelectedConsumer is not null;
+    public bool HasRelatedProcesses => SelectedConsumer?.CanLink == true;
     public bool HasNoResults => Consumers.Count == 0 && !IsLoading;
     public bool HasMemorySegments => MemorySegments.Count > 0;
     public bool HasActionStatus => ActionStatus.Length > 0;
     public bool HasAccountingStatus => AccountingStatus.Length > 0;
-    public bool HasFooterContent => HasAccountingStatus || HasSelection || HasActionStatus;
+    public bool HasFooterContent => HasAccountingStatus || HasRelatedProcesses || HasActionStatus;
 
     public MemoryViewModel(IMemoryInfoProvider memoryProvider, IProcessUsageService processUsage,
         IWorkloadHostProvider hosts, IUiDispatcher dispatcher, INavigationService navigation,
@@ -84,7 +85,6 @@ public sealed partial class MemoryViewModel : ObservableObject, IDisposable
     {
         ActionStatus = "";
         if (value is not null) _selectionToRestore = null;
-        OnPropertyChanged(nameof(HasSelection));
     }
     partial void OnSearchTextChanged(string value) => RebuildVisible();
     partial void OnActionStatusChanged(string value) => OnPropertyChanged(nameof(HasActionStatus));

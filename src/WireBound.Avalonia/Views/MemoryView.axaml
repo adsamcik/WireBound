@@ -145,14 +145,8 @@
                     <StackPanel Spacing="7">
                         <TextBlock Text="{Binding AccountingStatus}" IsVisible="{Binding HasAccountingStatus}"
                                    Classes="Caption" TextWrapping="Wrap" />
-                        <Grid ColumnDefinitions="*,Auto" ColumnSpacing="16" IsVisible="{Binding HasSelection}">
-                            <ScrollViewer MaxHeight="84" HorizontalScrollBarVisibility="Disabled" VerticalScrollBarVisibility="Auto"
-                                          Focusable="True" AutomationProperties.Name="Selected memory consumer details">
-                                <TextBlock Text="{Binding SelectedConsumer.MeasurementDetails}" Classes="Caption" TextWrapping="Wrap" />
-                            </ScrollViewer>
-                            <Button Grid.Column="1" Classes="Secondary" Content="Related processes" IsVisible="{Binding SelectedConsumer.CanLink}"
-                                    Command="{Binding ViewRelatedProcessesCommand}" AutomationProperties.Name="View related processes" VerticalAlignment="Center" />
-                        </Grid>
+                        <Button Classes="Secondary" Content="Related processes" IsVisible="{Binding HasRelatedProcesses}"
+                                Command="{Binding ViewRelatedProcessesCommand}" AutomationProperties.Name="View related processes" HorizontalAlignment="Right" />
                         <TextBlock Text="{Binding ActionStatus}" IsVisible="{Binding HasActionStatus}"
                                    Classes="Caption" AutomationProperties.LiveSetting="Polite" />
                     </StackPanel>

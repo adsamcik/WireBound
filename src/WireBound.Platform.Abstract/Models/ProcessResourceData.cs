@@ -28,6 +28,8 @@ public sealed class ProcessResourceData
     /// <summary>Native service-host identification; empty services mean names were unavailable.</summary>
     public ServiceHostInfo? ServiceHost { get; init; }
 
+    public WindowsProgramInfo? WindowsProgram { get; init; }
+
     /// <summary>
     /// Private (committed) memory in bytes — stable metric, not affected by OS paging
     /// </summary>

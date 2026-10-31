@@ -54,6 +54,7 @@ public static class MemoryConsumerBuilder
         };
         foreach (var group in appProcesses.GroupBy(p => p.ServiceHost is not null
                      || string.IsNullOrEmpty(p.ExecutablePath) && ServiceHostPresentation.HasHostName(p.ProcessName) ? $"service-host:{p.ProcessId}:{p.StartMarker}"
+                     : p.WindowsProgram?.SeparateInstances == true ? $"windows-host:{p.ProcessId}:{p.StartMarker}"
                      : string.IsNullOrEmpty(p.ExecutablePath) ? "name:" + p.ProcessName : "path:" + p.ExecutablePath,
                      OperatingSystem.IsWindows() ? StringComparer.OrdinalIgnoreCase : StringComparer.Ordinal))
         {
@@ -65,9 +66,10 @@ public static class MemoryConsumerBuilder
             var row = new MemoryConsumerRow
             {
                 Id = "app:" + group.Key,
-                Name = members[0].ServiceHost is { } host ? ServiceHostPresentation.Name(host) : members[0].ProcessName,
-                IconKey = members[0].ServiceHost is not null ? "WbNavSystem" : "WbEntityApp",
-                SearchTerms = members[0].ServiceHost is { } services ? ServiceHostPresentation.SearchTerms(services) : "",
+                Name = members[0].ServiceHost is { } host ? ServiceHostPresentation.Name(host) : members[0].WindowsProgram?.DisplayName ?? members[0].ProcessName,
+                IconKey = members[0].ServiceHost is not null || members[0].WindowsProgram?.IsSystemProcess == true ? "WbNavSystem" : "WbEntityApp",
+                SearchTerms = string.Join(" ", members.Select(p => p.ProcessName)) + " " + members[0].WindowsProgram?.DisplayName
+                    + (members[0].ServiceHost is { } services ? " " + ServiceHostPresentation.SearchTerms(services) : ""),
                 ExecutablePath = members[0].ExecutablePath,
                 Summary = members.Length == 1 ? $"PID {members[0].ProcessId}" : $"{members.Length} processes",
                 PhysicalBytes = bytes,
@@ -76,10 +78,12 @@ public static class MemoryConsumerBuilder
                 Metric = "Working set",
                 Processes = instances,
                 HasConfirmedProcessLinks = true,
-                Detail = members[0].ServiceHost is { } serviceHost
+                Detail = (members[0].WindowsProgram is { } program
+                    ? $"{(program.IsSystemProcess switch { true => "Windows component", false => "Windows app", _ => "Windows program" })} · {program.DisplayName}\n" : "")
+                    + (members[0].ServiceHost is { } serviceHost
                     ? ServiceHostPresentation.Details(serviceHost)
                         + (string.IsNullOrEmpty(members[0].ExecutablePath) ? "" : "\n" + members[0].ExecutablePath)
-                    : $"{members[0].ExecutablePath}\n{physicalValues.Count(v => v.HasValue)} of {members.Length} processes have measured private RAM. Working sets include shared pages and can overlap other rows."
+                    : $"{members[0].ExecutablePath}\n{physicalValues.Count(v => v.HasValue)} of {members.Length} processes have measured private RAM. Working sets include shared pages and can overlap other rows.")
             };
             foreach (var member in members.Length > 1 ? members : [])
             {
@@ -87,7 +91,9 @@ public static class MemoryConsumerBuilder
                 row.Children.Add(new MemoryConsumerRow
                 {
                     Id = $"process:{member.ProcessId}:{member.StartMarker}",
-                    Name = member.ProcessName,
+                    Name = member.WindowsProgram?.DisplayName ?? member.ProcessName,
+                    SearchTerms = member.ProcessName,
+                    IconKey = member.WindowsProgram?.IsSystemProcess == true ? "WbNavSystem" : "WbEntityApp",
                     ExecutablePath = member.ExecutablePath,
                     Summary = $"PID {member.ProcessId}",
                     PhysicalBytes = privateBytes,

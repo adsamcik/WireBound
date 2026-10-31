@@ -82,9 +82,9 @@ internal static class WindowsServiceHostSnapshot
         return new Dictionary<int, IReadOnlyList<HostedServiceInfo>>();
     }
 
-    internal static IReadOnlyList<ProcessResourceData> Enrich(IReadOnlyList<ProcessResourceData> samples, CancellationToken cancellationToken)
+    internal static IReadOnlyList<ProcessResourceData> Enrich(IReadOnlyList<ProcessResourceData> samples, CancellationToken cancellationToken,
+        IReadOnlyDictionary<int, string>? imagePaths = null, WindowsProgramCatalog? programs = null)
     {
-        if (!samples.Any(IsCandidate)) return samples;
         // The resource generations are sampled BEFORE SCM, then checked again afterwards.
         // A reused PID or inaccessible generation must never inherit another host's services.
         var services = Capture(cancellationToken);
@@ -93,25 +93,25 @@ internal static class WindowsServiceHostSnapshot
         var generations = WindowsProcessMemorySnapshot.Capture(false, cancellationToken)?.ToDictionary(p => p.ProcessId, p => p.StartMarker);
         return Enrich(samples, services, sample => generations is not null
             ? generations.TryGetValue(sample.ProcessId, out var marker) && marker == sample.StartMarker
-            : WindowsProcessResourceProvider.IsCurrentInstance(sample), cancellationToken);
+            : WindowsProcessResourceProvider.IsCurrentInstance(sample), cancellationToken, imagePaths, programs);
     }
 
     internal static IReadOnlyList<ProcessResourceData> Enrich(IReadOnlyList<ProcessResourceData> samples,
         IReadOnlyDictionary<int, IReadOnlyList<HostedServiceInfo>> services, Func<ProcessResourceData, bool> isCurrentInstance,
-        CancellationToken cancellationToken = default)
+        CancellationToken cancellationToken = default, IReadOnlyDictionary<int, string>? imagePaths = null, WindowsProgramCatalog? programs = null)
     {
         var results = new List<ProcessResourceData>(samples.Count);
         foreach (var sample in samples)
         {
             cancellationToken.ThrowIfCancellationRequested();
-            if (!IsCandidate(sample) || !string.IsNullOrEmpty(sample.ExecutablePath) && !IsSystemHostPath(sample.ExecutablePath))
-            {
-                results.Add(sample);
-                continue;
-            }
-            var names = sample.StartMarker != 0 && isCurrentInstance(sample) && services.TryGetValue(sample.ProcessId, out var observed)
+            var current = sample.StartMarker != 0 && isCurrentInstance(sample);
+            var path = current && imagePaths?.TryGetValue(sample.ProcessId, out var imagePath) == true ? imagePath : sample.ExecutablePath;
+            var names = current && services.TryGetValue(sample.ProcessId, out var observed)
                 ? observed : [];
-            if (!IsSystemHostPath(sample.ExecutablePath) && names.Count == 0)
+            var sharedHost = IsCandidate(sample) && (IsSystemHostPath(path) || path.Length == 0 && names.Count > 0);
+            var serviceHost = sharedHost ? new ServiceHostInfo(names) : names.Count > 0 ? new ServiceHostInfo(names, false) : null;
+            var program = programs?.Identify(path);
+            if (serviceHost is null && program is null && path == sample.ExecutablePath)
             {
                 results.Add(sample);
                 continue;
@@ -121,12 +121,13 @@ internal static class WindowsServiceHostSnapshot
                 ProcessId = sample.ProcessId,
                 StartMarker = sample.StartMarker,
                 ProcessName = sample.ProcessName,
-                ExecutablePath = sample.ExecutablePath,
+                ExecutablePath = path,
                 PrivateBytes = sample.PrivateBytes,
                 WorkingSetBytes = sample.WorkingSetBytes,
                 PrivateWorkingSetBytes = sample.PrivateWorkingSetBytes,
                 CpuTimeTicks = sample.CpuTimeTicks,
-                ServiceHost = new ServiceHostInfo(names)
+                ServiceHost = serviceHost,
+                WindowsProgram = program
             });
         }
         return results;

@@ -17,6 +17,43 @@ namespace WireBound.Tests.ViewModels;
 public class AppsViewModelTests : IAsyncDisposable
 {
     [Test]
+    public void WindowsProgramsAndStandaloneServices_UseFriendlyNamesAndCorrectRoles()
+    {
+        var item = new ProcessUsageDisplayItem(new()
+        {
+            ProcessId = 42,
+            ProcessName = "dwm",
+            ExecutablePath = "C:/Windows/System32/dwm.exe",
+            WindowsProgram = new("Desktop Window Manager", true)
+        });
+        item.DisplayName.Should().Be("Desktop Window Manager");
+        item.ProcessTypeLabel.Should().Be("Windows component");
+        item.IsSystemProcess.Should().BeTrue();
+        item.Matches("dwm").Should().BeTrue();
+        item.Matches("Desktop Window Manager").Should().BeTrue();
+        item.Update(new() { ProcessId = 42, ProcessName = "explorer", WindowsProgram = new("Windows Explorer", false) });
+        item.IsSystemProcess.Should().BeFalse();
+        item.ProcessTypeLabel.Should().Be("Windows app");
+        item.Update(new() { ProcessId = 42, ProcessName = "msinfo32", ExecutablePath = "C:/Windows/System32/msinfo32.exe", WindowsProgram = new("System Information", null) });
+        item.IsSystemProcess.Should().BeFalse();
+        item.ProcessTypeLabel.Should().Be("Windows program");
+        item.Update(new() { ProcessId = 42, ProcessName = "spoolsv", ServiceHost = new([new("Spooler", "Print Spooler")], false) });
+        item.DisplayName.Should().Be("Print Spooler");
+        item.ProcessTypeLabel.Should().Be("Windows service");
+        item.IsSystemProcess.Should().BeTrue();
+        item.ServiceDetails.Should().Contain("this service process");
+        item.Matches("svchost").Should().BeFalse();
+        item.Update(new()
+        {
+            ProcessId = 42,
+            ProcessName = "MsMpEng",
+            ServiceHost = new([new("WinDefend", "Microsoft Defender Antivirus Service")], false),
+            WindowsProgram = new("Antimalware Service Executable", true)
+        });
+        item.Matches("Antimalware").Should().BeTrue();
+    }
+
+    [Test]
     public void ServiceHostRow_UsesNativeNamesSystemClassificationAndSearch()
     {
         var item = new ProcessUsageDisplayItem(new()

@@ -15,6 +15,8 @@ namespace WireBound.Platform.Windows.Services;
 [SupportedOSPlatform("windows")]
 public sealed class WindowsProcessResourceProvider : IProcessResourceProvider
 {
+    private readonly WindowsProgramCatalog _programs = new();
+
     [StructLayout(LayoutKind.Sequential)]
     private struct MemoryCounters
     {
@@ -85,7 +87,8 @@ public sealed class WindowsProcessResourceProvider : IProcessResourceProvider
         CancellationToken cancellationToken = default, bool includePrivateWorkingSet = false)
     {
         var samples = CaptureResources(cancellationToken, includePrivateWorkingSet);
-        return Task.FromResult(WindowsServiceHostSnapshot.Enrich(samples, cancellationToken));
+        var imagePaths = WindowsProcessImagePath.Capture(samples, cancellationToken);
+        return Task.FromResult(WindowsServiceHostSnapshot.Enrich(samples, cancellationToken, imagePaths, _programs));
     }
 
     private static IReadOnlyList<ProcessResourceData> CaptureResources(CancellationToken cancellationToken, bool includePrivateWorkingSet)

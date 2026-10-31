@@ -27,6 +27,8 @@ public sealed class ProcessUsageSnapshot
 
     public ServiceHostInfo? ServiceHost { get; init; }
 
+    public WindowsProgramInfo? WindowsProgram { get; init; }
+
     /// <summary>
     /// Private committed memory in bytes.
     /// </summary>

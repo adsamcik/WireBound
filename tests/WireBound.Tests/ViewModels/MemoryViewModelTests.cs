@@ -54,6 +54,29 @@ public class MemoryViewModelTests
     }
 
     [Test]
+    public async Task BuiltinWindowsPrograms_PreserveIndependentHostsAndRawNameSearch()
+    {
+        var (vm, _, _, _) = Create(processes:
+        [
+            new() { ProcessId = 11, StartMarker = 111, ProcessName = "dllhost", ExecutablePath = "C:/Windows/System32/dllhost.exe", PrivateWorkingSetBytes = 1000, WorkingSetBytes = 1500, WindowsProgram = new("COM Surrogate", true, true) },
+            new() { ProcessId = 12, StartMarker = 112, ProcessName = "dllhost", ExecutablePath = "C:/Windows/System32/dllhost.exe", PrivateWorkingSetBytes = 2000, WorkingSetBytes = 2500, WindowsProgram = new("COM Surrogate", true, true) },
+            new() { ProcessId = 21, StartMarker = 121, ProcessName = "explorer", ExecutablePath = "C:/Windows/explorer.exe", PrivateWorkingSetBytes = 500, WorkingSetBytes = 1000, WindowsProgram = new("Windows Explorer", false) },
+            new() { ProcessId = 31, StartMarker = 131, ProcessName = "spoolsv", PrivateWorkingSetBytes = 500, WorkingSetBytes = 1000, ServiceHost = new([new("Spooler", "Print Spooler")], false) }
+        ]);
+        using (vm)
+        {
+            await vm.RefreshCommand.ExecuteAsync(null);
+            vm.Consumers.Where(r => r.Name == "COM Surrogate").Should().HaveCount(2).And.OnlyContain(r => !r.CanExpand && r.IconKey == "WbNavSystem");
+            vm.Consumers.Single(r => r.Name == "Windows Explorer").IconKey.Should().Be("WbEntityApp");
+            vm.Consumers.Sum(r => r.PhysicalBytes ?? 0).Should().Be(Memory.UsedBytes);
+            vm.SearchText = "dllhost";
+            vm.Consumers.Should().HaveCount(2);
+            vm.SearchText = "spoolsv";
+            vm.Consumers.Should().ContainSingle().Which.Name.Should().Be("Print Spooler");
+        }
+    }
+
+    [Test]
     public async Task ServiceHosts_StaySeparateAndSearchAllHostedServices()
     {
         var clipboard = Substitute.For<IClipboardService>();

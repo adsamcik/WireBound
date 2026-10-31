@@ -634,6 +634,12 @@ public sealed partial class ProcessUsageDisplayItem : ObservableObject
     [NotifyPropertyChangedFor(nameof(ServiceDetails))]
     private ServiceHostInfo? _serviceHost;
 
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(DisplayName))]
+    [NotifyPropertyChangedFor(nameof(IsSystemProcess))]
+    [NotifyPropertyChangedFor(nameof(ProcessTypeLabel))]
+    private WindowsProgramInfo? _windowsProgram;
+
     public bool HasServiceDetails => ServiceHost is not null;
     public string ServiceDetails => ServiceHost is { } host ? ServiceHostPresentation.Details(host) : "";
 
@@ -715,6 +721,7 @@ public sealed partial class ProcessUsageDisplayItem : ObservableObject
         get
         {
             if (ServiceHost is { } host) return ServiceHostPresentation.Name(host);
+            if (WindowsProgram is { } program) return program.DisplayName;
             if (!string.IsNullOrWhiteSpace(ExecutablePath))
             {
                 var fileName = Path.GetFileNameWithoutExtension(ExecutablePath);
@@ -740,10 +747,12 @@ public sealed partial class ProcessUsageDisplayItem : ObservableObject
     public string SessionTotalDisplay => HasNetworkStats
         ? ByteFormatter.FormatBytes(Math.Max(0, SessionBytesReceived) + Math.Max(0, SessionBytesSent))
         : "—";
-    public bool IsSystemProcess => ServiceHost is not null || string.IsNullOrWhiteSpace(ExecutablePath)
+    public bool IsSystemProcess => ServiceHost is not null || (WindowsProgram?.IsSystemProcess ?? (string.IsNullOrWhiteSpace(ExecutablePath)
                                    || string.Equals(ProcessName, "System", StringComparison.OrdinalIgnoreCase)
-                                   || string.Equals(ProcessName, "Idle", StringComparison.OrdinalIgnoreCase);
-    public string ProcessTypeLabel => ServiceHost is not null ? "Service host" : IsSystemProcess ? "System process" : "User process";
+                                   || string.Equals(ProcessName, "Idle", StringComparison.OrdinalIgnoreCase)));
+    public string ProcessTypeLabel => ServiceHost is { } host ? host.IsSharedHost ? "Service host" : "Windows service"
+        : WindowsProgram is { } program ? program.IsSystemProcess switch { true => "Windows component", false => "Windows app", _ => "Windows program" }
+        : IsSystemProcess ? "System process" : "User process";
     public string ExecutablePathDisplay => string.IsNullOrWhiteSpace(ExecutablePath)
         ? "Executable path unavailable"
         : ExecutablePath;
@@ -756,6 +765,7 @@ public sealed partial class ProcessUsageDisplayItem : ObservableObject
         ProcessName = snapshot.ProcessName;
         ExecutablePath = snapshot.ExecutablePath;
         ServiceHost = snapshot.ServiceHost;
+        WindowsProgram = snapshot.WindowsProgram;
         CpuPercent = snapshot.CpuPercent;
         HasCpuSample = snapshot.HasCpuSample;
         PrivateBytes = snapshot.PrivateBytes;
@@ -771,6 +781,7 @@ public sealed partial class ProcessUsageDisplayItem : ObservableObject
     {
         return DisplayName.Contains(term, StringComparison.OrdinalIgnoreCase)
                || ProcessName.Contains(term, StringComparison.OrdinalIgnoreCase)
+               || WindowsProgram?.DisplayName.Contains(term, StringComparison.OrdinalIgnoreCase) == true
                || ExecutablePath.Contains(term, StringComparison.OrdinalIgnoreCase)
                || ServiceHost is { } host && ServiceHostPresentation.SearchTerms(host).Contains(term, StringComparison.OrdinalIgnoreCase)
                || ProcessId.ToString().Contains(term, StringComparison.Ordinal);

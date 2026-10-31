@@ -14,10 +14,12 @@ public class ProcessUsageServiceTests
     {
         var (service, provider, _) = CreateService();
         var host = new ServiceHostInfo([new("Dnscache", "DNS Client")]);
+        var program = new WindowsProgramInfo("Windows service host", true);
         provider.GetProcessResourceDataAsync(Arg.Any<CancellationToken>()).Returns(
-            Task.FromResult<IReadOnlyList<ProcessResourceData>>([new() { ProcessId = 42, StartMarker = 123, ServiceHost = host }]));
+            Task.FromResult<IReadOnlyList<ProcessResourceData>>([new() { ProcessId = 42, StartMarker = 123, ServiceHost = host, WindowsProgram = program }]));
         var snapshot = (await service.CaptureAsync()).Single();
         snapshot.ServiceHost.Should().BeSameAs(host);
+        snapshot.WindowsProgram.Should().BeSameAs(program);
         snapshot.StartMarker.Should().Be(123);
     }
 

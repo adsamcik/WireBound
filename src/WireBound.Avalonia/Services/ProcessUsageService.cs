@@ -90,6 +90,7 @@ public sealed class ProcessUsageService : IProcessUsageService
                         ProcessName = resource.ProcessName,
                         ExecutablePath = resource.ExecutablePath,
                         ServiceHost = resource.ServiceHost,
+                        WindowsProgram = resource.WindowsProgram,
                         PrivateBytes = resource.PrivateBytes,
                         WorkingSetBytes = resource.WorkingSetBytes,
                         PrivateWorkingSetBytes = resource.PrivateWorkingSetBytes,

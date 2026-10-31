@@ -279,6 +279,8 @@ public sealed partial class MemoryViewModel : ObservableObject, IDisposable
             {
                 foreach (var workload in root.Children)
                 {
+                    if (workload.UsageBytes is null && workload.Children.Count == 0
+                        && (workload.Metric == "Unavailable" || workload.Id == "docker")) continue;
                     // Container totals are subdivisions of the Docker total, not extra consumers.
                     if (workload.Id == "docker" && workload.Children.Count > 0)
                     {

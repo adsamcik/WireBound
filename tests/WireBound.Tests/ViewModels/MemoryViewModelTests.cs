@@ -436,6 +436,60 @@ public class MemoryViewModelTests
     }
 
     [Test]
+    public async Task ConsumerList_HidesUnavailableProvidersIncludingFromSearch()
+    {
+        var unavailable = new MemoryWorkload[]
+        {
+            new("docker", "Docker", null, "Unavailable", "Engine unavailable"),
+            new("hyperv-status", "Hyper-V guests", null, "Unavailable", "Module unavailable"),
+            new("wsl-status", "WSL distributions", null, "Unavailable", "WSL unavailable"),
+            new("libvirt-status", "libvirt guests", null, "Unavailable", "Connection unavailable")
+        };
+        var (vm, _, _, _) = Create(workloads: [.. unavailable, new("guest", "Development VM", 2000, "Assigned to VM", "")]);
+        using (vm)
+        {
+            await vm.RefreshCommand.ExecuteAsync(null);
+            vm.Consumers.Should().NotContain(r => unavailable.Any(w => w.Id == r.Id));
+            vm.Consumers.Single(r => r.Id == "guest").UsageBytes.Should().Be(2000);
+            vm.Consumers.Sum(r => r.PhysicalBytes ?? 0).Should().Be(Memory.UsedBytes);
+            foreach (var provider in unavailable)
+            {
+                vm.SearchText = provider.Name;
+                vm.Consumers.Should().BeEmpty();
+                vm.HasNoResults.Should().BeTrue();
+            }
+        }
+    }
+
+    [Test]
+    public async Task ConsumerList_RefreshShowsAvailableWorkloadsAndRemovesThemWhenUnavailable()
+    {
+        var (vm, workloads, _, _) = Create(workloads: [new("docker", "Docker", null, "Container usage", "No running containers")]);
+        using (vm)
+        {
+            await vm.RefreshCommand.ExecuteAsync(null);
+            vm.Consumers.Should().NotContain(r => r.Id == "docker");
+            workloads.CaptureAsync(Arg.Any<CancellationToken>()).Returns(Task.FromResult<IReadOnlyList<MemoryWorkload>>([
+                new("docker", "Docker", null, "Container usage", "", [new("docker:abc", "database", 0, "Container usage", "", ContainerId: "abcdef012345")]),
+                new("guest", "Development VM", 2000, "Assigned to VM", ""),
+                new("wsl:Ubuntu", "Ubuntu", null, "WSL distribution", "Running distribution")
+            ]));
+            await vm.RefreshCommand.ExecuteAsync(null);
+            var container = vm.Consumers.Single(r => r.Id == "docker:abc");
+            container.UsageBytes.Should().Be(0, "a measured zero is available data");
+            vm.Consumers.Should().Contain(r => r.Id == "guest").And.Contain(r => r.Id == "wsl:Ubuntu");
+            vm.SelectedConsumer = container;
+            workloads.CaptureAsync(Arg.Any<CancellationToken>()).Returns(Task.FromResult<IReadOnlyList<MemoryWorkload>>([
+                new("docker", "Docker", null, "Unavailable", "Engine unavailable"),
+                new("hyperv-status", "Hyper-V guests", null, "Unavailable", "Module unavailable")
+            ]));
+            await vm.RefreshCommand.ExecuteAsync(null);
+            vm.Consumers.Should().NotContain(r => r.Id == "docker" || r.Id == "hyperv-status" || r.Id == container.Id);
+            vm.SelectedConsumer.Should().BeNull();
+        }
+    }
+
+    [Test]
     public async Task ConsumerList_InterleavesAppsGuestsContainersAndKernelRam_InDescendingUsage()
     {
         var hosts = Substitute.For<IWorkloadHostProvider>();

@@ -132,6 +132,12 @@ public partial class App : Application
             // Check if we should start minimized
             await ApplyStartMinimizedSettingAsync(mainWindow, forceWindowVisible);
 
+            Program.SetWindowActivation(() => Dispatcher.UIThread.Post(() =>
+            {
+                if (!_shutdownInProgress)
+                    _serviceProvider?.GetRequiredService<ITrayIconService>().ShowMainWindow();
+            }));
+
             // Start background services
             await StartBackgroundServicesAsync();
 

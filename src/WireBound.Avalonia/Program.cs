@@ -18,8 +18,11 @@ class Program
     private const string MutexName = "WireBound-SingleInstance-A3F8D2E1";
     private const string StartupCheckArgument = "--startup-check";
     private const uint ErrorMessageBox = 0x00000010;
+    private static readonly TaskCompletionSource<Action> WindowActivation = new(TaskCreationOptions.RunContinuationsAsynchronously);
 
     internal static bool IsStartupSmokeTest { get; private set; }
+
+    internal static void SetWindowActivation(Action activateWindow) => WindowActivation.TrySetResult(activateWindow);
 
     // Initialization code. Don't use any Avalonia, third-party APIs or any
     // SynchronizationContext-reliant code before AppMain is called: things aren't initialized
@@ -81,12 +84,16 @@ class Program
             return;
         }
 
-        // Single-instance enforcement — exit immediately if another instance is running
-        var mutexName = IsStartupSmokeTest ? $"{MutexName}-Test-{Environment.ProcessId}" : MutexName;
+        // Startup fixtures share a mutex with their own relaunches, isolated from the installed app.
+        var activationPipeName = InstanceActivation.GetPipeName(AppDataPaths.DataDirectory);
+        var mutexName = IsStartupSmokeTest ? $"{MutexName}-Test-{Path.GetFileName(activationPipeName)}" : MutexName;
         using var mutex = new Mutex(true, mutexName, out var createdNew);
         if (!createdNew)
         {
-            Console.Error.WriteLine("WireBound is already running.");
+            var backgroundLaunch = Array.Exists(args, arg =>
+                string.Equals(arg, "--minimized", StringComparison.OrdinalIgnoreCase));
+            if (!backgroundLaunch && !InstanceActivation.RequestAsync(activationPipeName).GetAwaiter().GetResult())
+                Console.Error.WriteLine("WireBound is already running. Open it from the system tray.");
             return;
         }
 
@@ -118,6 +125,8 @@ class Program
 
         Log.Information("WireBound Avalonia application starting...");
 
+        using var activationShutdown = new CancellationTokenSource();
+        var activationListener = InstanceActivation.ListenAsync(activationPipeName, WindowActivation.Task, activationShutdown.Token);
         try
         {
             BuildAvaloniaApp().StartWithClassicDesktopLifetime(args);
@@ -133,6 +142,8 @@ class Program
         }
         finally
         {
+            activationShutdown.Cancel();
+            activationListener.GetAwaiter().GetResult();
             Log.CloseAndFlush();
         }
     }

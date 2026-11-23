@@ -764,8 +764,9 @@ public sealed class TrayIconService : ITrayIconService
             Log.Debug(ex, "ShowInTaskbar not supported on this platform");
         }
 
+        if (_mainWindow.WindowState == WindowState.Minimized)
+            _mainWindow.WindowState = WindowState.Normal;
         _mainWindow.Show();
-        _mainWindow.WindowState = WindowState.Normal;
 
         // Activate/focus the window (platform-specific behavior)
         try

@@ -98,7 +98,8 @@ public class StartupSmokeTests
                 logs.Should().NotContain("Showed What's New dialog", diagnostics);
 
             if (existingProfile && !updateRestart)
-                logs.Should().Contain("Application started minimized to tray", diagnostics);
+                logs.Should().Contain("Application started minimized to tray", diagnostics)
+                    .And.Contain("Startup smoke test reopened the existing window on two consecutive launches", diagnostics);
         }
         finally
         {

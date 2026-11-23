@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using Avalonia.Automation;
 using Avalonia.Controls;
 using Avalonia.Controls.ApplicationLifetimes;
@@ -29,11 +30,10 @@ public partial class App
             // Let native rendering, chart updates and several polling ticks execute.
             // A window constructor alone misses failures posted to the dispatcher.
             await Task.Delay(TimeSpan.FromSeconds(5));
+            var expectMinimized = Environment.GetEnvironmentVariable("WIREBOUND_STARTUP_TEST_EXPECT_MINIMIZED") == "1";
             await Dispatcher.UIThread.InvokeAsync(() =>
             {
-                var isMinimized = !mainWindow.IsVisible || mainWindow.WindowState == WindowState.Minimized;
-                var expectMinimized = Environment.GetEnvironmentVariable("WIREBOUND_STARTUP_TEST_EXPECT_MINIMIZED") == "1";
-                if (isMinimized != expectMinimized)
+                if (IsMinimized(mainWindow) != expectMinimized)
                     throw new InvalidOperationException("Startup did not preserve the expected window visibility.");
 
                 foreach (var dialog in desktop.Windows.Where(w => w is WelcomeWindow or WhatsNewWindow).ToArray())
@@ -50,10 +50,11 @@ public partial class App
                         throw new InvalidOperationException("The startup dialog action did not dismiss it.");
                     Log.Information("Startup smoke test dismissed rendered {Dialog:l} dialog", isWelcome ? "Welcome" : "What's New");
                 }
-
-                if (isMinimized)
-                    _serviceProvider!.GetRequiredService<ITrayIconService>().ShowMainWindow();
             }, DispatcherPriority.Background);
+
+            if (expectMinimized)
+                await CheckRelaunchAsync(mainWindow);
+
             await Task.Delay(200);
             await Dispatcher.UIThread.InvokeAsync(() =>
             {
@@ -79,6 +80,68 @@ public partial class App
             // TryShutdown exercises the application's normal async cleanup handler.
             await Dispatcher.UIThread.InvokeAsync(() => desktop.TryShutdown());
         }
+    }
+
+    private static bool IsMinimized(Window window) => !window.IsVisible || window.WindowState == WindowState.Minimized;
+
+    private async Task CheckRelaunchAsync(MainWindow mainWindow)
+    {
+        await RelaunchAsync("--minimized");
+        await Dispatcher.UIThread.InvokeAsync(() =>
+        {
+            if (!IsMinimized(mainWindow))
+                throw new InvalidOperationException("A background launch opened the existing window.");
+        }, DispatcherPriority.Background);
+
+        await ReopenExistingWindowAsync(mainWindow);
+        await Dispatcher.UIThread.InvokeAsync(() =>
+        {
+            _serviceProvider!.GetRequiredService<ITrayIconService>().HideMainWindow();
+            if (!IsMinimized(mainWindow))
+                throw new InvalidOperationException("The window could not be minimized again for the relaunch test.");
+        });
+        await ReopenExistingWindowAsync(mainWindow);
+        Log.Information("Startup smoke test reopened the existing window on two consecutive launches");
+    }
+
+    private static async Task ReopenExistingWindowAsync(MainWindow mainWindow)
+    {
+        await RelaunchAsync();
+        var timeout = Stopwatch.StartNew();
+        while (timeout.Elapsed < TimeSpan.FromSeconds(5))
+        {
+            if (await Dispatcher.UIThread.InvokeAsync(() => !IsMinimized(mainWindow) && mainWindow.ShowInTaskbar))
+                return;
+            await Task.Delay(50);
+        }
+
+        throw new InvalidOperationException("A second launch did not restore the existing window.");
+    }
+
+    private static async Task RelaunchAsync(string? argument = null)
+    {
+        var startInfo = new ProcessStartInfo(Environment.ProcessPath!)
+        {
+            UseShellExecute = false,
+            CreateNoWindow = true
+        };
+        startInfo.ArgumentList.Add("--startup-smoke-test");
+        if (argument is not null)
+            startInfo.ArgumentList.Add(argument);
+
+        using var process = Process.Start(startInfo) ?? throw new InvalidOperationException("Could not relaunch WireBound.");
+        using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(10));
+        try
+        {
+            await process.WaitForExitAsync(timeout.Token);
+        }
+        catch (OperationCanceledException) when (!process.HasExited)
+        {
+            process.Kill(entireProcessTree: true);
+            throw;
+        }
+        if (process.ExitCode != 0)
+            throw new InvalidOperationException($"The second launch exited with code {process.ExitCode}.");
     }
 
     private static async Task CheckMemoryNavigationAsync(MainWindow mainWindow)

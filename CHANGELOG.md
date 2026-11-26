@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.14.0] - 2026-11-26
+
 ### Added
 
 - **Memory Multi-selection** - Grouped RAM-bar segments highlight all contributing consumers, and app segments include their process rows. Ctrl/Shift selection survives refreshes and filtering; related-process and copy actions support the selected rows.
@@ -14,6 +16,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 
 - **Welcome After Updates** - The welcome screen is limited to a fresh user profile. Reinstalling a newer version preserves completed setup and the start-minimized preference, while update restarts keep showing What's New.
+- **Reopening WireBound** - Launching WireBound again brings the existing window forward, including when it is minimized to the tray. Background launches keep it minimized.
+- **Memory Disclosure Arrows** - Expand and collapse arrows stay vertically centered when consumer names wrap.
 
 ## [0.13.0] - 2026-10-31
 
